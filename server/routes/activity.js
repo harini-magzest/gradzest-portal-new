@@ -1,0 +1,67 @@
+const express = require('express');
+const router  = express.Router();
+const ActivityLog  = require('../models/ActivityLog');
+const authMiddleware = require('../middleware/auth');
+const { logActivity } = require('../middleware/logActivity');
+
+// ── GET /api/activity ────────────────────────────────────────────────────────
+// Query params:
+//   limit  – max events to return (default 50, max 200)
+//   since  – ISO timestamp; only return events newer than this
+//   type   – filter by event type (omit or "all" for no filter)
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const { since, type } = req.query;
+
+    const query = {};
+    if (since) query.createdAt = { $gt: new Date(since) };
+    if (type && type !== 'all') query.type = type;
+
+    const events = await ActivityLog
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    // Per-type totals for the stats bar
+    const rawCounts = await ActivityLog.aggregate([
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+    ]);
+    const counts = rawCounts.reduce((acc, { _id, count }) => {
+      acc[_id] = count;
+      return acc;
+    }, {});
+
+    res.json({ events, counts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── POST /api/activity/seed ──────────────────────────────────────────────────
+// Dev-only: inserts sample events so the feed is not empty on first load.
+// Remove or guard this route before going to production.
+router.post('/seed', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+
+  const samples = [
+    { type: 'enquiry',   action: 'submitted new enquiry',       detail: 'MS CS — University of Toronto, Canada',              studentName: 'Aryan Sharma' },
+    { type: 'visa',      action: 'visa application approved',   detail: 'Student visa (F-1) — USA · Intake: September 2025',   studentName: 'Priya Patel' },
+    { type: 'payment',   action: 'made payment',                detail: 'Application fee — ₹15,000 · Ref #PY9821',             studentName: 'Mohammed Al-Rashid' },
+    { type: 'alert',     action: 'document deadline in 3 days', detail: 'SOP & LORs pending for Monash University',            studentName: 'System' },
+    { type: 'offer',     action: 'received university offer',   detail: 'University of Melbourne — MBA · Conditional offer',   studentName: 'Nguyen Thi Lan' },
+    { type: 'document',  action: 'uploaded documents',          detail: 'Passport, marksheet, IELTS scorecard',                studentName: 'Sara Ahmed' },
+    { type: 'interview', action: 'visa interview scheduled',    detail: 'VFS Global, Hyderabad — 12 June, 10:30 AM',           studentName: 'Aryan Sharma' },
+  ];
+
+  const created = [];
+  for (const s of samples) {
+    const entry = await logActivity(s.type, s.action, s.detail, null, { studentName: s.studentName });
+    if (entry) created.push(entry);
+  }
+
+  res.json({ seeded: created.length });
+});
+
+module.exports = router;
