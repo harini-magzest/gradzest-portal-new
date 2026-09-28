@@ -1,6 +1,7 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../../api';
+import StudentRecord from '../../components/StudentRecord';
 import {
   Search, X, ChevronRight, Download, FileText,
   BookOpen, Globe, DollarSign, Phone, Mail, CheckCircle, Layers,
@@ -318,6 +319,12 @@ export default function AppTeamStudents() {
           </div>
 
           <div className="p-6 space-y-5 max-w-4xl">
+            {/* Timeline / Notes / Messages / Activities / Emails / Pipelines / Files */}
+            {selectedDetail && (
+              <StudentRecord key={selected._id} student={selectedDetail} canEdit canReply={false}
+                onStudentChange={u => setSelectedDetail((p: any) => ({ ...p, ...u }))} />
+            )}
+
             {/* Profile details */}
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">

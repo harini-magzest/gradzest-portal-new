@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
@@ -123,6 +124,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const obj = student.toJSON();
     delete obj.password;
     // Return tempPassword so the counselor can share it manually if email fails
+    recordStaffActivity(req, { kind: 'student', title: 'Student added', detail: student.email, studentId: student._id, studentName: student.name });
     res.status(201).json({ ...obj, tempPassword });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -150,6 +152,7 @@ router.post('/:id/documents', authMiddleware, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, { $push: { documents: doc } }, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'Student not found' });
     const newDoc = user.documents[user.documents.length - 1];
+    recordStaffActivity(req, { kind: 'document', title: 'Document requested', detail: `${doc.name}${doc.type ? ` (${doc.type})` : ''}`, studentId: user._id, studentName: user.name });
 
     // Notify student via socket
     const io = req.app.get('io');
@@ -201,6 +204,7 @@ router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
 
     // Notify student of document status change
     const doc = user.documents.id(req.params.docId);
+    if (doc) recordStaffActivity(req, { kind: 'document', title: `Document marked ${status}`, detail: doc.name, studentId: user._id, studentName: user.name });
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');
     const sids = userSockets?.get(String(req.params.id));
@@ -210,6 +214,145 @@ router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// GET /api/students/:id/record — timeline, activities, emails and chats for the student record tabs
+router.get('/:id/record', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const StaffActivity = require('../models/StaffActivity');
+  const ActivityLog = require('../models/ActivityLog');
+  const EmailLog = require('../models/EmailLog');
+  const Meeting = require('../models/Meeting');
+  const ChatRoom = require('../models/ChatRoom');
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents');
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    const sid = String(student._id);
+    const me = String(req.user.id);
+
+    const [staffActs, studentActs, emails, meetings, allRooms] = await Promise.all([
+      StaffActivity.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(300).lean(),
+      ActivityLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
+      EmailLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
+      Meeting.find({ 'participants.userId': sid }).sort({ scheduledDate: -1, scheduledTime: -1 }).limit(100).lean(),
+      ChatRoom.find({ participants: sid }).lean(),
+    ]);
+
+    // Counselors see only their own conversation with the student; admins see all of them
+    const rooms = req.user.role === 'admin' ? allRooms : allRooms.filter(r => r.participants.includes(me));
+
+    // ── Timeline ──
+    const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor' };
+    const timeline = [];
+    timeline.push({ id: 'joined', at: student.createdAt || student.joinedDate, kind: 'student', title: 'Student created', detail: SOURCE[student.source] || '' });
+    staffActs.forEach(a => timeline.push({ id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, by: a.actorName, detail: a.detail }));
+    studentActs.forEach(a => timeline.push({ id: String(a._id), at: a.createdAt, kind: a.type, title: a.action, detail: a.detail }));
+    (student.applications || []).forEach(a => a.submittedDate && timeline.push({
+      id: `app-${a._id}`, at: a.submittedDate, kind: 'application', title: 'Application submitted', detail: `${a.universityName} – ${a.courseName}`,
+    }));
+    (student.documents || []).forEach(d => d.url && d.uploadedDate && timeline.push({
+      id: `doc-${d._id}`, at: d.uploadedDate, kind: 'document', title: 'Document uploaded', detail: `${d.name}${d.type ? ` (${d.type})` : ''}`,
+    }));
+    emails.forEach(e => timeline.push({
+      id: `email-${e._id}`, at: e.createdAt, kind: 'email', title: e.status === 'sent' ? 'Email sent' : 'Email failed',
+      by: e.sentByName || (e.kind === 'auto' ? 'Gradzest (automatic)' : ''), detail: e.subject,
+    }));
+    timeline.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+    // ── Activities: meetings, chat-scheduled meetings, calls ──
+    const activities = meetings.map(m => ({
+      id: String(m._id), type: 'meeting', title: m.title, date: m.scheduledDate, time: m.scheduledTime,
+      duration: m.duration, status: m.status, link: m.meetingLink, platform: m.platform, by: m.createdByName,
+      with: (m.participants || []).filter(p => p.userId !== sid).map(p => p.name).filter(Boolean),
+    }));
+    allRooms.forEach(r => {
+      const other = r.participantNames?.[r.participants.findIndex(p => p !== sid)] || 'Staff';
+      (r.messages || []).forEach(m => {
+        if (m.type === 'call') activities.push({
+          id: String(m._id), type: 'call', title: `${m.senderId === sid ? 'Call from student to' : 'Call from'} ${m.senderId === sid ? other : m.senderName || other}`,
+          at: m.timestamp, status: m.callStatus, duration: m.callDuration,
+        });
+        if (m.type === 'meeting') activities.push({
+          id: String(m._id), type: 'chat_meeting', title: `Meeting scheduled in chat by ${m.senderName || other}`,
+          date: m.meetingDate, time: m.meetingTime, notes: m.meetingNotes, at: m.timestamp,
+        });
+      });
+    });
+
+    res.json({
+      timeline: timeline.slice(0, 400),
+      activities,
+      emails: emails.map(e => ({ ...e, id: String(e._id) })),
+      rooms: rooms.map(r => ({
+        id: String(r._id), type: r.type, participants: r.participants, participantNames: r.participantNames,
+        messages: (r.messages || []).slice(-200).map(m => ({ ...m, id: String(m._id) })),
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// POST /api/students/:id/emails — staff writes an email to the student (logged via the mailer wrapper)
+router.post('/:id/emails', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const subject = String(req.body.subject || '').trim();
+  const body = String(req.body.body || '').trim();
+  if (!subject || !body) return res.status(400).json({ message: 'Subject and message are required' });
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return res.status(400).json({ message: 'Email is not set up yet. Fill in the SMTP settings in server/.env.' });
+  }
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email');
+    if (!student?.email) return res.status(404).json({ message: 'Student has no email address' });
+    const sender = await User.findById(req.user.id).select('name');
+    const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    await req.app.get('mailer').sendMail({
+      from: `"${(sender?.name || 'Gradzest').replace(/"/g, '')} via Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: student.email,
+      subject,
+      html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#222;">${esc(body).replace(/\n/g, '<br>')}</div>`,
+      gzMeta: { kind: 'manual', sentById: req.user.id, sentByName: sender?.name || '' },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ message: `Email could not be sent: ${err.message}` });
+  }
+});
+
+// PUT /api/students/:id/lead-stage — admin, or the student's assigned counselor
+const LEAD_STAGES = {
+  new_enquiry: 'New Enquiry', interested: 'Interested', counselling: 'Counselling', shortlisting: 'Shortlisting',
+  applications: 'Applications', visa_process: 'Visa Process', visa_approved: 'Visa Approved', enrolment: 'Enrolment',
+};
+router.put('/:id/lead-stage', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const { leadStage } = req.body;
+  if (!LEAD_STAGES[leadStage]) return res.status(400).json({ message: 'Invalid lead stage' });
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' });
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (req.user.role === 'counselor' && String(student.counselorId) !== String(req.user.id)) {
+      // Counselor-created students are linked only via the counselor's assignedStudents list
+      const me = await User.findById(req.user.id).select('assignedStudents');
+      if (!me?.assignedStudents?.map(String).includes(String(student._id))) {
+        return res.status(403).json({ message: 'Only the assigned counselor can change this student\'s stage' });
+      }
+    }
+    const from = student.leadStage || 'new_enquiry';
+    if (from !== leadStage) {
+      student.leadStage = leadStage;
+      await student.save();
+      recordStaffActivity(req, {
+        kind: 'stage', title: 'Lead Stage updated',
+        detail: `'${LEAD_STAGES[from]}' to '${LEAD_STAGES[leadStage]}'`,
+        studentId: student._id, studentName: student.name,
+      });
+    }
+    const obj = student.toJSON();
+    delete obj.password;
+    res.json(obj);
+  } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
 // POST /api/students/:id/notes — add a note
@@ -225,6 +368,7 @@ router.post('/:id/notes', authMiddleware, async (req, res) => {
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'Student not found' });
+    recordStaffActivity(req, { kind: 'note', title: 'Note added', detail: text.trim().slice(0, 140), studentId: user._id, studentName: user.name });
     res.json(user.toJSON());
   } catch { res.status(500).json({ message: 'Server error' }); }
 });

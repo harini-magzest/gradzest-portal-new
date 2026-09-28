@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, Users, UserCog,
+  Calendar, Clock, Users, UserCog, Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
@@ -143,8 +143,9 @@ export default function AdminChat() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
+  const [appTeam, setAppTeam] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'students' | 'counselors'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'counselors' | 'appteam'>('students');
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -160,19 +161,22 @@ export default function AdminChat() {
     const navState = location.state as any;
     (async () => {
       try {
-        const [roomList, studentList, counselorList] = await Promise.all([
+        const [roomList, studentList, counselorList, adminUsers] = await Promise.all([
           api.chat.rooms(), api.admin.students(), api.admin.counselors(),
+          api.chat.staff().catch(() => []),
         ]);
+        const appTeamList = adminUsers.filter((u: any) => u.isAppTeam && String(u._id || u.id) !== String(user.id));
         setRooms(roomList);
         setStudents(studentList);
         setCounselors(counselorList);
+        setAppTeam(appTeamList);
         if (navState?.openChatWith) {
           const person = navState.openChatWith;
           const pid = String(person._id || person.id);
           const isStudent = studentList.some((s: any) => String(s._id || s.id) === pid);
-          setActiveTab(isStudent ? 'students' : 'counselors');
-          const isCounselorNav = !studentList.some((s: any) => String(s._id || s.id) === pid);
-          const expectedNavType = isCounselorNav ? 'admin-counselor' : undefined;
+          const isAppTeamNav = appTeamList.some((u: any) => String(u._id || u.id) === pid);
+          setActiveTab(isStudent ? 'students' : isAppTeamNav ? 'appteam' : 'counselors');
+          const expectedNavType = isStudent ? undefined : isAppTeamNav ? 'admin-appteam' : 'admin-counselor';
           const existing = roomList.find((r: any) => r.participants?.map(String).includes(pid));
           if (existing && (!expectedNavType || existing.type === expectedNavType)) {
             setSelectedRoom(existing);
@@ -240,8 +244,9 @@ export default function AdminChat() {
     const pid = String(person._id || person.id);
     const isStudentPerson = students.some((s: any) => String(s._id || s.id) === pid);
     const isCounselorPerson = counselors.some((c: any) => String(c._id || c.id) === pid);
-    setActiveTab(isStudentPerson ? 'students' : 'counselors');
-    const expectedType = isCounselorPerson ? 'admin-counselor' : undefined;
+    const isAppTeamPerson = appTeam.some((u: any) => String(u._id || u.id) === pid);
+    setActiveTab(isStudentPerson ? 'students' : isAppTeamPerson ? 'appteam' : 'counselors');
+    const expectedType = isCounselorPerson ? 'admin-counselor' : isAppTeamPerson ? 'admin-appteam' : undefined;
     const existing = rooms.find((r: any) => r.participants?.map(String).includes(pid));
     if (existing && (!expectedType || existing.type === expectedType)) { setSelectedRoom(existing); return; }
     try {
@@ -307,16 +312,16 @@ export default function AdminChat() {
 
   const remoteName = selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'User';
   const remoteId = selectedRoom?.participants?.find((id: string) => id !== String(user?.id)) ?? '';
-  const isStudent = students.some((s: any) => String(s._id || s.id) === remoteId);
-
   const getSenderRole = (senderId: string) => {
     if (String(user?.id) === senderId) return 'Admin Team';
     if (students.some((s: any) => String(s._id || s.id) === senderId)) return 'Student';
     if (counselors.some((c: any) => String(c._id || c.id) === senderId)) return 'Counselor';
+    if (appTeam.some((u: any) => String(u._id || u.id) === senderId)) return 'Application Team';
     return '';
   };
+  const remoteRole = getSenderRole(remoteId) || 'Counselor';
 
-  const list = activeTab === 'students' ? students : counselors;
+  const list = activeTab === 'students' ? students : activeTab === 'appteam' ? appTeam : counselors;
   const filteredList = list
     .filter((p: any) =>
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -338,7 +343,7 @@ export default function AdminChat() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Chat</h1>
-        <p className="text-gray-500 mt-1">Communicate with students and counselors</p>
+        <p className="text-gray-500 mt-1">Communicate with students, counselors and the application team</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex chat-window-wide">
@@ -355,7 +360,7 @@ export default function AdminChat() {
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100">
-            {([['students', 'Students', Users], ['counselors', 'Counselors', UserCog]] as const).map(([tab, label, Icon]) => (
+            {([['students', 'Students', Users], ['counselors', 'Counselors', UserCog], ['appteam', 'App Team', Briefcase]] as const).map(([tab, label, Icon]) => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
                   activeTab === tab ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'
@@ -370,7 +375,7 @@ export default function AdminChat() {
             {filteredList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                 <MessageSquare className="w-6 h-6 text-gray-300 mb-1" />
-                <p className="text-xs text-gray-400">No {activeTab} found</p>
+                <p className="text-xs text-gray-400">No {activeTab === 'appteam' ? 'application team members' : activeTab} found</p>
               </div>
             ) : filteredList.map((person: any) => {
               const pid = String(person._id || person.id);
@@ -387,7 +392,9 @@ export default function AdminChat() {
                 <button type="button" key={pid} onClick={() => openChat(person)}
                   className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-purple-50' : ''}`}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                    activeTab === 'students' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'
+                    activeTab === 'students' ? 'bg-sky-100 text-sky-700'
+                      : activeTab === 'appteam' ? 'bg-orange-100 text-orange-700'
+                      : 'bg-emerald-100 text-emerald-700'
                   }`}>
                     {person.name?.charAt(0)}
                   </div>
@@ -422,7 +429,7 @@ export default function AdminChat() {
                 <p className="font-semibold text-gray-900">{remoteName}</p>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-500">{isStudent ? 'Student' : 'Counselor'}</span>
+                  <span className="text-xs text-gray-500">{remoteRole}</span>
                 </div>
               </div>
               <button type="button" title="Voice call" aria-label="Voice call"
@@ -534,7 +541,7 @@ export default function AdminChat() {
             <div className="text-center">
               <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">Select a conversation</p>
-              <p className="text-gray-400 text-sm mt-1">Choose a student or counselor from the list</p>
+              <p className="text-gray-400 text-sm mt-1">Choose a student, counselor or application team member from the list</p>
             </div>
           </div>
         )}

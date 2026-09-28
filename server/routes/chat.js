@@ -3,6 +3,7 @@ const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
@@ -15,6 +16,18 @@ async function resolveDisplayRole(userId, userRole) {
   if (userRole === 'student') return 'Student';
   return userRole;
 }
+
+// Admin-side staff directory for chat (admins + application team) — minimal fields only,
+// so Application Team accounts can list admins without access to /api/admin/appteam-users
+router.get('/staff', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const staff = await User.find({ role: 'admin' }).select('name email isAppTeam');
+    res.json(staff.map(u => ({ _id: String(u._id), id: String(u._id), name: u.name, email: u.email, isAppTeam: !!u.isAppTeam })));
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Get all rooms for current user
 router.get('/rooms', authMiddleware, async (req, res) => {
@@ -29,7 +42,7 @@ router.get('/rooms', authMiddleware, async (req, res) => {
     const saves = [];
     for (const room of rooms) {
       const otherId = room.participants.find(p => p !== req.user.id.toString());
-      if (!otherId) continue;
+      if (!otherId || room.type === 'admin-appteam') continue;
       // Only upgrade to appteam-counselor when there is positive evidence — never downgrade a manually-set room
       const nameIndicatesAppTeam = room.participantNames?.includes('Application Team');
       const isAppTeamUser = adminMap[String(otherId)];
@@ -54,7 +67,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 
     // Auto-correct room type if participant is admin
     const otherId = room.participants.find(p => p !== req.user.id.toString());
-    if (otherId) {
+    if (otherId && room.type !== 'admin-appteam') {
       const other = await User.findById(otherId).select('role isAppTeam');
       if (other?.role === 'admin') {
         const expected = other.isAppTeam ? 'appteam-counselor' : 'admin-counselor';
@@ -258,6 +271,12 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
     );
     if (!room) return res.status(404).json({ message: 'Room not found' });
     const newMsg = room.messages[room.messages.length - 1];
+    const otherIdx = room.participants.findIndex(p => p !== req.user.id.toString());
+    recordStaffActivity(req, {
+      kind: 'meeting', title: 'Meeting scheduled in chat',
+      detail: `${meetingDate} at ${meetingTime}${meetingNotes ? ` · ${meetingNotes.slice(0, 100)}` : ''}`,
+      studentName: room.participantNames?.[otherIdx] || '',
+    });
 
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');

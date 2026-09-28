@@ -122,6 +122,8 @@ const mailer = nodemailer.createTransport({
   },
 });
 
+// Record every email sent to a student (shown on the student record's Emails tab)
+require('./lib/emailLog').withEmailLog(mailer);
 app.set('mailer', mailer);
 
 // Public email subscription / free registration

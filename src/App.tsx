@@ -64,6 +64,7 @@ const AdminCourses           = lazy(() => import('./pages/admin/AdminCourses'));
 const AdminCountries         = lazy(() => import('./pages/admin/AdminCountries'));
 const AdminChat              = lazy(() => import('./pages/admin/AdminChat'));
 const AdminCounselors        = lazy(() => import('./pages/admin/AdminCounselors'));
+const AdminCounselorPerformance = lazy(() => import('./pages/admin/AdminCounselorPerformance'));
 const AdminStudents          = lazy(() => import('./pages/admin/AdminStudents'));
 const AdminActivityFeed      = lazy(() => import('./pages/admin/AdminActivityFeed'));
 const AdminMeetings          = lazy(() => import('./pages/admin/AdminMeetings'));
@@ -185,6 +186,7 @@ export default function App() {
               <Route path="courses" element={<AdminCourses />} />
               <Route path="countries" element={<AdminCountries />} />
               <Route path="counselors" element={<AdminCounselors />} />
+              <Route path="counselors/:id/performance" element={<AdminCounselorPerformance />} />
               <Route path="students" element={<AdminStudents />} />
               <Route path="applications" element={<AdminApplications />} />
               <Route path="application-board" element={<AdminApplicationBoard />} />
