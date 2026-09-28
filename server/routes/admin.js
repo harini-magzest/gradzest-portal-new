@@ -111,6 +111,56 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, async (req, res) => 
   }
 });
 
+// Create an Application Team member (admin-role account, isAppTeam: true). Open to any
+// admin — same permission as creating a counselor, not restricted to non-appteam admins.
+router.post('/appteam', authMiddleware, adminOnly, async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
+  try {
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) return res.status(409).json({ message: 'An account with this email already exists' });
+    const hashed = await bcrypt.hash(password, 10);
+    const member = new User({
+      name, email: email.toLowerCase(), password: hashed,
+      role: 'admin', isAppTeam: true, emailVerified: true,
+    });
+    await member.save();
+    const obj = member.toJSON();
+    delete obj.password;
+    res.status(201).json(obj);
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Update an Application Team member — scoped to isAppTeam admins only, so this can never
+// touch a non-appteam admin account even if someone guesses another user's id.
+router.put('/appteam/:id', authMiddleware, adminOnly, async (req, res) => {
+  const { password, role, isAppTeam, _id, ...updates } = req.body;
+  try {
+    if (password) updates.password = await bcrypt.hash(password, 10);
+    const member = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'admin', isAppTeam: true },
+      updates, { new: true }
+    ).select('-password');
+    if (!member) return res.status(404).json({ message: 'Application Team member not found' });
+    res.json(member.toJSON());
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Delete an Application Team member — same strict scoping as update, for the same reason.
+router.delete('/appteam/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const deleted = await User.findOneAndDelete({ _id: req.params.id, role: 'admin', isAppTeam: true });
+    if (!deleted) return res.status(404).json({ message: 'Application Team member not found' });
+    res.json({ message: 'Application Team member deleted' });
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create student (admin only)
 router.post('/students', authMiddleware, adminOnly, async (req, res) => {
   const { name, email, password, phone, nationality, educationLevel, gpa, englishScore, budget, preferredCountries, interestedCourses, counselorId } = req.body;
