@@ -26,6 +26,8 @@ const AVATAR_COLORS = [
   'from-red-500 to-rose-600',
 ];
 
+const TITLE_OPTIONS = ['Education Counselor', 'Associate Counselor', 'Senior Counselor', 'Lead Counselor'];
+
 const DEFAULT_FORM = {
   name: '', email: '', password: '',
   specialization: [] as string[],
@@ -125,6 +127,11 @@ function CounselorFormModal({
       bio: initial.bio || '',
     } : {}),
   });
+  // Whether the Title field shows the free-text box instead of the preset dropdown —
+  // starts open when editing someone whose title isn't one of the presets.
+  const [customTitle, setCustomTitle] = useState(
+    Boolean(initial?.title) && !TITLE_OPTIONS.includes(initial.title)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -219,8 +226,29 @@ function CounselorFormModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input value={form.title} onChange={e => set('title', e.target.value)}
-                placeholder="e.g. Senior Counselor" className={inputCls} />
+              {customTitle ? (
+                <div className="flex gap-2">
+                  <input value={form.title} onChange={e => set('title', e.target.value)}
+                    placeholder="Custom title" className={inputCls} autoFocus />
+                  <button type="button" onClick={() => { setCustomTitle(false); set('title', ''); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap flex-shrink-0">
+                    Use preset
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={TITLE_OPTIONS.includes(form.title) ? form.title : ''}
+                  onChange={e => {
+                    if (e.target.value === '__other__') setCustomTitle(true);
+                    else set('title', e.target.value);
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select a title…</option>
+                  {TITLE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="__other__">Other (custom)…</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Experience (years)</label>
