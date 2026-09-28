@@ -23,14 +23,14 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col"
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col"
            style={{ height: '90vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-            <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+            <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <span className="text-sm font-semibold text-gray-900 truncate">
               {fileName || 'Document Preview'}
             </span>
           </div>
@@ -47,7 +47,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
             </a>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -55,7 +55,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
         </div>
 
         {/* Preview body */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl bg-gray-50 dark:bg-gray-800">
+        <div className="flex-1 overflow-hidden rounded-b-2xl bg-gray-50">
           {type === 'pdf' && (
             <iframe
               src={url}
@@ -80,7 +80,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
             />
           )}
           {type === 'unknown' && (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-gray-500 dark:text-gray-400">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-gray-500">
               <AlertCircle className="w-12 h-12 text-yellow-500" />
               <p className="text-base font-medium">Preview not available for this file type.</p>
               <a

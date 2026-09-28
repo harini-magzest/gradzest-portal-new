@@ -123,6 +123,9 @@ export const api = {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
     get: (id: string) => req<any>(`/students/${id}`, { headers: authHeaders() }),
+    update: (id: string, data: any) => req<any>(`/students/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
     updateDocument: (studentId: string, docId: string, status: string) =>
       req<any>(`/students/${studentId}/documents/${docId}`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify({ status }),

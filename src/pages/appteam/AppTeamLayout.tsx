@@ -27,7 +27,7 @@ export default function AppTeamLayout() {
   if (user?.role !== 'admin') return <Navigate to="/login?redirect=/appteam" />;
 
   return (
-    <div className="min-h-screen bg-orange-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-orange-50">
       <Navbar />
       <div className="flex">
 
@@ -57,11 +57,11 @@ export default function AppTeamLayout() {
         </aside>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex z-40">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
           {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center py-2.5 text-[10px] gap-1 font-medium ${isActive ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`
+                `flex-1 flex flex-col items-center py-2.5 text-[10px] gap-1 font-medium ${isActive ? 'text-orange-600' : 'text-gray-400'}`
               }>
               <Icon className="w-5 h-5" />
               <span>{label}</span>

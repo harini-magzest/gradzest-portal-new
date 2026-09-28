@@ -143,6 +143,35 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+const COUNSELOR_EDITABLE_FIELDS = ['name', 'phone', 'nationality', 'educationLevel', 'gpa', 'englishScore', 'preferredCountries', 'budget', 'interestedCourses', 'status'];
+
+// Update an assigned student's profile (counselor only)
+router.put('/:id', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const counselor = await User.findById(req.user.id).select('assignedStudents');
+    if (!counselor?.assignedStudents?.includes(req.params.id)) {
+      return res.status(403).json({ message: 'You can only edit your assigned students' });
+    }
+    const updates = {};
+    for (const field of COUNSELOR_EDITABLE_FIELDS) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+    if (updates.name !== undefined && !String(updates.name).trim()) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    const student = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'student' },
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select('-password');
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    res.json(student.toJSON());
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 // Request document for student (counselor only)
 router.post('/:id/documents', authMiddleware, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
