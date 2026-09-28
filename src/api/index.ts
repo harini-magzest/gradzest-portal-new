@@ -302,6 +302,15 @@ export const api = {
     markAppTeam: (id: string, isAppTeam: boolean) => req<any>(`/admin/users/${id}/appteam`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ isAppTeam }),
     }),
+    createAppTeamMember: (data: { name: string; email: string; password: string }) => req<any>('/admin/appteam', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateAppTeamMember: (id: string, data: any) => req<any>(`/admin/appteam/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteAppTeamMember: (id: string) => req<any>(`/admin/appteam/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
   },
 
   tasks: {
