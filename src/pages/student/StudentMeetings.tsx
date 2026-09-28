@@ -12,6 +12,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; icon: string
   teams: { label: 'Microsoft Teams', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🟣' },
   zoom:  { label: 'Zoom',            color: 'bg-blue-100 text-blue-700 border-blue-200',       icon: '🔵' },
   meet:  { label: 'Google Meet',     color: 'bg-green-100 text-green-700 border-green-200',    icon: '🟢' },
+  jitsi: { label: 'Jitsi Meet',      color: 'bg-sky-100 text-sky-700 border-sky-200',          icon: '🎥' },
   other: { label: 'Other',           color: 'bg-gray-100 text-gray-700 border-gray-200',       icon: '⚫' },
 };
 

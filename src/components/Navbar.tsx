@@ -75,7 +75,8 @@ export default function Navbar() {
   function handleNotifClick(n: AppNotification) {
     markRead(n.id);
     setNotifOpen(false);
-    if (n.link) navigate(n.link);
+    if (n.link?.startsWith('http')) window.open(n.link, '_blank', 'noopener,noreferrer');
+    else if (n.link) navigate(n.link);
   }
 
   const handleLogout = () => {

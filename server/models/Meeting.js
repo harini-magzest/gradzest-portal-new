@@ -5,7 +5,7 @@ const MeetingSchema = new mongoose.Schema({
   scheduledDate: { type: String, required: true }, // YYYY-MM-DD
   scheduledTime: { type: String, required: true }, // HH:MM
   duration: { type: Number, default: 60 }, // minutes
-  platform: { type: String, enum: ['teams', 'zoom', 'meet', 'other'], default: 'other' },
+  platform: { type: String, enum: ['teams', 'zoom', 'meet', 'jitsi', 'other'], default: 'other' },
   meetingLink: { type: String, default: '' },
   participants: [{
     userId: String,

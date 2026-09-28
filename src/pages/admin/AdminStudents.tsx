@@ -6,9 +6,10 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, Info, UserX, Activity,
+  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy,
 } from 'lucide-react';
 import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
@@ -81,6 +82,196 @@ function BtnClose({ onClick }: { onClick: () => void }) {
       className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 active:scale-95 transition-all">
       <X className="w-4 h-4" />
     </button>
+  );
+}
+
+// ── Group meeting modal ──────────────────────────────────────────────────────
+// Creates one Jitsi room for the student plus the staff the admin ticks. Everyone
+// invited gets the same link (notification + email); the student sees it on their Meetings page.
+function localDateTime(d = new Date()) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+}
+
+function GroupMeetingModal({ student, counselors, onClose }: { student: any; counselors: any[]; onClose: () => void }) {
+  const { user } = useAuth();
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(student.counselorId ? [String(student.counselorId)] : []),
+  );
+  const [title, setTitle] = useState(`Welcome call – ${student.name}`);
+  const [when, setWhen] = useState<'now' | 'later'>('now');
+  const [date, setDate] = useState(localDateTime().date);
+  const [time, setTime] = useState('');
+  const [duration, setDuration] = useState('60');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [created, setCreated] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => {}); }, []);
+
+  const selfId = String(user?.id ?? '');
+  const groups = [
+    { key: 'admin', label: 'Admins', people: adminUsers.filter(u => !u.isAppTeam && normalId(u) !== selfId) },
+    { key: 'appteam', label: 'Application Team (HR)', people: adminUsers.filter(u => u.isAppTeam && normalId(u) !== selfId) },
+    { key: 'counselor', label: 'Counselors', people: counselors },
+  ];
+
+  const toggle = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const create = async () => {
+    if (when === 'later' && (!date || !time)) { setError('Pick a date and time.'); return; }
+    setCreating(true); setError('');
+    const at = when === 'now' ? localDateTime() : { date, time };
+    const staff = groups.flatMap(g => g.people
+      .filter(p => selected.has(normalId(p)))
+      .map(p => ({ userId: normalId(p), name: p.name, role: g.key, email: p.email })));
+    try {
+      const meeting = await api.meetings.create({
+        title: title.trim() || `Meeting – ${student.name}`,
+        scheduledDate: at.date, scheduledTime: at.time,
+        duration: parseInt(duration), platform: 'jitsi',
+        participants: [
+          { userId: selfId, name: user?.name, role: user?.isAppTeam ? 'appteam' : 'admin', email: user?.email },
+          { userId: normalId(student), name: student.name, role: 'student', email: student.email },
+          ...staff,
+        ],
+      });
+      setCreated({ ...meeting, invited: staff });
+      if (when === 'now' && meeting.meetingLink) window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create meeting.');
+    } finally { setCreating(false); }
+  };
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(created.meetingLink); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center"><Video className="w-5 h-5" /></div>
+            <div>
+              <h3 className="font-bold text-gray-900">Group meeting</h3>
+              <p className="text-xs text-gray-500">with {student.name}</p>
+            </div>
+          </div>
+          <BtnClose onClick={onClose} />
+        </div>
+
+        {created ? (
+          <div className="p-5 space-y-4 overflow-y-auto">
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              Meeting created — {created.invited.length + 1} people invited
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Meeting link</p>
+              <div className="flex gap-2">
+                <input readOnly value={created.meetingLink} aria-label="Meeting link"
+                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-700" />
+                <button type="button" onClick={copyLink}
+                  className="px-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-1.5">
+                  {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}{copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              <p><span className="text-gray-400">When:</span> {created.scheduledDate} at {created.scheduledTime} · {created.duration} min</p>
+              <p className="mt-1"><span className="text-gray-400">Invited:</span> {[student.name, ...created.invited.map((p: any) => p.name)].join(', ')}</p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
+              <BtnPrimary variant="blue" className="flex-1" onClick={() => window.open(created.meetingLink, '_blank', 'noopener,noreferrer')}>
+                <Video className="w-4 h-4" /> Join now
+              </BtnPrimary>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <label htmlFor="gm-title" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Title</label>
+                <input id="gm-title" value={title} onChange={e => setTitle(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">When</p>
+                <div className="flex gap-2">
+                  {([['now', 'Start now'], ['later', 'Schedule']] as const).map(([k, label]) => (
+                    <button key={k} type="button" onClick={() => setWhen(k)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${when === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                      {label}
+                    </button>
+                  ))}
+                  <select value={duration} onChange={e => setDuration(e.target.value)} title="Duration"
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {['30', '45', '60', '90'].map(d => <option key={d} value={d}>{d} min</option>)}
+                  </select>
+                </div>
+                {when === 'later' && (
+                  <div className="flex gap-2 mt-2">
+                    <input type="date" value={date} min={localDateTime().date} onChange={e => setDate(e.target.value)} aria-label="Date"
+                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="time" value={time} onChange={e => setTime(e.target.value)} aria-label="Time"
+                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Invite staff <span className="normal-case font-normal text-gray-400">({selected.size} selected)</span></p>
+                <div className="space-y-3">
+                  {groups.map(g => (
+                    <div key={g.key}>
+                      <p className="text-xs font-semibold text-gray-700 mb-1">{g.label}</p>
+                      {g.people.length === 0 ? (
+                        <p className="text-xs text-gray-400">None available</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {g.people.map(p => {
+                            const id = normalId(p);
+                            const on = selected.has(id);
+                            const isAssigned = g.key === 'counselor' && String(student.counselorId) === id;
+                            return (
+                              <button key={id} type="button" onClick={() => toggle(id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                                {on && <Check className="w-3 h-3" />}{p.name}{isAssigned && <span className="text-[10px] text-gray-400">(assigned)</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400">
+                A free Jitsi link is generated automatically. Everyone gets the same link. The student sees it on their Meetings page, and staff get a notification. Everyone is also emailed when email (SMTP) is set up.
+              </p>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+            <div className="p-5 border-t border-gray-100 flex gap-3">
+              <BtnGhost onClick={onClose} className="flex-1">Cancel</BtnGhost>
+              <BtnPrimary variant="blue" className="flex-1" onClick={create} disabled={creating}>
+                {creating ? <Spinner white /> : <Video className="w-4 h-4" />}
+                {when === 'now' ? 'Start meeting' : 'Schedule meeting'}
+              </BtnPrimary>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -729,6 +920,7 @@ export default function AdminStudents() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showNewApp, setShowNewApp] = useState(false);
   const [newAppStudent, setNewAppStudent] = useState<any>(null);
+  const [meetingStudent, setMeetingStudent] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -890,6 +1082,7 @@ export default function AdminStudents() {
           onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }} />
       )}
       {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
+      {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
 
       {/* Page wrapper */}
       <div className="space-y-6">
@@ -1155,6 +1348,10 @@ export default function AdminStudents() {
                             <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })} title="Chat"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
                               <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
+                            <button type="button" onClick={() => setMeetingStudent(s)} title="Start group meeting"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors">
+                              <Video className="w-3.5 h-3.5" />
                             </button>
                             <button type="button" onClick={() => handleToggle(s)} disabled={isToggling} title={isActive ? 'Deactivate' : 'Activate'}
                               className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${isActive ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'}`}>
