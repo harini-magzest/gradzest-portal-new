@@ -93,10 +93,12 @@ export default function Navbar() {
     : user?.name ?? "";
 
   const scrollToHowItWorks = (e: React.MouseEvent) => {
+    e.preventDefault();
     setMenuOpen(false);
     if (location.pathname === "/") {
-      e.preventDefault();
       document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate({ pathname: "/", hash: "#how-it-works" });
     }
   };
 
