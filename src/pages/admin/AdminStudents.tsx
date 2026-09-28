@@ -600,13 +600,13 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
           ) : loading ? (
             <div className="space-y-3 py-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0" />
+                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
-                    <div className="h-3 bg-gray-100 dark:bg-gray-600 rounded w-1/2" />
+                    <div className="h-3.5 bg-gray-200 rounded w-2/3" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
                   </div>
-                  <div className="h-7 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                  <div className="h-7 w-16 bg-gray-200 rounded-lg" />
                 </div>
               ))}
             </div>

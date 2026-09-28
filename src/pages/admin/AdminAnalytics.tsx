@@ -121,9 +121,9 @@ export default function AdminAnalytics() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
-                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
-                <div className="h-48 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+              <div key={i} className="bg-white rounded-xl border border-gray-100 p-5">
+                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-4" />
+                <div className="h-48 bg-gray-100 rounded animate-pulse" />
               </div>
             ))}
           </div>

@@ -3,12 +3,11 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Menu, X, ChevronDown, LogOut, User, LayoutDashboard,
   Bell, Calendar, FileText, Tag, CheckCheck, ChevronUp, GraduationCap,
-  Sun, Moon, UserPlus,
+  UserPlus,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../context/AuthModalContext";
 import { useNotifications, AppNotification } from "../context/NotificationContext";
-import { useTheme } from "../context/ThemeContext";
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -36,7 +35,6 @@ export default function Navbar() {
   const { user, logout, isAuthenticated } = useAuth();
   const { open } = useAuthModal();
   const { notifications, unreadCount, markRead, markAllRead, dismiss, clearAll } = useNotifications();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,7 +105,7 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
 
@@ -308,11 +306,6 @@ export default function Navbar() {
                 </button>
               </>
             )}
-
-            <button type="button" aria-label="Toggle dark mode" onClick={toggleTheme}
-              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
 
             <button type="button" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}
               className="md:hidden p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
