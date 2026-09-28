@@ -20,7 +20,7 @@ function createMailer() {
 const router = express.Router();
 
 function issueAccessToken(user) {
-  return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+  return jwt.sign({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, process.env.JWT_SECRET, { expiresIn: '15m' });
 }
 
 async function issueRefreshToken(user) {
