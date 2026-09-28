@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, UserCog,
+  Calendar, Clock, UserCog, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
@@ -27,6 +27,7 @@ const formatChatTime = (iso: string) => {
 
 function getRoleBadgeClass(role: string) {
   if (role === 'Application Team') return 'text-orange-700 bg-orange-50';
+  if (role === 'Admin Team') return 'text-purple-700 bg-purple-50';
   if (role === 'Counselor') return 'text-teal-700 bg-teal-50';
   if (role === 'Student') return 'text-sky-700 bg-sky-50';
   return 'text-gray-600 bg-gray-100';
@@ -142,6 +143,8 @@ export default function AppTeamChat() {
   const autoCounselorId = searchParams.get('counselorId');
   const [rooms, setRooms] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'counselors' | 'admins'>('counselors');
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
@@ -157,11 +160,13 @@ export default function AppTeamChat() {
     if (!user) return;
     (async () => {
       try {
-        const [roomList, counselorList] = await Promise.all([
+        const [roomList, counselorList, adminUsers] = await Promise.all([
           api.chat.rooms(), api.admin.counselors(),
+          api.admin.appteamUsers().catch(() => []),
         ]);
         setRooms(roomList);
         setCounselors(counselorList);
+        setAdmins(adminUsers.filter((u: any) => !u.isAppTeam && String(u._id || u.id) !== String(user.id)));
 
         if (autoCounselorId) {
           const target = counselorList.find((c: any) => String(c._id || c.id) === autoCounselorId);
@@ -234,13 +239,15 @@ export default function AppTeamChat() {
 
   const openChat = async (person: any) => {
     const pid = String(person._id || person.id);
+    const isAdminPerson = admins.some((a: any) => String(a._id || a.id) === pid);
+    const expectedType = isAdminPerson ? 'admin-appteam' : 'appteam-counselor';
     const existing = rooms.find((r: any) => r.participants?.map(String).includes(pid));
-    if (existing?.type === 'appteam-counselor') { setSelectedRoom(existing); return; }
+    if (existing?.type === expectedType) { setSelectedRoom(existing); return; }
     try {
       const newRoom = await api.chat.createRoom(
         [String(user?.id), pid],
         [user?.name || 'Application Team', person.name],
-        'appteam-counselor'
+        expectedType
       );
       setRooms(prev => prev.map(r => r.id === newRoom.id ? newRoom : r).concat(prev.some((r: any) => r.id === newRoom.id) ? [] : [newRoom]));
       setSelectedRoom(newRoom);
@@ -302,10 +309,12 @@ export default function AppTeamChat() {
 
   const getSenderRole = (senderId: string) => {
     if (String(user?.id) === senderId) return 'Application Team';
+    if (admins.some((a: any) => String(a._id || a.id) === senderId)) return 'Admin Team';
     return 'Counselor';
   };
+  const remoteRole = getSenderRole(remoteId);
 
-  const filteredCounselors = counselors
+  const filteredCounselors = (activeTab === 'admins' ? admins : counselors)
     .filter((p: any) =>
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.email?.toLowerCase().includes(search.toLowerCase())
@@ -326,7 +335,7 @@ export default function AppTeamChat() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Team Chat</h1>
-        <p className="text-gray-500 mt-1">Communicate with counselors</p>
+        <p className="text-gray-500 mt-1">Communicate with counselors and the admin team</p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex chat-window-wide">
@@ -336,22 +345,28 @@ export default function AppTeamChat() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search counselors…" aria-label="Search counselors"
+                placeholder="Search people…" aria-label="Search people"
                 className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-orange-50">
-            <UserCog className="w-4 h-4 text-orange-600 flex-shrink-0" />
-            <span className="text-sm font-semibold text-orange-800">Counselors</span>
-            <span className="ml-auto text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">{counselors.length}</span>
+          <div className="flex border-b border-gray-100">
+            {([['counselors', 'Counselors', UserCog, counselors.length], ['admins', 'Admin', ShieldCheck, admins.length]] as const).map(([tab, label, Icon, count]) => (
+              <button key={tab} type="button" onClick={() => setActiveTab(tab)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                  activeTab === tab ? 'text-orange-700 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                <Icon className="w-3.5 h-3.5" /> {label}
+                <span className="text-[10px] text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">{count}</span>
+              </button>
+            ))}
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {filteredCounselors.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                 <MessageSquare className="w-6 h-6 text-gray-300 mb-1" />
-                <p className="text-xs text-gray-400">No counselors found</p>
+                <p className="text-xs text-gray-400">No {activeTab === 'admins' ? 'admins' : 'counselors'} found</p>
               </div>
             ) : filteredCounselors.map((person: any) => {
               const pid = String(person._id || person.id);
@@ -367,7 +382,7 @@ export default function AppTeamChat() {
               return (
                 <button type="button" key={pid} onClick={() => openChat(person)}
                   className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-orange-50' : ''}`}>
-                  <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">
+                  <div className={`w-10 h-10 rounded-full ${activeTab === 'admins' ? 'bg-purple-600' : 'bg-teal-600'} flex items-center justify-center font-bold text-sm text-white flex-shrink-0`}>
                     {person.name?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -393,14 +408,14 @@ export default function AppTeamChat() {
         {selectedRoom ? (
           <div className="flex-1 flex flex-col min-w-0">
             <div className="p-4 border-b border-gray-200 bg-orange-50 flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className={`w-10 h-10 ${remoteRole === 'Admin Team' ? 'bg-purple-600' : 'bg-teal-600'} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
                 {remoteName.charAt(0)}
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-gray-900">{remoteName}</p>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-500">Counselor</span>
+                  <span className="text-xs text-gray-500">{remoteRole}</span>
                 </div>
               </div>
               <button type="button" title="Voice call" aria-label="Voice call"
@@ -510,7 +525,7 @@ export default function AppTeamChat() {
             <div className="text-center">
               <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">Select a conversation</p>
-              <p className="text-gray-400 text-sm mt-1">Choose a counselor from the list</p>
+              <p className="text-gray-400 text-sm mt-1">Choose a counselor or admin from the list</p>
             </div>
           </div>
         )}

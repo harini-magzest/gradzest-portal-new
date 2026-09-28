@@ -29,7 +29,7 @@ router.get('/rooms', authMiddleware, async (req, res) => {
     const saves = [];
     for (const room of rooms) {
       const otherId = room.participants.find(p => p !== req.user.id.toString());
-      if (!otherId) continue;
+      if (!otherId || room.type === 'admin-appteam') continue;
       // Only upgrade to appteam-counselor when there is positive evidence — never downgrade a manually-set room
       const nameIndicatesAppTeam = room.participantNames?.includes('Application Team');
       const isAppTeamUser = adminMap[String(otherId)];
@@ -54,7 +54,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 
     // Auto-correct room type if participant is admin
     const otherId = room.participants.find(p => p !== req.user.id.toString());
-    if (otherId) {
+    if (otherId && room.type !== 'admin-appteam') {
       const other = await User.findById(otherId).select('role isAppTeam');
       if (other?.role === 'admin') {
         const expected = other.isAppTeam ? 'appteam-counselor' : 'admin-counselor';
