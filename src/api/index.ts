@@ -232,6 +232,8 @@ export const api = {
   admin: {
     stats: () => req<any>('/admin/stats', { headers: authHeaders() }),
     counselors: () => req<any[]>('/admin/counselors', { headers: authHeaders() }),
+    counselorPerformance: (id: string, days: number) =>
+      req<any>(`/admin/counselors/${id}/performance?days=${days}`, { headers: authHeaders() }),
     createCounselor: (data: any) => req<any>('/admin/counselors', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),

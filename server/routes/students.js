@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
@@ -123,6 +124,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const obj = student.toJSON();
     delete obj.password;
     // Return tempPassword so the counselor can share it manually if email fails
+    recordStaffActivity(req, { kind: 'student', title: 'Student added', detail: student.email, studentId: student._id, studentName: student.name });
     res.status(201).json({ ...obj, tempPassword });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -150,6 +152,7 @@ router.post('/:id/documents', authMiddleware, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, { $push: { documents: doc } }, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'Student not found' });
     const newDoc = user.documents[user.documents.length - 1];
+    recordStaffActivity(req, { kind: 'document', title: 'Document requested', detail: `${doc.name}${doc.type ? ` (${doc.type})` : ''}`, studentId: user._id, studentName: user.name });
 
     // Notify student via socket
     const io = req.app.get('io');
@@ -201,6 +204,7 @@ router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
 
     // Notify student of document status change
     const doc = user.documents.id(req.params.docId);
+    if (doc) recordStaffActivity(req, { kind: 'document', title: `Document marked ${status}`, detail: doc.name, studentId: user._id, studentName: user.name });
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');
     const sids = userSockets?.get(String(req.params.id));
@@ -225,6 +229,7 @@ router.post('/:id/notes', authMiddleware, async (req, res) => {
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'Student not found' });
+    recordStaffActivity(req, { kind: 'note', title: 'Note added', detail: text.trim().slice(0, 140), studentId: user._id, studentName: user.name });
     res.json(user.toJSON());
   } catch { res.status(500).json({ message: 'Server error' }); }
 });

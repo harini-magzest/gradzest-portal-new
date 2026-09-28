@@ -3,6 +3,7 @@ const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
@@ -258,6 +259,12 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
     );
     if (!room) return res.status(404).json({ message: 'Room not found' });
     const newMsg = room.messages[room.messages.length - 1];
+    const otherIdx = room.participants.findIndex(p => p !== req.user.id.toString());
+    recordStaffActivity(req, {
+      kind: 'meeting', title: 'Meeting scheduled in chat',
+      detail: `${meetingDate} at ${meetingTime}${meetingNotes ? ` · ${meetingNotes.slice(0, 100)}` : ''}`,
+      studentName: room.participantNames?.[otherIdx] || '',
+    });
 
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');

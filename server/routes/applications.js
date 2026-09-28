@@ -4,6 +4,9 @@ const User = require('../models/User');
 const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const { checkEligibility } = require('../lib/eligibilityChecker');
+const { recordStaffActivity } = require('../lib/staffActivity');
+
+const statusLabel = (s) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const router = express.Router();
 
@@ -59,6 +62,7 @@ router.post('/:appId/comments', authMiddleware, async (req, res) => {
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'Application not found' });
     const app = user.applications.find(a => a._id.toString() === req.params.appId);
+    recordStaffActivity(req, { kind: 'comment', title: 'Commented on application', detail: `${app.universityName}: "${text.trim().slice(0, 120)}"`, studentId: user._id, studentName: user.name });
 
     // Notify the student if the commenter is not the student themselves
     if (req.user.role !== 'student') {
@@ -100,6 +104,13 @@ router.put('/:appId', authMiddleware, async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Application not found' });
     const app = user.applications.find(a => a._id.toString() === req.params.appId);
+    if (status && status !== currentStatus) {
+      recordStaffActivity(req, {
+        kind: 'application', title: 'Application status updated',
+        detail: `${app.universityName} – ${app.courseName}: '${statusLabel(currentStatus)}' to '${statusLabel(status)}'`,
+        studentId: user._id, studentName: user.name,
+      });
+    }
 
     // Notify student in real-time via socket
     const io = req.app.get('io');

@@ -163,6 +163,8 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: false },
   role: { type: String, enum: ['student', 'counselor', 'admin'], required: true },
   isAppTeam: { type: Boolean, default: false },
+  // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
+  smartfloAgent: { type: String, default: '' },
   // Social login provider IDs
   githubId: { type: String, sparse: true },
   facebookId: { type: String, sparse: true },

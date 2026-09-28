@@ -4,6 +4,7 @@ const router = express.Router();
 const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -60,6 +61,13 @@ router.post('/', auth, async (req, res) => {
       notes: notes || '',
       createdBy: req.user.id,
       createdByName: creatorName,
+    });
+
+    const firstStudent = allParticipants.find(p => p.role === 'student');
+    recordStaffActivity(req, {
+      kind: 'meeting', title: `Meeting scheduled: ${title}`,
+      detail: `${scheduledDate} at ${scheduledTime} · ${allParticipants.length} participant${allParticipants.length === 1 ? '' : 's'}`,
+      studentId: firstStudent?.userId, studentName: firstStudent?.name,
     });
 
     const isCallType = title.includes('📞');

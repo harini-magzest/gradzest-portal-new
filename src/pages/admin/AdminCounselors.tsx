@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
-  Eye, GraduationCap, BadgeCheck, Percent,
+  Eye, GraduationCap, BadgeCheck, Percent, BarChart3,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -29,7 +29,7 @@ const AVATAR_COLORS = [
 const DEFAULT_FORM = {
   name: '', email: '', password: '',
   specialization: [] as string[],
-  experience: '', title: '', phone: '', bio: '',
+  experience: '', title: '', phone: '', bio: '', smartfloAgent: '',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -123,6 +123,7 @@ function CounselorFormModal({
       title: initial.title || '',
       phone: initial.phone || '',
       bio: initial.bio || '',
+      smartfloAgent: initial.smartfloAgent || '',
     } : {}),
   });
   const [saving, setSaving] = useState(false);
@@ -153,6 +154,7 @@ function CounselorFormModal({
         title: form.title.trim() || undefined,
         phone: form.phone.trim() || undefined,
         bio: form.bio.trim() || undefined,
+        smartfloAgent: form.smartfloAgent.trim(),
       };
       if (!isEdit || form.password.trim()) payload.password = form.password;
       if (isEdit) {
@@ -236,6 +238,12 @@ function CounselorFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
               <input value={form.bio} onChange={e => set('bio', e.target.value)}
                 placeholder="Short description" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Smartflo agent</label>
+              <input value={form.smartfloAgent} onChange={e => set('smartfloAgent', e.target.value)}
+                placeholder="Agent number or name in Smartflo" className={inputCls} />
+              <p className="text-xs text-gray-400 mt-1">Used to match their Tata Smartflo calls on the Performance page.</p>
             </div>
           </div>
 
@@ -973,11 +981,11 @@ function CounselorStatsModal({
 
 function CounselorCard({
   counselor, metrics,
-  onChat, onAssign, onView, onEdit, onDelete, onStatClick, deleting,
+  onChat, onAssign, onView, onEdit, onDelete, onStatClick, onPerformance, deleting,
 }: {
   counselor: any;
   metrics: ReturnType<typeof counselorMetrics>;
-  onChat: () => void; onAssign: () => void; onView: () => void;
+  onChat: () => void; onAssign: () => void; onView: () => void; onPerformance: () => void;
   onEdit: () => void; onDelete: () => void;
   onStatClick: (type: StatType) => void;
   deleting: boolean;
@@ -1063,7 +1071,11 @@ function CounselorCard({
       </div>
 
       {/* Action buttons */}
-      <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-gray-100">
+      <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-gray-100">
+        <button type="button" onClick={onPerformance}
+          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 active:scale-95 transition-all">
+          <BarChart3 className="w-3.5 h-3.5" />Stats
+        </button>
         <button type="button" onClick={onChat}
           className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
           <MessageSquare className="w-3.5 h-3.5" />Chat
@@ -1388,6 +1400,7 @@ return (
                   onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
                   onAssign={() => setAssigning(c)}
                   onView={() => setViewing(c)}
+                  onPerformance={() => navigate(`/admin/counselors/${id}/performance`)}
                   onEdit={() => setEditing(c)}
                   onDelete={() => handleDelete(id)}
                   onStatClick={type => setStatsModal({ counselor: c, type })}
