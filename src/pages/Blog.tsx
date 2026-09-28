@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, ChevronRight, Search } from 'lucide-react';
 import { blogPosts, BlogPost } from '../data/blogPosts';
-import Navbar from '../components/Navbar';
 
 const CATEGORIES = ['All', 'Destinations', 'Scholarships', 'Visa & Immigration', 'Test Prep', 'Career'] as const;
 

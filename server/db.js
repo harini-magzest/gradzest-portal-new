@@ -1,4 +1,11 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
+
+// On some Windows networks (IPv6 link-local DNS), Node falls back to 127.0.0.1
+// and mongodb+srv SRV lookups fail with ECONNREFUSED. Use public resolvers instead.
+if (dns.getServers().every((s) => s === '127.0.0.1' || s === '::1')) {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+}
 
 const MONGO_OPTIONS = {
   serverSelectionTimeoutMS: 5000,

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
-  Eye, GraduationCap, BadgeCheck, Percent,
+  Eye, GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -26,10 +26,12 @@ const AVATAR_COLORS = [
   'from-red-500 to-rose-600',
 ];
 
+const TITLE_OPTIONS = ['Education Counselor', 'Associate Counselor', 'Senior Counselor', 'Lead Counselor'];
+
 const DEFAULT_FORM = {
   name: '', email: '', password: '',
   specialization: [] as string[],
-  experience: '', title: '', phone: '', bio: '',
+  experience: '', title: '', phone: '', bio: '', smartfloAgent: '',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -123,8 +125,14 @@ function CounselorFormModal({
       title: initial.title || '',
       phone: initial.phone || '',
       bio: initial.bio || '',
+      smartfloAgent: initial.smartfloAgent || '',
     } : {}),
   });
+  // Whether the Title field shows the free-text box instead of the preset dropdown —
+  // starts open when editing someone whose title isn't one of the presets.
+  const [customTitle, setCustomTitle] = useState(
+    Boolean(initial?.title) && !TITLE_OPTIONS.includes(initial.title)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -153,6 +161,7 @@ function CounselorFormModal({
         title: form.title.trim() || undefined,
         phone: form.phone.trim() || undefined,
         bio: form.bio.trim() || undefined,
+        smartfloAgent: form.smartfloAgent.trim(),
       };
       if (!isEdit || form.password.trim()) payload.password = form.password;
       if (isEdit) {
@@ -219,8 +228,29 @@ function CounselorFormModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input value={form.title} onChange={e => set('title', e.target.value)}
-                placeholder="e.g. Senior Counselor" className={inputCls} />
+              {customTitle ? (
+                <div className="flex gap-2">
+                  <input value={form.title} onChange={e => set('title', e.target.value)}
+                    placeholder="Custom title" className={inputCls} autoFocus />
+                  <button type="button" onClick={() => { setCustomTitle(false); set('title', ''); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap flex-shrink-0">
+                    Use preset
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={TITLE_OPTIONS.includes(form.title) ? form.title : ''}
+                  onChange={e => {
+                    if (e.target.value === '__other__') setCustomTitle(true);
+                    else set('title', e.target.value);
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select a title…</option>
+                  {TITLE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="__other__">Other (custom)…</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Experience (years)</label>
@@ -236,6 +266,12 @@ function CounselorFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
               <input value={form.bio} onChange={e => set('bio', e.target.value)}
                 placeholder="Short description" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Smartflo agent</label>
+              <input value={form.smartfloAgent} onChange={e => set('smartfloAgent', e.target.value)}
+                placeholder="Agent number or name in Smartflo" className={inputCls} />
+              <p className="text-xs text-gray-400 mt-1">Used to match their Tata Smartflo calls on the Performance page.</p>
             </div>
           </div>
 
@@ -266,6 +302,119 @@ function CounselorFormModal({
           <button type="button" onClick={handleSubmit as any} disabled={saving}
             className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
             {saving ? <><Spinner size={4} white />Saving…</> : isEdit ? 'Save Changes' : 'Create Counselor'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── New / Edit Application Team Member Modal ────────────────────────────────
+// Deliberately just name/email/password — App Team members are plain admin accounts
+// doing application processing, none of the counselor-specific fields apply.
+
+const APPTEAM_DEFAULT_FORM = { name: '', email: '', password: '' };
+
+function AppTeamFormModal({
+  initial, onClose, onSaved,
+}: {
+  initial?: any;
+  onClose: () => void;
+  onSaved: (m: any) => void;
+}) {
+  const isEdit = Boolean(initial);
+  const [form, setForm] = useState({
+    ...APPTEAM_DEFAULT_FORM,
+    ...(initial ? { name: initial.name || '', email: initial.email || '' } : {}),
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (k: keyof typeof APPTEAM_DEFAULT_FORM, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.email.trim()) {
+      setError('Name and email are required.'); return;
+    }
+    if (!isEdit && !form.password.trim()) {
+      setError('Password is required for new Application Team members.'); return;
+    }
+    setSaving(true); setError('');
+    try {
+      let result: any;
+      if (isEdit) {
+        const payload: any = { name: form.name.trim(), email: form.email.trim() };
+        if (form.password.trim()) payload.password = form.password;
+        result = await api.admin.updateAppTeamMember(normalId(initial), payload);
+      } else {
+        result = await api.admin.createAppTeamMember({
+          name: form.name.trim(), email: form.email.trim(), password: form.password,
+        });
+      }
+      onSaved(result);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-orange-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">
+              {isEdit ? 'Edit Application Team Member' : 'New Application Team Member'}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+            <input value={form.name} onChange={e => set('name', e.target.value)}
+              placeholder="e.g. Meera Iyer" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+            <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+              placeholder="appteam@example.com" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password {isEdit && <span className="text-gray-400 font-normal">(leave blank to keep unchanged)</span>}
+              {!isEdit && ' *'}
+            </label>
+            <input type="password" value={form.password} onChange={e => set('password', e.target.value)}
+              placeholder={isEdit ? '••••••••' : 'Min. 8 characters'} className={inputCls} />
+          </div>
+        </form>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button type="button" onClick={handleSubmit as any} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
+            {saving ? <><Spinner size={4} white />Saving…</> : isEdit ? 'Save Changes' : 'Create Member'}
           </button>
         </div>
       </div>
@@ -973,11 +1122,11 @@ function CounselorStatsModal({
 
 function CounselorCard({
   counselor, metrics,
-  onChat, onAssign, onView, onEdit, onDelete, onStatClick, deleting,
+  onChat, onAssign, onView, onEdit, onDelete, onStatClick, onPerformance, deleting,
 }: {
   counselor: any;
   metrics: ReturnType<typeof counselorMetrics>;
-  onChat: () => void; onAssign: () => void; onView: () => void;
+  onChat: () => void; onAssign: () => void; onView: () => void; onPerformance: () => void;
   onEdit: () => void; onDelete: () => void;
   onStatClick: (type: StatType) => void;
   deleting: boolean;
@@ -1063,7 +1212,11 @@ function CounselorCard({
       </div>
 
       {/* Action buttons */}
-      <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-gray-100">
+      <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-gray-100">
+        <button type="button" onClick={onPerformance}
+          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 active:scale-95 transition-all">
+          <BarChart3 className="w-3.5 h-3.5" />Stats
+        </button>
         <button type="button" onClick={onChat}
           className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
           <MessageSquare className="w-3.5 h-3.5" />Chat
@@ -1089,7 +1242,9 @@ function CounselorCard({
 
 export default function AdminCounselors() {
   const navigate = useNavigate();
+  const [activeRole, setActiveRole] = useState<'counselor' | 'appteam'>('counselor');
   const [counselors, setCounselors] = useState<any[]>([]);
+  const [appTeamMembers, setAppTeamMembers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1105,16 +1260,20 @@ export default function AdminCounselors() {
   const [assigning, setAssigning] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statsModal, setStatsModal] = useState<{ counselor: any; type: StatType } | null>(null);
+  const [showCreateAppTeam, setShowCreateAppTeam] = useState(false);
+  const [editingAppTeam, setEditingAppTeam] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true); setLoadError('');
     try {
-      const [c, s, a] = await Promise.all([
+      const [c, s, a, at] = await Promise.all([
         api.admin.counselors(),
         api.admin.students(),
         api.admin.applications(),
+        api.admin.appteamUsers(),
       ]);
       setCounselors(c); setStudents(s); setApplications(a);
+      setAppTeamMembers(at.filter((u: any) => u.isAppTeam));
     } catch (err: any) {
       setLoadError(err.message || 'Failed to load data.');
     } finally {
@@ -1170,6 +1329,23 @@ export default function AdminCounselors() {
     setDeletingId(null);
   };
 
+  // Filtered Application Team list — search only, none of the counselor-specific filters apply
+  const filteredAppTeam = useMemo(() => {
+    if (!search) return appTeamMembers;
+    const q = search.toLowerCase();
+    return appTeamMembers.filter(m => m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q));
+  }, [appTeamMembers, search]);
+
+  const handleDeleteAppTeam = async (id: string) => {
+    if (!window.confirm('Delete this Application Team member? This cannot be undone.')) return;
+    setDeletingId(id);
+    try {
+      await api.admin.deleteAppTeamMember(id);
+      setAppTeamMembers(prev => prev.filter(m => normalId(m) !== id));
+    } catch { alert('Failed to delete Application Team member.'); }
+    setDeletingId(null);
+  };
+
 return (
     <>
       {/* Modals */}
@@ -1213,19 +1389,32 @@ return (
           onSaved={() => { setAssigning(null); loadData(); }}
         />
       )}
+      {showCreateAppTeam && (
+        <AppTeamFormModal
+          onClose={() => setShowCreateAppTeam(false)}
+          onSaved={m => { setAppTeamMembers(prev => [...prev, m]); setShowCreateAppTeam(false); }}
+        />
+      )}
+      {editingAppTeam && (
+        <AppTeamFormModal
+          initial={editingAppTeam}
+          onClose={() => setEditingAppTeam(null)}
+          onSaved={updated => { setAppTeamMembers(prev => prev.map(m => normalId(m) === normalId(updated) ? updated : m)); setEditingAppTeam(null); }}
+        />
+      )}
 
       <div className="space-y-6">
 
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <UserCog className="w-5 h-5 text-white" />
+                {activeRole === 'counselor' ? <UserCog className="w-5 h-5 text-white" /> : <ClipboardList className="w-5 h-5 text-white" />}
               </div>
               <div>
                 <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
-                <h1 className="text-2xl font-bold leading-tight">Counselors</h1>
+                <h1 className="text-2xl font-bold leading-tight">Team</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1233,11 +1422,29 @@ return (
                 className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
               </button>
-              <button type="button" onClick={() => setShowCreate(true)}
+              <button type="button" onClick={() => activeRole === 'counselor' ? setShowCreate(true) : setShowCreateAppTeam(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
-                <Plus className="w-4 h-4" />New Counselor
+                <Plus className="w-4 h-4" />{activeRole === 'counselor' ? 'New Counselor' : 'New Application Team Member'}
               </button>
             </div>
+          </div>
+
+          {/* Role tabs */}
+          <div className="flex gap-1 mt-5 bg-black/15 rounded-xl p-1 w-fit">
+            <button type="button" onClick={() => setActiveRole('counselor')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activeRole === 'counselor' ? 'bg-white text-purple-700 shadow-sm' : 'text-purple-100 hover:text-white'
+              }`}>
+              <UserCog className="w-4 h-4" />Counselors
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeRole === 'counselor' ? 'bg-purple-100 text-purple-700' : 'bg-white/15'}`}>{counselors.length}</span>
+            </button>
+            <button type="button" onClick={() => setActiveRole('appteam')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activeRole === 'appteam' ? 'bg-white text-purple-700 shadow-sm' : 'text-purple-100 hover:text-white'
+              }`}>
+              <ClipboardList className="w-4 h-4" />Application Team
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeRole === 'appteam' ? 'bg-purple-100 text-purple-700' : 'bg-white/15'}`}>{appTeamMembers.length}</span>
+            </button>
           </div>
         </div>
 
@@ -1250,7 +1457,7 @@ return (
         )}
 
         {/* Stat cards */}
-        {!loading && (
+        {!loading && activeRole === 'counselor' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               {
@@ -1299,6 +1506,19 @@ return (
             ))}
           </div>
         )}
+        {!loading && activeRole === 'appteam' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 flex items-start gap-3">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <ClipboardList className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Total Application Team members</p>
+                <p className="text-2xl font-bold text-gray-900 leading-tight">{appTeamMembers.length}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         {!loading && (
@@ -1307,29 +1527,31 @@ return (
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, email or phone..."
+                placeholder={activeRole === 'counselor' ? 'Search by name, email or phone...' : 'Search by name or email...'}
                 className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm" />
             </div>
 
-            {/* Specialization dropdown */}
-            <div className="relative">
-              <button type="button" onClick={() => setShowSpecMenu(v => !v)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
-                {filterSpec || 'Specialization'}<ChevronDown className="w-4 h-4 text-gray-400" />
-              </button>
-              {showSpecMenu && (
-                <div className="absolute top-full mt-1 left-0 bg-white rounded-xl border border-gray-200 shadow-lg z-10 min-w-[200px] py-1">
-                  <button type="button" onClick={() => { setFilterSpec(''); setShowSpecMenu(false); }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">All specializations</button>
-                  {SPECIALIZATIONS.map(s => (
-                    <button key={s} type="button" onClick={() => { setFilterSpec(s); setShowSpecMenu(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${filterSpec === s ? 'text-purple-700 font-semibold' : 'text-gray-700'}`}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Specialization dropdown — counselors only, App Team has no specialization field */}
+            {activeRole === 'counselor' && (
+              <div className="relative">
+                <button type="button" onClick={() => setShowSpecMenu(v => !v)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
+                  {filterSpec || 'Specialization'}<ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+                {showSpecMenu && (
+                  <div className="absolute top-full mt-1 left-0 bg-white rounded-xl border border-gray-200 shadow-lg z-10 min-w-[200px] py-1">
+                    <button type="button" onClick={() => { setFilterSpec(''); setShowSpecMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">All specializations</button>
+                    {SPECIALIZATIONS.map(s => (
+                      <button key={s} type="button" onClick={() => { setFilterSpec(s); setShowSpecMenu(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${filterSpec === s ? 'text-purple-700 font-semibold' : 'text-gray-700'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
 
 {(search || filterSpec) && (
@@ -1364,8 +1586,8 @@ return (
           </div>
         )}
 
-        {/* Grid */}
-        {!loading && filtered.length === 0 ? (
+        {/* Grid — Counselors */}
+        {activeRole === 'counselor' && (!loading && filtered.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-14 flex flex-col items-center justify-center text-gray-400">
             <UserCog className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-medium">{search || filterSpec ? 'No counselors match your search.' : 'No counselors yet.'}</p>
@@ -1388,6 +1610,7 @@ return (
                   onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
                   onAssign={() => setAssigning(c)}
                   onView={() => setViewing(c)}
+                  onPerformance={() => navigate(`/admin/counselors/${id}/performance`)}
                   onEdit={() => setEditing(c)}
                   onDelete={() => handleDelete(id)}
                   onStatClick={type => setStatsModal({ counselor: c, type })}
@@ -1396,7 +1619,56 @@ return (
               );
             })}
           </div>
-        )}
+        ))}
+
+        {/* List — Application Team (simple: no counselor-style metrics apply here) */}
+        {activeRole === 'appteam' && (!loading && filteredAppTeam.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-14 flex flex-col items-center justify-center text-gray-400">
+            <ClipboardList className="w-10 h-10 mb-3 opacity-30" />
+            <p className="text-sm font-medium">{search ? 'No Application Team members match your search.' : 'No Application Team members yet.'}</p>
+            {!search && (
+              <button type="button" onClick={() => setShowCreateAppTeam(true)}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-xl hover:bg-orange-600 transition-colors">
+                <Plus className="w-4 h-4" />Add first Application Team member
+              </button>
+            )}
+          </div>
+        ) : !loading && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="divide-y divide-gray-50">
+              {filteredAppTeam.map(m => {
+                const id = normalId(m);
+                const color = avatarColor(m.name);
+                return (
+                  <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
+                    <div className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {initials(m.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: m.name } } })}
+                        title="Chat"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setEditingAppTeam(m)} title="Edit"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteAppTeam(id)} disabled={deletingId === id} title="Delete"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                        {deletingId === id ? <Spinner size={4} /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Close dropdowns on outside click */}

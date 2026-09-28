@@ -73,7 +73,8 @@ export default function Navbar() {
   function handleNotifClick(n: AppNotification) {
     markRead(n.id);
     setNotifOpen(false);
-    if (n.link) navigate(n.link);
+    if (n.link?.startsWith('http')) window.open(n.link, '_blank', 'noopener,noreferrer');
+    else if (n.link) navigate(n.link);
   }
 
   const handleLogout = () => {
@@ -91,10 +92,12 @@ export default function Navbar() {
     : user?.name ?? "";
 
   const scrollToHowItWorks = (e: React.MouseEvent) => {
+    e.preventDefault();
     setMenuOpen(false);
     if (location.pathname === "/") {
-      e.preventDefault();
       document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate({ pathname: "/", hash: "#how-it-works" });
     }
   };
 

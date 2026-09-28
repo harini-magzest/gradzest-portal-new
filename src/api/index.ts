@@ -137,6 +137,15 @@ export const api = {
       req<any>(`/students/${studentId}/documents`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
+    record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    sendEmail: (studentId: string, subject: string, body: string) =>
+      req<any>(`/students/${studentId}/emails`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ subject, body }),
+      }),
+    setLeadStage: (studentId: string, leadStage: string) =>
+      req<any>(`/students/${studentId}/lead-stage`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ leadStage }),
+      }),
     addNote: (studentId: string, text: string) =>
       req<any>(`/students/${studentId}/notes`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
@@ -176,6 +185,7 @@ export const api = {
 
   chat: {
     rooms: () => req<any[]>('/chat/rooms', { headers: authHeaders() }),
+    staff: () => req<any[]>('/chat/staff', { headers: authHeaders() }),
     room: (roomId: string) => req<any>(`/chat/rooms/${roomId}`, { headers: authHeaders() }),
     send: (roomId: string, content: string, senderName: string) =>
       req<any>(`/chat/rooms/${roomId}/messages`, {
@@ -229,6 +239,8 @@ export const api = {
   admin: {
     stats: () => req<any>('/admin/stats', { headers: authHeaders() }),
     counselors: () => req<any[]>('/admin/counselors', { headers: authHeaders() }),
+    counselorPerformance: (id: string, days: number) =>
+      req<any>(`/admin/counselors/${id}/performance?days=${days}`, { headers: authHeaders() }),
     createCounselor: (data: any) => req<any>('/admin/counselors', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -304,6 +316,15 @@ export const api = {
     appteamUsers: () => req<any[]>('/admin/appteam-users', { headers: authHeaders() }),
     markAppTeam: (id: string, isAppTeam: boolean) => req<any>(`/admin/users/${id}/appteam`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ isAppTeam }),
+    }),
+    createAppTeamMember: (data: { name: string; email: string; password: string }) => req<any>('/admin/appteam', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateAppTeamMember: (id: string, data: any) => req<any>(`/admin/appteam/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteAppTeamMember: (id: string) => req<any>(`/admin/appteam/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
     }),
   },
 

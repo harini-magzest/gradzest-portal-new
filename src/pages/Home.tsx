@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
   MapPin,
@@ -1939,6 +1939,7 @@ export default function Home() {
   const { isAuthenticated, user } = useAuth();
   const { open } = useAuthModal();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [universities, setUniversities] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("All");
   const [destination, setDestination] = useState("");
@@ -1970,6 +1971,15 @@ export default function Home() {
       .then(setUniversities)
       .catch(() => {});
   }, []);
+
+  // Scroll to a section when arriving via a link like /#how-it-works
+  useEffect(() => {
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [hash]);
 
   useEffect(() => {
     const entries: [
