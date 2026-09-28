@@ -8,6 +8,7 @@ import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
@@ -395,7 +396,8 @@ function StudentDetail() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const [student, setStudent] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes' | RecordTab>('overview');
+  const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(studentId);
   const [updating, setUpdating] = useState(false);
   const [showRequestDoc, setShowRequestDoc] = useState(false);
   const [universities, setUniversities] = useState<any[]>([]);
@@ -446,6 +448,7 @@ function StudentDetail() {
     return tb - ta;
   });
   const docs = student.documents || [];
+  const canEditStudent = (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
   const allCourses = universities.flatMap(uni =>
     (uni.courses || []).map((c: any) => ({ ...c, uniName: uni.name, uniCountry: uni.country || '', _elig: checkCourseEligibility(student, c) }))
   );
@@ -495,7 +498,7 @@ function StudentDetail() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-medium text-gray-500">Lead Stage</span>
               <LeadStageSelect value={student.leadStage} size="md"
-                editable={(counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id)}
+                editable={canEditStudent}
                 onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
             </div>
             <p className="text-gray-600">{student.email} • {student.phone}</p>
@@ -518,13 +521,22 @@ function StudentDetail() {
       </div>
 
       <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-xl w-fit">
-        {(['overview', 'applications', 'documents', 'courses', 'notes'] as const).map(t => (
+        {(['overview', 'timeline', 'notes', 'messages', 'activities', 'emails', 'pipelines', 'documents', 'applications', 'courses'] as const).map(t => (
           <button type="button" key={t} onClick={() => { setActiveTab(t); setEligFilter(''); setCountryFilter(''); setCourseSearch(''); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
-            {t === 'courses' ? 'Course Eligibility' : t}
+            {t === 'courses' ? 'Course Eligibility' : t === 'documents' ? 'Files' : t}
           </button>
         ))}
       </div>
+
+      {(['timeline', 'messages', 'activities', 'emails', 'pipelines'] as const).map(t => activeTab === t && (
+        <div key={t} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <StudentRecordPanel tab={t} student={student} record={record} reload={reloadRecord}
+            loading={recordLoading} error={recordError}
+            canEdit={canEditStudent} canReply={canEditStudent}
+            onStudentChange={u => setStudent((p: any) => ({ ...p, ...u }))} />
+        </div>
+      ))}
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

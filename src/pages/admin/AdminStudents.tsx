@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -277,11 +278,14 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
 }
 
 // ── Student detail modal ─────────────────────────────────────────────────────
-function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage }: {
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange }: {
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
   onLeadStage?: (stage: string) => Promise<unknown>;
+  onStudentChange?: (s: any) => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'courses'>('overview');
+  const [tab, setTab] = useState<'overview' | 'courses' | RecordTab>('overview');
+  const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
+  const recordTab = RECORD_TABS.find(t => t.key === tab)?.key;
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
 
@@ -329,16 +333,22 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             ))}
           </div>
         </div>
-        <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white">
-          {(['overview', 'courses'] as const).map(t => (
-            <button key={t} type="button" onClick={() => { setTab(t); setEligFilter(''); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {t === 'courses' ? 'Course Eligibility' : 'Overview'}
+        <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white overflow-x-auto">
+          {[{ key: 'overview', label: 'Overview' }, ...RECORD_TABS, { key: 'courses', label: 'Course Eligibility' }].map(t => (
+            <button key={t.key} type="button" onClick={() => { setTab(t.key as any); setEligFilter(''); }}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {t.label}
             </button>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
-          {tab === 'overview' ? (
+          {recordTab ? (
+            <div className="p-6">
+              <StudentRecordPanel tab={recordTab} student={student} record={record} reload={reloadRecord}
+                loading={recordLoading} error={recordError} canEdit canReply
+                onStudentChange={s => onStudentChange?.(s)} />
+            </div>
+          ) : tab === 'overview' ? (
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-5">
                 <div>
@@ -1093,7 +1103,12 @@ export default function AdminStudents() {
         <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)}
           onChat={() => { navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } }); setSelectedStudent(null); }}
           onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }}
-          onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)} />
+          onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)}
+          onStudentChange={updated => {
+            const id = normalId(selectedStudent);
+            setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...updated } : s));
+            setSelectedStudent((prev: any) => prev ? { ...prev, ...updated } : prev);
+          }} />
       )}
       {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
       {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
