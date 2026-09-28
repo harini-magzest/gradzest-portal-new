@@ -89,8 +89,8 @@ const BoardStudents     = lazy(() => import('./pages/board/BoardStudents'));
 const BoardDocuments    = lazy(() => import('./pages/board/BoardDocuments'));
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => { if (!hash) window.scrollTo(0, 0); }, [pathname]);
   return null;
 }
 
