@@ -165,9 +165,6 @@ const UserSchema = new mongoose.Schema({
   isAppTeam: { type: Boolean, default: false },
   // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
   smartfloAgent: { type: String, default: '' },
-  // Social login provider IDs
-  githubId: { type: String, sparse: true },
-  facebookId: { type: String, sparse: true },
   avatar: String,
 
   // Student fields
@@ -200,7 +197,7 @@ const UserSchema = new mongoose.Schema({
   joinedDate: String,
 
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
-  source: { type: String, enum: ['self_signup', 'github', 'facebook', 'admin_created', 'counselor_created'] },
+  source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
   leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment'] },

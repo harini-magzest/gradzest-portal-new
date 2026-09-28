@@ -17,6 +17,18 @@ async function resolveDisplayRole(userId, userRole) {
   return userRole;
 }
 
+// Admin-side staff directory for chat (admins + application team) — minimal fields only,
+// so Application Team accounts can list admins without access to /api/admin/appteam-users
+router.get('/staff', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const staff = await User.find({ role: 'admin' }).select('name email isAppTeam');
+    res.json(staff.map(u => ({ _id: String(u._id), id: String(u._id), name: u.name, email: u.email, isAppTeam: !!u.isAppTeam })));
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get all rooms for current user
 router.get('/rooms', authMiddleware, async (req, res) => {
   try {

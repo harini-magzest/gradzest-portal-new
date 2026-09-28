@@ -98,12 +98,6 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       }),
-    facebookLogin: (accessToken: string, userId: string) =>
-      req<{ token: string; user: any }>('/auth/facebook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken, userId }),
-      }),
     refresh: () => tryRefresh(),
     logout: () => fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {}),
   },
@@ -188,6 +182,7 @@ export const api = {
 
   chat: {
     rooms: () => req<any[]>('/chat/rooms', { headers: authHeaders() }),
+    staff: () => req<any[]>('/chat/staff', { headers: authHeaders() }),
     room: (roomId: string) => req<any>(`/chat/rooms/${roomId}`, { headers: authHeaders() }),
     send: (roomId: string, content: string, senderName: string) =>
       req<any>(`/chat/rooms/${roomId}/messages`, {
@@ -318,6 +313,15 @@ export const api = {
     appteamUsers: () => req<any[]>('/admin/appteam-users', { headers: authHeaders() }),
     markAppTeam: (id: string, isAppTeam: boolean) => req<any>(`/admin/users/${id}/appteam`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ isAppTeam }),
+    }),
+    createAppTeamMember: (data: { name: string; email: string; password: string }) => req<any>('/admin/appteam', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateAppTeamMember: (id: string, data: any) => req<any>(`/admin/appteam/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteAppTeamMember: (id: string) => req<any>(`/admin/appteam/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
     }),
   },
 

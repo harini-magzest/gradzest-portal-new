@@ -162,7 +162,7 @@ export default function AppTeamChat() {
       try {
         const [roomList, counselorList, adminUsers] = await Promise.all([
           api.chat.rooms(), api.admin.counselors(),
-          api.admin.appteamUsers().catch(() => []),
+          api.chat.staff().catch(() => []),
         ]);
         setRooms(roomList);
         setCounselors(counselorList);

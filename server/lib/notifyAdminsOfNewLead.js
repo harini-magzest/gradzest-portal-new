@@ -5,7 +5,7 @@ const Notification = require('../models/Notification');
 // so they are excluded explicitly. Change this filter to widen or narrow the audience.
 const RECIPIENT_FILTER = { role: 'admin', isAppTeam: { $ne: true } };
 
-const SOURCE_LABELS = { self_signup: 'email', github: 'GitHub', facebook: 'Facebook' };
+const SOURCE_LABELS = { self_signup: 'email' };
 
 // Saves one Notification per admin (so offline admins see it later), pushes it live to any of
 // their open sessions, and emails each admin (so it's seen even if no one is logged in at all).

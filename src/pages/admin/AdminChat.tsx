@@ -163,7 +163,7 @@ export default function AdminChat() {
       try {
         const [roomList, studentList, counselorList, adminUsers] = await Promise.all([
           api.chat.rooms(), api.admin.students(), api.admin.counselors(),
-          api.admin.appteamUsers().catch(() => []),
+          api.chat.staff().catch(() => []),
         ]);
         const appTeamList = adminUsers.filter((u: any) => u.isAppTeam && String(u._id || u.id) !== String(user.id));
         setRooms(roomList);

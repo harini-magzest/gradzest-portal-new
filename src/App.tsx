@@ -81,10 +81,6 @@ const AppTeamActivityFeed   = lazy(() => import('./pages/appteam/AppTeamActivity
 const AppTeamChat           = lazy(() => import('./pages/appteam/AppTeamChat'));
 const AppTeamLearning       = lazy(() => import('./pages/appteam/AppTeamLearning'));
 
-// App Dashboard module
-const AppDashLayout   = lazy(() => import('./pages/appdash/AppDashLayout'));
-const AppDashboard    = lazy(() => import('./pages/appdash/AppDashboard'));
-
 // Board module
 const BoardLayout       = lazy(() => import('./pages/board/BoardLayout'));
 const BoardOverview     = lazy(() => import('./pages/board/BoardOverview'));
@@ -215,11 +211,6 @@ export default function App() {
               <Route path="learning" element={<AppTeamLearning />} />
             </Route>
 
-            {/* App Dashboard module */}
-            <Route path="/appdash" element={<AppDashLayout />}>
-              <Route index element={<AppDashboard />} />
-            </Route>
-
             {/* Board module */}
             <Route path="/board" element={<BoardLayout />}>
               <Route index element={<BoardOverview />} />
@@ -229,6 +220,10 @@ export default function App() {
               <Route path="documents" element={<BoardDocuments />} />
               <Route path="activities" element={<Activities />} />
             </Route>
+
+            {/* Catch-all — any unmatched top-level path (e.g. a removed route, a typo,
+                an old bookmark) sends the visitor home instead of a blank page */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
