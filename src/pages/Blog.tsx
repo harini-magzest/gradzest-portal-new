@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, ChevronRight, Search } from 'lucide-react';
 import { blogPosts, BlogPost } from '../data/blogPosts';
-import Navbar from '../components/Navbar';
 
 const CATEGORIES = ['All', 'Destinations', 'Scholarships', 'Visa & Immigration', 'Test Prep', 'Career'] as const;
 
@@ -79,8 +78,6 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Navbar />
-
       {/* Hero */}
       <section className="bg-[#0d1b4b] dark:bg-gray-800 py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
