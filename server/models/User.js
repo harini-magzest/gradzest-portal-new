@@ -163,9 +163,6 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: false },
   role: { type: String, enum: ['student', 'counselor', 'admin'], required: true },
   isAppTeam: { type: Boolean, default: false },
-  // Social login provider IDs
-  githubId: { type: String, sparse: true },
-  facebookId: { type: String, sparse: true },
   avatar: String,
 
   // Student fields
@@ -198,7 +195,7 @@ const UserSchema = new mongoose.Schema({
   joinedDate: String,
 
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
-  source: { type: String, enum: ['self_signup', 'github', 'facebook', 'admin_created', 'counselor_created'] },
+  source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
 

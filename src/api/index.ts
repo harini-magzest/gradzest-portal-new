@@ -98,12 +98,6 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       }),
-    facebookLogin: (accessToken: string, userId: string) =>
-      req<{ token: string; user: any }>('/auth/facebook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken, userId }),
-      }),
     refresh: () => tryRefresh(),
     logout: () => fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {}),
   },

@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const axios = require('axios');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const University = require('../models/University');
@@ -23,9 +22,6 @@ const router = express.Router();
 function issueAccessToken(user) {
   return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
 }
-
-// Keep old name as alias so social-login callers still work
-const issueToken = issueAccessToken;
 
 async function issueRefreshToken(user) {
   const raw = crypto.randomBytes(40).toString('hex');
@@ -50,131 +46,6 @@ function sanitize(user) {
   delete obj.password;
   return obj;
 }
-
-// onCreated(user) runs only when this call created a brand-new account
-async function findOrCreateSocialUser({ providerId, providerField, email, name, avatar, onCreated }) {
-  let user = await User.findOne({ [providerField]: providerId });
-  if (!user && email) user = await User.findOne({ email: email.toLowerCase() });
-  const isNewUser = !user;
-
-  if (!user) {
-    user = new User({
-      name,
-      email: email ? email.toLowerCase() : `${providerId}@social.gradzest`,
-      [providerField]: providerId,
-      avatar,
-      role: 'student',
-      status: 'active',
-      emailVerified: true,
-      joinedDate: new Date().toISOString().split('T')[0],
-      source: { githubId: 'github', facebookId: 'facebook' }[providerField],
-      leadStatus: 'new',
-    });
-  } else {
-    if (!user[providerField]) user[providerField] = providerId;
-    if (avatar && !user.avatar) user.avatar = avatar;
-  }
-  await user.save();
-  if (isNewUser && onCreated) onCreated(user);
-  return user;
-}
-
-// GitHub OAuth step 1 — redirect to GitHub
-router.get('/github', (req, res) => {
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  if (!clientId) return res.status(501).json({ message: 'GitHub OAuth not configured on this server' });
-  const redirect = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
-  res.redirect(redirect);
-});
-
-// GitHub OAuth step 2 — callback with code
-router.get('/github/callback', async (req, res) => {
-  const { code } = req.query;
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-  if (!clientId || !clientSecret) return res.redirect(`${frontendUrl}/login?error=github_not_configured`);
-
-  try {
-    // Exchange code for access token
-    const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-    }, { headers: { Accept: 'application/json' } });
-
-    const accessToken = tokenRes.data.access_token;
-    if (!accessToken) return res.redirect(`${frontendUrl}/login?error=github_token_failed`);
-
-    // Fetch user profile
-    const [profileRes, emailsRes] = await Promise.all([
-      axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } }),
-      axios.get('https://api.github.com/user/emails', { headers: { Authorization: `Bearer ${accessToken}` } }),
-    ]);
-
-    const { id: githubId, name, login, avatar_url } = profileRes.data;
-    const primaryEmail = emailsRes.data.find(e => e.primary && e.verified)?.email
-      || emailsRes.data[0]?.email
-      || null;
-
-    const user = await findOrCreateSocialUser({
-      providerId: String(githubId),
-      providerField: 'githubId',
-      email: primaryEmail,
-      name: name || login,
-      avatar: avatar_url,
-      onCreated: u => notifyAdminsOfNewLead(req.app, u),
-    });
-
-    const { raw, expires } = await issueRefreshToken(user);
-    setRefreshCookie(res, raw, expires);
-    res.redirect(`${frontendUrl}/login?social_login=1&role=${user.role}`);
-  } catch (err) {
-    console.error('[auth/github/callback]', err);
-    res.redirect(`${frontendUrl}/login?error=github_failed`);
-  }
-});
-
-// Facebook OAuth — verify access token from FB JS SDK
-router.post('/facebook', async (req, res) => {
-  const { accessToken: fbToken, userId: fbUserId } = req.body || {};
-  if (!fbToken || !fbUserId) return res.status(400).json({ message: 'Facebook token and userId required' });
-
-  const appId = process.env.FACEBOOK_APP_ID;
-  const appSecret = process.env.FACEBOOK_APP_SECRET;
-  if (!appId || !appSecret) return res.status(501).json({ message: 'Facebook OAuth not configured on this server' });
-
-  try {
-    // Verify token with Facebook
-    const verifyRes = await axios.get(
-      `https://graph.facebook.com/debug_token?input_token=${fbToken}&access_token=${appId}|${appSecret}`
-    );
-    if (!verifyRes.data.data?.is_valid) return res.status(401).json({ message: 'Invalid Facebook token' });
-
-    // Get profile
-    const profileRes = await axios.get(
-      `https://graph.facebook.com/${fbUserId}?fields=id,name,email,picture&access_token=${fbToken}`
-    );
-    const { id: facebookId, name, email, picture } = profileRes.data;
-
-    const user = await findOrCreateSocialUser({
-      providerId: facebookId,
-      providerField: 'facebookId',
-      email,
-      name,
-      avatar: picture?.data?.url,
-      onCreated: u => notifyAdminsOfNewLead(req.app, u),
-    });
-
-    const { raw, expires } = await issueRefreshToken(user);
-    setRefreshCookie(res, raw, expires);
-    res.json({ token: issueAccessToken(user), user: sanitize(user) });
-  } catch (err) {
-    console.error('[auth/facebook]', err);
-    res.status(401).json({ message: 'Facebook authentication failed' });
-  }
-});
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
