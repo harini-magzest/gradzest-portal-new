@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
+import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
@@ -278,12 +279,18 @@ function StudentsList() {
 
   useEffect(() => { loadStudents(); }, []);
 
-  const myStudents = allStudents.filter((s: any) => counselor.assignedStudents?.includes(s._id || s.id));
+  const isMine = (s: any) => counselor.assignedStudents?.includes(s._id || s.id) || String(s.counselorId) === String(counselor.id);
+  const myStudents = allStudents.filter(isMine);
+
+  const saveStage = async (sid: string, leadStage: string) => {
+    const updated = await api.students.setLeadStage(sid, leadStage);
+    setAllStudents(prev => prev.map((s: any) => (s._id || s.id) === sid ? { ...s, leadStage: updated.leadStage } : s));
+  };
   const source = tab === 'mine' ? myStudents : allStudents;
 
   const filtered = source.filter((s: any) => {
     const matchQuery = !query || s.name.toLowerCase().includes(query.toLowerCase()) || s.email.toLowerCase().includes(query.toLowerCase()) || s.nationality?.toLowerCase().includes(query.toLowerCase());
-    const matchStatus = !statusFilter || s.status === statusFilter;
+    const matchStatus = !statusFilter || leadStageOf(s).value === statusFilter;
     return matchQuery && matchStatus;
   }).sort((a: any, b: any) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
 
@@ -325,16 +332,7 @@ function StudentsList() {
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {[
-            { value: '', label: 'All' },
-            { value: 'counseling', label: 'Counseling' },
-            { value: 'shortlisting', label: 'Shortlisting' },
-            { value: 'application', label: 'Application' },
-            { value: 'test_preparation', label: 'Test Preparation' },
-            { value: 'visa_process', label: 'Visa Process' },
-            { value: 'loan_process', label: 'Loan Process' },
-            { value: 'enrolled', label: 'Enrolled' },
-          ].map(f => (
+          {[{ value: '', label: 'All stages' }, ...LEAD_STAGES].map(f => (
             <button key={f.value} type="button" onClick={() => setStatusFilter(f.value)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${statusFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400'}`}>
               {f.label}
@@ -357,7 +355,7 @@ function StudentsList() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{student.name}</h3>
                     <div className="flex items-center gap-2">
-                      <StatusBadge status={student.status} />
+                      <LeadStageSelect value={student.leadStage} editable={isMine(student)} onSave={stage => saveStage(sid, stage)} />
                       {student.phone && (
                         <button
                           type="button"
@@ -493,6 +491,12 @@ function StudentDetail() {
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-xl font-bold text-gray-900">{student.name}</h2>
               <StatusBadge status={student.status} size="md" />
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-medium text-gray-500">Lead Stage</span>
+              <LeadStageSelect value={student.leadStage} size="md"
+                editable={(counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id)}
+                onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
             </div>
             <p className="text-gray-600">{student.email} • {student.phone}</p>
             <p className="text-sm text-gray-500 mt-1">{student.nationality} • {student.educationLevel} • GPA: {student.gpa}/10</p>

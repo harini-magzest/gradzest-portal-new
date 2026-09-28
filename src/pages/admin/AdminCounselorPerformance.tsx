@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import {
   ArrowLeft, RefreshCw, Users, FileText, Award, CalendarDays, MessageSquare, Clock,
   Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, StickyNote, FileCheck, UserPlus,
-  MessageCircle, Info, AlertCircle,
+  MessageCircle, Info, AlertCircle, GitBranch,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -117,7 +117,7 @@ function Donut({ title, total, slices }: { title: string; total: number; slices:
 
 const KIND_ICON: Record<string, any> = {
   application: FileText, comment: MessageCircle, document: FileCheck, note: StickyNote,
-  meeting: CalendarDays, student: UserPlus, call: Phone,
+  meeting: CalendarDays, student: UserPlus, call: Phone, stage: GitBranch,
 };
 
 export default function AdminCounselorPerformance() {

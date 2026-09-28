@@ -216,6 +216,41 @@ router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/students/:id/lead-stage — admin, or the student's assigned counselor
+const LEAD_STAGES = {
+  new_enquiry: 'New Enquiry', interested: 'Interested', counselling: 'Counselling', shortlisting: 'Shortlisting',
+  applications: 'Applications', visa_process: 'Visa Process', visa_approved: 'Visa Approved', enrolment: 'Enrolment',
+};
+router.put('/:id/lead-stage', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const { leadStage } = req.body;
+  if (!LEAD_STAGES[leadStage]) return res.status(400).json({ message: 'Invalid lead stage' });
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' });
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (req.user.role === 'counselor' && String(student.counselorId) !== String(req.user.id)) {
+      // Counselor-created students are linked only via the counselor's assignedStudents list
+      const me = await User.findById(req.user.id).select('assignedStudents');
+      if (!me?.assignedStudents?.map(String).includes(String(student._id))) {
+        return res.status(403).json({ message: 'Only the assigned counselor can change this student\'s stage' });
+      }
+    }
+    const from = student.leadStage || 'new_enquiry';
+    if (from !== leadStage) {
+      student.leadStage = leadStage;
+      await student.save();
+      recordStaffActivity(req, {
+        kind: 'stage', title: 'Lead Stage updated',
+        detail: `'${LEAD_STAGES[from]}' to '${LEAD_STAGES[leadStage]}'`,
+        studentId: student._id, studentName: student.name,
+      });
+    }
+    const obj = student.toJSON();
+    delete obj.password;
+    res.json(obj);
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
 // POST /api/students/:id/notes — add a note
 router.post('/:id/notes', authMiddleware, async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });

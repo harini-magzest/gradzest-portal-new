@@ -202,6 +202,8 @@ const UserSchema = new mongoose.Schema({
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
   source: { type: String, enum: ['self_signup', 'github', 'facebook', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
+  // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
+  leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment'] },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
 
   // Email verification

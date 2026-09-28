@@ -140,6 +140,10 @@ export const api = {
       req<any>(`/students/${studentId}/documents`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
+    setLeadStage: (studentId: string, leadStage: string) =>
+      req<any>(`/students/${studentId}/lead-stage`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ leadStage }),
+      }),
     addNote: (studentId: string, text: string) =>
       req<any>(`/students/${studentId}/notes`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),

@@ -12,6 +12,7 @@ import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
+import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -276,8 +277,9 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
 }
 
 // ── Student detail modal ─────────────────────────────────────────────────────
-function StudentDetailModal({ student, onClose, onChat, onNewApplication }: {
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage }: {
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
+  onLeadStage?: (stage: string) => Promise<unknown>;
 }) {
   const [tab, setTab] = useState<'overview' | 'courses'>('overview');
   const [universities, setUniversities] = useState<any[]>([]);
@@ -311,6 +313,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication }: {
                 <p className="text-blue-200 text-sm mt-0.5">{student.email}</p>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <StatusBadge status={student.status} />
+                  {onLeadStage && <LeadStageSelect value={student.leadStage} onSave={onLeadStage} />}
                   {student.nationality && <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full font-medium border border-white/20">{student.nationality}</span>}
                 </div>
               </div>
@@ -929,6 +932,7 @@ export default function AdminStudents() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
+  const [filterStage, setFilterStage] = useState('');
   const [filterCounselorId, setFilterCounselorId] = useState('');
   const [filterIntake, setFilterIntake] = useState('');
   const [filterDateStart, setFilterDateStart] = useState('2025-01-01');
@@ -947,7 +951,7 @@ export default function AdminStudents() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [search, filterStatus, filterCountry, filterCounselorId, filterIntake, filterDateStart, filterDateEnd, filterLead]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterIntake, filterDateStart, filterDateEnd, filterLead]);
 
   const counselorNameById = Object.fromEntries(counselors.map(c => [normalId(c), c.name]));
   const countryOptions = Array.from(new Set(students.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
@@ -955,6 +959,7 @@ export default function AdminStudents() {
   const filtered = students.filter(s => {
     if (filterLead && s.leadStatus !== 'new') return false;
     if (filterStatus && s.status !== filterStatus) return false;
+    if (filterStage && leadStageOf(s).value !== filterStage) return false;
     if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
     if (filterCounselorId) {
       if (filterCounselorId === '__unassigned__') { if (s.counselorId) return false; }
@@ -1012,6 +1017,13 @@ export default function AdminStudents() {
     setAssigningIds(prev => { const n = new Set(prev); n.delete(studentId); return n; });
   };
 
+  // Throws on failure so the stage picker can show the error
+  const handleLeadStage = async (id: string, leadStage: string) => {
+    const updated = await api.students.setLeadStage(id, leadStage);
+    setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, leadStage: updated.leadStage } : s));
+    setSelectedStudent((prev: any) => prev && normalId(prev) === id ? { ...prev, leadStage: updated.leadStage } : prev);
+  };
+
   const handleMarkContacted = async (id: string) => {
     setMarkingId(id);
     try {
@@ -1025,7 +1037,7 @@ export default function AdminStudents() {
   const handleExport = () => {
     const rows = filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Nationality: s.nationality || '',
-      Status: s.status || '', Counselor: counselorNameById[s.counselorId] || 'Unassigned',
+      Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
     }));
     if (!rows.length) return;
@@ -1044,11 +1056,12 @@ export default function AdminStudents() {
   const activeTags: { label: string; clear: () => void }[] = [];
   if (filterLead) activeTags.push({ label: 'New leads', clear: () => setFilterLead(false) });
   if (filterStatus) activeTags.push({ label: filterStatus, clear: () => setFilterStatus('') });
+  if (filterStage) activeTags.push({ label: `Stage: ${leadStageOf({ leadStage: filterStage }).label}`, clear: () => setFilterStage('') });
   if (filterCountry) activeTags.push({ label: filterCountry, clear: () => setFilterCountry('') });
   if (filterIntake) activeTags.push({ label: filterIntake, clear: () => setFilterIntake('') });
   if (filterCounselorId) activeTags.push({ label: `Counselor: ${filterCounselorId === '__unassigned__' ? 'Unassigned' : counselorNameById[filterCounselorId] || ''}`, clear: () => setFilterCounselorId('') });
   if (search) activeTags.push({ label: `"${search}"`, clear: () => { setSearch(''); setSearchInput(''); } });
-  const clearAll = () => { setFilterLead(false); setFilterStatus(''); setFilterCountry(''); setFilterCounselorId(''); setFilterIntake(''); setSearch(''); setSearchInput(''); };
+  const clearAll = () => { setFilterLead(false); setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterCounselorId(''); setFilterIntake(''); setSearch(''); setSearchInput(''); };
 
   const allPageSelected = paginated.length > 0 && paginated.every(s => selectedIds.has(normalId(s)));
   const toggleAll = () => {
@@ -1079,7 +1092,8 @@ export default function AdminStudents() {
       {selectedStudent && (
         <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)}
           onChat={() => { navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } }); setSelectedStudent(null); }}
-          onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }} />
+          onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }}
+          onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)} />
       )}
       {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
       {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
@@ -1192,19 +1206,21 @@ export default function AdminStudents() {
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             </div>
+            {/* Lead stage */}
+            <div className="relative">
+              <select value={filterStage} onChange={e => setFilterStage(e.target.value)} title="Lead stage" className={dSel}>
+                <option value="">Lead Stage</option>
+                {LEAD_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+            </div>
             {/* Status */}
             <div className="relative">
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} title="Status" className={dSel}>
                 <option value="">Status</option>
-                <option value="counseling">Counseling</option>
-                <option value="shortlisting">Shortlisting</option>
-                <option value="application">Application</option>
-                <option value="test_preparation">Test Preparation</option>
-                <option value="visa_process">Visa Process</option>
-                <option value="loan_process">Loan Process</option>
-                <option value="enrolled">Enrolled</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="enrolled">Enrolled</option>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             </div>
@@ -1268,14 +1284,14 @@ export default function AdminStudents() {
                     <th className="w-10 px-4 py-3.5">
                       <input type="checkbox" checked={allPageSelected} onChange={toggleAll} className="w-4 h-4 rounded cursor-pointer accent-blue-500" />
                     </th>
-                    {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'STATUS', 'ACTIONS'].map(h => (
+                    {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
                       <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-16">
+                    <tr><td colSpan={9} className="text-center py-16">
                       <Users className="w-8 h-8 mx-auto mb-2 text-gray-600" />
                       <p className="text-sm text-gray-500">{filterLead ? 'No new leads right now.' : search || filterStatus || filterCountry || filterCounselorId ? 'No students match your filters.' : 'No students yet.'}</p>
                     </td></tr>
@@ -1330,6 +1346,8 @@ export default function AdminStudents() {
                             <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                           </div>
                         </td>
+                        {/* Lead stage */}
+                        <td className="px-4 py-3.5"><LeadStageSelect value={s.leadStage} onSave={stage => handleLeadStage(id, stage)} /></td>
                         {/* Status */}
                         <td className="px-4 py-3.5"><StatusPill status={s.status} /></td>
                         {/* Actions */}
