@@ -526,9 +526,10 @@ function AssignStudentsModal({
 // ── Counselor Detail Modal ───────────────────────────────────────────────────
 
 function CounselorDetailModal({
-  counselor, metrics, onClose, onChat,
+  counselor, metrics, onClose, onChat, onStatClick,
 }: {
   counselor: any; metrics: ReturnType<typeof counselorMetrics>; onClose: () => void; onChat: () => void;
+  onStatClick?: (type: StatType) => void;
 }) {
   const color = avatarColor(counselor.name);
   return (
@@ -554,15 +555,16 @@ function CounselorDetailModal({
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-5">
-            {[
-              { label: 'Students', value: metrics.studentCount },
-              { label: 'Enrolled', value: metrics.enrolled },
-              { label: 'Visa Rate', value: `${metrics.visaRate}%` },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center">
+            {([
+              { key: 'students' as StatType, label: 'Students', value: metrics.studentCount },
+              { key: 'enrolled' as StatType, label: 'Enrolled', value: metrics.enrolled },
+              { key: 'visa'     as StatType, label: 'Visa Rate', value: `${metrics.visaRate}%` },
+            ]).map(stat => (
+              <button key={stat.key} type="button" disabled={!onStatClick} onClick={() => onStatClick?.(stat.key)}
+                className={`bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center transition-colors ${onStatClick ? 'hover:bg-white/20 cursor-pointer' : ''}`}>
                 <p className="text-lg font-bold text-white">{stat.value}</p>
                 <p className="text-xs text-purple-200 mt-0.5">{stat.label}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1121,14 +1123,12 @@ function CounselorStatsModal({
 // ── Counselor Card ───────────────────────────────────────────────────────────
 
 function CounselorCard({
-  counselor, metrics,
-  onChat, onAssign, onView, onEdit, onDelete, onStatClick, onPerformance, deleting,
+  counselor,
+  onChat, onAssign, onView, onEdit, onDelete, onPerformance, deleting,
 }: {
   counselor: any;
-  metrics: ReturnType<typeof counselorMetrics>;
   onChat: () => void; onAssign: () => void; onView: () => void; onPerformance: () => void;
   onEdit: () => void; onDelete: () => void;
-  onStatClick: (type: StatType) => void;
   deleting: boolean;
 }) {
   const color = avatarColor(counselor.name);
@@ -1171,45 +1171,6 @@ function CounselorCard({
           )}
         </div>
       )}
-
-      {/* Stats row — clickable */}
-      <div className="grid grid-cols-3 divide-x divide-gray-100 bg-gray-50 rounded-xl overflow-hidden">
-        {([
-          { key: 'students' as StatType, label: 'Students',  value: metrics.studentCount },
-          { key: 'enrolled' as StatType, label: 'Enrolled',  value: metrics.enrolled },
-          { key: 'visa'     as StatType, label: 'Visa Rate', value: `${metrics.visaRate}%` },
-        ]).map(stat => (
-          <button key={stat.key} type="button" onClick={() => onStatClick(stat.key)}
-            className="text-center py-2.5 px-2 hover:bg-purple-50 active:bg-purple-100 transition-colors cursor-pointer group">
-            <p className="text-base font-bold text-gray-900 group-hover:text-purple-700 transition-colors">{stat.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5 group-hover:text-purple-500 transition-colors">{stat.label}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* Performance score */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-semibold text-gray-500">Performance score</span>
-          <span className={`text-xs font-bold ${metrics.scoreText}`}>{metrics.score} / 100</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metrics.scoreColor}`} style={{ width: `${metrics.score}%` }} />
-        </div>
-      </div>
-
-      {/* Workload */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-semibold text-gray-500">Workload</span>
-          <span className={`text-xs font-semibold ${metrics.workloadText}`}>
-            {metrics.workloadLabel} — {metrics.workloadPct}%
-          </span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metrics.workloadColor}`} style={{ width: `${metrics.workloadPct}%` }} />
-        </div>
-      </div>
 
       {/* Action buttons */}
       <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-gray-100">
@@ -1371,6 +1332,7 @@ return (
             navigate('/admin/chat', { state: { openChatWith: { _id: normalId(viewing), name: viewing.name } } });
             setViewing(null);
           }}
+          onStatClick={type => { setStatsModal({ counselor: viewing, type }); setViewing(null); }}
         />
       )}
       {statsModal && (
@@ -1606,14 +1568,12 @@ return (
                 <CounselorCard
                   key={id}
                   counselor={c}
-                  metrics={metricsMap[id] ?? counselorMetrics(c, students, applications)}
                   onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
                   onAssign={() => setAssigning(c)}
                   onView={() => setViewing(c)}
                   onPerformance={() => navigate(`/admin/counselors/${id}/performance`)}
                   onEdit={() => setEditing(c)}
                   onDelete={() => handleDelete(id)}
-                  onStatClick={type => setStatsModal({ counselor: c, type })}
                   deleting={deletingId === id}
                 />
               );
