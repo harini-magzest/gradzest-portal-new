@@ -30,12 +30,12 @@ function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
 export default function StudentLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const unreadCount = useUnreadMessages();
-  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-900"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'student') return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen bg-blue-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-blue-50">
       <Navbar />
       <EmailVerificationBanner />
       <div className="flex">
@@ -71,9 +71,9 @@ export default function StudentLayout() {
         </aside>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex z-40">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
           {navItems.filter(item => !item.mobileHide).map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-[#0d1b4b] dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-[#0d1b4b]' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />
                 {item.label === 'Chat' && unreadCount > 0 && (

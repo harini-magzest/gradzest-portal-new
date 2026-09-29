@@ -33,12 +33,12 @@ export default function AdminLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const unreadCount = useUnreadMessages();
   const newLeads = useNewLeadCount();
-  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-900"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'admin') return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen bg-purple-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-purple-50">
       <Navbar />
       <div className="flex">
         <aside className="hidden md:flex flex-col items-center w-24 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-gradient-to-b from-purple-950 to-indigo-950 py-4 gap-1">
@@ -77,9 +77,9 @@ export default function AdminLayout() {
           ))}
         </aside>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex z-40">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
           {navItems.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-purple-600' : 'text-gray-500 dark:text-gray-400'}`}>
+            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-purple-600' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />
                 {item.label === 'Students' && newLeads > 0 && (
