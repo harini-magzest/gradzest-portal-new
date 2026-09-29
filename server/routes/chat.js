@@ -69,7 +69,8 @@ router.post('/groups', authMiddleware, async (req, res) => {
       participantNames: people.map(p => p.name),
       messages: [{
         senderId: me, senderName: creator?.name || 'Admin', senderRole: 'Admin Team',
-        content: `Created the group with ${people.filter(p => p.id !== me).map(p => p.name).join(', ')}.`,
+        content: `${creator?.name || 'Admin'} created the group with ${people.filter(p => p.id !== me).map(p => p.name).join(', ')}.`,
+        type: 'system',
         timestamp: new Date(), read: false,
       }],
     });
