@@ -24,6 +24,17 @@ const formatChatTime = (iso: string) => {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
+// Group-created / group-changed notices — centered small text, not a chat bubble (WhatsApp-style)
+function SystemMessage({ msg }: { msg: any }) {
+  return (
+    <div className="flex justify-center">
+      <span className="text-[11px] text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-center max-w-[85%]">
+        {msg.content}
+      </span>
+    </div>
+  );
+}
+
 function CallMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
   const { callStatus, callDuration, senderName, timestamp } = msg;
   let icon = <Phone className="w-3.5 h-3.5" />;
@@ -361,6 +372,7 @@ export default function StudentChat() {
             ) : (
               messages.map((msg: any) => {
                 const key = msg._id || msg.id;
+                if (msg.type === 'system') return <SystemMessage key={key} msg={msg} />;
                 if (msg.type === 'call') return <CallMessage key={key} msg={msg} isMe={msg.senderId === user?.id} />;
                 if (msg.type === 'file') return <FileMessage key={key} msg={msg} isMe={msg.senderId === user?.id} onAction={() => handleDocAction(msg)} />;
                 if (msg.type === 'meeting') return <MeetingMessage key={key} msg={msg} isMe={msg.senderId === user?.id} />;
