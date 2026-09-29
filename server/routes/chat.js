@@ -106,6 +106,13 @@ router.put('/groups/:id/members', authMiddleware, async (req, res) => {
   }
 });
 
+// Who is online right now (has an open connection), plus last-seen times for the rest
+router.get('/presence', authMiddleware, (req, res) => {
+  const userSockets = req.app.get('userSockets') || new Map();
+  const lastSeen = req.app.get('lastSeen') || new Map();
+  res.json({ online: [...userSockets.keys()].map(String), lastSeen: Object.fromEntries(lastSeen) });
+});
+
 // Get all rooms for current user
 router.get('/rooms', authMiddleware, async (req, res) => {
   try {
@@ -160,8 +167,14 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 
 // Send message
 router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
-  const { content, senderName } = req.body;
+  const { content, senderName, replyToId } = req.body;
   try {
+    const target = await ChatRoom.findById(req.params.roomId).select('type participants messages._id messages.senderName messages.content messages.fileName');
+    if (!target) return res.status(404).json({ message: 'Room not found' });
+    // Only members can post in a group
+    if (target.type === 'group' && !target.participants.includes(req.user.id.toString())) {
+      return res.status(403).json({ message: 'You are not a member of this group' });
+    }
     const displayRole = await resolveDisplayRole(req.user.id, req.user.role);
     const message = {
       senderId: req.user.id.toString(),
@@ -171,6 +184,13 @@ router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
       timestamp: new Date(),
       read: false,
     };
+    if (replyToId) {
+      const quoted = target.messages.id(replyToId);
+      if (quoted) message.replyTo = {
+        messageId: String(quoted._id), senderName: quoted.senderName || '',
+        content: String(quoted.content || quoted.fileName || '').slice(0, 200),
+      };
+    }
     const room = await ChatRoom.findByIdAndUpdate(
       req.params.roomId,
       { $push: { messages: message } },
@@ -274,6 +294,35 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
 
     calls.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
     res.json({ calls: calls.slice(0, 500), smartflo: sf, canSeeAll: fullAdmin });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Toggle an emoji reaction on a message (members only). POST { emoji }
+const REACTIONS = ['👍', '❤️', '😂', '😮', '🙏', '✅'];
+router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, async (req, res) => {
+  const { emoji } = req.body;
+  if (!REACTIONS.includes(emoji)) return res.status(400).json({ message: 'Unsupported reaction' });
+  try {
+    const me = req.user.id.toString();
+    const room = await ChatRoom.findOne({ _id: req.params.roomId, participants: me });
+    const msg = room?.messages.id(req.params.messageId);
+    if (!msg) return res.status(404).json({ message: 'Message not found' });
+    const i = (msg.reactions || []).findIndex(r => r.userId === me && r.emoji === emoji);
+    if (i >= 0) msg.reactions.splice(i, 1);
+    else {
+      const who = await User.findById(me).select('name');
+      msg.reactions.push({ emoji, userId: me, userName: who?.name || '' });
+    }
+    await room.save();
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    room.participants.filter(p => p !== me).forEach(pid => {
+      const sids = userSockets?.get(String(pid));
+      if (io && sids) io.to([...sids]).emit('chat:new-message', { roomId: String(room._id) });
+    });
+    res.json(msg.toJSON());
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

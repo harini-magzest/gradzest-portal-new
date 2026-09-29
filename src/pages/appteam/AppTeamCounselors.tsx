@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { api } from '../../api';
+import { useCallContext } from '../../context/CallContext';
+import { PresenceDot, PresenceLabel } from '../../components/Presence';
 import { Search, X, ChevronRight, Mail, Phone, Layers, Users, UserCog } from 'lucide-react';
 
 const STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -29,6 +31,8 @@ export default function AppTeamCounselors() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<any>(null);
+  const [onlyOnline, setOnlyOnline] = useState(false);
+  const { isOnline } = useCallContext();
 
   useEffect(() => {
     Promise.all([api.admin.counselors(), api.admin.students(), api.admin.applications()])
@@ -59,11 +63,13 @@ export default function AppTeamCounselors() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return counselors;
-    return counselors.filter(c =>
-      [c.name, c.email, c.specialty, c.phone].some(v => v?.toLowerCase().includes(q))
-    );
-  }, [counselors, search]);
+    return counselors
+      .filter(c => !q || [c.name, c.email, c.specialty, c.phone].some(v => v?.toLowerCase().includes(q)))
+      .filter(c => !onlyOnline || isOnline(String(c._id)))
+      // Online counselors first
+      .sort((a, b) => Number(isOnline(String(b._id))) - Number(isOnline(String(a._id))));
+  }, [counselors, search, onlyOnline, isOnline]);
+  const onlineCount = counselors.filter(c => isOnline(String(c._id))).length;
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -92,6 +98,13 @@ export default function AppTeamCounselors() {
             />
             {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
           </div>
+          {/* Live presence: who has Gradzest open right now */}
+          <button type="button" onClick={() => setOnlyOnline(v => !v)} aria-pressed={onlyOnline}
+            className={`mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              onlyOnline ? 'bg-green-50 border-green-300 text-green-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            <span className={`w-2 h-2 rounded-full ${onlineCount > 0 ? 'bg-green-500' : 'bg-red-500'}`} aria-hidden="true" />
+            {onlineCount} of {counselors.length} online{onlyOnline ? ' · showing online only' : ''}
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
@@ -105,8 +118,9 @@ export default function AppTeamCounselors() {
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
                   selected?._id === c._id ? 'bg-orange-50 border-l-[3px] border-orange-500' : ''
                 }`}>
-                <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
+                <div className="relative w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
                   {c.name?.[0]?.toUpperCase()}
+                  <PresenceDot userId={String(c._id)} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
@@ -138,12 +152,14 @@ export default function AppTeamCounselors() {
             <button onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
               <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
             </button>
-            <div className="w-11 h-11 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+            <div className="relative w-11 h-11 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
               {selected.name?.[0]?.toUpperCase()}
+              <PresenceDot userId={String(selected._id)} size="md" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-bold text-gray-900">{selected.name}</h2>
               <p className="text-xs text-gray-500">{selected.email}</p>
+              <PresenceLabel userId={String(selected._id)} />
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full">{selStudents.length} students</span>
