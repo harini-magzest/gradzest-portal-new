@@ -118,6 +118,90 @@ router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
   }
 });
 
+// Attach the caller's in-app recording to a logged call message
+const recordingUpload = (req, res, next) => upload.recording.single('recording')(req, res, err =>
+  err ? res.status(400).json({ message: err.message }) : next());
+
+router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No recording uploaded' });
+    const me = req.user.id.toString();
+    const room = await ChatRoom.findOne({ participants: me, 'messages._id': req.params.messageId });
+    const msg = room?.messages.id(req.params.messageId);
+    if (!msg || msg.type !== 'call' || msg.senderId !== me) {
+      require('fs').unlink(req.file.path, () => {});
+      return res.status(404).json({ message: 'Call not found' });
+    }
+    msg.recordingUrl = `/uploads/${req.file.filename}`;
+    await room.save();
+    res.json({ recordingUrl: msg.recordingUrl });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Call history (in-app calls + Tata Smartflo phone calls) with recordings.
+// Everyone sees calls they took part in; full admins (not App Team) see all, optionally ?userId=.
+// GET /api/chat/calls/history?days=7|30|90&userId=
+router.get('/calls/history', authMiddleware, async (req, res) => {
+  const smartflo = require('../lib/smartflo');
+  try {
+    const me = req.user.id.toString();
+    const viewer = await User.findById(me).select('role isAppTeam smartfloAgent');
+    const fullAdmin = viewer?.role === 'admin' && !viewer.isAppTeam;
+    const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
+    const since = new Date(Date.now() - days * 86400000);
+    const filterUser = fullAdmin && req.query.userId ? String(req.query.userId) : '';
+
+    // ── In-app calls ──
+    const roomQuery = fullAdmin ? (filterUser ? { participants: filterUser } : { 'messages.type': 'call' }) : { participants: me };
+    const rooms = await ChatRoom.find(roomQuery).select('participants participantNames messages').lean();
+    const calls = [];
+    for (const r of rooms) {
+      const nameOf = id => r.participantNames?.[r.participants.indexOf(id)] || 'User';
+      for (const m of r.messages || []) {
+        if (m.type !== 'call' || new Date(m.timestamp) < since) continue;
+        const callee = r.participants.find(p => p !== m.senderId) || '';
+        calls.push({
+          id: String(m._id), source: 'in_app',
+          callerId: m.senderId, callerName: m.senderName || nameOf(m.senderId),
+          calleeId: callee, calleeName: nameOf(callee),
+          status: m.callStatus === 'answered' ? 'answered' : m.callStatus === 'declined' ? 'declined' : 'missed',
+          durationSec: m.callDuration || 0, startedAt: m.timestamp, recordingUrl: m.recordingUrl || '',
+        });
+      }
+    }
+
+    // ── Smartflo phone calls: counselors see their own; full admins see all (or the filtered counselor's) ──
+    const sf = { configured: smartflo.isConfigured(), error: '' };
+    let agent = viewer?.role === 'counselor' ? viewer.smartfloAgent : '';
+    if (fullAdmin && filterUser) agent = (await User.findById(filterUser).select('smartfloAgent'))?.smartfloAgent || '';
+    const wantSmartflo = sf.configured && (agent || (fullAdmin && !filterUser));
+    if (wantSmartflo) {
+      try {
+        const records = await smartflo.fetchCallRecords(since, new Date());
+        records.filter(r => !agent || smartflo.matchesAgent(r, agent)).forEach(r => {
+          const agentLabel = r.agentName || r.agentNumber || 'Agent';
+          const client = r.clientNumber || 'Unknown number';
+          calls.push({
+            id: `sf-${r.id}`, source: 'smartflo', channel: r.channel,
+            callerId: '', callerName: r.direction === 'inbound' ? client : agentLabel,
+            calleeId: '', calleeName: r.direction === 'inbound' ? agentLabel : client,
+            status: r.status, durationSec: r.durationSec, startedAt: r.startedAt, recordingUrl: r.recordingUrl || '',
+          });
+        });
+      } catch (err) {
+        sf.error = err.response?.status ? `Smartflo API returned ${err.response.status}` : `Could not reach Smartflo: ${err.message}`;
+      }
+    }
+
+    calls.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+    res.json({ calls: calls.slice(0, 500), smartflo: sf, canSeeAll: fullAdmin });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 // Log a call event into the shared room
 router.post('/rooms/call-log', authMiddleware, async (req, res) => {
   const { participantIds, callStatus, callDuration, callerName } = req.body;
