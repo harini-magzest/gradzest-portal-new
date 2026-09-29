@@ -472,6 +472,25 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
 ];
 
+const MARQUEE_COUNTRIES = [
+  { flag: "🇺🇸", name: "United States", code: "us", programs: "4,200+" },
+  { flag: "🇬🇧", name: "United Kingdom", code: "gb", programs: "3,800+" },
+  { flag: "🇨🇦", name: "Canada", code: "ca", programs: "2,100+" },
+  { flag: "🇦🇺", name: "Australia", code: "au", programs: "1,900+" },
+  { flag: "🇩🇪", name: "Germany", code: "de", programs: "1,200+" },
+  { flag: "🇸🇬", name: "Singapore", code: "sg", programs: "450+" },
+  { flag: "🇳🇱", name: "Netherlands", code: "nl", programs: "890+" },
+  { flag: "🇳🇿", name: "New Zealand", code: "nz", programs: "340+" },
+  { flag: "🇮🇪", name: "Ireland", code: "ie", programs: "600+" },
+  { flag: "🇫🇷", name: "France", code: "fr", programs: "750+" },
+  { flag: "🇸🇪", name: "Sweden", code: "se", programs: "420+" },
+  { flag: "🇨🇭", name: "Switzerland", code: "ch", programs: "310+" },
+  { flag: "🇯🇵", name: "Japan", code: "jp", programs: "280+" },
+  { flag: "🇰🇷", name: "South Korea", code: "kr", programs: "260+" },
+  { flag: "🇦🇹", name: "Austria", code: "at", programs: "200+" },
+  { flag: "🇩🇰", name: "Denmark", code: "dk", programs: "180+" },
+];
+
 const MARQUEE_COURSES: {
   name: string;
   emoji: string;
@@ -2097,20 +2116,54 @@ export default function Home() {
       {/* ── SCROLLING TICKER ── */}
       <section className="py-12 bg-white border-y border-gray-100 overflow-hidden">
         <div className="text-center mb-8">
-          <span className="inline-block bg-blue-50 text-blue-500 text-xs font-semibold px-3 py-1 rounded-full mb-3 uppercase tracking-widest">Explore</span>
-          <h3 className="text-2xl font-bold text-gray-900">Universities &amp; Courses</h3>
-          <p className="text-gray-400 text-sm mt-2">Click any card to see rankings, programs, and more</p>
+          <span className="inline-block bg-blue-50 text-blue-500 text-xs font-semibold px-3 py-1 rounded-full mb-3 uppercase tracking-widest">Our Global Network</span>
+          <h3 className="text-2xl font-bold text-gray-900">Explore Destinations, Universities &amp; Courses</h3>
+          <p className="text-gray-400 text-sm mt-2">Click any card to see visa info, rankings, and more</p>
         </div>
 
-        {/* Row 1 — Universities scrolling right. The second copy only makes the loop
-            seamless, so it is hidden from screen readers and keyboard focus. */}
+        {/* Row 1 — Countries scrolling left */}
+        <div className="marquee-wrap overflow-hidden mb-4">
+          <div className="flex animate-marquee-left w-max">
+            {[...MARQUEE_COUNTRIES, ...MARQUEE_COUNTRIES].map((c, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() =>
+                  setDetailModal({
+                    type: "country",
+                    name: c.name,
+                    flag: c.flag,
+                  })
+                }
+                className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
+              >
+                <div className="w-10 h-7 rounded-lg overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                  <img
+                    src={`https://flagcdn.com/w80/${c.code}.png`}
+                    alt={c.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-800 whitespace-nowrap group-hover:text-[#0d1b4b] transition-colors">
+                    {c.name}
+                  </p>
+                  <p className="text-xs text-gray-400">{c.programs} programs</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2 — Universities scrolling right */}
         <div className="marquee-wrap overflow-hidden mb-4">
           <div className="flex animate-marquee-right w-max">
             {[...MARQUEE_UNIS, ...MARQUEE_UNIS].map((uni, i) => (
               <button
                 key={i}
-                aria-hidden={i >= MARQUEE_UNIS.length || undefined}
-                tabIndex={i >= MARQUEE_UNIS.length ? -1 : undefined}
                 type="button"
                 onClick={() =>
                   setDetailModal({ type: "university", name: uni.name })
@@ -2118,9 +2171,9 @@ export default function Home() {
                 className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
               >
                 <div className="w-14 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
-                  <img loading="lazy" decoding="async"
+                  <img
                     src={uni.logo}
-                    alt=""
+                    alt={uni.name}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       const t = e.currentTarget;
@@ -2145,14 +2198,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Row 2 — Courses scrolling left (second copy hidden, as above) */}
+        {/* Row 3 — Courses scrolling left */}
         <div className="marquee-wrap overflow-hidden">
           <div className="flex animate-marquee-left2 w-max">
             {[...MARQUEE_COURSES, ...MARQUEE_COURSES].map((course, i) => (
               <button
                 key={i}
-                aria-hidden={i >= MARQUEE_COURSES.length || undefined}
-                tabIndex={i >= MARQUEE_COURSES.length ? -1 : undefined}
                 type="button"
                 onClick={() =>
                   setDetailModal({ type: "course", name: course.name })
