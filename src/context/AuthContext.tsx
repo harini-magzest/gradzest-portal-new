@@ -19,22 +19,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// A non-sensitive hint that this browser has signed in before. Without it we skip the
+// refresh call on startup, so signed-out visitors don't make a request that can only 401.
+// The session itself still lives only in the httpOnly refresh cookie.
+const SESSION_HINT = 'gz_has_session';
+const onDashboardUrl = () => /^\/(admin|appteam|board|counselor|student)(\/|$)/.test(window.location.pathname);
+const hasSessionHint = () => {
+  if (onDashboardUrl()) return true; // always try to restore on a dashboard URL
+  try { return localStorage.getItem(SESSION_HINT) === '1'; } catch { return true; }
+};
+const setSessionHint = (on: boolean) => {
+  try { if (on) localStorage.setItem(SESSION_HINT, '1'); else localStorage.removeItem(SESSION_HINT); } catch {}
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Only "loading" while a session restore is actually in flight. Public pages render
+  // straight away either way; the dashboard layouts wait on this before redirecting.
+  const [loading, setLoading] = useState(hasSessionHint);
 
   useEffect(() => {
-    // Restore session from httpOnly refresh cookie — no localStorage needed
+    if (!hasSessionHint()) return;
+    // Restore session from the httpOnly refresh cookie in the background
     api.auth.refresh()
       .then(async token => {
         if (token) {
           const u = await api.auth.me();
           setUser(u);
+        } else {
+          setSessionHint(false);
         }
       })
-      .catch(() => {})
+      .catch(() => setSessionHint(false))
       .finally(() => setLoading(false));
   }, []);
+
+  // Keep the hint in step with the signed-in state
+  useEffect(() => { if (user) setSessionHint(true); }, [user]);
 
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
@@ -63,11 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.auth.logout();
     setApiToken(null);
     setUser(null);
+    setSessionHint(false);
   };
 
   // Listen for forced logout triggered by the API interceptor when refresh fails
   useEffect(() => {
-    const handler = () => { setApiToken(null); setUser(null); };
+    const handler = () => { setApiToken(null); setUser(null); setSessionHint(false); };
     window.addEventListener('auth:logout', handler);
     return () => window.removeEventListener('auth:logout', handler);
   }, []);
@@ -81,14 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, login, loginWithToken, logout, refreshUser, isAuthenticated: !!user, loading }}>
-      {loading ? (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-gray-500 text-sm">Loading...</p>
-          </div>
-        </div>
-      ) : children}
+      {children}
     </AuthContext.Provider>
   );
 }

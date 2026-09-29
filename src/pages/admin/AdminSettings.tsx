@@ -93,7 +93,7 @@ function SaveBar({ saving, onSave, saved }: { saving: boolean; onSave: () => voi
 // ── Section components ────────────────────────────────────────────────────────
 
 function CompanyProfile() {
-  const [form, setForm] = useState({ name: 'GradZest', website: '', phone: '', email: 'admin@gradzest.com', address: '', tagline: '' });
+  const [form, setForm] = useState({ name: 'Gradzest', website: '', phone: '', email: 'admin@gradzest.com', address: '', tagline: '' });
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -305,7 +305,7 @@ function EmailTemplates() {
     { key: 'visa_approved', label: 'Visa Approved', desc: 'Congratulations on visa approval' },
   ];
   const [active, setActive] = useState('welcome');
-  const [body, setBody] = useState('Dear {{student_name}},\n\nWelcome to GradZest! We\'re excited to help you begin your study abroad journey.\n\nBest regards,\nThe GradZest Team');
+  const [body, setBody] = useState('Dear {{student_name}},\n\nWelcome to Gradzest! We\'re excited to help you begin your study abroad journey.\n\nBest regards,\nThe Gradzest Team');
   return (
     <SectionCard title="Email Templates">
       <div className="grid grid-cols-3 gap-4">
@@ -537,7 +537,7 @@ function GoogleCalendar() {
             <Toggle checked={false} onChange={() => {}} label="Import existing Google Calendar events" />
           </div>
         )}
-        <p className="text-xs text-gray-400">Meetings created in GradZest will automatically appear in your Google Calendar.</p>
+        <p className="text-xs text-gray-400">Meetings created in Gradzest will automatically appear in your Google Calendar.</p>
       </div>
     </SectionCard>
   );

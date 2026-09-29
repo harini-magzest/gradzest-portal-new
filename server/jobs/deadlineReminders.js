@@ -75,7 +75,7 @@ async function runDeadlineCheck(io, userSockets, mailer) {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#222;">
               <div style="background:#0d1b4b;padding:28px 24px;border-radius:8px 8px 0 0;text-align:center;">
-                <h1 style="color:#fff;margin:0;font-size:22px;">GradZest</h1>
+                <h1 style="color:#fff;margin:0;font-size:22px;">Gradzest</h1>
               </div>
               <div style="background:#fff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
                 <p style="font-size:16px;">Hi ${student.name},</p>

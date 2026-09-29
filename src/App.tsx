@@ -19,6 +19,8 @@ const Universities     = lazy(() => import('./pages/Universities'));
 const UniversityDetail = lazy(() => import('./pages/UniversityDetail'));
 const CourseDetail     = lazy(() => import('./pages/CourseDetail'));
 const Search           = lazy(() => import('./pages/Search'));
+const PrivacyPolicy    = lazy(() => import('./pages/Legal').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfUse       = lazy(() => import('./pages/Legal').then(m => ({ default: m.TermsOfUse })));
 const PublicLayout     = lazy(() => import('./pages/PublicLayout'));
 const ForgotPassword   = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword    = lazy(() => import('./pages/ResetPassword'));
@@ -144,6 +146,8 @@ export default function App() {
               <Route path="/university/:id" element={<UniversityDetail />} />
               <Route path="/university/:uniId/course/:courseId" element={<CourseDetail />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfUse />} />
             </Route>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
