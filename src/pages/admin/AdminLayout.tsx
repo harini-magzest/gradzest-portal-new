@@ -1,7 +1,8 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, Shield, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Navbar from '../../components/Navbar';
+import DashboardSidebar from '../../components/DashboardSidebar';
+import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
 
@@ -37,45 +38,17 @@ export default function AdminLayout() {
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'admin') return <Navigate to="/login" />;
 
+  const sidebarItems = navItems.map(item => ({
+    to: item.to, label: item.label, end: item.end,
+    icon: item.icon as React.ComponentType<{ className?: string }>,
+    badge: item.label === 'Chat' ? unreadCount : item.label === 'Students' ? newLeads : undefined,
+  }));
+
   return (
     <div className="min-h-screen bg-purple-50">
-      <Navbar />
+      <DashboardTopbar workspaceLabel="Admin workspace" dashboardHome="/admin" />
       <div className="flex">
-        <aside className="hidden md:flex flex-col items-center w-24 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-gradient-to-b from-purple-950 to-indigo-950 py-4 gap-1">
-          <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center mb-3 flex-shrink-0" title={`${user.name} · Admin Portal`}>
-            <Shield className="w-5 h-5 text-white" />
-          </div>
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className="flex flex-col items-center gap-1 w-20 py-2 rounded-2xl hover:bg-purple-900/40 transition-colors group flex-shrink-0"
-            >
-              {({ isActive }) => (
-                <>
-                  <div className={`relative w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isActive ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md' : 'text-purple-200/70 group-hover:text-white'
-                  }`}>
-                    <NavIcon icon={item.icon} size="md" />
-                    {item.label === 'Chat' && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-purple-950" />
-                    )}
-                    {item.label === 'Students' && newLeads > 0 && (
-                      <span title={newLeads + ' new lead' + (newLeads > 1 ? 's' : '')}
-                        className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-purple-950">
-                        {newLeads > 99 ? '99+' : newLeads}
-                      </span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-medium text-center leading-tight px-0.5 ${isActive ? 'text-white' : 'text-purple-200/70 group-hover:text-white'}`}>
-                    {item.label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </aside>
+        <DashboardSidebar navItems={sidebarItems} />
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
           {navItems.map(item => (

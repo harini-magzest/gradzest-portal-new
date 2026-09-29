@@ -1,7 +1,8 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, GraduationCap, User, BookOpen, CalendarDays, FileText, Zap, UserCog, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, GraduationCap, User, BookOpen, CalendarDays, FileText, Zap, Globe } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Navbar from '../../components/Navbar';
+import DashboardSidebar from '../../components/DashboardSidebar';
+import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
@@ -34,40 +35,18 @@ export default function CounselorLayout() {
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'counselor') return <Navigate to="/login" />;
 
+  const sidebarItems = navItems.map(item => ({
+    to: item.to, label: item.label, end: item.end,
+    icon: (typeof item.icon === 'string' ? GraduationCap : item.icon) as React.ComponentType<{ className?: string }>,
+    badge: item.label === 'Chat' ? unreadCount : undefined,
+  }));
+
   return (
     <div className="min-h-screen bg-green-50">
-      <Navbar />
+      <DashboardTopbar workspaceLabel="Counselor workspace" dashboardHome="/counselor" />
       <div className="flex">
         {/* Sidebar */}
-        <aside className="hidden md:flex flex-col items-center w-24 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-gradient-to-b from-green-950 to-teal-950 py-4 gap-1">
-          <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center mb-3 flex-shrink-0" title={`${user.name} · Counselor Portal`}>
-            <UserCog className="w-5 h-5 text-white" />
-          </div>
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className="flex flex-col items-center gap-1 w-20 py-2 rounded-2xl hover:bg-green-900/40 transition-colors group flex-shrink-0"
-            >
-              {({ isActive }) => (
-                <>
-                  <div className={`relative w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isActive ? 'bg-gradient-to-br from-green-500 to-teal-600 text-white shadow-md' : 'text-green-200/70 group-hover:text-white'
-                  }`}>
-                    <NavIcon icon={item.icon} size="md" />
-                    {item.label === 'Chat' && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-green-950" />
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-medium text-center leading-tight px-0.5 ${isActive ? 'text-white' : 'text-green-200/70 group-hover:text-white'}`}>
-                    {item.label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </aside>
+        <DashboardSidebar navItems={sidebarItems} />
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
