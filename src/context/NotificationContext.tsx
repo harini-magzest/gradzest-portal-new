@@ -492,7 +492,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Role-aware links
     const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/meetings';
-    const activitiesLink = userRole === 'counselor' ? '/counselor/activities' : userRole === 'admin' ? '/admin/activities' : '/student/activities';
+    const activitiesLink = userRole === 'counselor' ? '/counselor/activities'
+      : userRole === 'admin' ? ((user as any)?.isAppTeam ? '/appteam/activities' : '/admin/activities')
+      : '/student/activities';
 
     if (userRole === 'student') {
       // Student: counselor assigned

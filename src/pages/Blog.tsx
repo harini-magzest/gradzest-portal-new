@@ -78,13 +78,13 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      {/* Navbar comes from PublicLayout */}
 
       {/* Hero */}
       <section className="bg-[#0d1b4b] py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
-            GradZest Resources
+            Gradzest Resources
           </h1>
           <p className="text-blue-200 text-lg max-w-2xl mx-auto">
             Guides, tips, and insights to help Indian students navigate studying abroad — destinations, scholarships, visas, and more.

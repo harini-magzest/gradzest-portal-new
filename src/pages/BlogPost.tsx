@@ -1,7 +1,6 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { Clock, ArrowLeft, ChevronRight, Tag } from 'lucide-react';
 import { getBlogPost, getRelatedPosts } from '../data/blogPosts';
-import Navbar from '../components/Navbar';
 
 function renderMarkdown(content: string): string {
   return content
@@ -39,7 +38,7 @@ export default function BlogPostPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      {/* Navbar comes from PublicLayout */}
 
       {/* Breadcrumb */}
       <div className="max-w-3xl mx-auto px-4 pt-6">

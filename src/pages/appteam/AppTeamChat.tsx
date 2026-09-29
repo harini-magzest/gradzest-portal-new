@@ -2,12 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, UserCog, ShieldCheck,
+  Calendar, Clock, UserCog, ShieldCheck, Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
+import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
+import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -31,6 +33,17 @@ function getRoleBadgeClass(role: string) {
   if (role === 'Counselor') return 'text-teal-700 bg-teal-50';
   if (role === 'Student') return 'text-sky-700 bg-sky-50';
   return 'text-gray-600 bg-gray-100';
+}
+
+// Group-created / group-changed notices — centered small text, not a chat bubble (WhatsApp-style)
+function SystemMessage({ msg }: { msg: any }) {
+  return (
+    <div className="flex justify-center">
+      <span className="text-[11px] text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-center max-w-[85%]">
+        {msg.content}
+      </span>
+    </div>
+  );
 }
 
 function CallMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
@@ -144,10 +157,20 @@ export default function AppTeamChat() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'counselors' | 'admins'>('counselors');
+  const [activeTab, setActiveTab] = useState<'counselors' | 'admins' | 'groups'>('counselors');
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
+  // Group chats: message being replied to, and applying reaction updates locally
+  const [replyTo, setReplyTo] = useState<any>(null);
+  useEffect(() => { setReplyTo(null); }, [selectedRoom?.id]);
+  const applyMsgUpdate = (m: any) => {
+    const mid = String(m._id || m.id);
+    const patch = (r: any) => r && r.messages?.some((x: any) => String(x._id || x.id) === mid)
+      ? { ...r, messages: r.messages.map((x: any) => String(x._id || x.id) === mid ? m : x) } : r;
+    setSelectedRoom((r: any) => patch(r));
+    setRooms((prev: any[]) => prev.map(patch));
+  };
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ date: '', time: '', notes: '' });
@@ -172,7 +195,7 @@ export default function AppTeamChat() {
           const target = counselorList.find((c: any) => String(c._id || c.id) === autoCounselorId);
           if (target) {
             const pid = String(target._id || target.id);
-            const existing = roomList.find((r: any) => r.participants?.map(String).includes(pid));
+            const existing = roomList.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(pid));
             if (existing?.type === 'appteam-counselor') {
               setSelectedRoom(existing);
             } else {
@@ -241,7 +264,7 @@ export default function AppTeamChat() {
     const pid = String(person._id || person.id);
     const isAdminPerson = admins.some((a: any) => String(a._id || a.id) === pid);
     const expectedType = isAdminPerson ? 'admin-appteam' : 'appteam-counselor';
-    const existing = rooms.find((r: any) => r.participants?.map(String).includes(pid));
+    const existing = rooms.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(pid));
     if (existing?.type === expectedType) { setSelectedRoom(existing); return; }
     try {
       const newRoom = await api.chat.createRoom(
@@ -259,7 +282,8 @@ export default function AppTeamChat() {
     const content = input.trim();
     setInput('');
     try {
-      const msg = await api.chat.send(selectedRoom.id, content, user.name);
+      const msg = await api.chat.send(selectedRoom.id, content, user.name, replyTo ? String(replyTo._id || replyTo.id) : undefined);
+      setReplyTo(null);
       const updated = { ...selectedRoom, messages: [...selectedRoom.messages, msg] };
       setSelectedRoom(updated);
       setRooms(prev => prev.map(r => r.id === selectedRoom.id ? updated : r));
@@ -304,8 +328,10 @@ export default function AppTeamChat() {
     } catch {} finally { setSending(false); }
   };
 
-  const remoteName = selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== String(user?.id)) ?? '';
+  const isGroup = selectedRoom?.type === 'group';
+  const groupRooms = rooms.filter((r: any) => r.type === 'group');
+  const remoteName = isGroup ? (selectedRoom.name || 'Group') : selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== String(user?.id)) ?? '';
 
   const getSenderRole = (senderId: string) => {
     if (String(user?.id) === senderId) return 'Application Team';
@@ -322,8 +348,8 @@ export default function AppTeamChat() {
     .sort((a: any, b: any) => {
       const aPid = String(a._id || a.id);
       const bPid = String(b._id || b.id);
-      const aRoom = rooms.find((r: any) => r.participants?.map(String).includes(aPid));
-      const bRoom = rooms.find((r: any) => r.participants?.map(String).includes(bPid));
+      const aRoom = rooms.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(aPid));
+      const bRoom = rooms.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(bPid));
       const aTime = aRoom?.messages?.[aRoom.messages.length - 1]?.timestamp ?? '';
       const bTime = bRoom?.messages?.[bRoom.messages.length - 1]?.timestamp ?? '';
       if (aTime && !bTime) return -1;
@@ -351,7 +377,7 @@ export default function AppTeamChat() {
           </div>
 
           <div className="flex border-b border-gray-100">
-            {([['counselors', 'Counselors', UserCog, counselors.length], ['admins', 'Admin', ShieldCheck, admins.length]] as const).map(([tab, label, Icon, count]) => (
+            {([['counselors', 'Counselors', UserCog, counselors.length], ['admins', 'Admin', ShieldCheck, admins.length], ['groups', 'Groups', Users, groupRooms.length]] as const).map(([tab, label, Icon, count]) => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
                   activeTab === tab ? 'text-orange-700 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700'
@@ -362,6 +388,32 @@ export default function AppTeamChat() {
             ))}
           </div>
 
+          {activeTab === 'groups' ? (
+          <div className="flex-1 overflow-y-auto">
+            {groupRooms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+                <Users className="w-6 h-6 text-gray-300 mb-1" />
+                <p className="text-xs text-gray-400">You're not in any counselling groups yet</p>
+              </div>
+            ) : groupRooms.map((g: any) => {
+              const unread = g.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+              const lastMsg = g.messages?.[g.messages.length - 1];
+              return (
+                <button type="button" key={g.id} onClick={() => setSelectedRoom(g)}
+                  className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${selectedRoom?.id === g.id ? 'bg-orange-50' : ''}`}>
+                  <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4" /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-sm font-semibold truncate text-gray-900">{g.name}</span>
+                      {unread > 0 && <span className="bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{unread}</span>}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{lastMsg ? `${lastMsg.senderName}: ${lastMsg.content || lastMsg.fileName || ''}` : `${g.participants.length} members`}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          ) : (
           <div className="flex-1 overflow-y-auto">
             {filteredCounselors.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-center p-4">
@@ -370,7 +422,7 @@ export default function AppTeamChat() {
               </div>
             ) : filteredCounselors.map((person: any) => {
               const pid = String(person._id || person.id);
-              const existingRoom = rooms.find((r: any) => r.participants?.map(String).includes(pid));
+              const existingRoom = rooms.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(pid));
               const isActive = !!(existingRoom && selectedRoom?.id === existingRoom.id);
               const unread = existingRoom?.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
               const lastMsg = existingRoom?.messages?.[existingRoom.messages.length - 1];
@@ -382,8 +434,9 @@ export default function AppTeamChat() {
               return (
                 <button type="button" key={pid} onClick={() => openChat(person)}
                   className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-orange-50' : ''}`}>
-                  <div className={`w-10 h-10 rounded-full ${activeTab === 'admins' ? 'bg-purple-600' : 'bg-teal-600'} flex items-center justify-center font-bold text-sm text-white flex-shrink-0`}>
+                  <div className={`relative w-10 h-10 rounded-full ${activeTab === 'admins' ? 'bg-purple-600' : 'bg-teal-600'} flex items-center justify-center font-bold text-sm text-white flex-shrink-0`}>
                     {person.name?.charAt(0)}
+                    <PresenceDot userId={pid} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
@@ -402,6 +455,7 @@ export default function AppTeamChat() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Chat area */}
@@ -411,13 +465,19 @@ export default function AppTeamChat() {
               <div className={`w-10 h-10 ${remoteRole === 'Admin Team' ? 'bg-purple-600' : 'bg-teal-600'} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
                 {remoteName.charAt(0)}
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{remoteName}</p>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{remoteName}</p>
+                {isGroup ? (
+                  <p className="text-xs text-gray-500 truncate"><GroupPresence memberIds={selectedRoom.participants} meId={String(user?.id)} /> · {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}</p>
+                ) : (
+                <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">{remoteRole}</span>
+                  <span className="text-gray-300" aria-hidden="true">·</span>
+                  <PresenceLabel userId={remoteId} />
                 </div>
+                )}
               </div>
+              {!isGroup && (<>
               <button type="button" title="Voice call" aria-label="Voice call"
                 onClick={() => startCall(remoteId, remoteName)}
                 disabled={callState !== 'idle' || !remoteId}
@@ -430,6 +490,7 @@ export default function AppTeamChat() {
                 className="w-9 h-9 bg-amber-100 hover:bg-amber-200 disabled:opacity-40 text-amber-700 rounded-full flex items-center justify-center transition-colors">
                 <Video className="w-4 h-4" />
               </button>
+              </>)}
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -441,7 +502,8 @@ export default function AppTeamChat() {
               ) : (selectedRoom.messages || []).map((msg: any) => {
                 const key = msg._id || msg.id;
                 const isMe = msg.senderId === String(user?.id);
-                const senderRole = getSenderRole(msg.senderId);
+                const senderRole = (isGroup && msg.senderRole) || getSenderRole(msg.senderId);
+                if (msg.type === 'system') return <SystemMessage key={key} msg={msg} />;
                 if (msg.type === 'call') return <CallMessage key={key} msg={msg} isMe={isMe} />;
                 if (msg.type === 'file') return <FileMessage key={key} msg={msg} isMe={isMe} senderRole={senderRole} />;
                 if (msg.type === 'meeting') return <MeetingMessage key={key} msg={msg} isMe={isMe} senderRole={senderRole} />;
@@ -460,10 +522,12 @@ export default function AppTeamChat() {
                           {senderRole && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getRoleBadgeClass(senderRole)}`}>{senderRole}</span>}
                         </div>
                       )}
+                      {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} mine={isMe} />}
                       <div className={`px-4 py-3 rounded-xl text-sm leading-relaxed ${isMe ? 'bg-orange-500 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
                         {msg.content}
                       </div>
                       <p className={`text-xs text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>{formatTime(msg.timestamp)}</p>
+                      {selectedRoom?.type === 'group' && <MessageActions roomId={selectedRoom.id} msg={msg} meId={String(user?.id)} onUpdated={applyMsgUpdate} onReply={setReplyTo} alignRight={isMe} />}
                     </div>
                   </div>
                 );
@@ -472,6 +536,7 @@ export default function AppTeamChat() {
             </div>
 
             <div className="p-4 border-t border-gray-200">
+              {replyTo && <ReplyingBar msg={replyTo} onCancel={() => setReplyTo(null)} />}
               {pendingFile && (
                 <div className="mb-3 flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
                   <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">

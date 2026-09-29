@@ -109,6 +109,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userSockets = new Map(); // userId -> Set<socketId>
 app.set('io', io);
 app.set('userSockets', userSockets);
+// userId -> ISO time their last connection closed (in memory; resets on restart)
+const lastSeen = new Map();
+app.set('lastSeen', lastSeen);
 
 // Nodemailer transporter — configure SMTP credentials in server/.env
 const nodemailer = require('nodemailer');
@@ -255,9 +258,12 @@ io.on('connection', (socket) => {
   socket.on('register', () => {
     const uid = socket.data.userId;
     if (!uid) return;
-    if (!userSockets.has(uid)) userSockets.set(uid, new Set());
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
     userSockets.get(uid).add(socket.id);
     if (socket.data.role === 'admin') socket.join('admin-room');
+    // Presence: first open connection → online
+    if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });
 
   const relay = (event, to, payload) => {
@@ -279,7 +285,13 @@ io.on('connection', (socket) => {
       const sids = userSockets.get(socket.data.userId);
       if (sids) {
         sids.delete(socket.id);
-        if (sids.size === 0) userSockets.delete(socket.data.userId);
+        if (sids.size === 0) {
+          userSockets.delete(socket.data.userId);
+          // Presence: last connection closed → offline
+          const at = new Date().toISOString();
+          lastSeen.set(socket.data.userId, at);
+          io.emit('presence:update', { userId: socket.data.userId, online: false, lastSeen: at });
+        }
       }
     }
   });

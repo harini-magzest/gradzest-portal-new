@@ -186,21 +186,38 @@ export const api = {
   chat: {
     rooms: () => req<any[]>('/chat/rooms', { headers: authHeaders() }),
     staff: () => req<any[]>('/chat/staff', { headers: authHeaders() }),
+    presence: () => req<{ online: string[]; lastSeen: Record<string, string> }>('/chat/presence', { headers: authHeaders() }),
     room: (roomId: string) => req<any>(`/chat/rooms/${roomId}`, { headers: authHeaders() }),
-    send: (roomId: string, content: string, senderName: string) =>
+    send: (roomId: string, content: string, senderName: string, replyToId?: string) =>
       req<any>(`/chat/rooms/${roomId}/messages`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ content, senderName }),
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ content, senderName, replyToId }),
+      }),
+    react: (roomId: string, messageId: string, emoji: string) =>
+      req<any>(`/chat/rooms/${roomId}/messages/${messageId}/reactions`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ emoji }),
       }),
     createRoom: (participantIds: string[], participantNames: string[], roomType?: string) =>
       req<any>('/chat/rooms', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ participantIds, participantNames, type: roomType }),
       }),
+    createGroup: (data: { studentId: string; memberIds: string[]; name?: string }) =>
+      req<any>('/chat/groups', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    updateGroup: (id: string, data: { add?: string[]; remove?: string[]; name?: string }) =>
+      req<any>(`/chat/groups/${id}/members`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     logCall: (participantIds: string[], callStatus: string, callDuration: number, callerName: string) =>
       req<any>('/chat/rooms/call-log', {
         method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ participantIds, callStatus, callDuration, callerName }),
       }),
     sendFile: (roomId: string, formData: FormData) => upload<any>(`/chat/rooms/${roomId}/files`, formData),
+    uploadRecording: (messageId: string, blob: Blob) => {
+      const fd = new FormData();
+      fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
+      return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
+    },
+    callHistory: (days: number, userId?: string) =>
+      req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -330,6 +347,7 @@ export const api = {
 
   tasks: {
     list: () => req<any[]>('/tasks', { headers: authHeaders() }),
+    assignees: () => req<{ _id: string; name: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),
     create: (data: any) => req<any>('/tasks', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
