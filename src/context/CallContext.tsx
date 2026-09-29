@@ -25,6 +25,9 @@ interface CallContextType {
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  // Presence: who has the app open right now, and when others were last seen
+  isOnline: (userId?: string) => boolean;
+  lastSeenOf: (userId?: string) => string | undefined;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -59,6 +62,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [elapsed, setElapsed] = useState(0);
   const [toast, setToast] = useState('');
   const [lastMessageTime, setLastMessageTime] = useState(0);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
+  const isOnline = useCallback((id?: string) => !!id && onlineIds.has(String(id)), [onlineIds]);
+  const lastSeenOf = useCallback((id?: string) => (id ? lastSeen[String(id)] : undefined), [lastSeen]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -252,9 +259,22 @@ export function CallProvider({ children }: { children: ReactNode }) {
       auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
     });
     socketRef.current = socket;
-    const registerSocket = () => socket.emit('register', user.id);
+    // Presence snapshot on every (re)connect, then live updates
+    const loadPresence = () => api.chat.presence().then(p => {
+      setOnlineIds(new Set(p.online.map(String)));
+      setLastSeen(p.lastSeen || {});
+    }).catch(() => {});
+    const registerSocket = () => { socket.emit('register', user.id); setTimeout(loadPresence, 300); };
     socket.on('connect', registerSocket);
     if (socket.connected) registerSocket();
+    socket.on('presence:update', ({ userId, online, lastSeen: at }: { userId: string; online: boolean; lastSeen?: string }) => {
+      setOnlineIds(prev => {
+        const next = new Set(prev);
+        if (online) next.add(String(userId)); else next.delete(String(userId));
+        return next;
+      });
+      if (!online && at) setLastSeen(prev => ({ ...prev, [String(userId)]: at }));
+    });
 
     const buildPC = (targetId: string) => {
       const pc = new RTCPeerConnection(ICE_CONFIG);
@@ -440,6 +460,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     <CallContext.Provider value={{
       callState, callType, remoteName, remoteRole, muted, cameraOff, timer, lastMessageTime,
       startCall, startVideoCall, acceptCall, rejectCall, endCall, toggleMute, toggleCamera,
+      isOnline, lastSeenOf,
     }}>
       {children}
       <audio ref={audioRef} autoPlay playsInline />

@@ -11,6 +11,9 @@ const MessageSchema = new mongoose.Schema({
   callStatus: String, // 'answered' | 'no_answer' | 'declined'
   callDuration: { type: Number, default: 0 }, // seconds
   recordingUrl: String, // in-app call recording (uploaded by the caller's browser)
+  // Group chats: emoji reactions and quote-replies
+  reactions: [{ _id: false, emoji: String, userId: String, userName: String }],
+  replyTo: { _id: false, messageId: String, senderName: String, content: String },
   // file message fields
   fileUrl: String,
   fileName: String,

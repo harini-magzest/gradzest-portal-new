@@ -186,10 +186,15 @@ export const api = {
   chat: {
     rooms: () => req<any[]>('/chat/rooms', { headers: authHeaders() }),
     staff: () => req<any[]>('/chat/staff', { headers: authHeaders() }),
+    presence: () => req<{ online: string[]; lastSeen: Record<string, string> }>('/chat/presence', { headers: authHeaders() }),
     room: (roomId: string) => req<any>(`/chat/rooms/${roomId}`, { headers: authHeaders() }),
-    send: (roomId: string, content: string, senderName: string) =>
+    send: (roomId: string, content: string, senderName: string, replyToId?: string) =>
       req<any>(`/chat/rooms/${roomId}/messages`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ content, senderName }),
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ content, senderName, replyToId }),
+      }),
+    react: (roomId: string, messageId: string, emoji: string) =>
+      req<any>(`/chat/rooms/${roomId}/messages/${messageId}/reactions`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ emoji }),
       }),
     createRoom: (participantIds: string[], participantNames: string[], roomType?: string) =>
       req<any>('/chat/rooms', {

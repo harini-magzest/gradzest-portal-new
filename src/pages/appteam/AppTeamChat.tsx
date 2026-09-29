@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
+import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
+import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -148,6 +150,16 @@ export default function AppTeamChat() {
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
+  // Group chats: message being replied to, and applying reaction updates locally
+  const [replyTo, setReplyTo] = useState<any>(null);
+  useEffect(() => { setReplyTo(null); }, [selectedRoom?.id]);
+  const applyMsgUpdate = (m: any) => {
+    const mid = String(m._id || m.id);
+    const patch = (r: any) => r && r.messages?.some((x: any) => String(x._id || x.id) === mid)
+      ? { ...r, messages: r.messages.map((x: any) => String(x._id || x.id) === mid ? m : x) } : r;
+    setSelectedRoom((r: any) => patch(r));
+    setRooms((prev: any[]) => prev.map(patch));
+  };
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ date: '', time: '', notes: '' });
@@ -259,7 +271,8 @@ export default function AppTeamChat() {
     const content = input.trim();
     setInput('');
     try {
-      const msg = await api.chat.send(selectedRoom.id, content, user.name);
+      const msg = await api.chat.send(selectedRoom.id, content, user.name, replyTo ? String(replyTo._id || replyTo.id) : undefined);
+      setReplyTo(null);
       const updated = { ...selectedRoom, messages: [...selectedRoom.messages, msg] };
       setSelectedRoom(updated);
       setRooms(prev => prev.map(r => r.id === selectedRoom.id ? updated : r));
@@ -410,8 +423,9 @@ export default function AppTeamChat() {
               return (
                 <button type="button" key={pid} onClick={() => openChat(person)}
                   className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-orange-50' : ''}`}>
-                  <div className={`w-10 h-10 rounded-full ${activeTab === 'admins' ? 'bg-purple-600' : 'bg-teal-600'} flex items-center justify-center font-bold text-sm text-white flex-shrink-0`}>
+                  <div className={`relative w-10 h-10 rounded-full ${activeTab === 'admins' ? 'bg-purple-600' : 'bg-teal-600'} flex items-center justify-center font-bold text-sm text-white flex-shrink-0`}>
                     {person.name?.charAt(0)}
+                    <PresenceDot userId={pid} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
@@ -443,11 +457,12 @@ export default function AppTeamChat() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{remoteName}</p>
                 {isGroup ? (
-                  <p className="text-xs text-gray-500 truncate">{selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}</p>
+                  <p className="text-xs text-gray-500 truncate"><GroupPresence memberIds={selectedRoom.participants} meId={String(user?.id)} /> · {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}</p>
                 ) : (
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">{remoteRole}</span>
+                  <span className="text-gray-300" aria-hidden="true">·</span>
+                  <PresenceLabel userId={remoteId} />
                 </div>
                 )}
               </div>
@@ -495,10 +510,12 @@ export default function AppTeamChat() {
                           {senderRole && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getRoleBadgeClass(senderRole)}`}>{senderRole}</span>}
                         </div>
                       )}
+                      {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} mine={isMe} />}
                       <div className={`px-4 py-3 rounded-xl text-sm leading-relaxed ${isMe ? 'bg-orange-500 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
                         {msg.content}
                       </div>
                       <p className={`text-xs text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>{formatTime(msg.timestamp)}</p>
+                      {selectedRoom?.type === 'group' && <MessageActions roomId={selectedRoom.id} msg={msg} meId={String(user?.id)} onUpdated={applyMsgUpdate} onReply={setReplyTo} alignRight={isMe} />}
                     </div>
                   </div>
                 );
@@ -507,6 +524,7 @@ export default function AppTeamChat() {
             </div>
 
             <div className="p-4 border-t border-gray-200">
+              {replyTo && <ReplyingBar msg={replyTo} onCancel={() => setReplyTo(null)} />}
               {pendingFile && (
                 <div className="mb-3 flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
                   <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">

@@ -6,6 +6,8 @@ import {
   Eye, GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
 } from 'lucide-react';
 import { api } from '../../api';
+import { useCallContext } from '../../context/CallContext';
+import { PresenceDot, PresenceLabel } from '../../components/Presence';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -1138,16 +1140,15 @@ function CounselorCard({
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4">
       {/* Top: avatar + name + status */}
       <div className="flex items-start gap-4">
-        <div className={`w-14 h-14 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
+        <div className={`relative w-14 h-14 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
           {initials(counselor.name)}
+          <PresenceDot userId={normalId(counselor)} size="md" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-900 text-base leading-tight">{counselor.name}</p>
           <p className="text-sm text-gray-500 mt-0.5">{counselor.title || 'Education Counselor'}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-            <span className="text-xs text-green-600 font-medium">Active</span>
-          </div>
+          {/* Live status: green = has Gradzest open now, red = offline (with last seen) */}
+          <div className="mt-1"><PresenceLabel userId={normalId(counselor)} /></div>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-xs text-gray-400">{counselor.experience ?? 0} yrs</p>
@@ -1252,6 +1253,8 @@ export default function AdminCounselors() {
 
   const [search, setSearch] = useState('');
   const [filterSpec, setFilterSpec] = useState('');
+  const [onlyOnline, setOnlyOnline] = useState(false);
+  const { isOnline } = useCallContext();
   const [showSpecMenu, setShowSpecMenu] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -1311,13 +1314,17 @@ export default function AdminCounselors() {
         if (!c.name?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q) && !c.phone?.toLowerCase().includes(q)) return false;
       }
       if (filterSpec && !(c.specialization || []).some((s: string) => s.toLowerCase().includes(filterSpec.toLowerCase()))) return false;
+      if (onlyOnline && !isOnline(normalId(c))) return false;
       return true;
     });
+    // Online counselors first, then by performance score
     list = [...list].sort((a, b) =>
+      Number(isOnline(normalId(b))) - Number(isOnline(normalId(a))) ||
       (metricsMap[normalId(b)]?.score ?? 0) - (metricsMap[normalId(a)]?.score ?? 0)
     );
     return list;
-  }, [counselors, search, filterSpec, metricsMap]);
+  }, [counselors, search, filterSpec, metricsMap, onlyOnline, isOnline]);
+  const onlineCount = counselors.filter(c => isOnline(normalId(c))).length;
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this counselor? This cannot be undone.')) return;
@@ -1331,10 +1338,13 @@ export default function AdminCounselors() {
 
   // Filtered Application Team list — search only, none of the counselor-specific filters apply
   const filteredAppTeam = useMemo(() => {
-    if (!search) return appTeamMembers;
     const q = search.toLowerCase();
-    return appTeamMembers.filter(m => m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q));
-  }, [appTeamMembers, search]);
+    return appTeamMembers
+      .filter(m => !q || m.name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q))
+      .filter(m => !onlyOnline || isOnline(normalId(m)))
+      .sort((a, b) => Number(isOnline(normalId(b))) - Number(isOnline(normalId(a))));
+  }, [appTeamMembers, search, onlyOnline, isOnline]);
+  const appTeamOnlineCount = appTeamMembers.filter(m => isOnline(normalId(m))).length;
 
   const handleDeleteAppTeam = async (id: string) => {
     if (!window.confirm('Delete this Application Team member? This cannot be undone.')) return;
@@ -1554,8 +1564,22 @@ return (
             )}
 
 
-{(search || filterSpec) && (
-              <button type="button" onClick={() => { setSearch(''); setFilterSpec(''); }}
+            {/* Live presence: how many counselors / App Team members have Gradzest open right now */}
+            {(() => {
+              const n = activeRole === 'counselor' ? onlineCount : appTeamOnlineCount;
+              const total = activeRole === 'counselor' ? counselors.length : appTeamMembers.length;
+              return (
+                <button type="button" onClick={() => setOnlyOnline(v => !v)} aria-pressed={onlyOnline}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border shadow-sm transition-colors ${
+                    onlyOnline ? 'bg-green-50 border-green-300 text-green-800' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full ${n > 0 ? 'bg-green-500' : 'bg-red-500'}`} aria-hidden="true" />
+                  {n} of {total} online{onlyOnline ? ' · showing online only' : ''}
+                </button>
+              );
+            })()}
+
+{(search || filterSpec || onlyOnline) && (
+              <button type="button" onClick={() => { setSearch(''); setFilterSpec(''); setOnlyOnline(false); }}
                 className="text-xs text-gray-400 hover:text-gray-600 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors border border-dashed border-gray-200">
                 Clear filters
               </button>
@@ -1641,13 +1665,15 @@ return (
                 const color = avatarColor(m.name);
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
-                    <div className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                    <div className={`relative w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
                       {initials(m.name)}
+                      <PresenceDot userId={id} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
                       <p className="text-xs text-gray-400 truncate">{m.email}</p>
                     </div>
+                    <div className="hidden sm:block flex-shrink-0"><PresenceLabel userId={id} /></div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: m.name } } })}
                         title="Chat"
