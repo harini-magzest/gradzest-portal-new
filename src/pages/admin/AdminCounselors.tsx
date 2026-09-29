@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
-  Eye, GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
+  GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -1120,85 +1120,6 @@ function CounselorStatsModal({
   );
 }
 
-// ── Counselor Card ───────────────────────────────────────────────────────────
-
-function CounselorCard({
-  counselor,
-  onChat, onAssign, onView, onEdit, onDelete, onPerformance, deleting,
-}: {
-  counselor: any;
-  onChat: () => void; onAssign: () => void; onView: () => void; onPerformance: () => void;
-  onEdit: () => void; onDelete: () => void;
-  deleting: boolean;
-}) {
-  const color = avatarColor(counselor.name);
-  const tags = (counselor.specialization || []).slice(0, 3);
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4">
-      {/* Top: avatar + name + status */}
-      <div className="flex items-start gap-4">
-        <div className={`w-14 h-14 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
-          {initials(counselor.name)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 text-base leading-tight">{counselor.name}</p>
-          <p className="text-sm text-gray-500 mt-0.5">{counselor.title || 'Education Counselor'}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-            <span className="text-xs text-green-600 font-medium">Active</span>
-          </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-xs text-gray-400">{counselor.experience ?? 0} yrs</p>
-          <p className="text-xs text-gray-400">exp</p>
-        </div>
-      </div>
-
-      {/* Specialization tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag: string) => (
-            <span key={tag}
-              className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-medium border border-gray-200">
-              {tag}
-            </span>
-          ))}
-          {(counselor.specialization || []).length > 3 && (
-            <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium border border-gray-200">
-              +{counselor.specialization.length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-gray-100">
-        <button type="button" onClick={onPerformance}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 active:scale-95 transition-all">
-          <BarChart3 className="w-3.5 h-3.5" />Stats
-        </button>
-        <button type="button" onClick={onChat}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
-          <MessageSquare className="w-3.5 h-3.5" />Chat
-        </button>
-        <button type="button" onClick={onAssign}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-green-700 bg-green-50 border-green-200 hover:bg-green-100 active:scale-95 transition-all">
-          <UserCheck className="w-3.5 h-3.5" />Assign
-        </button>
-        <button type="button" onClick={onView}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 active:scale-95 transition-all">
-          <Eye className="w-3.5 h-3.5" />View
-        </button>
-        <button type="button" onClick={onEdit}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-white bg-[#0d1b4b] border-[#0d1b4b] hover:bg-[#152258] active:scale-95 transition-all">
-          <GraduationCap className="w-3.5 h-3.5" />Edit
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminCounselors() {
@@ -1561,23 +1482,61 @@ return (
             )}
           </div>
         ) : !loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.map(c => {
-              const id = normalId(c);
-              return (
-                <CounselorCard
-                  key={id}
-                  counselor={c}
-                  onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
-                  onAssign={() => setAssigning(c)}
-                  onView={() => setViewing(c)}
-                  onPerformance={() => navigate(`/admin/counselors/${id}/performance`)}
-                  onEdit={() => setEditing(c)}
-                  onDelete={() => handleDelete(id)}
-                  deleting={deletingId === id}
-                />
-              );
-            })}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="divide-y divide-gray-50">
+              {filtered.map(c => {
+                const id = normalId(c);
+                const color = avatarColor(c.name);
+                const tags = (c.specialization || []).slice(0, 2);
+                return (
+                  <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
+                    <button type="button" onClick={() => setViewing(c)} aria-label={`Open ${c.name}'s profile`}
+                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {initials(c.name)}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <button type="button" onClick={() => setViewing(c)}
+                          className="text-sm font-semibold text-gray-900 truncate hover:text-purple-700 hover:underline transition-colors">
+                          {c.name}
+                        </button>
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" title="Active" />
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">{c.title || 'Education Counselor'} · {c.experience ?? 0} yrs exp</p>
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {tags.map((t: string) => (
+                            <span key={t} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)} title="Stats"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors">
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })} title="Chat"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setAssigning(c)} title="Assign"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors">
+                        <UserCheck className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setEditing(c)} title="Edit"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDelete(id)} disabled={deletingId === id} title="Delete"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                        {deletingId === id ? <Spinner size={4} /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
 
@@ -1601,11 +1560,15 @@ return (
                 const color = avatarColor(m.name);
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
-                    <div className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                    <button type="button" onClick={() => setEditingAppTeam(m)} aria-label={`Open ${m.name}'s profile`}
+                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
                       {initials(m.name)}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
+                      <button type="button" onClick={() => setEditingAppTeam(m)}
+                        className="text-sm font-semibold text-gray-900 truncate hover:text-orange-700 hover:underline transition-colors block">
+                        {m.name}
+                      </button>
                       <p className="text-xs text-gray-400 truncate">{m.email}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
