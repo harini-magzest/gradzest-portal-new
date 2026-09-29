@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, Users, UserCog, Briefcase,
+  Calendar, Clock, Users, UserCog, Briefcase, Plus, Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
@@ -136,6 +136,124 @@ function MeetingMessage({ msg, isMe, senderRole }: { msg: any; isMe: boolean; se
   );
 }
 
+// Create a counselling group (student + chosen team members) or edit an existing group's members
+function GroupModal({ mode, room, students, team, onClose, onSaved }: {
+  mode: 'create' | 'edit';
+  room?: any;
+  students: any[];
+  team: any[]; // counselors + app team, each with _dept
+  onClose: () => void;
+  onSaved: (room: any) => void;
+}) {
+  const idOf = (p: any) => String(p._id || p.id);
+  const sortedStudents = [...students].sort((a, b) =>
+    new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
+  const [studentId, setStudentId] = useState<string>(room?.studentId || '');
+  const [name, setName] = useState<string>(room?.name || '');
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(room ? room.participants.map(String) : []));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const student = students.find(s => idOf(s) === studentId);
+
+  // New group: pre-select the student's assigned counselor
+  const pickStudent = (id: string) => {
+    setStudentId(id);
+    const s = students.find(x => idOf(x) === id);
+    if (s?.counselorId) setSelected(prev => new Set([...prev, String(s.counselorId)]));
+  };
+  const toggle = (id: string) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const chosenTeam = team.filter(t => selected.has(idOf(t)));
+
+  const save = async () => {
+    setError('');
+    if (mode === 'create' && !studentId) { setError('Pick a student.'); return; }
+    if (!chosenTeam.length) { setError('Add at least one team member.'); return; }
+    setSaving(true);
+    try {
+      if (mode === 'create') {
+        onSaved(await api.chat.createGroup({ studentId, memberIds: chosenTeam.map(idOf), name: name.trim() || undefined }));
+      } else {
+        const current = new Set<string>(room.participants.map(String));
+        const teamIds = new Set(team.map(idOf));
+        const add = chosenTeam.map(idOf).filter(id => !current.has(id));
+        const remove = [...current].filter(id => teamIds.has(id) && !selected.has(id));
+        onSaved(await api.chat.updateGroup(room.id, { add, remove, name: name.trim() || undefined }));
+      }
+    } catch (err: any) { setError(err.message || 'Could not save the group.'); }
+    finally { setSaving(false); }
+  };
+
+  const groups = [
+    { label: 'Counselors', people: team.filter(t => t._dept === 'Counselor') },
+    { label: 'Application Team', people: team.filter(t => t._dept === 'Application Team') },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-gray-900">{mode === 'create' ? 'New counselling group' : 'Group members'}</h3>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-4 overflow-y-auto">
+          <div>
+            <label htmlFor="g-student" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Student</label>
+            {mode === 'create' ? (
+              <select id="g-student" value={studentId} onChange={e => pickStudent(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option value="">Select a student (newest first)</option>
+                {sortedStudents.map(s => (
+                  <option key={idOf(s)} value={idOf(s)}>{s.name}{s.leadStatus === 'new' ? ' — new lead' : ''}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-gray-800">{room?.participantNames?.[room.participants.indexOf(room.studentId)] || student?.name || '—'}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="g-name" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Group name</label>
+            <input id="g-name" value={name} onChange={e => setName(e.target.value)}
+              placeholder={student ? `${student.name} – Counselling` : 'e.g. Priya Patel – Counselling'}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Team members <span className="normal-case font-normal text-gray-400">({chosenTeam.length} selected)</span></p>
+            {groups.map(g => g.people.length > 0 && (
+              <div key={g.label} className="mb-3">
+                <p className="text-xs font-semibold text-gray-700 mb-1">{g.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.people.map(p => {
+                    const on = selected.has(idOf(p));
+                    const assigned = student && String(student.counselorId) === idOf(p);
+                    return (
+                      <button key={idOf(p)} type="button" onClick={() => toggle(idOf(p))}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border ${on ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                        {on && <Check className="w-3 h-3" />}{p.name}{assigned && <span className="text-[10px] text-gray-400">(assigned)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-gray-400">You and the student are always in the group.</p>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+        <div className="p-5 border-t border-gray-100 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50">Cancel</button>
+          <button type="button" onClick={save} disabled={saving}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50">
+            {saving ? 'Saving…' : mode === 'create' ? 'Create group' : 'Save members'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminChat() {
   const { user } = useAuth();
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
@@ -145,7 +263,11 @@ export default function AdminChat() {
   const [counselors, setCounselors] = useState<any[]>([]);
   const [appTeam, setAppTeam] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'students' | 'counselors' | 'appteam'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'team' | 'groups'>('students');
+  const [groupModal, setGroupModal] = useState<{ mode: 'create' | 'edit' } | null>(null);
+  // 1:1 chats vs counselling groups (groups contain the same people, so keep lookups apart)
+  const directRooms = rooms.filter((r: any) => r.type !== 'group');
+  const groupRooms = rooms.filter((r: any) => r.type === 'group');
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -175,9 +297,9 @@ export default function AdminChat() {
           const pid = String(person._id || person.id);
           const isStudent = studentList.some((s: any) => String(s._id || s.id) === pid);
           const isAppTeamNav = appTeamList.some((u: any) => String(u._id || u.id) === pid);
-          setActiveTab(isStudent ? 'students' : isAppTeamNav ? 'appteam' : 'counselors');
+          setActiveTab(isStudent ? 'students' : 'team');
           const expectedNavType = isStudent ? undefined : isAppTeamNav ? 'admin-appteam' : 'admin-counselor';
-          const existing = roomList.find((r: any) => r.participants?.map(String).includes(pid));
+          const existing = roomList.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(pid));
           if (existing && (!expectedNavType || existing.type === expectedNavType)) {
             setSelectedRoom(existing);
           } else {
@@ -245,9 +367,9 @@ export default function AdminChat() {
     const isStudentPerson = students.some((s: any) => String(s._id || s.id) === pid);
     const isCounselorPerson = counselors.some((c: any) => String(c._id || c.id) === pid);
     const isAppTeamPerson = appTeam.some((u: any) => String(u._id || u.id) === pid);
-    setActiveTab(isStudentPerson ? 'students' : isAppTeamPerson ? 'appteam' : 'counselors');
+    setActiveTab(isStudentPerson ? 'students' : 'team');
     const expectedType = isCounselorPerson ? 'admin-counselor' : isAppTeamPerson ? 'admin-appteam' : undefined;
-    const existing = rooms.find((r: any) => r.participants?.map(String).includes(pid));
+    const existing = directRooms.find((r: any) => r.participants?.map(String).includes(pid));
     if (existing && (!expectedType || existing.type === expectedType)) { setSelectedRoom(existing); return; }
     try {
       const newRoom = await api.chat.createRoom(
@@ -310,8 +432,9 @@ export default function AdminChat() {
     } catch {} finally { setSending(false); }
   };
 
-  const remoteName = selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'User';
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== String(user?.id)) ?? '';
+  const isGroup = selectedRoom?.type === 'group';
+  const remoteName = isGroup ? (selectedRoom.name || 'Group') : selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'User';
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== String(user?.id)) ?? '';
   const getSenderRole = (senderId: string) => {
     if (String(user?.id) === senderId) return 'Admin Team';
     if (students.some((s: any) => String(s._id || s.id) === senderId)) return 'Student';
@@ -321,7 +444,20 @@ export default function AdminChat() {
   };
   const remoteRole = getSenderRole(remoteId) || 'Counselor';
 
-  const list = activeTab === 'students' ? students : activeTab === 'appteam' ? appTeam : counselors;
+  // Team members = counselors + Application Team, each tagged with their department
+  const teamMembers = [
+    ...counselors.map((c: any) => ({ ...c, _dept: 'Counselor' })),
+    ...appTeam.map((u: any) => ({ ...u, _dept: 'Application Team' })),
+  ];
+  const list = activeTab === 'students' ? students : teamMembers;
+  const q = search.toLowerCase();
+  const filteredGroups = groupRooms
+    .filter((g: any) => !q || g.name?.toLowerCase().includes(q) || g.participantNames?.some((n: string) => n?.toLowerCase().includes(q)))
+    .sort((a: any, b: any) => {
+      const at = a.messages?.[a.messages.length - 1]?.timestamp ?? a.createdAt ?? '';
+      const bt = b.messages?.[b.messages.length - 1]?.timestamp ?? b.createdAt ?? '';
+      return bt > at ? 1 : bt < at ? -1 : 0;
+    });
   const filteredList = list
     .filter((p: any) =>
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -330,8 +466,8 @@ export default function AdminChat() {
     .sort((a: any, b: any) => {
       const aPid = String(a._id || a.id);
       const bPid = String(b._id || b.id);
-      const aRoom = rooms.find((r: any) => r.participants?.map(String).includes(aPid));
-      const bRoom = rooms.find((r: any) => r.participants?.map(String).includes(bPid));
+      const aRoom = directRooms.find((r: any) => r.participants?.map(String).includes(aPid));
+      const bRoom = directRooms.find((r: any) => r.participants?.map(String).includes(bPid));
       const aTime = aRoom?.messages?.[aRoom.messages.length - 1]?.timestamp ?? '';
       const bTime = bRoom?.messages?.[bRoom.messages.length - 1]?.timestamp ?? '';
       if (aTime && !bTime) return -1;
@@ -360,7 +496,7 @@ export default function AdminChat() {
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100">
-            {([['students', 'Students', Users], ['counselors', 'Counselors', UserCog], ['appteam', 'App Team', Briefcase]] as const).map(([tab, label, Icon]) => (
+            {([['students', 'Students', Users], ['team', 'Team', UserCog], ['groups', 'Groups', Briefcase]] as const).map(([tab, label, Icon]) => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
                   activeTab === tab ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'
@@ -370,16 +506,59 @@ export default function AdminChat() {
             ))}
           </div>
 
+          {/* Groups list */}
+          {activeTab === 'groups' && (
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-3 border-b border-gray-50">
+                <button type="button" onClick={() => setGroupModal({ mode: 'create' })}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                  <Plus className="w-4 h-4" /> New group
+                </button>
+              </div>
+              {filteredGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+                  <Users className="w-6 h-6 text-gray-300 mb-1" />
+                  <p className="text-xs text-gray-400">No groups yet. Create one for a new student's counselling.</p>
+                </div>
+              ) : filteredGroups.map((g: any) => {
+                const isActive = selectedRoom?.id === g.id;
+                const unread = g.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+                const lastMsg = g.messages?.[g.messages.length - 1];
+                return (
+                  <button type="button" key={g.id} onClick={() => setSelectedRoom(g)}
+                    className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-purple-50' : ''}`}>
+                    <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={`text-sm font-semibold truncate ${isActive ? 'text-purple-700' : 'text-gray-900'}`}>{g.name}</span>
+                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                          {lastMsg?.timestamp && <span className="text-[10px] text-gray-400">{formatChatTime(lastMsg.timestamp)}</span>}
+                          {unread > 0 && <span className="bg-purple-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{unread}</span>}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">
+                        {lastMsg ? `${lastMsg.senderName}: ${lastMsg.content || lastMsg.fileName || ''}` : `${g.participants.length} members`}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Person list */}
+          {activeTab !== 'groups' && (
           <div className="flex-1 overflow-y-auto">
             {filteredList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                 <MessageSquare className="w-6 h-6 text-gray-300 mb-1" />
-                <p className="text-xs text-gray-400">No {activeTab === 'appteam' ? 'application team members' : activeTab} found</p>
+                <p className="text-xs text-gray-400">No {activeTab === 'team' ? 'team members' : activeTab} found</p>
               </div>
             ) : filteredList.map((person: any) => {
               const pid = String(person._id || person.id);
-              const existingRoom = rooms.find((r: any) => r.participants?.map(String).includes(pid));
+              const existingRoom = directRooms.find((r: any) => r.participants?.map(String).includes(pid));
               const isActive = !!(existingRoom && selectedRoom?.id === existingRoom.id);
               const unread = existingRoom?.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
               const lastMsg = existingRoom?.messages?.[existingRoom.messages.length - 1];
@@ -393,14 +572,17 @@ export default function AdminChat() {
                   className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-purple-50' : ''}`}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
                     activeTab === 'students' ? 'bg-sky-100 text-sky-700'
-                      : activeTab === 'appteam' ? 'bg-orange-100 text-orange-700'
+                      : person._dept === 'Application Team' ? 'bg-orange-100 text-orange-700'
                       : 'bg-emerald-100 text-emerald-700'
                   }`}>
                     {person.name?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className={`text-sm font-semibold truncate ${isActive ? 'text-purple-700' : 'text-gray-900'}`}>{person.name}</span>
+                      <span className={`text-sm font-semibold truncate ${isActive ? 'text-purple-700' : 'text-gray-900'}`}>
+                        {person.name}
+                        {person._dept && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle ${getRoleBadgeClass(person._dept)}`}>{person._dept === 'Application Team' ? 'App Team' : person._dept}</span>}
+                      </span>
                       <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                         {chatTime && <span className="text-[10px] text-gray-400">{chatTime}</span>}
                         {unread > 0 && <span className="bg-purple-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{unread}</span>}
@@ -415,6 +597,7 @@ export default function AdminChat() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Chat area */}
@@ -423,15 +606,27 @@ export default function AdminChat() {
             {/* Header */}
             <div className="p-4 border-b border-gray-100 bg-purple-50 flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                {remoteName.charAt(0)}
+                {isGroup ? <Users className="w-4 h-4" /> : remoteName.charAt(0)}
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{remoteName}</p>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-500">{remoteRole}</span>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{remoteName}</p>
+                {isGroup ? (
+                  <p className="text-xs text-gray-500 truncate" title={selectedRoom.participantNames?.join(', ')}>
+                    {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <span className="text-xs text-gray-500">{remoteRole}</span>
+                  </div>
+                )}
               </div>
+              {isGroup ? (
+                <button type="button" onClick={() => setGroupModal({ mode: 'edit' })}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 flex items-center gap-1.5">
+                  <UserCog className="w-3.5 h-3.5" /> Members
+                </button>
+              ) : (<>
               <button type="button" title="Voice call" aria-label="Voice call"
                 onClick={() => startCall(remoteId, remoteName)}
                 disabled={callState !== 'idle' || !remoteId}
@@ -444,6 +639,7 @@ export default function AdminChat() {
                 className="w-9 h-9 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-40 text-indigo-700 rounded-full flex items-center justify-center transition-colors">
                 <Video className="w-4 h-4" />
               </button>
+              </>)}
             </div>
 
             {/* Messages */}
@@ -546,6 +742,18 @@ export default function AdminChat() {
           </div>
         )}
       </div>
+
+      {groupModal && (
+        <GroupModal mode={groupModal.mode} room={groupModal.mode === 'edit' ? selectedRoom : undefined}
+          students={students} team={teamMembers}
+          onClose={() => setGroupModal(null)}
+          onSaved={room => {
+            setRooms(prev => prev.some(r => r.id === room.id) ? prev.map(r => r.id === room.id ? room : r) : [room, ...prev]);
+            setSelectedRoom(room);
+            setActiveTab('groups');
+            setGroupModal(null);
+          }} />
+      )}
 
       {/* Meeting modal */}
       {showMeetingModal && (

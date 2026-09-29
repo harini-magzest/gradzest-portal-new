@@ -29,6 +29,10 @@ const ChatRoomSchema = new mongoose.Schema(
     participants: [String],
     participantNames: [String],
     type: { type: String, default: "student-counselor" },
+    // Group chats (type 'group'): a named counselling group for one student
+    name: String,
+    studentId: String,
+    createdBy: String,
     messages: [MessageSchema],
   },
   { timestamps: true },

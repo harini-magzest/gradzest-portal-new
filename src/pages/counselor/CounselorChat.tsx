@@ -298,12 +298,14 @@ export default function CounselorChat() {
   };
 
   const getRoleLabel = (room: any): string => {
+    if (room?.type === 'group') return 'Group';
     if (room?.type === 'admin-counselor') return 'Admin';
     if (room?.type === 'appteam-counselor' || room.participantNames?.includes('Application Team')) return 'Application Team';
     return 'Student';
   };
 
   const getStudentName = (room: any): string => {
+    if (room?.type === 'group') return room.name || 'Group';
     if (room?.type === 'admin-counselor') return 'Admin';
     if (room?.type === 'appteam-counselor' || room.participantNames?.includes('Application Team')) {
       return 'Application Team';
@@ -328,7 +330,7 @@ export default function CounselorChat() {
   };
 const studentsWithNoChat = myStudents.filter((s: any) => {
     const sid = s._id || s.id;
-    return !rooms.some((r: any) => r.participants?.includes(sid));
+    return !rooms.some((r: any) => r.type !== 'group' && r.participants?.includes(sid));
   });
 
   const q = search.toLowerCase();
@@ -348,7 +350,8 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
     !q || s.name?.toLowerCase().includes(q)
   );
 
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
+  const isGroup = selectedRoom?.type === 'group';
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
 
   return (
     <div className="space-y-4">
@@ -428,13 +431,20 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
               <div className="w-10 h-10 bg-[#0d1b4b] rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                 {getStudentName(selectedRoom).charAt(0)}
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{getStudentName(selectedRoom)}</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-500">{getRoleLabel(selectedRoom)}</span>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{getStudentName(selectedRoom)}</p>
+                {isGroup ? (
+                  <p className="text-xs text-gray-500 truncate" title={selectedRoom.participantNames?.join(', ')}>
+                    {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <span className="text-xs text-gray-500">{getRoleLabel(selectedRoom)}</span>
+                  </div>
+                )}
               </div>
+              {!isGroup && (<>
               <button type="button" title="Voice call" aria-label="Voice call"
                 onClick={() => startCall(remoteId, getStudentName(selectedRoom))}
                 disabled={callState !== 'idle' || !remoteId}
@@ -447,6 +457,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 className="w-9 h-9 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-40 text-indigo-700 rounded-full flex items-center justify-center transition-colors">
                 <Video className="w-4 h-4" />
               </button>
+              </>)}
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
