@@ -933,6 +933,22 @@ router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (r
   } catch (err) { res.status(400).json({ message: err.message || 'Failed to update subscriber' }); }
 });
 
+// Unread-badge support: when the current admin last viewed the subscriber list
+router.get('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select('subscribersSeenAt');
+    res.json({ seenAt: me?.subscribersSeenAt || null });
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  try {
+    const seenAt = new Date();
+    await User.updateOne({ _id: req.user.id }, { subscribersSeenAt: seenAt });
+    res.json({ seenAt });
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
 // Assign a subscriber to a counselor as a follow-up task
 router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   const { counselorId, priority, dueDate, instructions } = req.body;

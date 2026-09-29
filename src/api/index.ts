@@ -333,6 +333,10 @@ export const api = {
     updateSubscriber: (id: string, data: { leadStatus?: string; notes?: string }) => req<any>(`/admin/subscribers/${id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
+    subscribersSeen: () => req<{ seenAt: string | null }>('/admin/subscribers/seen', { headers: authHeaders() }),
+    markSubscribersSeen: () => req<{ seenAt: string }>('/admin/subscribers/seen', {
+      method: 'POST', headers: authHeaders(),
+    }),
     assignSubscriber: (id: string, data: { counselorId: string; priority: string; dueDate: string; instructions: string }) => req<any>(`/admin/subscribers/${id}/assign`, {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),

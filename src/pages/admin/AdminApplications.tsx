@@ -151,8 +151,8 @@ function SubscriberModal({
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 flex-shrink-0">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900">Follow-up</h2>
             <p className="text-xs text-gray-500 mt-0.5 truncate">{sub.name || 'No name'} · {sub.email}</p>
@@ -163,7 +163,7 @@ function SubscriberModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto min-h-0">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Lead Status</label>
             <div className="grid grid-cols-2 gap-2">
@@ -255,7 +255,7 @@ function SubscriberModal({
           )}
         </div>
 
-        <div className="flex gap-3 px-6 pb-6">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
           <button type="button" onClick={onClose}
             className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
             Cancel
@@ -407,17 +407,20 @@ export default function AdminApplications() {
   const [editingSub, setEditingSub] = useState<any>(null);
   const [copiedId, setCopiedId] = useState('');
   const [deletingId, setDeletingId] = useState('');
+  const [subsSeenAt, setSubsSeenAt] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
-      const [apps, subs] = await Promise.all([
+      const [apps, subs, seen] = await Promise.all([
         api.admin.applications(),
         api.admin.subscribers(),
+        api.admin.subscribersSeen().catch(() => ({ seenAt: null })),
       ]);
       setApplications(apps);
       setSubscribers(subs);
+      setSubsSeenAt(seen.seenAt ? new Date(seen.seenAt).getTime() : 0);
     } catch (err: any) {
       setLoadError(err.message || 'Failed to load data.');
     }
@@ -425,6 +428,19 @@ export default function AdminApplications() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const unreadSubs = subsSeenAt === null
+    ? 0
+    : subscribers.filter(s => new Date(s.subscribedAt).getTime() > subsSeenAt).length;
+
+  // Opening the New Subscribers tab marks everything in it as read
+  useEffect(() => {
+    if (viewMode !== 'subscribers' || unreadSubs === 0) return;
+    setSubsSeenAt(Date.now());
+    api.admin.markSubscribersSeen()
+      .then(r => setSubsSeenAt(new Date(r.seenAt).getTime()))
+      .catch(() => { /* badge reappears on next load if this failed */ });
+  }, [viewMode, unreadSubs]);
 
   const statusCounts = ALL_STATUSES.map(s => ({
     ...s,
@@ -567,9 +583,10 @@ export default function AdminApplications() {
                   : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'}`}>
               <Users className="w-4 h-4" />
               New Subscribers
-              {subscribers.length > 0 && (
-                <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {subscribers.length}
+              {unreadSubs > 0 && (
+                <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none"
+                  title={`${unreadSubs} new since you last looked`}>
+                  {unreadSubs}
                 </span>
               )}
             </button>
