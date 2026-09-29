@@ -314,7 +314,7 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     applications: () => req<any[]>('/admin/applications', { headers: authHeaders() }),
-    updateApplication: (studentId: string, appId: string, data: { status?: string; notes?: string }) =>
+    updateApplication: (studentId: string, appId: string, data: { status?: string; notes?: string; offerType?: string }) =>
       req<any>(`/admin/applications/${studentId}/${appId}`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
