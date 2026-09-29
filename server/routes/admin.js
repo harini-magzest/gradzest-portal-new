@@ -918,4 +918,26 @@ router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, 
   } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
+router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.leadStatus !== undefined) {
+      update.leadStatus = req.body.leadStatus;
+      if (req.body.leadStatus !== 'new') update.contactedAt = new Date();
+    }
+    if (req.body.notes !== undefined) update.notes = String(req.body.notes);
+    const sub = await Subscriber.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
+    res.json(sub);
+  } catch (err) { res.status(400).json({ message: err.message || 'Failed to update subscriber' }); }
+});
+
+router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  try {
+    const sub = await Subscriber.findByIdAndDelete(req.params.id);
+    if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
+    res.json({ message: 'Subscriber deleted' });
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
 module.exports = router;

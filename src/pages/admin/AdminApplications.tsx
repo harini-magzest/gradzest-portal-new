@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FileText, RefreshCw, Search, X, ChevronDown, AlertTriangle,
   CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2, FileDown,
-  Users, Mail, Phone, CalendarDays,
+  Users, Mail, Phone, CalendarDays, MessageCircle, Copy, Trash2, StickyNote,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
@@ -65,6 +65,141 @@ function exportApplicationsToCSV(apps: any[]) {
   a.download = `applications_export_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+const LEAD_STATUSES = [
+  { value: 'new',            label: 'New',            className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { value: 'contacted',      label: 'Contacted',      className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  { value: 'interested',     label: 'Interested',     className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { value: 'converted',      label: 'Converted',      className: 'bg-green-50 text-green-700 border-green-200' },
+  { value: 'not_interested', label: 'Not Interested', className: 'bg-gray-100 text-gray-600 border-gray-200' },
+];
+
+const leadStatusOf = (s: any) => LEAD_STATUSES.find(l => l.value === (s.leadStatus || 'new')) || LEAD_STATUSES[0];
+
+// Normalise a phone number for wa.me links — assumes India (+91) for bare 10-digit numbers.
+function whatsappNumber(phone: string) {
+  let digits = (phone || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (digits.length === 10) digits = `91${digits}`;
+  return digits;
+}
+
+function exportSubscribersToCSV(subs: any[]) {
+  if (!subs.length) return;
+  const rows = subs.map(s => ({
+    'Name':          s.name  || '',
+    'Email':         s.email || '',
+    'Phone':         s.phone || '',
+    'Status':        leadStatusOf(s).label,
+    'Notes':         s.notes || '',
+    'Registered On': s.subscribedAt ? new Date(s.subscribedAt).toISOString().slice(0, 10) : '',
+  }));
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(','),
+    ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
+  ].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function SubscriberModal({
+  sub, onClose, onUpdated,
+}: {
+  sub: any;
+  onClose: () => void;
+  onUpdated: (updated: any) => void;
+}) {
+  const [leadStatus, setLeadStatus] = useState(sub.leadStatus || 'new');
+  const [notes, setNotes] = useState(sub.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.admin.updateSubscriber(sub._id, { leadStatus, notes });
+      onUpdated(updated);
+    } catch (e: any) {
+      setError(e.message || 'Failed to update subscriber.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-gray-900">Follow-up</h2>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{sub.name || 'No name'} · {sub.email}</p>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Lead Status</label>
+            <div className="grid grid-cols-2 gap-2">
+              {LEAD_STATUSES.map(s => (
+                <button key={s.value} type="button" onClick={() => setLeadStatus(s.value)}
+                  className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition-all
+                    ${leadStatus === s.value
+                      ? `${s.className} shadow-sm ring-2 ring-offset-1 ring-purple-300`
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={4}
+              placeholder="Call outcome, preferred country, intake, budget…"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
+            />
+          </div>
+
+          {sub.contactedAt && (
+            <p className="text-xs text-gray-400">
+              Last updated {new Date(sub.contactedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">{error}</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 px-6 pb-6">
+          <button type="button" onClick={onClose}
+            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-sm">
+            {saving ? <><Spinner size={4} white />Saving…</> : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Spinner({ size = 4, white = false }: { size?: number; white?: boolean }) {
@@ -199,6 +334,11 @@ export default function AdminApplications() {
   const [subSearch, setSubSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingApp, setEditingApp] = useState<any>(null);
+  const [subStatusFilter, setSubStatusFilter] = useState('all');
+  const [subDateFilter, setSubDateFilter] = useState<'all' | '7' | '30'>('all');
+  const [editingSub, setEditingSub] = useState<any>(null);
+  const [copiedId, setCopiedId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -241,12 +381,55 @@ export default function AdminApplications() {
 
   const filteredSubs = subscribers.filter(s => {
     const q = subSearch.toLowerCase();
-    return (
+    const matchesSearch =
       s.name?.toLowerCase().includes(q) ||
       s.email?.toLowerCase().includes(q) ||
-      s.phone?.toLowerCase().includes(q)
-    );
+      s.phone?.toLowerCase().includes(q) ||
+      s.notes?.toLowerCase().includes(q);
+    const matchesStatus = subStatusFilter === 'all' || (s.leadStatus || 'new') === subStatusFilter;
+    const matchesDate = subDateFilter === 'all' ||
+      new Date(s.subscribedAt).getTime() >= Date.now() - Number(subDateFilter) * 86400000;
+    return matchesSearch && matchesStatus && matchesDate;
   });
+
+  const subStatusCounts = LEAD_STATUSES.map(l => ({
+    ...l,
+    count: subscribers.filter(s => (s.leadStatus || 'new') === l.value).length,
+  }));
+
+  const handleSubUpdated = (updated: any) => {
+    setSubscribers(prev => prev.map(s => (s._id === updated._id ? updated : s)));
+    setEditingSub(null);
+  };
+
+  const handleQuickStatus = async (sub: any, leadStatus: string) => {
+    try {
+      const updated = await api.admin.updateSubscriber(sub._id, { leadStatus });
+      setSubscribers(prev => prev.map(s => (s._id === updated._id ? updated : s)));
+    } catch (e: any) {
+      alert(e.message || 'Failed to update status.');
+    }
+  };
+
+  const handleDeleteSub = async (sub: any) => {
+    if (!confirm(`Delete subscriber ${sub.name || sub.email}? This cannot be undone.`)) return;
+    setDeletingId(sub._id);
+    try {
+      await api.admin.deleteSubscriber(sub._id);
+      setSubscribers(prev => prev.filter(s => s._id !== sub._id));
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete subscriber.');
+    }
+    setDeletingId('');
+  };
+
+  const handleCopy = async (sub: any) => {
+    try {
+      await navigator.clipboard.writeText(sub.email);
+      setCopiedId(sub._id);
+      setTimeout(() => setCopiedId(''), 1500);
+    } catch { /* clipboard unavailable */ }
+  };
 
   const handleUpdated = (updated: any) => {
     setApplications(prev =>
@@ -265,6 +448,13 @@ export default function AdminApplications() {
           app={editingApp}
           onClose={() => setEditingApp(null)}
           onUpdated={updated => { handleUpdated(updated); setEditingApp(null); }}
+        />
+      )}
+      {editingSub && (
+        <SubscriberModal
+          sub={editingSub}
+          onClose={() => setEditingSub(null)}
+          onUpdated={handleSubUpdated}
         />
       )}
 
@@ -357,6 +547,21 @@ export default function AdminApplications() {
                 </div>
                 <div className="text-xs text-white/70 mt-1">With Phone Number</div>
               </div>
+            </div>
+          )}
+          {viewMode === 'subscribers' && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
+              {subStatusCounts.map(s => (
+                <button key={s.value} type="button"
+                  onClick={() => setSubStatusFilter(prev => prev === s.value ? 'all' : s.value)}
+                  className={`rounded-xl p-3 text-center transition-all border
+                    ${subStatusFilter === s.value
+                      ? 'bg-white/30 border-white/60 shadow-inner'
+                      : 'bg-white/10 border-white/20 hover:bg-white/20'}`}>
+                  <div className="text-2xl font-bold">{loading ? '…' : s.count}</div>
+                  <div className="text-xs text-white/70 mt-0.5 leading-tight">{s.label}</div>
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -515,17 +720,54 @@ export default function AdminApplications() {
                 <input
                   value={subSearch}
                   onChange={e => setSubSearch(e.target.value)}
-                  placeholder="Search by name, email or phone…"
+                  placeholder="Search by name, email, phone or notes…"
                   className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
-              {subSearch && (
-                <button type="button" onClick={() => setSubSearch('')}
+              <div className="relative">
+                <select
+                  value={subStatusFilter}
+                  onChange={e => setSubStatusFilter(e.target.value)}
+                  aria-label="Filter by lead status"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+                >
+                  <option value="all">All Statuses ({subscribers.length})</option>
+                  {subStatusCounts.map(s => (
+                    <option key={s.value} value={s.value}>{s.label} ({s.count})</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+              <div className="relative">
+                <select
+                  value={subDateFilter}
+                  onChange={e => setSubDateFilter(e.target.value as 'all' | '7' | '30')}
+                  aria-label="Filter by registration date"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+                >
+                  <option value="all">All time</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+              {(subSearch || subStatusFilter !== 'all' || subDateFilter !== 'all') && (
+                <button type="button" onClick={() => { setSubSearch(''); setSubStatusFilter('all'); setSubDateFilter('all'); }}
                   className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
                   <X className="w-3.5 h-3.5" />Clear
                 </button>
               )}
               <p className="text-xs text-gray-400 ml-auto">{filteredSubs.length} result{filteredSubs.length !== 1 ? 's' : ''}</p>
+              <button
+                type="button"
+                onClick={() => exportSubscribersToCSV(filteredSubs)}
+                disabled={filteredSubs.length === 0}
+                title="Download filtered subscribers as Excel"
+                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                Download Excel
+              </button>
             </div>
 
             {loading ? (
@@ -553,19 +795,31 @@ export default function AdminApplications() {
                       <p className="text-sm font-semibold text-gray-900 truncate">
                         {sub.name || <span className="text-gray-400 italic">No name</span>}
                       </p>
-                      <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-medium mt-0.5">
-                        <Users className="w-3 h-3" />
-                        New Subscriber
-                      </span>
+                      <select
+                        value={sub.leadStatus || 'new'}
+                        onChange={e => handleQuickStatus(sub, e.target.value)}
+                        aria-label="Lead status"
+                        className={`mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 ${leadStatusOf(sub).className}`}
+                      >
+                        {LEAD_STATUSES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                      </select>
                     </div>
 
-                    {/* Email */}
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <a href={`mailto:${sub.email}`}
-                        className="text-sm text-purple-600 hover:text-purple-800 hover:underline truncate transition-colors">
-                        {sub.email}
-                      </a>
+                    {/* Email + notes */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <a href={`mailto:${sub.email}`}
+                          className="text-sm text-purple-600 hover:text-purple-800 hover:underline truncate transition-colors">
+                          {sub.email}
+                        </a>
+                      </div>
+                      {sub.notes && (
+                        <p className="flex items-center gap-1.5 text-xs text-gray-400 italic truncate mt-1">
+                          <StickyNote className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{sub.notes}</span>
+                        </p>
+                      )}
                     </div>
 
                     {/* Phone */}
@@ -582,6 +836,37 @@ export default function AdminApplications() {
                           ? new Date(sub.subscribedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}
                       </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {sub.phone && (
+                        <>
+                          <a href={`tel:${sub.phone}`} title="Call"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-700 transition-colors">
+                            <Phone className="w-4 h-4" />
+                          </a>
+                          <a href={`https://wa.me/${whatsappNumber(sub.phone)}`} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors">
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                        </>
+                      )}
+                      <button type="button" onClick={() => handleCopy(sub)} title={copiedId === sub._id ? 'Copied!' : 'Copy email'}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-700 transition-colors">
+                        {copiedId === sub._id ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                      <button type="button" onClick={() => setEditingSub(sub)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                          text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100 hover:border-purple-300
+                          active:scale-95 transition-all">
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Follow-up
+                      </button>
+                      <button type="button" onClick={() => handleDeleteSub(sub)} disabled={deletingId === sub._id} title="Delete"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
+                        {deletingId === sub._id ? <Spinner size={4} /> : <Trash2 className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 ))}

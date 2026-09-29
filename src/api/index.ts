@@ -330,6 +330,12 @@ export const api = {
     }),
     analytics: (period: string) => req<any>(`/admin/analytics?period=${period}`, { headers: authHeaders() }),
     subscribers: () => req<any[]>('/admin/subscribers', { headers: authHeaders() }),
+    updateSubscriber: (id: string, data: { leadStatus?: string; notes?: string }) => req<any>(`/admin/subscribers/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteSubscriber: (id: string) => req<any>(`/admin/subscribers/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
     appteamUsers: () => req<any[]>('/admin/appteam-users', { headers: authHeaders() }),
     markAppTeam: (id: string, isAppTeam: boolean) => req<any>(`/admin/users/${id}/appteam`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ isAppTeam }),
