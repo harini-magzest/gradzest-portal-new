@@ -228,6 +228,9 @@ const UserSchema = new mongoose.Schema({
   refreshTokenHash: { type: String, default: null },
   refreshTokenExpires: { type: Date, default: null },
 
+  // Admin: when this admin last opened the New Subscribers list (drives the unread badge)
+  subscribersSeenAt: { type: Date, default: null },
+
   // Counselor fields
   specialization: [String],
   assignedStudents: [String],

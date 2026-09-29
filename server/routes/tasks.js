@@ -1,6 +1,7 @@
 const express = require('express');
 const Task = require('../models/Task');
 const User = require('../models/User');
+const Subscriber = require('../models/Subscriber');
 const authMiddleware = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
@@ -27,9 +28,9 @@ router.get('/', authMiddleware, async (req, res) => {
 router.get('/assignees', authMiddleware, async (req, res) => {
   if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
   try {
-    const staff = await User.find({ role: { $in: ['counselor', 'admin'] } }).select('name role isAppTeam').sort({ name: 1 });
+    const staff = await User.find({ role: { $in: ['counselor', 'admin'] } }).select('name role isAppTeam title').sort({ name: 1 });
     res.json(staff.map(u => ({
-      _id: String(u._id), name: u.name,
+      _id: String(u._id), name: u.name, title: u.title || '',
       dept: u.role === 'admin' ? (u.isAppTeam ? 'appteam' : 'admin') : 'counselor',
     })));
   } catch {
@@ -100,6 +101,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const completedNow = req.body.status === 'completed' && task.status !== 'completed';
     if (req.body.status) task.status = req.body.status;
     await task.save();
+    if (completedNow && task.subscriberId) {
+      // Completing a lead follow-up moves an untouched subscriber to "contacted"
+      await Subscriber.updateOne(
+        { _id: task.subscriberId, leadStatus: 'new' },
+        { leadStatus: 'contacted', contactedAt: new Date() },
+      );
+    }
     if (completedNow) {
       recordStaffActivity(req, {
         kind: 'task', title: 'Task completed',
