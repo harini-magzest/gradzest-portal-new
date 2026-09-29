@@ -81,26 +81,52 @@ router.post('/groups', authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/chat/groups/:id/members { add: [ids], remove: [ids], name? } — full admins
+// PUT /api/chat/groups/:id/members { add: [ids], remove: [ids], name? } — full admins.
+// Every add/remove/rename gets its own small system-message line in the room, WhatsApp-style,
+// so anyone opening the chat later can see what changed and when.
 router.put('/groups/:id/members', authMiddleware, async (req, res) => {
   try {
     if (!(await isFullAdmin(req))) return res.status(403).json({ message: 'Only admins can change groups' });
     const room = await ChatRoom.findOne({ _id: req.params.id, type: 'group' });
     if (!room) return res.status(404).json({ message: 'Group not found' });
+    const me = req.user.id.toString();
+    const actor = await User.findById(me).select('name');
+    const actorName = actor?.name || 'Admin';
+    const changeNotes = [];
+
     const add = await User.find({ _id: { $in: req.body.add || [] }, role: { $in: ['counselor', 'admin'] } }).select('name');
     add.forEach(u => {
-      if (!room.participants.includes(String(u._id))) { room.participants.push(String(u._id)); room.participantNames.push(u.name); }
+      if (!room.participants.includes(String(u._id))) {
+        room.participants.push(String(u._id)); room.participantNames.push(u.name);
+        changeNotes.push(`${actorName} added ${u.name} to the group.`);
+      }
     });
     // The student and the creator stay in the group
     const removable = (req.body.remove || []).map(String).filter(id => id !== room.studentId && id !== room.createdBy);
     removable.forEach(id => {
       const i = room.participants.indexOf(id);
-      if (i >= 0) { room.participants.splice(i, 1); room.participantNames.splice(i, 1); }
+      if (i >= 0) {
+        const removedName = room.participantNames[i];
+        room.participants.splice(i, 1); room.participantNames.splice(i, 1);
+        changeNotes.push(`${actorName} removed ${removedName} from the group.`);
+      }
     });
-    if (typeof req.body.name === 'string' && req.body.name.trim()) room.name = req.body.name.trim();
+    const newName = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (newName && newName !== room.name) {
+      changeNotes.push(`${actorName} changed the group name to "${newName}".`);
+      room.name = newName;
+    }
+
+    changeNotes.forEach(content => {
+      room.messages.push({
+        senderId: me, senderName: actorName, senderRole: 'Admin Team',
+        content, type: 'system', timestamp: new Date(), read: false,
+      });
+    });
+
     room.markModified('participants'); room.markModified('participantNames');
     await room.save();
-    notifyRoom(req, room, req.user.id.toString());
+    notifyRoom(req, room, me);
     res.json(room.toJSON());
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
