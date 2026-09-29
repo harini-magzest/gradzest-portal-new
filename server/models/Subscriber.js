@@ -9,6 +9,10 @@ const subscriberSchema = new mongoose.Schema({
   leadStatus:   { type: String, enum: ['new', 'contacted', 'interested', 'converted', 'not_interested'], default: 'new' },
   notes:        { type: String, default: '' },
   contactedAt:  { type: Date },
+  // Follow-up task assigned to a counselor
+  assignedTo:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  assignedToName: { type: String, default: '' },
+  taskId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Task', default: null },
 });
 
 module.exports = mongoose.model('Subscriber', subscriberSchema);

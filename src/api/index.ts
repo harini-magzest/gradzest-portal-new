@@ -333,6 +333,9 @@ export const api = {
     updateSubscriber: (id: string, data: { leadStatus?: string; notes?: string }) => req<any>(`/admin/subscribers/${id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
+    assignSubscriber: (id: string, data: { counselorId: string; priority: string; dueDate: string; instructions: string }) => req<any>(`/admin/subscribers/${id}/assign`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
     deleteSubscriber: (id: string) => req<any>(`/admin/subscribers/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
@@ -353,7 +356,7 @@ export const api = {
 
   tasks: {
     list: () => req<any[]>('/tasks', { headers: authHeaders() }),
-    assignees: () => req<{ _id: string; name: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),
+    assignees: () => req<{ _id: string; name: string; title?: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),
     create: (data: any) => req<any>('/tasks', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),

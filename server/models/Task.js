@@ -19,6 +19,8 @@ const TaskSchema = new mongoose.Schema({
   dueDate:        { type: String, default: '' },
   status:         { type: String, enum: ['pending', 'completed'], default: 'pending' },
   comments:       [CommentSchema],
+  // Set when the task is a follow-up for a website subscriber lead
+  subscriberId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscriber', default: null },
 }, { timestamps: true });
 
 TaskSchema.index({ assignedTo: 1, createdAt: -1 });

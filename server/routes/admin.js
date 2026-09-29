@@ -4,6 +4,7 @@ const User = require('../models/User');
 const University = require('../models/University');
 const Country = require('../models/Country');
 const Subscriber = require('../models/Subscriber');
+const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
@@ -930,6 +931,57 @@ router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (r
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json(sub);
   } catch (err) { res.status(400).json({ message: err.message || 'Failed to update subscriber' }); }
+});
+
+// Assign a subscriber to a counselor as a follow-up task
+router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  const { counselorId, priority, dueDate, instructions } = req.body;
+  if (!counselorId) return res.status(400).json({ message: 'Select a counselor' });
+  try {
+    const sub = await Subscriber.findById(req.params.id);
+    if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
+    const counselor = await User.findOne({ _id: counselorId, role: 'counselor' }).select('name');
+    if (!counselor) return res.status(400).json({ message: 'Counselor not found' });
+    const admin = await User.findById(req.user.id).select('name');
+
+    const description = [
+      instructions?.trim(),
+      `Name: ${sub.name || '—'}`,
+      `Email: ${sub.email}`,
+      `Phone: ${sub.phone || '—'}`,
+      `Registered: ${sub.subscribedAt.toISOString().slice(0, 10)}`,
+      sub.notes ? `Notes: ${sub.notes}` : '',
+    ].filter(Boolean).join('\n');
+
+    const task = await Task.create({
+      title: `Follow up with new subscriber: ${sub.name || sub.email}`,
+      description,
+      assignedTo: counselor._id,
+      assignedToName: counselor.name || '',
+      assignedToRole: 'counselor',
+      assignedBy: req.user.id,
+      assignedByName: admin?.name || '',
+      priority: ['high', 'medium', 'low'].includes(priority) ? priority : 'medium',
+      dueDate: dueDate || '',
+      subscriberId: sub._id,
+    });
+
+    sub.assignedTo = counselor._id;
+    sub.assignedToName = counselor.name || '';
+    sub.taskId = task._id;
+    await sub.save();
+
+    const io = req.app.get('io');
+    const sids = req.app.get('userSockets')?.get(String(counselor._id));
+    if (sids && io) {
+      sids.forEach(sid => io.to(sid).emit('task:assigned', {
+        taskId: task._id, title: task.title, priority: task.priority,
+        dueDate: task.dueDate, assignedByName: task.assignedByName,
+      }));
+    }
+
+    res.json(sub);
+  } catch (err) { res.status(500).json({ message: err.message || 'Failed to assign subscriber' }); }
 });
 
 router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {

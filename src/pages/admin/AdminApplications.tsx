@@ -117,14 +117,28 @@ function SubscriberModal({
 }) {
   const [leadStatus, setLeadStatus] = useState(sub.leadStatus || 'new');
   const [notes, setNotes] = useState(sub.notes || '');
+  const [counselors, setCounselors] = useState<{ _id: string; name: string; title?: string }[]>([]);
+  const [counselorId, setCounselorId] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [dueDate, setDueDate] = useState('');
+  const [instructions, setInstructions] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.tasks.assignees()
+      .then(list => setCounselors(list.filter(u => u.dept === 'counselor')))
+      .catch(() => { /* assignment section just stays empty */ });
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     setError('');
     try {
-      const updated = await api.admin.updateSubscriber(sub._id, { leadStatus, notes });
+      let updated = await api.admin.updateSubscriber(sub._id, { leadStatus, notes });
+      if (counselorId) {
+        updated = await api.admin.assignSubscriber(sub._id, { counselorId, priority, dueDate, instructions });
+      }
       onUpdated(updated);
     } catch (e: any) {
       setError(e.message || 'Failed to update subscriber.');
@@ -176,6 +190,60 @@ function SubscriberModal({
             />
           </div>
 
+          <div className="border-t border-gray-100 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              {sub.assignedToName ? 'Reassign follow-up task' : 'Assign follow-up task to'}
+            </label>
+            {sub.assignedToName && (
+              <p className="text-xs text-gray-500 mb-2">
+                Currently assigned to <span className="font-semibold text-gray-700">{sub.assignedToName}</span>
+              </p>
+            )}
+            <div className="relative">
+              <select
+                value={counselorId}
+                onChange={e => setCounselorId(e.target.value)}
+                aria-label="Assign to counselor"
+                className="w-full appearance-none px-3 py-2.5 pr-8 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              >
+                <option value="">Don't assign</option>
+                {counselors.map(c => (
+                  <option key={c._id} value={c._id}>{c.name}{c.title ? ` — ${c.title}` : ''}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+
+            {counselorId && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+                    <select value={priority} onChange={e => setPriority(e.target.value)} aria-label="Task priority"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Due date</label>
+                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} aria-label="Due date"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                </div>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Instructions for the counselor (optional)…"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
+                />
+                <p className="text-xs text-gray-400">The subscriber's contact details and notes are included in the task automatically.</p>
+              </div>
+            )}
+          </div>
+
           {sub.contactedAt && (
             <p className="text-xs text-gray-400">
               Last updated {new Date(sub.contactedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -194,7 +262,7 @@ function SubscriberModal({
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-sm">
-            {saving ? <><Spinner size={4} white />Saving…</> : 'Save'}
+            {saving ? <><Spinner size={4} white />Saving…</> : counselorId ? 'Save & Assign' : 'Save'}
           </button>
         </div>
       </div>
@@ -814,6 +882,12 @@ export default function AdminApplications() {
                           {sub.email}
                         </a>
                       </div>
+                      {sub.assignedToName && (
+                        <p className="flex items-center gap-1.5 text-xs text-indigo-600 truncate mt-1">
+                          <Users className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">Assigned to {sub.assignedToName}</span>
+                        </p>
+                      )}
                       {sub.notes && (
                         <p className="flex items-center gap-1.5 text-xs text-gray-400 italic truncate mt-1">
                           <StickyNote className="w-3.5 h-3.5 flex-shrink-0" />
