@@ -8,6 +8,16 @@ import {
 } from 'lucide-react';
 import MeetingPanel from '../components/MeetingPanel';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import CallHistory from '../components/CallHistory';
+
+const DEPT_LABEL: Record<string, string> = {
+  student: 'Student', counselor: 'Counselor', appteam: 'Application Team', admin: 'Admin',
+};
+const DEPT_CHIP: Record<string, string> = {
+  student: 'bg-blue-50 text-blue-600', counselor: 'bg-green-50 text-green-700',
+  appteam: 'bg-orange-50 text-orange-700', admin: 'bg-purple-50 text-purple-700',
+};
 
 type Tab = 'calendar' | 'tasks' | 'events' | 'calls' | 'meetings';
 
@@ -166,6 +176,10 @@ export default function Activities() {
 
   const isStudent = role === 'student';
   const { addNotif } = useNotifications();
+  const { user } = useAuth();
+  const myId = String(user?.id ?? '');
+  // Any staff member can hand tasks to any other staff member / department
+  const canAssignStaff = !isStudent && role !== 'board';
 
   const today = new Date();
   const [tab, setTab]           = useState<Tab>('calendar');
@@ -181,6 +195,9 @@ export default function Activities() {
   const [expandedTask, setExpandedTask]   = useState<string | null>(null);
   const [commentTexts, setCommentTexts]   = useState<Record<string, string>>({});
   const [commentSaving, setCommentSaving] = useState<string | null>(null);
+  const [taskFilter, setTaskFilter]       = useState<'all' | 'mine' | 'created'>('all');
+  const [taskError, setTaskError]         = useState('');
+  const [assignees, setAssignees]         = useState<{ _id: string; name: string; dept: string }[]>([]);
 
   const [events, setEvents]           = useState(INITIAL_EVENTS);
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -203,6 +220,7 @@ export default function Activities() {
     } else if (role === 'counselor') {
       api.students.list().then(setStudents).catch(() => {});
     }
+    if (!isStudent && role !== 'board') api.tasks.assignees().then(setAssignees).catch(() => {});
   }, [role]);
 
   useEffect(() => {
@@ -408,6 +426,7 @@ export default function Activities() {
 
   const createTask = async () => {
     if (!newTask.title.trim()) return;
+    setTaskError('');
     try {
       const created = await api.tasks.create({
         title: newTask.title.trim(),
@@ -419,7 +438,26 @@ export default function Activities() {
       setApiTasks(ts => [created, ...ts]);
       setNewTask({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: '' });
       setShowAddTask(false);
-    } catch {}
+    } catch (err: any) { setTaskError(err.message || 'Could not create task.'); }
+  };
+
+  // Tasks shown for the current filter (students only ever get tasks assigned to them)
+  const isMineTask = (task: any) => String(task.assignedTo || '') === myId;
+  const isCreatedTask = (task: any) => String(task.assignedBy || '') === myId;
+  const visibleTasks = apiTasks.filter(task =>
+    taskFilter === 'mine' ? isMineTask(task) : taskFilter === 'created' ? isCreatedTask(task) && !isMineTask(task) : true);
+  const canDeleteTask = (task: any) => !isStudent && (isCreatedTask(task) || (role === 'admin' && !(user as any)?.isAppTeam));
+
+  const assigneeChip = (task: any, faded = false) => {
+    if (!task.assignedToName) return null;
+    const self = isMineTask(task);
+    const dept = task.assignedToRole || 'student';
+    return (
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${DEPT_CHIP[dept] || DEPT_CHIP.student} ${faded ? 'opacity-80' : ''}`}>
+        <Users className="w-3 h-3" />{self ? 'You' : task.assignedToName}
+        {!self && task.assignedToRole && <span className="opacity-70">· {DEPT_LABEL[dept]}</span>}
+      </span>
+    );
   };
 
   const submitComment = async (taskId: string) => {
@@ -789,13 +827,23 @@ export default function Activities() {
       {tab === 'tasks' && (
         <div className="max-w-2xl">
           <div className="flex items-center justify-between mb-5">
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <span className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-800">{apiTasks.filter(at => at.status !== 'completed').length + meetingTasks.filter(mt => !mt.done).length}</span> pending
+                <span className="font-semibold text-gray-800">{visibleTasks.filter(at => at.status !== 'completed').length + meetingTasks.filter(mt => !mt.done).length}</span> pending
               </span>
               <span className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-800">{apiTasks.filter(at => at.status === 'completed').length + meetingTasks.filter(mt => mt.done).length}</span> completed
+                <span className="font-semibold text-gray-800">{visibleTasks.filter(at => at.status === 'completed').length + meetingTasks.filter(mt => mt.done).length}</span> completed
               </span>
+              {!isStudent && (
+                <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5" role="tablist" aria-label="Filter tasks">
+                  {([['all', 'All'], ['mine', 'Assigned to me'], ['created', 'Assigned by me']] as const).map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={taskFilter === k} onClick={() => setTaskFilter(k)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${taskFilter === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {!isStudent && (
               <button type="button" onClick={() => setShowAddTask(true)}
@@ -831,11 +879,25 @@ export default function Activities() {
                 <input type="date" title="Due date" value={newTask.dueDate} onChange={e => setNewTask(n => ({ ...n, dueDate: e.target.value }))}
                   className={`text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700`} />
               </div>
-              <select title="Assign to student" value={newTask.assignedTo} onChange={e => setNewTask(n => ({ ...n, assignedTo: e.target.value }))}
+              <select title="Assign to" value={newTask.assignedTo} onChange={e => setNewTask(n => ({ ...n, assignedTo: e.target.value }))}
                 className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700 mb-3`}>
-                <option value="">Assign to student (optional)</option>
-                {students.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                <option value="">{canAssignStaff ? 'Assign to… (optional)' : 'Assign to student (optional)'}</option>
+                {myId && <option value={myId}>Myself</option>}
+                {canAssignStaff && ([['counselor', 'Counselors'], ['appteam', 'Application Team'], ['admin', 'Admins']] as const).map(([dept, label]) => {
+                  const people = assignees.filter(a => a.dept === dept && a._id !== myId);
+                  return people.length > 0 && (
+                    <optgroup key={dept} label={label}>
+                      {people.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                    </optgroup>
+                  );
+                })}
+                {students.length > 0 && (
+                  <optgroup label="Students">
+                    {students.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                  </optgroup>
+                )}
               </select>
+              {taskError && <p className="text-xs text-red-600 mb-2">{taskError}</p>}
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={() => setShowAddTask(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"><X className="w-3 h-3" /> Cancel</button>
                 <button type="button" onClick={createTask} className={`px-4 py-1.5 ${t.actionBtn} text-white text-sm rounded-lg ${t.actionBtnHover}`}>Add</button>
@@ -850,7 +912,7 @@ export default function Activities() {
           ) : (
             <div className="space-y-2">
               {/* Pending API tasks */}
-              {apiTasks.filter(task => task.status !== 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
+              {visibleTasks.filter(task => task.status !== 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
                 <div key={task._id}>
                   <div className={`flex items-center gap-3 bg-white border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 transition-all ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
                     <button type="button" title="Mark complete" onClick={() => toggleApiTask(task._id, task.status)}
@@ -860,12 +922,8 @@ export default function Activities() {
                       {task.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{task.description}</p>}
                       <div className="flex items-center gap-2 flex-wrap mt-0.5">
                         {task.dueDate && <p className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />Due {task.dueDate}</p>}
-                        {task.assignedToName && (
-                          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                            <Users className="w-3 h-3" />{task.assignedToName}
-                          </span>
-                        )}
-                        {isStudent && task.assignedByName && (
+                        {assigneeChip(task)}
+                        {!isCreatedTask(task) && task.assignedByName && (
                           <span className="text-xs text-gray-400">by {task.assignedByName}</span>
                         )}
                       </div>
@@ -880,7 +938,7 @@ export default function Activities() {
                         </span>
                       )}
                     </button>
-                    {!isStudent && (
+                    {canDeleteTask(task) && (
                       <button type="button" onClick={() => deleteApiTask(task._id)} title="Delete task"
                         className="p-1 text-gray-300 hover:text-red-400 transition-colors">
                         <Trash2 className="w-4 h-4" />
@@ -954,20 +1012,20 @@ export default function Activities() {
               ))}
 
               {/* Empty state */}
-              {apiTasks.filter(at => at.status !== 'completed').length === 0 && meetingTasks.filter(mt => !mt.done).length === 0 && (
+              {visibleTasks.filter(at => at.status !== 'completed').length === 0 && meetingTasks.filter(mt => !mt.done).length === 0 && (
                 <div className="text-center py-10">
                   <CheckSquare className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">
-                    {isStudent ? 'No tasks assigned to you yet.' : 'No pending tasks. Click "Add Task" to create one.'}
+                    {isStudent || taskFilter === 'mine' ? 'No tasks assigned to you yet.' : 'No pending tasks. Click "Add Task" to create one.'}
                   </p>
                 </div>
               )}
 
               {/* Completed tasks */}
-              {(apiTasks.filter(at => at.status === 'completed').length > 0 || meetingTasks.filter(mt => mt.done).length > 0) && (
+              {(visibleTasks.filter(at => at.status === 'completed').length > 0 || meetingTasks.filter(mt => mt.done).length > 0) && (
                 <>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 pt-3 pb-1">Completed</p>
-                  {apiTasks.filter(task => task.status === 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
+                  {visibleTasks.filter(task => task.status === 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
                     <div key={task._id}>
                       <div className={`flex items-center gap-3 bg-gray-50 border border-gray-100 px-4 py-3 opacity-60 ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
                         <button type="button" title="Mark incomplete" onClick={() => toggleApiTask(task._id, task.status)}
@@ -976,9 +1034,10 @@ export default function Activities() {
                         </button>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-400 line-through">{task.title}</p>
-                          {task.assignedToName && (
-                            <span className="text-xs bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full font-medium">{task.assignedToName}</span>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            {assigneeChip(task, true)}
+                            {!isCreatedTask(task) && task.assignedByName && <span className="text-xs text-gray-400">by {task.assignedByName}</span>}
+                          </div>
                         </div>
                         <button type="button" title="Comments" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}
                           className={`relative p-1.5 rounded-lg transition-colors ${expandedTask === task._id ? 'bg-blue-100 text-blue-600' : 'text-gray-300 hover:text-gray-500'}`}>
@@ -989,7 +1048,7 @@ export default function Activities() {
                             </span>
                           )}
                         </button>
-                        {!isStudent && (
+                        {canDeleteTask(task) && (
                           <button type="button" onClick={() => deleteApiTask(task._id)} title="Delete task"
                             className="p-1 text-gray-300 hover:text-red-400 transition-colors">
                             <Trash2 className="w-4 h-4" />
@@ -1291,6 +1350,9 @@ export default function Activities() {
               );
             });
           })()}
+
+          {/* Past calls (in-app + Smartflo) with recordings */}
+          <CallHistory />
         </div>
       )}
     </div>

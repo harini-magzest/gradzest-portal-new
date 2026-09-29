@@ -77,7 +77,7 @@ Budget **£1,000–£1,500/month** in London; £700–£1,000/month outside Lond
 
 ## Ready to Apply?
 
-Create your GradZest profile and let our counselors guide you through every step from shortlisting universities to visa submission.`,
+Create your Gradzest profile and let our counselors guide you through every step from shortlisting universities to visa submission.`,
   },
   {
     id: '2',
@@ -160,7 +160,7 @@ Studying abroad is expensive, but these scholarships can dramatically reduce —
 ---
 
 ### 10. University Merit Scholarships
-Most universities offer scholarships based on academic merit — ranging from 10% to 100% tuition waiver. Ask your GradZest counselor to help you identify and apply for institution-specific awards.
+Most universities offer scholarships based on academic merit — ranging from 10% to 100% tuition waiver. Ask your Gradzest counselor to help you identify and apply for institution-specific awards.
 
 ---
 
@@ -236,7 +236,7 @@ Almost every English-speaking country requires proof of English proficiency for 
 4. **For TOEFL Writing** — practice integrated essays (read + listen + write)
 5. Use official prep materials from the British Council (IELTS) or ETS (TOEFL)
 
-Your GradZest counselor can tell you the exact score requirements for your shortlisted universities.`,
+Your Gradzest counselor can tell you the exact score requirements for your shortlisted universities.`,
   },
   {
     id: '4',
@@ -300,7 +300,7 @@ PGWP holders can work full-time for any employer, and it's a stepping stone to P
 
 ## Ready to Study in Canada?
 
-Let your GradZest counselor guide you through university selection, application, and visa preparation.`,
+Let your Gradzest counselor guide you through university selection, application, and visa preparation.`,
   },
   {
     id: '5',
@@ -377,7 +377,7 @@ International students can work **120 full days or 240 half-days per year** — 
 
 Germany offers an **18-month Job Seeker Visa** after graduation to find employment related to your degree. Once employed, you can apply for a work permit and eventually permanent residency.
 
-Interested in Germany? Talk to a GradZest counselor to identify the right university and programme for you.`,
+Interested in Germany? Talk to a Gradzest counselor to identify the right university and programme for you.`,
   },
   {
     id: '6',
@@ -454,7 +454,7 @@ Both countries offer faster pathways to permanent residency.
 - **Network aggressively** — most H-1B jobs are through referrals
 - **Consider companies that file H-1B every year** — large tech firms, consulting companies, and healthcare systems are reliable sponsors
 
-Have questions about your career options after your MS? GradZest counselors can help you plan your degree and career path together.`,
+Have questions about your career options after your MS? Gradzest counselors can help you plan your degree and career path together.`,
   },
 ];
 

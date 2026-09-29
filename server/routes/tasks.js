@@ -2,6 +2,7 @@ const express = require('express');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
@@ -12,10 +13,25 @@ router.get('/', authMiddleware, async (req, res) => {
     if (req.user.role === 'student') {
       query = { assignedTo: req.user.id };
     } else {
-      query = { assignedBy: req.user.id };
+      // Staff see tasks they created and tasks assigned to them (e.g. by an admin)
+      query = { $or: [{ assignedBy: req.user.id }, { assignedTo: req.user.id }] };
     }
     const tasks = await Task.find(query).sort({ createdAt: -1 });
     res.json(tasks);
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/tasks/assignees — staff directory for the "Assign to" list (any staff member)
+router.get('/assignees', authMiddleware, async (req, res) => {
+  if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const staff = await User.find({ role: { $in: ['counselor', 'admin'] } }).select('name role isAppTeam').sort({ name: 1 });
+    res.json(staff.map(u => ({
+      _id: String(u._id), name: u.name,
+      dept: u.role === 'admin' ? (u.isAppTeam ? 'appteam' : 'admin') : 'counselor',
+    })));
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
@@ -29,23 +45,27 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const creator = await User.findById(req.user.id).select('name');
     let assignedToName = '';
+    let assignedToRole = '';
     if (assignedTo) {
-      const assignee = await User.findById(assignedTo).select('name');
-      assignedToName = assignee?.name || '';
+      const assignee = await User.findById(assignedTo).select('name role isAppTeam');
+      if (!assignee) return res.status(400).json({ message: 'Assignee not found' });
+      assignedToName = assignee.name || '';
+      assignedToRole = assignee.role === 'admin' && assignee.isAppTeam ? 'appteam' : assignee.role;
     }
     const task = await Task.create({
       title: title.trim(),
       description: (description || '').trim(),
       assignedTo: assignedTo || null,
       assignedToName,
+      assignedToRole,
       assignedBy: req.user.id,
       assignedByName: creator?.name || '',
       priority: priority || 'medium',
       dueDate: dueDate || '',
     });
 
-    // Real-time push to the assignee
-    if (assignedTo) {
+    // Real-time push to the assignee (not when assigning to yourself)
+    if (assignedTo && String(assignedTo) !== String(req.user.id)) {
       const io = req.app.get('io');
       const userSockets = req.app.get('userSockets');
       const sids = userSockets?.get(String(assignedTo));
@@ -77,8 +97,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!isAssignee && !isCreator && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Forbidden' });
     }
+    const completedNow = req.body.status === 'completed' && task.status !== 'completed';
     if (req.body.status) task.status = req.body.status;
     await task.save();
+    if (completedNow) {
+      recordStaffActivity(req, {
+        kind: 'task', title: 'Task completed',
+        detail: `${task.title}${task.assignedByName && !isCreator ? ` · assigned by ${task.assignedByName}` : ''}`,
+      });
+    }
     res.json(task);
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -91,7 +118,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
-    if (task.assignedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    // The creator or a full admin (not Application Team) can delete
+    if (task.assignedBy.toString() !== req.user.id && !(req.user.role === 'admin' && !req.user.isAppTeam)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     await task.deleteOne();

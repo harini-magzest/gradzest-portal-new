@@ -55,6 +55,7 @@ function normalize(r) {
     clientNumber: String(pick(r, 'client_number', 'customer_number', 'caller_id_number') || ''),
     agentNumber: String(pick(r, 'agent_number_with_prefix', 'agent_number') || ''),
     agentName: String(pick(r, 'agent_name') || ''),
+    recordingUrl: String(pick(r, 'recording_url', 'recording', 'recording_link') || ''),
   };
 }
 

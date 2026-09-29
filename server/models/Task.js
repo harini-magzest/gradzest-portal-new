@@ -11,6 +11,8 @@ const TaskSchema = new mongoose.Schema({
   description:    { type: String, default: '' },
   assignedTo:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   assignedToName: { type: String, default: '' },
+  // Assignee's department: 'student' | 'counselor' | 'appteam' | 'admin'
+  assignedToRole: { type: String, default: '' },
   assignedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   assignedByName: { type: String, default: '' },
   priority:       { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },

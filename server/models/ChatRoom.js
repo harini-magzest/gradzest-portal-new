@@ -10,6 +10,7 @@ const MessageSchema = new mongoose.Schema({
   type: { type: String, default: "text" }, // 'text' | 'call' | 'file' | 'meeting'
   callStatus: String, // 'answered' | 'no_answer' | 'declined'
   callDuration: { type: Number, default: 0 }, // seconds
+  recordingUrl: String, // in-app call recording (uploaded by the caller's browser)
   // file message fields
   fileUrl: String,
   fileName: String,

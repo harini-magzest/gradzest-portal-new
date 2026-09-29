@@ -15,6 +15,9 @@ export default {
       animation: {
         slideIn: 'slideIn 0.25s ease-out',
       },
+      fontFamily: {
+        display: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+      },
       colors: {
         primary: {
           50: '#eff6ff',

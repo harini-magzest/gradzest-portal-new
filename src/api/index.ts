@@ -201,6 +201,14 @@ export const api = {
         body: JSON.stringify({ participantIds, callStatus, callDuration, callerName }),
       }),
     sendFile: (roomId: string, formData: FormData) => upload<any>(`/chat/rooms/${roomId}/files`, formData),
+    uploadRecording: (messageId: string, blob: Blob) => {
+      const fd = new FormData();
+      fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
+      return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
+    },
+    callHistory: (days: number, userId?: string) =>
+      req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -330,6 +338,7 @@ export const api = {
 
   tasks: {
     list: () => req<any[]>('/tasks', { headers: authHeaders() }),
+    assignees: () => req<{ _id: string; name: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),
     create: (data: any) => req<any>('/tasks', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
