@@ -29,6 +29,83 @@ router.get('/staff', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Counselling groups (student + chosen team members), created by full admins ──
+const isFullAdmin = async (req) => {
+  if (req.user.role !== 'admin') return false;
+  const u = await User.findById(req.user.id).select('isAppTeam');
+  return !!u && !u.isAppTeam;
+};
+const notifyRoom = (req, room, exceptId) => {
+  const io = req.app.get('io');
+  const userSockets = req.app.get('userSockets');
+  room.participants.filter(p => p !== exceptId).forEach(pid => {
+    const sids = userSockets?.get(String(pid));
+    if (io && sids) io.to([...sids]).emit('chat:new-message', { roomId: String(room._id) });
+  });
+};
+
+// POST /api/chat/groups { studentId, memberIds[], name? }
+router.post('/groups', authMiddleware, async (req, res) => {
+  try {
+    if (!(await isFullAdmin(req))) return res.status(403).json({ message: 'Only admins can create groups' });
+    const { studentId, memberIds = [], name } = req.body;
+    const student = await User.findOne({ _id: studentId, role: 'student' }).select('name');
+    if (!student) return res.status(400).json({ message: 'Pick a student for the group' });
+    const me = req.user.id.toString();
+    const staff = await User.find({ _id: { $in: memberIds }, role: { $in: ['counselor', 'admin'] } }).select('name');
+    if (!staff.length) return res.status(400).json({ message: 'Add at least one team member' });
+    const creator = await User.findById(me).select('name');
+
+    const people = [{ id: me, name: creator?.name || 'Admin' }, { id: String(student._id), name: student.name },
+      ...staff.map(s => ({ id: String(s._id), name: s.name }))]
+      .filter((p, i, arr) => arr.findIndex(q => q.id === p.id) === i);
+
+    const room = await ChatRoom.create({
+      type: 'group',
+      name: (name || '').trim() || `${student.name} – Counselling`,
+      studentId: String(student._id),
+      createdBy: me,
+      participants: people.map(p => p.id),
+      participantNames: people.map(p => p.name),
+      messages: [{
+        senderId: me, senderName: creator?.name || 'Admin', senderRole: 'Admin Team',
+        content: `Created the group with ${people.filter(p => p.id !== me).map(p => p.name).join(', ')}.`,
+        timestamp: new Date(), read: false,
+      }],
+    });
+    notifyRoom(req, room, me);
+    res.status(201).json(room.toJSON());
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// PUT /api/chat/groups/:id/members { add: [ids], remove: [ids], name? } — full admins
+router.put('/groups/:id/members', authMiddleware, async (req, res) => {
+  try {
+    if (!(await isFullAdmin(req))) return res.status(403).json({ message: 'Only admins can change groups' });
+    const room = await ChatRoom.findOne({ _id: req.params.id, type: 'group' });
+    if (!room) return res.status(404).json({ message: 'Group not found' });
+    const add = await User.find({ _id: { $in: req.body.add || [] }, role: { $in: ['counselor', 'admin'] } }).select('name');
+    add.forEach(u => {
+      if (!room.participants.includes(String(u._id))) { room.participants.push(String(u._id)); room.participantNames.push(u.name); }
+    });
+    // The student and the creator stay in the group
+    const removable = (req.body.remove || []).map(String).filter(id => id !== room.studentId && id !== room.createdBy);
+    removable.forEach(id => {
+      const i = room.participants.indexOf(id);
+      if (i >= 0) { room.participants.splice(i, 1); room.participantNames.splice(i, 1); }
+    });
+    if (typeof req.body.name === 'string' && req.body.name.trim()) room.name = req.body.name.trim();
+    room.markModified('participants'); room.markModified('participantNames');
+    await room.save();
+    notifyRoom(req, room, req.user.id.toString());
+    res.json(room.toJSON());
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 // Get all rooms for current user
 router.get('/rooms', authMiddleware, async (req, res) => {
   try {
@@ -42,7 +119,7 @@ router.get('/rooms', authMiddleware, async (req, res) => {
     const saves = [];
     for (const room of rooms) {
       const otherId = room.participants.find(p => p !== req.user.id.toString());
-      if (!otherId || room.type === 'admin-appteam') continue;
+      if (!otherId || room.type === 'admin-appteam' || room.type === 'group') continue;
       // Only upgrade to appteam-counselor when there is positive evidence — never downgrade a manually-set room
       const nameIndicatesAppTeam = room.participantNames?.includes('Application Team');
       const isAppTeamUser = adminMap[String(otherId)];
@@ -67,7 +144,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 
     // Auto-correct room type if participant is admin
     const otherId = room.participants.find(p => p !== req.user.id.toString());
-    if (otherId && room.type !== 'admin-appteam') {
+    if (otherId && room.type !== 'admin-appteam' && room.type !== 'group') {
       const other = await User.findById(otherId).select('role isAppTeam');
       if (other?.role === 'admin') {
         const expected = other.isAppTeam ? 'appteam-counselor' : 'admin-counselor';

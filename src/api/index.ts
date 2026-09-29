@@ -195,6 +195,10 @@ export const api = {
       req<any>('/chat/rooms', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ participantIds, participantNames, type: roomType }),
       }),
+    createGroup: (data: { studentId: string; memberIds: string[]; name?: string }) =>
+      req<any>('/chat/groups', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    updateGroup: (id: string, data: { add?: string[]; remove?: string[]; name?: string }) =>
+      req<any>(`/chat/groups/${id}/members`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     logCall: (participantIds: string[], callStatus: string, callDuration: number, callerName: string) =>
       req<any>('/chat/rooms/call-log', {
         method: 'POST', headers: authHeaders(),

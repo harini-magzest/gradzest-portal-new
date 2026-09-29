@@ -243,13 +243,16 @@ export default function StudentChat() {
     } catch {}
   };
 
-  const remoteName = selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
+  // Group chats show their name; 1:1 chats show the other person
+  const roomTitle = (r: any) => r?.type === 'group' ? (r.name || 'Group') : r?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
+  const isGroup = selectedRoom?.type === 'group';
+  const remoteName = roomTitle(selectedRoom);
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
   const messages = selectedRoom?.messages || [];
   const hasMultipleRooms = rooms.length > 1;
   const filteredRooms = rooms
     .filter((r: any) => {
-      const other = r.participantNames?.find((n: string) => n !== user?.name) || '';
+      const other = roomTitle(r);
       return other.toLowerCase().includes(search.toLowerCase());
     })
     .sort((a: any, b: any) => {
@@ -281,7 +284,7 @@ export default function StudentChat() {
             </div>
             <div className="flex-1 overflow-y-auto">
               {filteredRooms.map((r: any) => {
-                const other = r.participantNames?.find((n: string) => n !== user?.name) || 'User';
+                const other = roomTitle(r);
                 const isActive = selectedRoom?.id === r.id;
                 const unread = r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0;
                 const lastMsg = r.messages?.[r.messages.length - 1];
@@ -327,10 +330,10 @@ export default function StudentChat() {
               <p className="font-semibold text-gray-900">{remoteName}</p>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-xs text-gray-500">Online</span>
+                <span className="text-xs text-gray-500 truncate">{isGroup ? `${selectedRoom.participants.length} members · ${selectedRoom.participantNames?.join(', ')}` : 'Online'}</span>
               </div>
             </div>
-            {selectedRoom && (
+            {selectedRoom && !isGroup && (
               <>
                 <button type="button" title="Voice call" aria-label="Voice call"
                   onClick={() => startCall(remoteId, remoteName)}
