@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
-  Eye, GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
+  GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
@@ -528,9 +528,10 @@ function AssignStudentsModal({
 // ── Counselor Detail Modal ───────────────────────────────────────────────────
 
 function CounselorDetailModal({
-  counselor, metrics, onClose, onChat,
+  counselor, metrics, onClose, onChat, onStatClick,
 }: {
   counselor: any; metrics: ReturnType<typeof counselorMetrics>; onClose: () => void; onChat: () => void;
+  onStatClick?: (type: StatType) => void;
 }) {
   const color = avatarColor(counselor.name);
   return (
@@ -556,15 +557,16 @@ function CounselorDetailModal({
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-5">
-            {[
-              { label: 'Students', value: metrics.studentCount },
-              { label: 'Enrolled', value: metrics.enrolled },
-              { label: 'Visa Rate', value: `${metrics.visaRate}%` },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center">
+            {([
+              { key: 'students' as StatType, label: 'Students', value: metrics.studentCount },
+              { key: 'enrolled' as StatType, label: 'Enrolled', value: metrics.enrolled },
+              { key: 'visa'     as StatType, label: 'Visa Rate', value: `${metrics.visaRate}%` },
+            ]).map(stat => (
+              <button key={stat.key} type="button" disabled={!onStatClick} onClick={() => onStatClick?.(stat.key)}
+                className={`bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center transition-colors ${onStatClick ? 'hover:bg-white/20 cursor-pointer' : ''}`}>
                 <p className="text-lg font-bold text-white">{stat.value}</p>
                 <p className="text-xs text-purple-200 mt-0.5">{stat.label}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1120,125 +1122,6 @@ function CounselorStatsModal({
   );
 }
 
-// ── Counselor Card ───────────────────────────────────────────────────────────
-
-function CounselorCard({
-  counselor, metrics,
-  onChat, onAssign, onView, onEdit, onDelete, onStatClick, onPerformance, deleting,
-}: {
-  counselor: any;
-  metrics: ReturnType<typeof counselorMetrics>;
-  onChat: () => void; onAssign: () => void; onView: () => void; onPerformance: () => void;
-  onEdit: () => void; onDelete: () => void;
-  onStatClick: (type: StatType) => void;
-  deleting: boolean;
-}) {
-  const color = avatarColor(counselor.name);
-  const tags = (counselor.specialization || []).slice(0, 3);
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4">
-      {/* Top: avatar + name + status */}
-      <div className="flex items-start gap-4">
-        <div className={`relative w-14 h-14 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
-          {initials(counselor.name)}
-          <PresenceDot userId={normalId(counselor)} size="md" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 text-base leading-tight">{counselor.name}</p>
-          <p className="text-sm text-gray-500 mt-0.5">{counselor.title || 'Education Counselor'}</p>
-          {/* Live status: green = has Gradzest open now, red = offline (with last seen) */}
-          <div className="mt-1"><PresenceLabel userId={normalId(counselor)} /></div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-xs text-gray-400">{counselor.experience ?? 0} yrs</p>
-          <p className="text-xs text-gray-400">exp</p>
-        </div>
-      </div>
-
-      {/* Specialization tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag: string) => (
-            <span key={tag}
-              className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-medium border border-gray-200">
-              {tag}
-            </span>
-          ))}
-          {(counselor.specialization || []).length > 3 && (
-            <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium border border-gray-200">
-              +{counselor.specialization.length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Stats row — clickable */}
-      <div className="grid grid-cols-3 divide-x divide-gray-100 bg-gray-50 rounded-xl overflow-hidden">
-        {([
-          { key: 'students' as StatType, label: 'Students',  value: metrics.studentCount },
-          { key: 'enrolled' as StatType, label: 'Enrolled',  value: metrics.enrolled },
-          { key: 'visa'     as StatType, label: 'Visa Rate', value: `${metrics.visaRate}%` },
-        ]).map(stat => (
-          <button key={stat.key} type="button" onClick={() => onStatClick(stat.key)}
-            className="text-center py-2.5 px-2 hover:bg-purple-50 active:bg-purple-100 transition-colors cursor-pointer group">
-            <p className="text-base font-bold text-gray-900 group-hover:text-purple-700 transition-colors">{stat.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5 group-hover:text-purple-500 transition-colors">{stat.label}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* Performance score */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-semibold text-gray-500">Performance score</span>
-          <span className={`text-xs font-bold ${metrics.scoreText}`}>{metrics.score} / 100</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metrics.scoreColor}`} style={{ width: `${metrics.score}%` }} />
-        </div>
-      </div>
-
-      {/* Workload */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-semibold text-gray-500">Workload</span>
-          <span className={`text-xs font-semibold ${metrics.workloadText}`}>
-            {metrics.workloadLabel} — {metrics.workloadPct}%
-          </span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metrics.workloadColor}`} style={{ width: `${metrics.workloadPct}%` }} />
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-gray-100">
-        <button type="button" onClick={onPerformance}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 active:scale-95 transition-all">
-          <BarChart3 className="w-3.5 h-3.5" />Stats
-        </button>
-        <button type="button" onClick={onChat}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
-          <MessageSquare className="w-3.5 h-3.5" />Chat
-        </button>
-        <button type="button" onClick={onAssign}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-green-700 bg-green-50 border-green-200 hover:bg-green-100 active:scale-95 transition-all">
-          <UserCheck className="w-3.5 h-3.5" />Assign
-        </button>
-        <button type="button" onClick={onView}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 active:scale-95 transition-all">
-          <Eye className="w-3.5 h-3.5" />View
-        </button>
-        <button type="button" onClick={onEdit}
-          className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold border text-white bg-[#0d1b4b] border-[#0d1b4b] hover:bg-[#152258] active:scale-95 transition-all">
-          <GraduationCap className="w-3.5 h-3.5" />Edit
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminCounselors() {
@@ -1381,6 +1264,7 @@ return (
             navigate('/admin/chat', { state: { openChatWith: { _id: normalId(viewing), name: viewing.name } } });
             setViewing(null);
           }}
+          onStatClick={type => { setStatsModal({ counselor: viewing, type }); setViewing(null); }}
         />
       )}
       {statsModal && (
@@ -1623,25 +1507,61 @@ return (
             )}
           </div>
         ) : !loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.map(c => {
-              const id = normalId(c);
-              return (
-                <CounselorCard
-                  key={id}
-                  counselor={c}
-                  metrics={metricsMap[id] ?? counselorMetrics(c, students, applications)}
-                  onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
-                  onAssign={() => setAssigning(c)}
-                  onView={() => setViewing(c)}
-                  onPerformance={() => navigate(`/admin/counselors/${id}/performance`)}
-                  onEdit={() => setEditing(c)}
-                  onDelete={() => handleDelete(id)}
-                  onStatClick={type => setStatsModal({ counselor: c, type })}
-                  deleting={deletingId === id}
-                />
-              );
-            })}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="divide-y divide-gray-50">
+              {filtered.map(c => {
+                const id = normalId(c);
+                const color = avatarColor(c.name);
+                const tags = (c.specialization || []).slice(0, 2);
+                return (
+                  <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
+                    <button type="button" onClick={() => setViewing(c)} aria-label={`Open ${c.name}'s profile`}
+                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {initials(c.name)}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <button type="button" onClick={() => setViewing(c)}
+                          className="text-sm font-semibold text-gray-900 truncate hover:text-purple-700 hover:underline transition-colors">
+                          {c.name}
+                        </button>
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" title="Active" />
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">{c.title || 'Education Counselor'} · {c.experience ?? 0} yrs exp</p>
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {tags.map((t: string) => (
+                            <span key={t} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)} title="Stats"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors">
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })} title="Chat"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setAssigning(c)} title="Assign"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors">
+                        <UserCheck className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setEditing(c)} title="Edit"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDelete(id)} disabled={deletingId === id} title="Delete"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                        {deletingId === id ? <Spinner size={4} /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
 
@@ -1665,12 +1585,15 @@ return (
                 const color = avatarColor(m.name);
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
-                    <div className={`relative w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                    <button type="button" onClick={() => setEditingAppTeam(m)} aria-label={`Open ${m.name}'s profile`}
+                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
                       {initials(m.name)}
-                      <PresenceDot userId={id} />
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
+                      <button type="button" onClick={() => setEditingAppTeam(m)}
+                        className="text-sm font-semibold text-gray-900 truncate hover:text-orange-700 hover:underline transition-colors block">
+                        {m.name}
+                      </button>
                       <p className="text-xs text-gray-400 truncate">{m.email}</p>
                     </div>
                     <div className="hidden sm:block flex-shrink-0"><PresenceLabel userId={id} /></div>

@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
-import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import LeadStageSelect from '../../components/LeadStageSelect';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 
@@ -346,7 +346,7 @@ function StudentsList() {
 
   const filtered = source.filter((s: any) => {
     const matchQuery = !query || s.name.toLowerCase().includes(query.toLowerCase()) || s.email.toLowerCase().includes(query.toLowerCase()) || s.nationality?.toLowerCase().includes(query.toLowerCase());
-    const matchStatus = !statusFilter || leadStageOf(s).value === statusFilter;
+    const matchStatus = !statusFilter || s.status === statusFilter;
     return matchQuery && matchStatus;
   }).sort((a: any, b: any) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
 
@@ -400,7 +400,7 @@ function StudentsList() {
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by stage"
               className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
               <option value="">All stages</option>
-              {STUDENT_STAGES.filter(s => s.value !== 'active' && s.value !== 'inactive').map(s => (
+              {STUDENT_STAGES.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
@@ -420,7 +420,6 @@ function StudentsList() {
           ) : pageStudents.map((student: any) => {
             const sid = student._id || student.id;
             const apps = student.applications || [];
-            const docs = student.documents || [];
             const subtitle = [student.nationality, student.educationLevel, student.phone].filter(Boolean).join(' · ');
             return (
               <div key={sid} className="flex items-center gap-4 px-5 py-4 hover:bg-green-50/40 transition-colors">
@@ -441,19 +440,7 @@ function StudentsList() {
                     </p>
                   )}
                 </div>
-                <div className="hidden lg:flex items-center gap-4 flex-shrink-0">
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-gray-900">{apps.length}</p>
-                    <p className="text-xs text-gray-400">apps</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-gray-900">{docs.filter((d: any) => d.status === 'verified').length}/{docs.length}</p>
-                    <p className="text-xs text-gray-400">docs</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-gray-900">{student.englishScore?.score ?? '—'}</p>
-                    <p className="text-xs text-gray-400">{student.englishScore?.type ?? 'score'}</p>
-                  </div>
+                <div className="hidden lg:flex items-center flex-shrink-0">
                   <StatusBadge status={student.status} />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
