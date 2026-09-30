@@ -479,9 +479,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       });
     }
 
+    // Staff (admin, application team, counselor): invited to a group meeting.
+    // The server has already saved this notification; its link is the join URL.
+    if (userRole === 'admin' || userRole === 'counselor') {
+      socket.on('meeting:invited', (n: { notificationId: string; title: string; message: string; link?: string }) => {
+        addNotif(
+          { type: 'meeting', priority: 'urgent', title: n.title, message: n.message, link: n.link },
+          { id: n.notificationId, skipSave: true },
+        );
+      });
+    }
+
     // Role-aware links
     const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/meetings';
-    const activitiesLink = userRole === 'counselor' ? '/counselor/activities' : userRole === 'admin' ? '/admin/activities' : '/student/activities';
+    const activitiesLink = userRole === 'counselor' ? '/counselor/activities'
+      : userRole === 'admin' ? ((user as any)?.isAppTeam ? '/appteam/activities' : '/admin/activities')
+      : '/student/activities';
 
     if (userRole === 'student') {
       // Student: counselor assigned

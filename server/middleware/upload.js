@@ -22,7 +22,17 @@ const allowedMimeTypes = [
   'image/gif',
 ];
 
-module.exports = multer({
+// Call recordings recorded in the browser (MediaRecorder → webm/ogg audio)
+const recording = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB ≈ several hours of opus audio
+  fileFilter: (req, file, cb) => {
+    const ok = /^(audio|video)\/(webm|ogg|mp4)/.test(file.mimetype);
+    ok ? cb(null, true) : cb(new Error('Only audio recordings are allowed'));
+  },
+});
+
+module.exports = Object.assign(multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (req, file, cb) => {
@@ -35,4 +45,4 @@ module.exports = multer({
       cb(new Error('Only PDF, Word documents, and images are allowed'));
     }
   },
-});
+}), { recording });

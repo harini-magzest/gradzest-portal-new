@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext';
 import { CallProvider } from './context/CallContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { NotificationProvider } from './context/NotificationContext';
-import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
@@ -19,6 +18,8 @@ const Universities     = lazy(() => import('./pages/Universities'));
 const UniversityDetail = lazy(() => import('./pages/UniversityDetail'));
 const CourseDetail     = lazy(() => import('./pages/CourseDetail'));
 const Search           = lazy(() => import('./pages/Search'));
+const PrivacyPolicy    = lazy(() => import('./pages/Legal').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfUse       = lazy(() => import('./pages/Legal').then(m => ({ default: m.TermsOfUse })));
 const PublicLayout     = lazy(() => import('./pages/PublicLayout'));
 const ForgotPassword   = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword    = lazy(() => import('./pages/ResetPassword'));
@@ -64,6 +65,7 @@ const AdminCourses           = lazy(() => import('./pages/admin/AdminCourses'));
 const AdminCountries         = lazy(() => import('./pages/admin/AdminCountries'));
 const AdminChat              = lazy(() => import('./pages/admin/AdminChat'));
 const AdminCounselors        = lazy(() => import('./pages/admin/AdminCounselors'));
+const AdminCounselorPerformance = lazy(() => import('./pages/admin/AdminCounselorPerformance'));
 const AdminStudents          = lazy(() => import('./pages/admin/AdminStudents'));
 const AdminActivityFeed      = lazy(() => import('./pages/admin/AdminActivityFeed'));
 const AdminMeetings          = lazy(() => import('./pages/admin/AdminMeetings'));
@@ -80,10 +82,6 @@ const AppTeamActivityFeed   = lazy(() => import('./pages/appteam/AppTeamActivity
 const AppTeamChat           = lazy(() => import('./pages/appteam/AppTeamChat'));
 const AppTeamLearning       = lazy(() => import('./pages/appteam/AppTeamLearning'));
 
-// App Dashboard module
-const AppDashLayout   = lazy(() => import('./pages/appdash/AppDashLayout'));
-const AppDashboard    = lazy(() => import('./pages/appdash/AppDashboard'));
-
 // Board module
 const BoardLayout       = lazy(() => import('./pages/board/BoardLayout'));
 const BoardOverview     = lazy(() => import('./pages/board/BoardOverview'));
@@ -93,8 +91,8 @@ const BoardStudents     = lazy(() => import('./pages/board/BoardStudents'));
 const BoardDocuments    = lazy(() => import('./pages/board/BoardDocuments'));
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => { if (!hash) window.scrollTo(0, 0); }, [pathname]);
   return null;
 }
 
@@ -105,18 +103,18 @@ function ToastLayer() {
 
 function PageSpinner() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-50">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-[#0d1b4b] rounded-xl flex items-center justify-center animate-pulse" />
         <div className="space-y-1.5">
-          <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          <div className="h-3 w-16 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
         </div>
       </div>
       <div className="space-y-3 w-64">
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-4/5" />
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/5" />
+        <div className="h-3 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 bg-gray-200 rounded animate-pulse w-4/5" />
+        <div className="h-3 bg-gray-200 rounded animate-pulse w-3/5" />
       </div>
     </div>
   );
@@ -125,7 +123,6 @@ function PageSpinner() {
 export default function App() {
   return (
     <ErrorBoundary>
-    <ThemeProvider>
     <ToastProvider>
     <AuthProvider>
       <CallProvider>
@@ -147,6 +144,8 @@ export default function App() {
               <Route path="/university/:id" element={<UniversityDetail />} />
               <Route path="/university/:uniId/course/:courseId" element={<CourseDetail />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfUse />} />
             </Route>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -189,6 +188,7 @@ export default function App() {
               <Route path="courses" element={<AdminCourses />} />
               <Route path="countries" element={<AdminCountries />} />
               <Route path="counselors" element={<AdminCounselors />} />
+              <Route path="counselors/:id/performance" element={<AdminCounselorPerformance />} />
               <Route path="students" element={<AdminStudents />} />
               <Route path="applications" element={<AdminApplications />} />
               <Route path="application-board" element={<AdminApplicationBoard />} />
@@ -213,11 +213,6 @@ export default function App() {
               <Route path="learning" element={<AppTeamLearning />} />
             </Route>
 
-            {/* App Dashboard module */}
-            <Route path="/appdash" element={<AppDashLayout />}>
-              <Route index element={<AppDashboard />} />
-            </Route>
-
             {/* Board module */}
             <Route path="/board" element={<BoardLayout />}>
               <Route index element={<BoardOverview />} />
@@ -227,6 +222,10 @@ export default function App() {
               <Route path="documents" element={<BoardDocuments />} />
               <Route path="activities" element={<Activities />} />
             </Route>
+
+            {/* Catch-all — any unmatched top-level path (e.g. a removed route, a typo,
+                an old bookmark) sends the visitor home instead of a blank page */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
@@ -235,7 +234,6 @@ export default function App() {
       </CallProvider>
     </AuthProvider>
     </ToastProvider>
-    </ThemeProvider>
     </ErrorBoundary>
   );
 }

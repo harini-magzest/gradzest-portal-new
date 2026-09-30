@@ -11,12 +11,16 @@ const TaskSchema = new mongoose.Schema({
   description:    { type: String, default: '' },
   assignedTo:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   assignedToName: { type: String, default: '' },
+  // Assignee's department: 'student' | 'counselor' | 'appteam' | 'admin'
+  assignedToRole: { type: String, default: '' },
   assignedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   assignedByName: { type: String, default: '' },
   priority:       { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
   dueDate:        { type: String, default: '' },
   status:         { type: String, enum: ['pending', 'completed'], default: 'pending' },
   comments:       [CommentSchema],
+  // Set when the task is a follow-up for a website subscriber lead
+  subscriberId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscriber', default: null },
 }, { timestamps: true });
 
 TaskSchema.index({ assignedTo: 1, createdAt: -1 });

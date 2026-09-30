@@ -262,7 +262,7 @@ function ScheduleModal({
 
 function MeetingCard({ meeting, theme }: { meeting: any; theme: 'purple' | 'orange' }) {
   const tc   = THEME[theme];
-  const meta = PLATFORM_META[meeting.platform] ?? PLATFORM_META.other;
+  const meta = PLATFORM_META[meeting.platform] ?? (meeting.platform === 'jitsi' ? { label: 'Jitsi', icon: '🎥' } : PLATFORM_META.other);
   const upcoming = isFuture(meeting.scheduledDate, meeting.scheduledTime);
   const active = isSessionActive(meeting.scheduledDate, meeting.scheduledTime, meeting.duration);
   const [showExpired, setShowExpired] = useState(false);

@@ -25,6 +25,9 @@ interface CallContextType {
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  // Presence: who has the app open right now, and when others were last seen
+  isOnline: (userId?: string) => boolean;
+  lastSeenOf: (userId?: string) => string | undefined;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -59,6 +62,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [elapsed, setElapsed] = useState(0);
   const [toast, setToast] = useState('');
   const [lastMessageTime, setLastMessageTime] = useState(0);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
+  const isOnline = useCallback((id?: string) => !!id && onlineIds.has(String(id)), [onlineIds]);
+  const lastSeenOf = useCallback((id?: string) => (id ? lastSeen[String(id)] : undefined), [lastSeen]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -72,6 +79,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const stopRef = useRef<() => void>(() => {});
   const logCallRef = useRef<(status: string, duration: number, remoteId: string) => void>(() => {});
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  // Caller-side recording of both audio tracks; uploaded after the call is logged
+  const recorderRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; ctx: AudioContext } | null>(null);
 
   const ringtoneRef = useRef<ReturnType<typeof createCallRingtone> | null>(null);
 
@@ -86,12 +95,56 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, [callState]);
 
+  // Start recording once an outgoing call connects — the caller's browser mixes both sides' audio
+  useEffect(() => {
+    if (callState !== 'active' || !isCallerRef.current || recorderRef.current) return;
+    if (!localStream || !remoteStream || typeof MediaRecorder === 'undefined') return;
+    try {
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
+      [localStream, remoteStream].forEach(s => {
+        const tracks = s.getAudioTracks();
+        if (tracks.length) ctx.createMediaStreamSource(new MediaStream(tracks)).connect(dest);
+      });
+      const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(t => MediaRecorder.isTypeSupported(t));
+      const rec = new MediaRecorder(dest.stream, mime ? { mimeType: mime } : undefined);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      rec.start(1000);
+      recorderRef.current = { rec, chunks, ctx };
+    } catch { /* recording unsupported — the call itself carries on */ }
+  }, [callState, localStream, remoteStream]);
+
+  // Stop the recorder (synchronously kicks off the final flush) and resolve with the audio
+  const finishRecording = (): Promise<Blob | null> => {
+    const r = recorderRef.current;
+    recorderRef.current = null;
+    if (!r) return Promise.resolve(null);
+    return new Promise(resolve => {
+      const done = () => {
+        r.ctx.close().catch(() => {});
+        resolve(r.chunks.length ? new Blob(r.chunks, { type: r.rec.mimeType || 'audio/webm' }) : null);
+      };
+      if (r.rec.state === 'inactive') { done(); return; }
+      r.rec.onstop = done;
+      r.rec.stop();
+    });
+  };
+
   const logCall = async (status: string, duration: number, remoteId: string) => {
+    // Must run before any await: callers tear the call down right after invoking logCall
+    const recording = finishRecording();
     if (!user?.id || !remoteId) return;
     try {
-      await api.chat.logCall([user.id, remoteId], status, duration, user.name || '');
+      const msg = await api.chat.logCall([user.id, remoteId], status, duration, user.name || '');
       setLastMessageTime(Date.now());
       socketRef.current?.emit('chat:call-logged', { to: remoteId });
+      const blob = await recording;
+      const msgId = msg?.id || msg?._id;
+      if (status === 'answered' && blob && msgId) {
+        await api.chat.uploadRecording(String(msgId), blob);
+        setLastMessageTime(Date.now());
+      }
     } catch {}
   };
   logCallRef.current = logCall;
@@ -119,6 +172,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const stop = useCallback(() => {
     ringtoneRef.current?.stop();
     ringtoneRef.current = null;
+    // Discard a recording nobody claimed (e.g. the call dropped without being logged)
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (rec) { try { rec.rec.stop(); } catch {} rec.ctx.close().catch(() => {}); }
     pcRef.current?.close();
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach(t => t.stop());
@@ -202,9 +259,22 @@ export function CallProvider({ children }: { children: ReactNode }) {
       auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
     });
     socketRef.current = socket;
-    const registerSocket = () => socket.emit('register', user.id);
+    // Presence snapshot on every (re)connect, then live updates
+    const loadPresence = () => api.chat.presence().then(p => {
+      setOnlineIds(new Set(p.online.map(String)));
+      setLastSeen(p.lastSeen || {});
+    }).catch(() => {});
+    const registerSocket = () => { socket.emit('register', user.id); setTimeout(loadPresence, 300); };
     socket.on('connect', registerSocket);
     if (socket.connected) registerSocket();
+    socket.on('presence:update', ({ userId, online, lastSeen: at }: { userId: string; online: boolean; lastSeen?: string }) => {
+      setOnlineIds(prev => {
+        const next = new Set(prev);
+        if (online) next.add(String(userId)); else next.delete(String(userId));
+        return next;
+      });
+      if (!online && at) setLastSeen(prev => ({ ...prev, [String(userId)]: at }));
+    });
 
     const buildPC = (targetId: string) => {
       const pc = new RTCPeerConnection(ICE_CONFIG);
@@ -390,6 +460,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     <CallContext.Provider value={{
       callState, callType, remoteName, remoteRole, muted, cameraOff, timer, lastMessageTime,
       startCall, startVideoCall, acceptCall, rejectCall, endCall, toggleMute, toggleCamera,
+      isOnline, lastSeenOf,
     }}>
       {children}
       <audio ref={audioRef} autoPlay playsInline />
@@ -547,6 +618,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm truncate leading-tight">{remoteName}</p>
             <p className="text-green-300 font-mono text-xs leading-tight">{timer}</p>
+            <p className="text-red-300 text-[10px] leading-tight flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />This call is recorded
+            </p>
           </div>
 
           {/* Mute */}
@@ -596,6 +670,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
                 <span className="text-white/50 text-xs">· {callerRoleLabel}</span>
               )}
               <span className="text-green-400 font-mono text-sm ml-1">{timer}</span>
+              <span className="text-red-300 text-xs ml-1 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />Recorded
+              </span>
             </div>
 
             {/* Local video PIP — bottom right */}

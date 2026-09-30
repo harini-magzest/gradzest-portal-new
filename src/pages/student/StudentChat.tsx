@@ -8,6 +8,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { api } from '../../api';
+import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
+import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -23,6 +25,17 @@ const formatChatTime = (iso: string) => {
   if (d >= yesterday) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
+
+// Group-created / group-changed notices — centered small text, not a chat bubble (WhatsApp-style)
+function SystemMessage({ msg }: { msg: any }) {
+  return (
+    <div className="flex justify-center">
+      <span className="text-[11px] text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-center max-w-[85%]">
+        {msg.content}
+      </span>
+    </div>
+  );
+}
 
 function CallMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
   const { callStatus, callDuration, senderName, timestamp } = msg;
@@ -145,6 +158,16 @@ export default function StudentChat() {
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [input, setInput] = useState('');
+  // Group chats: message being replied to, and applying reaction updates locally
+  const [replyTo, setReplyTo] = useState<any>(null);
+  useEffect(() => { setReplyTo(null); }, [selectedRoom?.id]);
+  const applyMsgUpdate = (m: any) => {
+    const mid = String(m._id || m.id);
+    const patch = (r: any) => r && r.messages?.some((x: any) => String(x._id || x.id) === mid)
+      ? { ...r, messages: r.messages.map((x: any) => String(x._id || x.id) === mid ? m : x) } : r;
+    setSelectedRoom((r: any) => patch(r));
+    setRooms((prev: any[]) => prev.map(patch));
+  };
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -203,7 +226,8 @@ export default function StudentChat() {
     const content = input.trim();
     setInput('');
     try {
-      const msg = await api.chat.send(selectedRoom.id, content, user.name);
+      const msg = await api.chat.send(selectedRoom.id, content, user.name, replyTo ? String(replyTo._id || replyTo.id) : undefined);
+      setReplyTo(null);
       const updated = { ...selectedRoom, messages: [...selectedRoom.messages, msg] };
       setSelectedRoom(updated);
       setRooms(prev => prev.map(r => r.id === updated.id ? updated : r));
@@ -243,13 +267,16 @@ export default function StudentChat() {
     } catch {}
   };
 
-  const remoteName = selectedRoom?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
+  // Group chats show their name; 1:1 chats show the other person
+  const roomTitle = (r: any) => r?.type === 'group' ? (r.name || 'Group') : r?.participantNames?.find((n: string) => n !== user?.name) || 'Counselor';
+  const isGroup = selectedRoom?.type === 'group';
+  const remoteName = roomTitle(selectedRoom);
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
   const messages = selectedRoom?.messages || [];
   const hasMultipleRooms = rooms.length > 1;
   const filteredRooms = rooms
     .filter((r: any) => {
-      const other = r.participantNames?.find((n: string) => n !== user?.name) || '';
+      const other = roomTitle(r);
       return other.toLowerCase().includes(search.toLowerCase());
     })
     .sort((a: any, b: any) => {
@@ -281,7 +308,7 @@ export default function StudentChat() {
             </div>
             <div className="flex-1 overflow-y-auto">
               {filteredRooms.map((r: any) => {
-                const other = r.participantNames?.find((n: string) => n !== user?.name) || 'User';
+                const other = roomTitle(r);
                 const isActive = selectedRoom?.id === r.id;
                 const unread = r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0;
                 const lastMsg = r.messages?.[r.messages.length - 1];
@@ -293,8 +320,9 @@ export default function StudentChat() {
                 return (
                   <button type="button" key={r.id} onClick={() => setSelectedRoom(r)}
                     className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-sky-50' : ''}`}>
-                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 text-sm flex-shrink-0">
+                    <div className="relative w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 text-sm flex-shrink-0">
                       {other.charAt(0)}
+                      {r.type !== 'group' && <PresenceDot userId={r.participants?.find((id: string) => id !== String(user?.id))} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
@@ -325,12 +353,17 @@ export default function StudentChat() {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-gray-900">{remoteName}</p>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-xs text-gray-500">Online</span>
+              <div className="flex items-center gap-1 min-w-0">
+                {isGroup ? (
+                  <span className="text-xs text-gray-500 truncate">
+                    <GroupPresence memberIds={selectedRoom.participants} meId={String(user?.id)} /> · {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}
+                  </span>
+                ) : (
+                  <PresenceLabel userId={remoteId} />
+                )}
               </div>
             </div>
-            {selectedRoom && (
+            {selectedRoom && !isGroup && (
               <>
                 <button type="button" title="Voice call" aria-label="Voice call"
                   onClick={() => startCall(remoteId, remoteName)}
@@ -358,6 +391,7 @@ export default function StudentChat() {
             ) : (
               messages.map((msg: any) => {
                 const key = msg._id || msg.id;
+                if (msg.type === 'system') return <SystemMessage key={key} msg={msg} />;
                 if (msg.type === 'call') return <CallMessage key={key} msg={msg} isMe={msg.senderId === user?.id} />;
                 if (msg.type === 'file') return <FileMessage key={key} msg={msg} isMe={msg.senderId === user?.id} onAction={() => handleDocAction(msg)} />;
                 if (msg.type === 'meeting') return <MeetingMessage key={key} msg={msg} isMe={msg.senderId === user?.id} />;
@@ -371,10 +405,12 @@ export default function StudentChat() {
                           <span className="text-xs text-gray-500">{msg.senderName}</span>
                         </div>
                       )}
+                      {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} mine={isMe} />}
                       <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${isMe ? 'bg-[#0d1b4b] text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
                         {msg.content}
                       </div>
                       <p className={`text-xs text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>{formatTime(msg.timestamp)}</p>
+                      {selectedRoom?.type === 'group' && <MessageActions roomId={selectedRoom.id} msg={msg} meId={String(user?.id)} onUpdated={applyMsgUpdate} onReply={setReplyTo} alignRight={isMe} />}
                     </div>
                   </div>
                 );
@@ -384,6 +420,7 @@ export default function StudentChat() {
 
           {/* Input area */}
           <div className="p-4 border-t border-gray-100">
+            {replyTo && <ReplyingBar msg={replyTo} onCancel={() => setReplyTo(null)} />}
             {pendingFile && (
               <div className="mb-3 flex items-center gap-3 p-3 bg-sky-50 border border-blue-200 rounded-xl">
                 <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">

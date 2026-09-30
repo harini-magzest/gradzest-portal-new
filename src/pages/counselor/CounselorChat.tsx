@@ -2,11 +2,13 @@
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, CheckCircle,
+  Calendar, Clock, CheckCircle, Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { api } from '../../api';
+import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
+import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -43,6 +45,17 @@ function getRoleBadgeClass(role: string) {
   if (role === 'Application Team') return 'text-orange-700 bg-orange-50';
   if (role === 'Admin' || role === 'Admin Team') return 'text-purple-700 bg-purple-50';
   return 'text-gray-600 bg-gray-100';
+}
+
+// Group-created / group-changed notices — centered small text, not a chat bubble (WhatsApp-style)
+function SystemMessage({ msg }: { msg: any }) {
+  return (
+    <div className="flex justify-center">
+      <span className="text-[11px] text-gray-500 bg-gray-100 px-3 py-1 rounded-full text-center max-w-[85%]">
+        {msg.content}
+      </span>
+    </div>
+  );
 }
 
 function CallMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
@@ -160,8 +173,19 @@ export default function CounselorChat() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [myStudents, setMyStudents] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [listTab, setListTab] = useState<'chats' | 'groups'>('chats');
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [input, setInput] = useState('');
+  // Group chats: message being replied to, and applying reaction updates locally
+  const [replyTo, setReplyTo] = useState<any>(null);
+  useEffect(() => { setReplyTo(null); }, [selectedRoom?.id]);
+  const applyMsgUpdate = (m: any) => {
+    const mid = String(m._id || m.id);
+    const patch = (r: any) => r && r.messages?.some((x: any) => String(x._id || x.id) === mid)
+      ? { ...r, messages: r.messages.map((x: any) => String(x._id || x.id) === mid ? m : x) } : r;
+    setSelectedRoom((r: any) => patch(r));
+    setRooms((prev: any[]) => prev.map(patch));
+  };
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isOfferLetter, setIsOfferLetter] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -234,7 +258,8 @@ export default function CounselorChat() {
     const content = input.trim();
     setInput('');
     try {
-      const msg = await api.chat.send(selectedRoom.id, content, user.name);
+      const msg = await api.chat.send(selectedRoom.id, content, user.name, replyTo ? String(replyTo._id || replyTo.id) : undefined);
+      setReplyTo(null);
       const updated = { ...selectedRoom, messages: [...selectedRoom.messages, msg] };
       setSelectedRoom(updated);
       setRooms(prev => prev.map(r => r.id === selectedRoom.id ? updated : r));
@@ -298,12 +323,14 @@ export default function CounselorChat() {
   };
 
   const getRoleLabel = (room: any): string => {
+    if (room?.type === 'group') return 'Group';
     if (room?.type === 'admin-counselor') return 'Admin';
     if (room?.type === 'appteam-counselor' || room.participantNames?.includes('Application Team')) return 'Application Team';
     return 'Student';
   };
 
   const getStudentName = (room: any): string => {
+    if (room?.type === 'group') return room.name || 'Group';
     if (room?.type === 'admin-counselor') return 'Admin';
     if (room?.type === 'appteam-counselor' || room.participantNames?.includes('Application Team')) {
       return 'Application Team';
@@ -328,11 +355,16 @@ export default function CounselorChat() {
   };
 const studentsWithNoChat = myStudents.filter((s: any) => {
     const sid = s._id || s.id;
-    return !rooms.some((r: any) => r.participants?.includes(sid));
+    return !rooms.some((r: any) => r.type !== 'group' && r.participants?.includes(sid));
   });
 
   const q = search.toLowerCase();
+  const groupCount = rooms.filter((r: any) => r.type === 'group').length;
+  const groupUnread = rooms.filter((r: any) => r.type === 'group')
+    .reduce((n: number, r: any) => n + (r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0), 0);
   const filteredRooms = rooms
+    // Chats tab = 1:1 conversations; Groups tab = counselling groups (created by admins)
+    .filter((room: any) => (listTab === 'groups') === (room.type === 'group'))
     .filter((room: any) => {
       const name = getStudentName(room).toLowerCase();
       return !q || name.includes(q);
@@ -344,11 +376,12 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
       if (!aTime && bTime) return 1;
       return bTime > aTime ? 1 : bTime < aTime ? -1 : 0;
     });
-  const filteredStudentsWithNoChat = studentsWithNoChat.filter((s: any) =>
+  const filteredStudentsWithNoChat = listTab === 'groups' ? [] : studentsWithNoChat.filter((s: any) =>
     !q || s.name?.toLowerCase().includes(q)
   );
 
-  const remoteId = selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
+  const isGroup = selectedRoom?.type === 'group';
+  const remoteId = isGroup ? '' : selectedRoom?.participants?.find((id: string) => id !== user?.id) ?? '';
 
   return (
     <div className="space-y-4">
@@ -368,11 +401,24 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
+          <div className="flex border-b border-gray-100" role="tablist" aria-label="Conversation type">
+            {([['chats', 'Chats', MessageSquare, 0], ['groups', 'Groups', Users, groupUnread]] as const).map(([tab, label, Icon, badge]) => (
+              <button key={tab} type="button" role="tab" aria-selected={listTab === tab} onClick={() => setListTab(tab)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                  listTab === tab ? 'text-green-700 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                <Icon className="w-3.5 h-3.5" /> {label}
+                {tab === 'groups' && <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{groupCount}</span>}
+                {badge > 0 && <span className="bg-green-600 text-white text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center">{badge}</span>}
+              </button>
+            ))}
+          </div>
           <div className="flex-1 overflow-y-auto">
             {filteredRooms.length === 0 && filteredStudentsWithNoChat.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <MessageSquare className="w-8 h-8 text-gray-300 mb-2" />
-                <p className="text-sm text-gray-400">No conversations</p>
+                {listTab === 'groups' ? <Users className="w-8 h-8 text-gray-300 mb-2" /> : <MessageSquare className="w-8 h-8 text-gray-300 mb-2" />}
+                <p className="text-sm text-gray-400">
+                  {listTab === 'groups' ? 'No groups yet. An admin adds you to a student\'s counselling group.' : 'No conversations'}
+                </p>
               </div>
             ) : (
               <>
@@ -390,7 +436,10 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                   return (
                     <button type="button" key={room.id} onClick={() => setSelectedRoom(room)}
                       className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${selectedRoom?.id === room.id ? 'bg-green-50' : ''}`}>
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 flex-shrink-0">{partnerName.charAt(0)}</div>
+                      <div className="relative w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 flex-shrink-0">
+                        {room.type === 'group' ? <Users className="w-4 h-4" /> : partnerName.charAt(0)}
+                        {room.type !== 'group' && <PresenceDot userId={room.participants?.find((id: string) => id !== String(user?.id))} />}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center gap-1">
                           <span className={`text-sm font-semibold truncate ${selectedRoom?.id === room.id ? 'text-green-700' : 'text-gray-900'}`}>{partnerName}</span>
@@ -408,7 +457,10 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 {filteredStudentsWithNoChat.map((s: any) => (
                   <button type="button" key={s._id || s.id} onClick={() => startChatWithStudent(s)}
                     className="w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 flex-shrink-0">{s.name.charAt(0)}</div>
+                    <div className="relative w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 flex-shrink-0">
+                      {s.name.charAt(0)}
+                      <PresenceDot userId={String(s._id || s.id)} />
+                    </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">{s.name}</p>
                       <p className={`text-[10px] font-medium mt-0.5 ${getRoleBadgeClass('Student')} inline-block px-1.5 py-0.5 rounded-full`}>Student</p>
@@ -428,13 +480,21 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
               <div className="w-10 h-10 bg-[#0d1b4b] rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                 {getStudentName(selectedRoom).charAt(0)}
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{getStudentName(selectedRoom)}</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-500">{getRoleLabel(selectedRoom)}</span>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{getStudentName(selectedRoom)}</p>
+                {isGroup ? (
+                  <p className="text-xs text-gray-500 truncate" title={selectedRoom.participantNames?.join(', ')}>
+                    <GroupPresence memberIds={selectedRoom.participants} meId={String(user?.id)} /> · {selectedRoom.participants.length} members · {selectedRoom.participantNames?.join(', ')}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{getRoleLabel(selectedRoom)}</span>
+                    <span className="text-gray-300" aria-hidden="true">·</span>
+                    <PresenceLabel userId={remoteId} />
+                  </div>
+                )}
               </div>
+              {!isGroup && (<>
               <button type="button" title="Voice call" aria-label="Voice call"
                 onClick={() => startCall(remoteId, getStudentName(selectedRoom))}
                 disabled={callState !== 'idle' || !remoteId}
@@ -447,6 +507,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 className="w-9 h-9 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-40 text-indigo-700 rounded-full flex items-center justify-center transition-colors">
                 <Video className="w-4 h-4" />
               </button>
+              </>)}
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -459,6 +520,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 const key = msg._id || msg.id;
                 const isMe = msg.senderId === String(user?.id);
                 const senderRole = getSenderRole(msg.senderId, msg.senderRole);
+                if (msg.type === 'system') return <SystemMessage key={key} msg={msg} />;
                 if (msg.type === 'call') return <CallMessage key={key} msg={msg} isMe={isMe} />;
                 if (msg.type === 'file') return <FileMessage key={key} msg={msg} isMe={isMe} senderRole={senderRole} />;
                 if (msg.type === 'meeting') return <MeetingMessage key={key} msg={msg} isMe={isMe} senderRole={senderRole} />;
@@ -477,10 +539,12 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                           {senderRole && senderRole !== 'Admin' && senderRole !== 'Admin Team' && senderRole !== 'Application Team' && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getRoleBadgeClass(senderRole)}`}>{senderRole}</span>}
                         </div>
                       )}
+                      {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} mine={isMe} />}
                       <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${isMe ? 'bg-green-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
                         {msg.content}
                       </div>
                       <p className={`text-xs text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>{formatTime(msg.timestamp)}</p>
+                      {selectedRoom?.type === 'group' && <MessageActions roomId={selectedRoom.id} msg={msg} meId={String(user?.id)} onUpdated={applyMsgUpdate} onReply={setReplyTo} alignRight={isMe} />}
                     </div>
                   </div>
                 );
@@ -490,6 +554,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
 
             {/* Input area */}
             <div className="p-4 border-t border-gray-100">
+              {replyTo && <ReplyingBar msg={replyTo} onCancel={() => setReplyTo(null)} />}
               {pendingFile && (
                 <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
