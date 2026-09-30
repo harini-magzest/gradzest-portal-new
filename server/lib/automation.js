@@ -42,6 +42,7 @@ const FIELDS = [
   { key: 'student.preferredCountries', label: 'Preferred countries' },
   { key: 'student.educationLevel',   label: 'Education level' },
   { key: 'student.daysSinceSignup',  label: 'Days since signup',     number: true },
+  { key: 'student.daysSinceStageChange', label: 'Days since lead stage last changed', number: true },
   { key: 'student.documentCount',    label: 'Documents uploaded',    number: true },
   { key: 'student.applicationCount', label: 'Number of applications', number: true },
   { key: 'event.fromStage',          label: 'Previous lead stage',   options: LEAD_STAGES, triggers: ['student.stageChanged'] },
@@ -179,6 +180,10 @@ function fieldValue(ctx, key) {
     case 'student.daysSinceSignup': {
       const joined = student.createdAt || student.joinedDate;
       return joined ? Math.floor((Date.now() - new Date(joined).getTime()) / 86400000) : '';
+    }
+    case 'student.daysSinceStageChange': {
+      const changed = student.leadStageChangedAt || student.createdAt || student.joinedDate;
+      return changed ? Math.floor((Date.now() - new Date(changed).getTime()) / 86400000) : '';
     }
     case 'student.documentCount':    return (student.documents || []).length;
     case 'student.applicationCount': return (student.applications || []).length;
@@ -344,8 +349,9 @@ const ACTION_RUNNERS = {
 
   async change_stage(action, ctx) {
     if (!LEAD_STAGES[action.leadStage]) throw new Error('Invalid lead stage');
-    await User.findByIdAndUpdate(ctx.student._id, { leadStage: action.leadStage });
-    ctx.student = { ...ctx.student, leadStage: action.leadStage };
+    const leadStageChangedAt = new Date();
+    await User.findByIdAndUpdate(ctx.student._id, { leadStage: action.leadStage, leadStageChangedAt });
+    ctx.student = { ...ctx.student, leadStage: action.leadStage, leadStageChangedAt };
     Object.assign(ctx.vars, contextVars(ctx));
     return { status: 'success', detail: `Stage → ${LEAD_STAGES[action.leadStage]}` };
   },

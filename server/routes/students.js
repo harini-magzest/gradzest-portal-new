@@ -390,6 +390,7 @@ router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req,
     const from = student.leadStage || 'new_enquiry';
     if (from !== leadStage) {
       student.leadStage = leadStage;
+      student.leadStageChangedAt = new Date();
       await student.save();
       recordStaffActivity(req, {
         kind: 'stage', title: 'Lead Stage updated',
