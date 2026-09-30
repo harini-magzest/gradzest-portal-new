@@ -10,13 +10,19 @@ const analystActionSchema = new mongoose.Schema(
     analystEmail: { type: String, default: '' },
     action: {
       type: String,
-      enum: ['block_ip', 'unblock_ip', 'revoke_user_sessions', 'incident_status_change', 'incident_assigned'],
+      enum: ['block_ip', 'unblock_ip', 'revoke_user_sessions', 'incident_status_change', 'incident_assigned',
+        'bulk_block_ip', 'revoke_session', 'force_password_reset', 'add_suppression', 'remove_suppression'],
       required: true,
     },
-    targetType: { type: String, enum: ['ip', 'user', 'incident'], required: true },
+    targetType: { type: String, enum: ['ip', 'user', 'incident', 'session', 'suppression'], required: true },
     targetId: { type: String, required: true },
     reason: { type: String, default: '' },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Hash chain: each entry commits to the previous entry's hash, so editing
+    // or deleting a past row breaks verification of everything after it.
+    // Rows written before this existed have no hash and are skipped.
+    prevHash: { type: String, default: '' },
+    hash: { type: String, default: '' },
   },
   { timestamps: true },
 );

@@ -377,11 +377,13 @@ export const api = {
 
   soc: {
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
-    events: (params: { limit?: number; since?: string; type?: string; severity?: string } = {}) =>
+    statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
+    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
       req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
-    incidents: (params: { status?: string; severity?: string; limit?: number } = {}) =>
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
       req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
-    updateIncident: (id: string, data: { status?: string; assignedTo?: string | null }) =>
+    analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
+    updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
       req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
     addIncidentNote: (id: string, text: string) =>
       req<any>(`/soc/incidents/${id}/notes`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }) }),
@@ -391,8 +393,32 @@ export const api = {
       req<any>(`/soc/investigate/user/${id}/logout-everywhere`, { method: 'POST', headers: authHeaders() }),
     investigateIp: (ip: string) => req<any>(`/soc/investigate/ip/${encodeURIComponent(ip)}`, { headers: authHeaders() }),
     blockedIps: () => req<any>('/soc/blocked-ips', { headers: authHeaders() }),
-    blockIp: (ip: string, reason: string) =>
-      req<any>('/soc/blocked-ips', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ip, reason }) }),
+    blockIp: (ip: string, reason: string, expiresInHours?: number) =>
+      req<any>('/soc/blocked-ips', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ip, reason, expiresInHours }) }),
+    bulkBlockIps: (ips: string[], reason: string, expiresInHours?: number) =>
+      req<{ blocked: string[]; rejected: { ip: string; reason: string }[] }>('/soc/blocked-ips/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ips, reason, expiresInHours }) }),
+    suppressions: () => req<any>('/soc/suppressions', { headers: authHeaders() }),
+    addSuppression: (data: { kind: 'ip' | 'email'; value: string; incidentTypes?: string[]; reason?: string; expiresInHours?: number }) =>
+      req<any>('/soc/suppressions', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    removeSuppression: (id: string) => req<any>(`/soc/suppressions/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    revokeSession: (userId: string, sessionId: string) =>
+      req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
+    forcePasswordReset: (userId: string) =>
+      req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
+    download: async (path: string, filename: string) => {
+      const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
     unblockIp: (ip: string) => req<any>(`/soc/blocked-ips/${encodeURIComponent(ip)}`, { method: 'DELETE', headers: authHeaders() }),
     posture: (refresh?: boolean) => req<any>(`/soc/posture${refresh ? '?refresh=1' : ''}`, { headers: authHeaders() }),
     downloadChecklistPdf: async () => {

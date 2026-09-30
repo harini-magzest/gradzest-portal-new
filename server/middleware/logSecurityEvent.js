@@ -1,5 +1,17 @@
 const SecurityEvent = require('../models/SecurityEvent');
-const { checkLoginFailureRules, checkLockoutRule, checkWafBlockRule, checkSkyloadBotRule, checkImpossibleTravelRule } = require('../lib/detectIncidents');
+const detect = require('../lib/detectIncidents');
+
+// Which detection rules run after each event type is persisted.
+const RULES_BY_EVENT_TYPE = {
+  login_failure: [detect.checkLoginFailureRules, detect.checkCredentialStuffingRule],
+  login_lockout: [detect.checkLockoutRule],
+  waf_block: [detect.checkWafBlockRule],
+  skyload_bot_flag: [detect.checkSkyloadBotRule],
+  login_success: [detect.checkImpossibleTravelRule, detect.checkOffHoursAdminRule, detect.checkNewDevicePrivilegedRule],
+  password_reset_request: [detect.checkPasswordResetAbuseRule],
+  privilege_change: [detect.checkPrivilegeChangeRule],
+  data_export: [detect.checkMassExportRule],
+};
 
 // Holds the Socket.io server instance — set once at startup via initSecurityLogger()
 let _io = null;
@@ -12,9 +24,8 @@ function initSecurityLogger(io) {
  * Log a security event to MongoDB, broadcast it to connected admins, and run
  * the relevant detection rule (if any) against it.
  *
- * @param {string} type - login_success | login_failure | login_lockout |
- *                         logout | token_invalid | token_expired | password_reset
- *                         (login_success also runs the impossible-travel check)
+ * @param {string} type - any SecurityEvent type; RULES_BY_EVENT_TYPE above says
+ *                         which ones also run detection rules
  * @param {object} options
  *   @param {string}       options.severity
  *   @param {ObjectId|null} options.userId
@@ -50,16 +61,8 @@ async function logSecurityEvent(type, options = {}) {
     }
 
     // Detection rules — fire-and-forget, must never block or fail the caller.
-    if (type === 'login_failure') {
-      checkLoginFailureRules(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-    } else if (type === 'login_lockout') {
-      checkLockoutRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-    } else if (type === 'waf_block') {
-      checkWafBlockRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-    } else if (type === 'skyload_bot_flag') {
-      checkSkyloadBotRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-    } else if (type === 'login_success') {
-      checkImpossibleTravelRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
+    for (const rule of RULES_BY_EVENT_TYPE[type] || []) {
+      rule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     }
 
     return entry;

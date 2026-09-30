@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ClipboardCheck, Eye, ShieldCheck } from 'lucide-react';
+import { ClipboardCheck, Eye, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import { api, getApiToken } from '../../api';
 
 interface TopAccessor { _id: string; accessorEmail: string; accessorRole: string; totalAccesses: number; uniqueApplicants: number }
@@ -10,7 +10,11 @@ interface AnalystAction { _id: string; analystEmail: string; action: string; tar
 const ACTION_LABEL: Record<string, string> = {
   block_ip: 'Blocked IP', unblock_ip: 'Unblocked IP', revoke_user_sessions: 'Revoked sessions',
   incident_status_change: 'Changed incident status', incident_assigned: 'Reassigned incident',
+  bulk_block_ip: 'Bulk-blocked IPs', revoke_session: 'Revoked one session', force_password_reset: 'Forced password reset',
+  add_suppression: 'Added suppression rule', remove_suppression: 'Removed suppression rule',
 };
+
+interface ChainStatus { ok: boolean; checked: number; unchained: number; brokenAt: { createdAt: string; action: string } | null }
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -21,11 +25,13 @@ export default function AuditTab() {
   const [recentAccesses, setRecentAccesses] = useState<PiiAccess[]>([]);
   const [actions, setActions] = useState<AnalystAction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chain, setChain] = useState<ChainStatus | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pii, trail] = await Promise.all([api.soc.piiAudit(), api.soc.auditTrail()]);
+      const [pii, trail, verify] = await Promise.all([api.soc.piiAudit(), api.soc.auditTrail(), api.soc.verifyAuditTrail().catch(() => null)]);
+      setChain(verify);
       setTopAccessors(pii.topAccessors || []);
       setRecentAccesses(pii.recentAccesses || []);
       setActions(trail.actions || []);
@@ -108,9 +114,23 @@ export default function AuditTab() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
           <ShieldCheck className="w-4 h-4 text-purple-600" />
           <h3 className="text-sm font-bold text-gray-900">Analyst Action Trail</h3>
+          {chain && (chain.ok ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700"
+              title="Each entry's hash covers the one before it; any edit or deletion breaks the chain.">
+              <ShieldCheck className="w-3 h-3" /> Tamper check passed · {chain.checked} entries verified{chain.unchained ? ` (${chain.unchained} older unchained)` : ''}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
+              <ShieldAlert className="w-3 h-3" /> Chain broken at {chain.brokenAt ? `${ACTION_LABEL[chain.brokenAt.action] || chain.brokenAt.action}, ${formatTime(chain.brokenAt.createdAt)}` : 'an unknown entry'} — the log was modified
+            </span>
+          ))}
+          <button type="button" onClick={() => api.soc.download('/audit-trail/export.csv', 'soc-audit-trail.csv').catch(() => {})}
+            className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
+            <Download className="w-3.5 h-3.5" /> CSV
+          </button>
         </div>
         {actions.length === 0 ? (
           <p className="text-sm text-gray-400 italic">No triage actions taken yet.</p>

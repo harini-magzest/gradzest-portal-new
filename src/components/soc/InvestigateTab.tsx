@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle } from 'lucide-react';
+import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X } from 'lucide-react';
 import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
 import IncidentDetail from './IncidentDetail';
+import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
 
 type Mode = 'user' | 'ip';
 
@@ -30,6 +31,38 @@ function RelatedIncidents({ incidents, onSelect }: { incidents: Incident[]; onSe
             </div>
             <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{TYPE_LABEL[inc.type] || inc.type}</span>
           </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface SessionRow { id: string; ip: string; userAgent: string; createdAt: string; lastUsedAt: string }
+
+// One row per signed-in device, each individually revocable — the surgical
+// alternative to "log out everywhere" when only one device looks wrong.
+function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke: (id: string) => void }) {
+  if (!sessions.length) return null;
+  return (
+    <div className="px-5 py-3 border-b border-gray-100">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Monitor className="w-3.5 h-3.5 text-gray-400" />
+        <span className="text-xs font-semibold text-gray-500 uppercase">Active sessions ({sessions.length})</span>
+      </div>
+      <div className="space-y-1.5">
+        {sessions.map(sess => (
+          <div key={sess.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+            <div className="min-w-0 text-sm">
+              <p className="text-gray-800 truncate">{sess.userAgent || 'Unknown device'}</p>
+              <p className="text-[11px] text-gray-400">
+                <span className="font-mono">{sess.ip || 'unknown IP'}</span> · signed in {new Date(sess.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                {' '}· last used {new Date(sess.lastUsedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <button type="button" onClick={() => onRevoke(sess.id)} className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg flex-shrink-0">
+              <X className="w-3.5 h-3.5" /> Revoke
+            </button>
+          </div>
         ))}
       </div>
     </div>
@@ -71,6 +104,8 @@ export default function InvestigateTab() {
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [blockHours, setBlockHours] = useState(0);
+  const [actionError, setActionError] = useState('');
 
   const patchRelatedIncident = (updated: Incident) => {
     setUserData((prev: any) => prev && prev.relatedIncidents
@@ -88,14 +123,14 @@ export default function InvestigateTab() {
   };
 
   const investigateUser = async (u: any) => {
-    setSelectedUser(u); setLoading(true); setActionMsg(''); setUserData(null);
+    setSelectedUser(u); setLoading(true); setActionMsg(''); setActionError(''); setUserData(null);
     try { setUserData(await api.soc.investigateUser(u.id)); }
     finally { setLoading(false); }
   };
 
   const investigateIp = async () => {
     if (!ipQuery.trim()) return;
-    setLoading(true); setActionMsg(''); setIpData(null);
+    setLoading(true); setActionMsg(''); setActionError(''); setIpData(null);
     try { setIpData(await api.soc.investigateIp(ipQuery.trim())); }
     finally { setLoading(false); }
   };
@@ -106,17 +141,45 @@ export default function InvestigateTab() {
     setActionMsg('All sessions revoked for this user.');
   };
 
+  const revokeSession = async (sessionId: string) => {
+    if (!selectedUser) return;
+    setActionError('');
+    try {
+      const res = await api.soc.revokeSession(selectedUser.id, sessionId);
+      setUserData((prev: any) => prev && {
+        ...prev,
+        sessions: prev.sessions.filter((x: SessionRow) => x.id !== sessionId),
+        user: { ...prev.user, activeSessions: res.activeSessions },
+      });
+      setActionMsg('Session revoked.');
+    } catch (err: any) { setActionError(err.message || 'Failed to revoke session'); }
+  };
+
+  const forceReset = async () => {
+    if (!selectedUser) return;
+    if (!window.confirm(`Force a password reset for ${selectedUser.email}? Their current password stops working immediately and every session is signed out.`)) return;
+    setActionError('');
+    try {
+      const res = await api.soc.forcePasswordReset(selectedUser.id);
+      setUserData((prev: any) => prev && { ...prev, sessions: [], user: { ...prev.user, activeSessions: 0 } });
+      setActionMsg(res.message);
+    } catch (err: any) { setActionError(err.message || 'Failed to force reset'); }
+  };
+
   const toggleBlock = async () => {
     if (!ipData) return;
-    if (ipData.isBlocked) {
-      await api.soc.unblockIp(ipData.ip);
-      setIpData({ ...ipData, isBlocked: false });
-      setActionMsg(`${ipData.ip} unblocked.`);
-    } else {
-      await api.soc.blockIp(ipData.ip, 'Blocked via SOC investigation');
-      setIpData({ ...ipData, isBlocked: true });
-      setActionMsg(`${ipData.ip} blocked.`);
-    }
+    setActionError('');
+    try {
+      if (ipData.isBlocked) {
+        await api.soc.unblockIp(ipData.ip);
+        setIpData({ ...ipData, isBlocked: false });
+        setActionMsg(`${ipData.ip} unblocked.`);
+      } else {
+        await api.soc.blockIp(ipData.ip, 'Blocked via SOC investigation', blockHours || undefined);
+        setIpData({ ...ipData, isBlocked: true });
+        setActionMsg(`${ipData.ip} blocked${blockHours ? ` for ${BLOCK_DURATIONS.find(d => d.hours === blockHours)?.label}` : ''}.`);
+      }
+    } catch (err: any) { setActionError(err.message || 'Action failed'); }
   };
 
   return (
@@ -170,6 +233,7 @@ export default function InvestigateTab() {
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-purple-400 animate-spin" /></div>}
       {actionMsg && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">{actionMsg}</p>}
+      {actionError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{actionError}</p>}
 
       {mode === 'user' && userData && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -178,11 +242,18 @@ export default function InvestigateTab() {
               <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
               <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
-            <button onClick={logoutEverywhere}
-              className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-semibold transition-colors">
-              <LogOut className="w-4 h-4" /> Log out everywhere
-            </button>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <button onClick={forceReset}
+                className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-sm font-semibold transition-colors">
+                <KeyRound className="w-4 h-4" /> Force password reset
+              </button>
+              <button onClick={logoutEverywhere}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-semibold transition-colors">
+                <LogOut className="w-4 h-4" /> Log out everywhere
+              </button>
+            </div>
           </div>
+          <SessionsList sessions={userData.sessions || []} onRevoke={revokeSession} />
           <RelatedIncidents incidents={userData.relatedIncidents || []} onSelect={setSelectedIncident} />
           <TimelineList timeline={userData.timeline} />
         </div>
@@ -195,12 +266,20 @@ export default function InvestigateTab() {
               <h3 className="text-base font-bold text-gray-900 font-mono">{ipData.ip}</h3>
               <p className="text-xs text-gray-400">{ipData.isBlocked ? 'Currently blocked' : 'Not blocked'}</p>
             </div>
-            <button onClick={toggleBlock}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                ipData.isBlocked ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
-              }`}>
-              {ipData.isBlocked ? <><ShieldCheck className="w-4 h-4" /> Unblock</> : <><Ban className="w-4 h-4" /> Block this IP</>}
-            </button>
+            <div className="flex items-center gap-1.5">
+              {!ipData.isBlocked && (
+                <select value={blockHours} onChange={e => setBlockHours(Number(e.target.value))} aria-label="Block duration"
+                  className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  {BLOCK_DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
+                </select>
+              )}
+              <button onClick={toggleBlock}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  ipData.isBlocked ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                }`}>
+                {ipData.isBlocked ? <><ShieldCheck className="w-4 h-4" /> Unblock</> : <><Ban className="w-4 h-4" /> Block this IP</>}
+              </button>
+            </div>
           </div>
           {ipData.intel && (
             <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60">
@@ -224,6 +303,8 @@ export default function InvestigateTab() {
           <TimelineList timeline={ipData.timeline} />
         </div>
       )}
+
+      <BlockedIpsPanel />
 
       {selectedIncident && (
         <IncidentDetail incident={selectedIncident} onClose={() => setSelectedIncident(null)}

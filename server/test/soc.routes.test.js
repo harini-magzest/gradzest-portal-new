@@ -5,6 +5,7 @@ const BlockedIp = require('../models/BlockedIp');
 const AnalystAction = require('../models/AnalystAction');
 const PiiAccessLog = require('../models/PiiAccessLog');
 const SecurityIncident = require('../models/SecurityIncident');
+const { waitUntil } = require('./helpers');
 
 async function makeAdmin(emailPrefix) {
   const email = `${emailPrefix}-${Date.now()}@example.com`;
@@ -59,7 +60,13 @@ describe('SOC routes — blocked IPs actually block requests and are audited', (
     const stored = await BlockedIp.findOne({ ip: testIp });
     expect(stored).toBeTruthy();
 
-    const after = await AnalystAction.countDocuments({ action: 'block_ip', targetId: testIp });
+    // logAnalystAction is fire-and-forget and chain-queued (hash-chain
+    // integrity serializes writes process-wide), so its completion time isn't
+    // fixed — poll instead of assuming it landed by the time this line runs.
+    const after = await waitUntil(async () => {
+      const count = await AnalystAction.countDocuments({ action: 'block_ip', targetId: testIp });
+      return count === before + 1 ? count : null;
+    });
     expect(after).toBe(before + 1);
 
     // Clean up — unblock so it doesn't leak into other tests/real blocklist state.
@@ -127,5 +134,60 @@ describe('Investigate — surfaces related incidents so an analyst doesn\'t have
     expect(res.body.relatedIncidents.some((i) => String(i._id) === String(incident._id))).toBe(true);
 
     await SecurityIncident.deleteOne({ _id: incident._id });
+  });
+});
+
+describe('Incident assignment — the assignee picker in the UI needs a real, populated name back', () => {
+  it('GET /analysts lists admin accounts an incident can be assigned to', async () => {
+    const { token, email } = await makeAdmin('analyst-list-admin');
+    const res = await request(app).get('/api/soc/analysts').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.analysts).toBeInstanceOf(Array);
+    expect(res.body.analysts.some((a) => a.email === email)).toBe(true);
+  });
+
+  it('PATCH /incidents/:id with assignedTo returns the assignee populated (name/email), not just a bare id', async () => {
+    const { token } = await makeAdmin('assign-admin-actor');
+    const { userId: targetId, email: targetEmail } = await makeAdmin('assign-admin-target');
+
+    const incident = await SecurityIncident.create({ type: 'manual', severity: 'low', title: 'Assignment test incident' });
+
+    const res = await request(app).patch(`/api/soc/incidents/${incident._id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ assignedTo: targetId });
+    expect(res.status).toBe(200);
+    expect(res.body.assignedTo).toBeTruthy();
+    expect(res.body.assignedTo.email).toBe(targetEmail);
+
+    await new Promise((r) => setTimeout(r, 200)); // logAnalystAction is fire-and-forget
+    const after = await AnalystAction.findOne({ action: 'incident_assigned', targetId: incident._id }).sort({ createdAt: -1 });
+    expect(after).toBeTruthy();
+
+    await SecurityIncident.deleteOne({ _id: incident._id });
+  });
+});
+
+describe('Incidents pagination — GET /incidents supports skip so the list is not silently capped at 200', () => {
+  it('returns a total count and respects skip/limit', async () => {
+    const { token } = await makeAdmin('paginate-admin');
+    const ip = `198.51.100.${Math.floor(Math.random() * 250)}`;
+    const created = [];
+    for (let i = 0; i < 3; i++) {
+      created.push(await SecurityIncident.create({ type: 'manual', severity: 'low', status: 'open', title: `Pagination test ${i}`, relatedIp: ip }));
+    }
+
+    const ours = await request(app).get('/api/soc/incidents').query({ status: 'open', limit: 2, skip: 0 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(ours.body.incidents.length).toBeLessThanOrEqual(2);
+    expect(ours.body.total).toBeGreaterThanOrEqual(3);
+
+    const nextPage = await request(app).get('/api/soc/incidents').query({ status: 'open', limit: 2, skip: 2 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(nextPage.status).toBe(200);
+    // No overlap between the two pages
+    const firstIds = new Set(ours.body.incidents.map((i) => i._id));
+    for (const inc of nextPage.body.incidents) expect(firstIds.has(inc._id)).toBe(false);
+
+    await SecurityIncident.deleteMany({ _id: { $in: created.map((c) => c._id) } });
   });
 });
