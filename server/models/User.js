@@ -222,7 +222,7 @@ const UserSchema = new mongoose.Schema({
   source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
-  leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment'] },
+  leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment', 'future_lead', 'other_agent', 'dropped_plans', 'test_prep', 'dnd', 'not_responding', 'other'] },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
 
   // Email verification

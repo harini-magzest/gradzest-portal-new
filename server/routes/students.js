@@ -376,6 +376,8 @@ router.post('/:id/emails', authMiddleware, can('students.email'), async (req, re
 const LEAD_STAGES = {
   new_enquiry: 'New Enquiry', interested: 'Interested', counselling: 'Counselling', shortlisting: 'Shortlisting',
   applications: 'Applications', visa_process: 'Visa Process', visa_approved: 'Visa Approved', enrolment: 'Enrolment',
+  future_lead: 'Future Lead', other_agent: 'Other Agent', dropped_plans: 'Dropped Plans', test_prep: 'Test Prep',
+  dnd: 'DND', not_responding: 'Not Responding', other: 'Other',
 };
 router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });

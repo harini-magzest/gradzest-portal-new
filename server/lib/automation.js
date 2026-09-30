@@ -10,6 +10,8 @@ const AutomationLog = require('../models/AutomationLog');
 const LEAD_STAGES = {
   new_enquiry: 'New Enquiry', interested: 'Interested', counselling: 'Counselling', shortlisting: 'Shortlisting',
   applications: 'Applications', visa_process: 'Visa Process', visa_approved: 'Visa Approved', enrolment: 'Enrolment',
+  future_lead: 'Future Lead', other_agent: 'Other Agent', dropped_plans: 'Dropped Plans', test_prep: 'Test Prep',
+  dnd: 'DND', not_responding: 'Not Responding', other: 'Other',
 };
 const APP_STATUSES = {
   draft: 'Draft', submitted: 'Submitted', under_review: 'Under Review', offer_received: 'Offer Received',
