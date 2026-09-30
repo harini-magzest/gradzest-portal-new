@@ -269,6 +269,9 @@ app.use('/api/soc', require('./routes/soc'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
+app.use('/api/automation',    require('./routes/automation'));
+app.use('/api/roles',         require('./routes/roles'));
+app.use('/api/users',         require('./routes/users'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');

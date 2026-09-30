@@ -9,6 +9,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
+import AdminUsersControls from './AdminUsersControls';
+import AdminAutomation from './AdminAutomation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

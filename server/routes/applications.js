@@ -43,7 +43,7 @@ router.post('/', authMiddleware, async (req, res) => {
   const now = new Date().toISOString();
   const today = now.split('T')[0];
   try {
-    const app = { ...req.body, studentId: req.user.id, submittedDate: today, updatedDate: now, status: 'submitted' };
+    const app = { ...req.body, studentId: req.user.id, submittedDate: today, updatedDate: now, statusChangedAt: now, status: 'submitted' };
     const user = await User.findByIdAndUpdate(req.user.id, { $push: { applications: app } }, { new: true }).select('-password');
     const newApp = user.applications[user.applications.length - 1];
     fireEvent('application.created', { studentId: user._id, application: newApp });
@@ -101,6 +101,7 @@ router.put('/:appId', authMiddleware, can('applications.edit'), async (req, res)
 
     const updateFields = { 'applications.$.status': status, 'applications.$.updatedDate': new Date().toISOString() };
     if (notes !== undefined) updateFields['applications.$.notes'] = notes;
+    if (status && status !== currentStatus) updateFields['applications.$.statusChangedAt'] = new Date();
     if (status === 'rejected' && currentStatus) updateFields['applications.$.rejectedFrom'] = currentStatus;
     if (offerType !== undefined) updateFields['applications.$.offerType'] = status === 'offer_received' ? offerType : '';
 

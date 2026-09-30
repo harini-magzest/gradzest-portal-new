@@ -24,6 +24,11 @@ async function autoSeedIfEmpty() {
 }
 
 const { startDeadlineReminders } = require('./jobs/deadlineReminders');
+const { initAutomation, seedStarterTemplates } = require('./lib/automation');
+const { startAutomationScheduler } = require('./jobs/automationScheduler');
+const { startMeetingReminders } = require('./jobs/meetingReminders');
+const { startTaskReminders } = require('./jobs/taskReminders');
+const { startApplicationFollowups } = require('./jobs/applicationFollowups');
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
@@ -31,6 +36,12 @@ httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${pro
 connectDB().then(async () => {
   await autoSeedIfEmpty();
   startDeadlineReminders(io, userSockets, mailer);
+  initAutomation({ io, userSockets, mailer });
+  await seedStarterTemplates();
+  startAutomationScheduler();
+  startMeetingReminders(io, userSockets, mailer);
+  startTaskReminders(io, userSockets);
+  startApplicationFollowups(io, userSockets);
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);

@@ -509,6 +509,7 @@ router.post('/applications', authMiddleware, can('applications.create'), async (
       status: 'submitted',
       submittedDate: today,
       updatedDate: now,
+      statusChangedAt: now,
     };
     const student = await User.findOneAndUpdate(
       { _id: studentId, role: 'student' },
@@ -561,6 +562,7 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
 
     const update = { 'applications.$.updatedDate': new Date().toISOString() };
     if (status) update['applications.$.status'] = status;
+    if (status && status !== currentStatus) update['applications.$.statusChangedAt'] = new Date();
     if (notes !== undefined) update['applications.$.notes'] = notes;
     if (status === 'rejected' && currentStatus) update['applications.$.rejectedFrom'] = currentStatus;
     if (offerType !== undefined) update['applications.$.offerType'] = status === 'offer_received' ? offerType : '';
