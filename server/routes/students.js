@@ -149,7 +149,11 @@ router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
-    res.json(student.toJSON());
+    // Include the assigned counselor's name so the profile can show it
+    const counselor = student.counselorId
+      ? await User.findById(student.counselorId).select('name').lean().catch(() => null)
+      : null;
+    res.json({ ...student.toJSON(), counselorName: counselor?.name || null });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
@@ -157,9 +161,9 @@ router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
 
 const COUNSELOR_EDITABLE_FIELDS = ['name', 'phone', 'nationality', 'educationLevel', 'gpa', 'englishScore', 'preferredCountries', 'budget', 'interestedCourses', 'status'];
 
-// Update an assigned student's profile (counselor only)
+// Update a student's profile (assigned counselor, or admin)
 router.put('/:id', authMiddleware, can('students.edit'), async (req, res) => {
-  if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id, { manage: true })) return;
     const updates = {};
