@@ -74,13 +74,6 @@ const ENGLISH_TYPES = ['IELTS', 'TOEFL', 'PTE', 'Duolingo', 'Other'];
 const COUNTRIES = ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'New Zealand', 'Ireland', 'Netherlands', 'Singapore', 'France', 'Other'];
 
 const STUDENT_STAGES = [
-  { value: 'counseling', label: 'Counseling' },
-  { value: 'shortlisting', label: 'Shortlisting' },
-  { value: 'application', label: 'Application' },
-  { value: 'test_preparation', label: 'Test Preparation' },
-  { value: 'visa_process', label: 'Visa Process' },
-  { value: 'loan_process', label: 'Loan Process' },
-  { value: 'enrolled', label: 'Enrolled' },
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ];
@@ -89,8 +82,39 @@ const STUDENTS_PER_PAGE = 8;
 
 const ROW_BTN = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1';
 
-function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClose: () => void; onSaved: () => void }) {
+/** Inline Active/Inactive picker; saves as soon as the value changes. */
+function StudentStatusSelect({ studentId, value, editable, onSaved }: { studentId: string; value?: string; editable: boolean; onSaved: (status: string) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!editable) return <StatusBadge status={value || ''} />;
+  const current = value === 'inactive' ? 'inactive' : 'active';
+  const tone = current === 'active'
+    ? 'bg-green-50 text-green-700 border-green-200'
+    : 'bg-gray-100 text-gray-600 border-gray-200';
+  async function change(next: string) {
+    if (next === value) return;
+    setSaving(true); setError('');
+    try { await api.students.update(studentId, { status: next }); onSaved(next); }
+    catch (err: any) { setError(err.message || 'Could not update status'); }
+    finally { setSaving(false); }
+  }
+  return (
+    <span className="inline-flex flex-col">
+      <select value={current} disabled={saving} onChange={e => change(e.target.value)}
+        aria-label="Student status" title={error || 'Change status'}
+        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 ${tone}`}>
+        {STUDENT_STAGES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
+      </select>
+      {error && <span className="text-[11px] text-red-600 mt-0.5">{error}</span>}
+    </span>
+  );
+}
+
+function StudentFormModal({ student, onClose, onSaved, inline = false }: { student?: any; onClose: () => void; onSaved: () => void; inline?: boolean }) {
   const isEdit = !!student;
+  // Inline mode renders inside the narrow profile sidebar, so paired fields stack.
+  const pairGrid = inline ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3';
+  const span2 = inline ? '' : 'col-span-2';
   const [form, setForm] = useState({
     name: student?.name ?? '',
     email: student?.email ?? '',
@@ -102,7 +126,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
     englishType: student?.englishScore?.type ?? 'IELTS',
     englishScore: student?.englishScore?.score != null ? String(student.englishScore.score) : '',
     preferredCountries: (student?.preferredCountries ?? []) as string[],
-    status: student?.status ?? 'counseling',
+    status: student?.status === 'inactive' ? 'inactive' : 'active',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -164,9 +188,9 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+    <div className={inline ? '' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm'}>
+      <div className={inline ? 'bg-white' : 'bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto'}>
+        <div className={`flex items-center justify-between border-b border-gray-100 bg-white ${inline ? 'px-5 py-3' : 'px-6 py-4 sticky top-0 rounded-t-2xl z-10'}`}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
               {isEdit ? <Edit2 className="w-4 h-4 text-blue-600" /> : <UserPlus className="w-4 h-4 text-blue-600" />}
@@ -178,7 +202,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className={`${inline ? 'px-5' : 'px-6'} py-5 space-y-4`}>
           {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-sm text-red-700">{error}</div>}
 
           {!isEdit && (
@@ -188,23 +212,23 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           )}
 
           {/* Basic info */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className={pairGrid}>
+            <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name *</label>
               <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Student's full name"
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
-            <div className="col-span-2">
+            <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email Address *</label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="student@email.com"
                 disabled={isEdit} title={isEdit ? 'Email is the student\'s login and cannot be changed here' : undefined}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500" />
             </div>
             {isEdit && (
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Stage</label>
+              <div className={span2}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Status</label>
                 <select value={form.status} onChange={e => set('status', e.target.value)}
-                  aria-label="Student stage"
+                  aria-label="Student status"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
                   {STUDENT_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -223,7 +247,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           </div>
 
           {/* Education */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={pairGrid}>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Education Level</label>
               <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)}
@@ -245,7 +269,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           {/* English score */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">English Proficiency</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={pairGrid}>
               <select value={form.englishType} onChange={e => set('englishType', e.target.value)}
                 aria-label="English test type"
                 className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
@@ -328,7 +352,6 @@ function StudentsList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
   const [showCreate, setShowCreate] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<any>(null);
   const [page, setPage] = useState(1);
 
   function loadStudents() {
@@ -368,13 +391,6 @@ function StudentsList() {
           onSaved={() => { loadStudents(); setTab('mine'); }}
         />
       )}
-      {editingStudent && (
-        <StudentFormModal
-          student={editingStudent}
-          onClose={() => setEditingStudent(null)}
-          onSaved={loadStudents}
-        />
-      )}
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -402,9 +418,9 @@ function StudentsList() {
               <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search students…"
                 className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
             </div>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by stage"
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status"
               className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-              <option value="">All stages</option>
+              <option value="">All statuses</option>
               {STUDENT_STAGES.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
@@ -449,24 +465,20 @@ function StudentsList() {
                   )}
                 </div>
                 <div className="hidden lg:flex items-center flex-shrink-0">
-                  <StatusBadge status={student.status} />
+                  <StudentStatusSelect studentId={sid} value={student.status} editable={isMine(student)}
+                    onSaved={status => setAllStudents((prev: any[]) => prev.map((x: any) => (x._id || x.id) === sid ? { ...x, status } : x))} />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
                   <Link to="/counselor/chat" title={`Chat with ${student.name}`} className={ROW_BTN}>
                     <MessageSquare className="w-3.5 h-3.5" />Chat
                   </Link>
-                  {isMine(student) && (
-                    <button type="button" onClick={() => setEditingStudent(student)} title={`Edit ${student.name}`} className={ROW_BTN}>
-                      <Edit2 className="w-3.5 h-3.5" />Edit
-                    </button>
-                  )}
                   {student.phone ? (
                     <a href={`tel:${student.phone.replace(/\s/g, '')}`} title={`Call ${student.phone}`}
                       className="w-8 h-8 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-sm transition-all">
                       <Phone className="w-3.5 h-3.5" />
                     </a>
                   ) : (
-                    <span title="No phone number — add one with Edit" aria-label="No phone number"
+                    <span title="No phone number — add one from the profile" aria-label="No phone number"
                       className="w-8 h-8 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center cursor-not-allowed">
                       <Phone className="w-3.5 h-3.5" />
                     </span>
@@ -542,6 +554,7 @@ function StudentDetail() {
   const { user: counselor } = useAuth();
   const { restricted } = usePermissions();
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     api.universities.list().then(setUniversities).catch(() => {});
@@ -651,7 +664,8 @@ function StudentDetail() {
                   <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="truncate">{counselorName || 'Unassigned'}</span>
                 </p>
-                <StatusBadge status={student.status} />
+                <StudentStatusSelect studentId={studentId!} value={student.status} editable={canEditStudent}
+                  onSaved={status => setStudent((p: any) => ({ ...p, status }))} />
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4">
@@ -667,8 +681,21 @@ function StudentDetail() {
               <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
                 <Plus className="w-4 h-4" /> Application
               </Link>
+              {canEditStudent && !editing && (
+                <button type="button" onClick={() => setEditing(true)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <Edit2 className="w-4 h-4" /> Edit Profile
+                </button>
+              )}
             </div>
           </div>
+
+          {editing ? (
+            <StudentFormModal inline student={student} onClose={() => setEditing(false)}
+              onSaved={async () => {
+                const updated = await api.students.get(studentId!).catch(() => null);
+                if (updated) { setStudent(updated); setCounselorName(updated.counselorName || counselorName); }
+              }} />
+          ) : (<>
 
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
@@ -700,6 +727,7 @@ function StudentDetail() {
               <InfoRow label="Joined" value={student.joinedDate} />
             </div>
           </div>
+          </>)}
         </aside>
 
         {/* ── Right: tabs ── */}
