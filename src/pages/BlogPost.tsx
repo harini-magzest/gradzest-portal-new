@@ -1,5 +1,6 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { Clock, ArrowLeft, ChevronRight, Tag } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { getBlogPost, getRelatedPosts } from '../data/blogPosts';
 
 function renderMarkdown(content: string): string {
@@ -34,7 +35,7 @@ export default function BlogPostPage() {
   if (!post) return <Navigate to="/resources" replace />;
 
   const related = getRelatedPosts(post, 3);
-  const html = renderMarkdown(post.content);
+  const html = DOMPurify.sanitize(renderMarkdown(post.content));
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -187,7 +187,7 @@ app.post('/api/subscribe', async (req, res) => {
             </p>
           </div>
           <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px;">
-            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@magzest.in'}
+            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@gradzest.com'}
           </p>
         </div>
       `,
@@ -303,6 +303,23 @@ app.use((err, req, res, next) => {
   const message = status < 500 ? err.message : 'Internal server error';
   if (status >= 500) console.error(`[error] ${req.method} ${req.path}`, err);
   res.status(status).json({ message });
+});
+
+// A promise rejection nobody awaited/caught (a missing .catch in a fire-and-forget
+// call, e.g. a mailer or logging call) would otherwise crash the whole process —
+// Node's default since v15. Log it and keep serving; one failed side-effect
+// shouldn't take down every other request in flight.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
+// A genuinely uncaught synchronous exception leaves the process in an unknown
+// state (corrupted internals, half-run middleware) — safer to exit and let the
+// process manager (nodemon locally, the host's restart policy in production)
+// bring up a clean instance than to keep serving from it.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+  process.exit(1);
 });
 
 const PORT = process.env.PORT || 5000;

@@ -41,9 +41,9 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // ── POST /api/activity/seed ──────────────────────────────────────────────────
 // Dev-only: inserts sample events so the feed is not empty on first load.
-// Remove or guard this route before going to production.
 router.post('/seed', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ message: 'Not found' });
 
   const samples = [
     { type: 'enquiry',   action: 'submitted new enquiry',       detail: 'MS CS — University of Toronto, Canada',              studentName: 'Aryan Sharma' },
@@ -55,13 +55,16 @@ router.post('/seed', authMiddleware, async (req, res) => {
     { type: 'interview', action: 'visa interview scheduled',    detail: 'VFS Global, Hyderabad — 12 June, 10:30 AM',           studentName: 'Aryan Sharma' },
   ];
 
-  const created = [];
-  for (const s of samples) {
-    const entry = await logActivity(s.type, s.action, s.detail, null, { studentName: s.studentName });
-    if (entry) created.push(entry);
+  try {
+    const created = [];
+    for (const s of samples) {
+      const entry = await logActivity(s.type, s.action, s.detail, null, { studentName: s.studentName });
+      if (entry) created.push(entry);
+    }
+    res.json({ seeded: created.length });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-
-  res.json({ seeded: created.length });
 });
 
 module.exports = router;
