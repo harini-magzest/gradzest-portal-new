@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Building2, User, Lock, Palette, Bell, Mail, GitBranch,
   ShieldCheck, MessageCircle, CalendarDays, Download, AlertTriangle,
@@ -92,7 +93,7 @@ function SaveBar({ saving, onSave, saved }: { saving: boolean; onSave: () => voi
 // ── Section components ────────────────────────────────────────────────────────
 
 function CompanyProfile() {
-  const [form, setForm] = useState({ name: 'GradZest', website: '', phone: '', email: 'admin@gradzest.com', address: '', tagline: '' });
+  const [form, setForm] = useState({ name: 'Gradzest', website: '', phone: '', email: 'admin@gradzest.com', address: '', tagline: '' });
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -304,7 +305,7 @@ function EmailTemplates() {
     { key: 'visa_approved', label: 'Visa Approved', desc: 'Congratulations on visa approval' },
   ];
   const [active, setActive] = useState('welcome');
-  const [body, setBody] = useState('Dear {{student_name}},\n\nWelcome to GradZest! We\'re excited to help you begin your study abroad journey.\n\nBest regards,\nThe GradZest Team');
+  const [body, setBody] = useState('Dear {{student_name}},\n\nWelcome to Gradzest! We\'re excited to help you begin your study abroad journey.\n\nBest regards,\nThe Gradzest Team');
   return (
     <SectionCard title="Email Templates">
       <div className="grid grid-cols-3 gap-4">
@@ -405,8 +406,15 @@ function RolesPermissions() {
   return (
     <div className="space-y-6">
       <SectionCard title="App Team Users">
+        <p className="text-sm text-gray-500 mb-1.5">
+          Reclassify an <strong>existing</strong> admin account between Admin Team and Application Team. This also controls how their chat rooms appear to counselors ("Admin Team" vs "Application Team").
+        </p>
         <p className="text-sm text-gray-500 mb-4">
-          Mark which admin-role users belong to the Application Team. This controls how their chat rooms appear to counselors ("Admin Team" vs "Application Team").
+          To add a brand-new Application Team member, use{' '}
+          <Link to="/admin/counselors" className="text-orange-600 font-medium hover:underline">
+            Team → Application Team → New Application Team Member
+          </Link>{' '}
+          instead — this list only relabels accounts that already exist.
         </p>
         {adminUsers.length === 0 ? (
           <p className="text-sm text-gray-400 italic">No admin users found.</p>
@@ -529,7 +537,7 @@ function GoogleCalendar() {
             <Toggle checked={false} onChange={() => {}} label="Import existing Google Calendar events" />
           </div>
         )}
-        <p className="text-xs text-gray-400">Meetings created in GradZest will automatically appear in your Google Calendar.</p>
+        <p className="text-xs text-gray-400">Meetings created in Gradzest will automatically appear in your Google Calendar.</p>
       </div>
     </SectionCard>
   );

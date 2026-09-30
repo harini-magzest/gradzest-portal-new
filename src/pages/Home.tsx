@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
   MapPin,
@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Globe,
   UserPlus,
-  LogIn,
+  MessageCircle,
   Zap,
   Rocket,
   Mail,
@@ -31,6 +31,7 @@ import {
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../context/AuthModalContext";
+import { BRAND, DESTINATIONS, HERO_TAGLINE, HIGHLIGHTS } from "../data/siteFacts";
 
 const FLAGS: Record<string, string> = {
   Canada: "🇨🇦",
@@ -62,9 +63,8 @@ const FLAG_CODES: Record<string, string> = {
   Denmark: "dk",
 };
 
+// Logos are served through our own favicon proxy (cached server-side), never hot-linked
 const G = (d: string) => `/api/favicon/${d}`;
-const W = (f: string) =>
-  `https://en.wikipedia.org/wiki/Special:FilePath/${encodeURIComponent(f)}?width=200`;
 
 interface MarqueeUni {
   name: string;
@@ -82,7 +82,7 @@ interface MarqueeUni {
 const MARQUEE_UNIS: MarqueeUni[] = [
   {
     name: "University of Toronto",
-    logo: W("Utoronto_coa.svg"),
+    logo: G("utoronto.ca"),
     country: "Canada",
     city: "Toronto",
     ranking: 21,
@@ -95,7 +95,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "TU Munich",
-    logo: W("TU_Muenchen_Logo.svg"),
+    logo: G("tum.de"),
     country: "Germany",
     city: "Munich",
     ranking: 37,
@@ -108,7 +108,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "National University of Singapore",
-    logo: W("NUS_coat_of_arms.svg"),
+    logo: G("nus.edu.sg"),
     country: "Singapore",
     city: "Singapore",
     ranking: 8,
@@ -121,7 +121,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "Monash University",
-    logo: W("Monash_University_logo.svg"),
+    logo: G("monash.edu"),
     country: "Australia",
     city: "Melbourne",
     ranking: 58,
@@ -134,7 +134,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "Harvard University",
-    logo: W("Harvard_University_logo.svg"),
+    logo: G("harvard.edu"),
     country: "United States",
     city: "Cambridge, MA",
     ranking: 4,
@@ -147,7 +147,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "King's College London",
-    logo: W("King's_College_London_logo.svg"),
+    logo: G("kcl.ac.uk"),
     country: "United Kingdom",
     city: "London",
     ranking: 40,
@@ -160,7 +160,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "McGill University",
-    logo: W("McGill_University_CoA.svg"),
+    logo: G("mcgill.ca"),
     country: "Canada",
     city: "Montreal",
     ranking: 46,
@@ -173,7 +173,7 @@ const MARQUEE_UNIS: MarqueeUni[] = [
   },
   {
     name: "ETH Zurich",
-    logo: W("ETH_Zürich_Logo_black.svg"),
+    logo: G("ethz.ch"),
     country: "Switzerland",
     city: "Zurich",
     ranking: 7,
@@ -651,6 +651,18 @@ const COURSE_PILL_STYLES: Record<string, { pill: string; icon: string }> = {
     pill: "bg-red-50 border border-red-100 text-red-700 hover:bg-red-100 hover:border-red-300",
     icon: "bg-red-600",
   },
+  Law: {
+    pill: "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300",
+    icon: "bg-slate-600",
+  },
+  "Social Sciences": {
+    pill: "bg-teal-50 border border-teal-100 text-teal-700 hover:bg-teal-100 hover:border-teal-300",
+    icon: "bg-teal-600",
+  },
+  "Arts & Design": {
+    pill: "bg-pink-50 border border-pink-100 text-pink-700 hover:bg-pink-100 hover:border-pink-300",
+    icon: "bg-pink-600",
+  },
   Other: {
     pill: "bg-purple-50 border border-purple-100 text-purple-700 hover:bg-purple-100 hover:border-purple-300",
     icon: "bg-purple-600",
@@ -703,7 +715,7 @@ function UniLogo({
       <span
         className={`w-7 h-7 rounded-full bg-white border border-blue-200 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden p-0.5 ${className}`}
       >
-        <img
+        <img loading="lazy" decoding="async"
           src={url}
           alt=""
           onError={() => setImgErr(true)}
@@ -728,7 +740,7 @@ function UniLogo({
     <div
       className={`${dim} bg-white rounded-xl border border-gray-200 shadow-sm flex-shrink-0 overflow-hidden ${pad} flex items-center justify-center ${className}`}
     >
-      <img
+      <img loading="lazy" decoding="async"
         src={url}
         alt=""
         onError={() => setImgErr(true)}
@@ -765,7 +777,7 @@ function CountryFlagImg({
     );
   }
   return (
-    <img
+    <img loading="lazy" decoding="async"
       src={`https://flagcdn.com/${quality}/${code}.png`}
       alt={name}
       onError={() => setImgErr(true)}
@@ -792,31 +804,17 @@ const TAB_ICONS: Record<string, React.ElementType> = {
   Medicine: Stethoscope,
 };
 
+// Card badges are derived from the program's real data (see programBadge), never assigned at random
 const BADGE_STYLES: Record<string, string> = {
-  "Scholarship Available": "bg-green-100 text-green-700",
-  "High Demand": "bg-red-100 text-red-700",
   "Top Ranked": "bg-blue-100 text-blue-700",
-  "Free Tuition": "bg-purple-100 text-purple-700",
-  "Accepting Now": "bg-emerald-100 text-emerald-700",
-  "Highly Competitive": "bg-amber-100 text-amber-700",
+  "Low Tuition": "bg-purple-100 text-purple-700",
 };
-const BADGES = Object.keys(BADGE_STYLES);
 
-const DESTINATIONS = [
-  { country: "United States", flag: "🇺🇸", count: "4,200+ programs" },
-  { country: "United Kingdom", flag: "🇬🇧", count: "3,800+ programs" },
-  { country: "Canada", flag: "🇨🇦", count: "2,100+ programs" },
-  { country: "Australia", flag: "🇦🇺", count: "1,900+ programs" },
-  {
-    country: "Germany",
-    flag: "🇩🇪",
-    count: "1,200+ programs",
-    badge: "Free Tuition",
-  },
-  { country: "Singapore", flag: "🇸🇬", count: "450+ programs" },
-  { country: "Netherlands", flag: "🇳🇱", count: "890+ programs" },
-  { country: "New Zealand", flag: "🇳🇿", count: "340+ programs" },
-];
+function programBadge(ranking: number | undefined, fee: number): string | null {
+  if (fee > 0 && fee <= 5000) return "Low Tuition";
+  if (ranking && ranking <= 25) return "Top Ranked";
+  return null;
+}
 
 const STEPS = [
   {
@@ -826,7 +824,7 @@ const STEPS = [
   },
   {
     title: "Search Programs",
-    desc: "Browse 200,000+ programs with smart filters that match your profile.",
+    desc: "Browse programs with smart filters that match your profile.",
     num: "02",
   },
   {
@@ -890,62 +888,12 @@ const TRACKER_DEMO = [
   },
 ];
 
-const SUCCESS_RATES = [
-  {
-    label: "Visa Approval Rate",
-    value: "96%",
-    icon: "✈️",
-    desc: "Student visas approved across all major destinations",
-  },
-  {
-    label: "University Acceptance",
-    value: "94%",
-    icon: "🎓",
-    desc: "Students admitted to their first or second choice university",
-  },
-  {
-    label: "Scholarship Success",
-    value: "88%",
-    icon: "🏆",
-    desc: "Applicants who received at least one scholarship offer",
-  },
-  {
-    label: "Student Satisfaction",
-    value: "4.9/5",
-    icon: "⭐",
-    desc: "Average rating from students we have counseled",
-  },
-];
-
-const TEAM = [
-  {
-    name: "Rahul Mehta",
-    role: "Founder & CEO",
-    exp: "12 years",
-    specialization: "UK & Europe",
-    photo: "https://randomuser.me/api/portraits/men/32.jpg",
-  },
-  {
-    name: "Preethi Nair",
-    role: "Senior Counselor",
-    exp: "8 years",
-    specialization: "Canada & USA",
-    photo: "https://randomuser.me/api/portraits/women/44.jpg",
-  },
-  {
-    name: "Arjun Shetty",
-    role: "Visa Expert",
-    exp: "6 years",
-    specialization: "Visa & Immigration",
-    photo: "https://randomuser.me/api/portraits/men/67.jpg",
-  },
-  {
-    name: "Kavitha Reddy",
-    role: "University Relations",
-    exp: "5 years",
-    specialization: "Australia & NZ",
-    photo: "https://randomuser.me/api/portraits/women/68.jpg",
-  },
+// Shown with initials. To use a photo, add `photo: "/team/<file>.jpg"` (a real photo of that person).
+const TEAM: { name: string; role: string; exp: string; specialization: string; photo?: string }[] = [
+  { name: "Rahul Mehta", role: "Founder & CEO", exp: "12 years", specialization: "UK & Europe" },
+  { name: "Preethi Nair", role: "Senior Counselor", exp: "8 years", specialization: "Canada & USA" },
+  { name: "Arjun Shetty", role: "Visa Expert", exp: "6 years", specialization: "Visa & Immigration" },
+  { name: "Kavitha Reddy", role: "University Relations", exp: "5 years", specialization: "Australia & NZ" },
 ];
 
 const TESTIMONIALS = [
@@ -954,39 +902,39 @@ const TESTIMONIALS = [
     from: "🇮🇳 Bengaluru, India",
     uni: "University of Melbourne",
     rating: 5,
-    text: "GradZest helped me secure a scholarship for my Master's in Data Science at Melbourne. Their counselors guided me on every SOP, LOR, and visa step. Life-changing experience!",
+    text: "Gradzest helped me secure a scholarship for my Master's in Data Science at Melbourne. Their counselors guided me on every SOP, LOR, and visa step. Life-changing experience!",
   },
   {
     name: "Arjun Reddy",
     from: "🇮🇳 Hyderabad, India",
     uni: "University of Toronto",
     rating: 5,
-    text: "I applied to 5 universities in Canada and got into my top choice MBA program. GradZest made the whole process stress-free and incredibly smooth from start to finish.",
+    text: "I applied to 5 universities in Canada and got into my top choice MBA program. Gradzest made the whole process stress-free and incredibly smooth from start to finish.",
   },
   {
     name: "Divya Krishnan",
     from: "🇮🇳 Chennai, India",
     uni: "TU Munich",
     rating: 5,
-    text: "Got into TU Munich's free tuition Engineering program! The scholarship and financial guidance from GradZest saved my family lakhs. 100% recommend to every student.",
+    text: "Got into TU Munich's free tuition Engineering program! The scholarship and financial guidance from Gradzest saved my family lakhs. 100% recommend to every student.",
   },
   {
     name: "Rohit Nair",
     from: "🇮🇳 Kochi, India",
     uni: "University of Edinburgh",
     rating: 5,
-    text: "My UK student visa was approved in just 3 weeks. GradZest's end-to-end support — from shortlisting to pre-departure briefing — was absolutely outstanding.",
+    text: "My UK student visa was approved in just 3 weeks. Gradzest's end-to-end support — from shortlisting to pre-departure briefing — was absolutely outstanding.",
   },
 ];
 
 const FAQS = [
   {
-    q: "How does GradZest help me study abroad?",
-    a: "GradZest provides end-to-end support — from shortlisting universities and programs that match your profile, to assisting with application documents, SOPs, LORs, scholarships, and visa applications. Our counselors guide you at every step until you land at your dream university.",
+    q: "How does Gradzest help me study abroad?",
+    a: "Gradzest provides end-to-end support — from shortlisting universities and programs that match your profile, to assisting with application documents, SOPs, LORs, scholarships, and visa applications. Our counselors guide you at every step until you land at your dream university.",
   },
   {
     q: "Is the counseling service free for students?",
-    a: "Yes! Registering and getting initial counseling on GradZest is completely free. Our platform connects you with expert advisors who help you find the right programs without any upfront cost.",
+    a: "Yes! Registering and getting initial counseling on Gradzest is completely free. Our platform connects you with expert advisors who help you find the right programs without any upfront cost.",
   },
   {
     q: "What documents do I need to apply for a university abroad?",
@@ -997,20 +945,20 @@ const FAQS = [
     a: "The timeline varies by destination and intake. Generally, we recommend starting 12–18 months before your intended intake. Some countries like Canada and Australia have rolling intakes, while the UK and US have fixed deadlines. Our counselors help you plan your timeline carefully.",
   },
   {
-    q: "Can GradZest help me find scholarships?",
-    a: "Absolutely. We have a dedicated scholarship team that identifies merit-based, need-based, and country-specific scholarships you may be eligible for. Over 88% of students we counsel receive at least one scholarship offer.",
+    q: "Can Gradzest help me find scholarships?",
+    a: "Absolutely. Our counselors help you identify merit-based, need-based, and country-specific scholarships you may be eligible for, and support you through the application.",
   },
   {
-    q: "What is the visa approval rate for GradZest students?",
-    a: "Our students enjoy a 96% visa approval rate across all major study destinations including Canada, UK, Australia, Germany, and the US. Our visa specialists prepare your application thoroughly to maximize approval chances.",
+    q: "Do you help with student visas?",
+    a: "Yes. Our visa specialists guide you through the documents, financial proof, and interview preparation for your destination, so your application is complete and well prepared.",
   },
   {
-    q: "Which countries does GradZest cover?",
-    a: "We help students apply to universities in 20+ countries including the United States, United Kingdom, Canada, Australia, Germany, Singapore, Netherlands, Ireland, New Zealand, and more. Our counselors specialize in their respective regions.",
+    q: `Which countries does ${BRAND} cover?`,
+    a: `We currently support ${DESTINATIONS.length} study destinations: ${DESTINATIONS.map((d) => d.country).join(", ")}. Our counselors specialize in their respective regions.`,
   },
   {
     q: "How do I track my application status?",
-    a: "Once registered on GradZest, you get access to a real-time application tracker in your student dashboard. You can see the status of every application — from document submission to university decision — in one place.",
+    a: "Once registered on Gradzest, you get access to a real-time application tracker in your student dashboard. You can see the status of every application — from document submission to university decision — in one place.",
   },
 ];
 
@@ -1254,35 +1202,14 @@ const COUNTRY_VISA_INFO: Record<
 
 function getField(name: string): string {
   const n = (name || "").toLowerCase();
-  if (
-    n.includes("computer") ||
-    n.includes("software") ||
-    n.includes("information")
-  )
-    return "Computer Science";
-  if (
-    n.includes("data") ||
-    n.includes("ai") ||
-    n.includes("artificial") ||
-    n.includes("machine")
-  )
-    return "Data Science & AI";
-  if (
-    n.includes("business") ||
-    n.includes("mba") ||
-    n.includes("management") ||
-    n.includes("finance")
-  )
-    return "Business & MBA";
-  if (
-    n.includes("engineer") ||
-    n.includes("electrical") ||
-    n.includes("mechanical") ||
-    n.includes("civil")
-  )
-    return "Engineering";
-  if (n.includes("medicine") || n.includes("medical") || n.includes("health"))
-    return "Medicine";
+  if (/computer|software|information|informatics/.test(n)) return "Computer Science";
+  if (/\bdata\b|\bai\b|artificial|machine learning|analytics/.test(n) && !/business/.test(n)) return "Data Science & AI";
+  if (/business|\bmba\b|management|finance|accounting|economics/.test(n)) return "Business & MBA";
+  if (/engineer|electrical|mechanical|civil|robotics/.test(n)) return "Engineering";
+  if (/medicine|medical|health|pharmacy|nursing|mbchb|dentistry/.test(n)) return "Medicine";
+  if (/\blaw\b|\bllb\b|\bllm\b|legal/.test(n)) return "Law";
+  if (/psychology|sociology|social|political|international relations/.test(n)) return "Social Sciences";
+  if (/architecture|design|\barts?\b|media|music|film/.test(n)) return "Arts & Design";
   return "Other";
 }
 
@@ -1491,7 +1418,7 @@ function DetailModal({
                 <X className="w-4 h-4" />
               </button>
               <div className="w-16 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden p-1.5 mb-3">
-                <img
+                <img loading="lazy" decoding="async"
                   src={mu.logo}
                   alt={mu.name}
                   className="w-full h-full object-contain"
@@ -1589,7 +1516,7 @@ function DetailModal({
             <p className="text-sm text-gray-600 mb-5 leading-relaxed">
               {modal.name} is one of the world's leading research universities,
               known for academic excellence and global impact. Contact a
-              GradZest counselor to explore admission pathways.
+              Gradzest counselor to explore admission pathways.
             </p>
             <button
               type="button"
@@ -1797,7 +1724,7 @@ function DetailModal({
                     >
                       {getUniLogoUrl(p.uni, p.website) ? (
                         <div className="w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0 overflow-hidden p-1 flex items-center justify-center">
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={getUniLogoUrl(p.uni, p.website)!}
                             alt=""
                             className="w-full h-full object-contain"
@@ -1907,38 +1834,13 @@ function FadeIn({
   );
 }
 
-function StatCounter({ raw, active }: { raw: string; active: boolean }) {
-  const match = raw.match(/^([\d,]+(?:\.\d+)?)(.*)$/);
-  const num = match ? parseFloat(match[1].replace(/,/g, "")) : 0;
-  const suffix = match ? match[2] : raw;
-  const [cur, setCur] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const startTs = performance.now();
-    const dur = 1500;
-    const tick = (now: number) => {
-      const t = Math.min((now - startTs) / dur, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setCur(num * eased);
-      if (t < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, [active, num]);
-  const display =
-    num >= 1000
-      ? Math.floor(cur).toLocaleString()
-      : num % 1 !== 0
-        ? cur.toFixed(1)
-        : Math.floor(cur).toString();
-  return <>{active ? `${display}${suffix}` : "0"}</>;
-}
-
 /* ── Page component ── */
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
   const { open } = useAuthModal();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [universities, setUniversities] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("All");
   const [destination, setDestination] = useState("");
@@ -1957,13 +1859,6 @@ export default function Home() {
     flag?: string;
   } | null>(null);
 
-  const statsRef = useRef<HTMLElement>(null);
-  const [statsActive, setStatsActive] = useState(false);
-  const aboutRef = useRef<HTMLElement>(null);
-  const [aboutActive, setAboutActive] = useState(false);
-  const successRef = useRef<HTMLElement>(null);
-  const [successActive, setSuccessActive] = useState(false);
-
   useEffect(() => {
     api.universities
       .list()
@@ -1971,31 +1866,14 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Scroll to a section when arriving via a link like /#how-it-works
   useEffect(() => {
-    const entries: [
-      React.RefObject<HTMLElement | null>,
-      React.Dispatch<React.SetStateAction<boolean>>,
-    ][] = [
-      [statsRef, setStatsActive],
-      [aboutRef, setAboutActive],
-      [successRef, setSuccessActive],
-    ];
-    const observers = entries.map(([ref, set]) => {
-      if (!ref.current) return null;
-      const obs = new IntersectionObserver(
-        ([e]) => {
-          if (e.isIntersecting) {
-            set(true);
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.3 },
-      );
-      obs.observe(ref.current);
-      return obs;
-    });
-    return () => observers.forEach((o) => o?.disconnect());
-  }, []);
+    if (!hash) return;
+    const t = setTimeout(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [hash]);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -2040,29 +1918,39 @@ export default function Home() {
     ...new Set(universities.map((u: any) => u.country)),
   ].sort();
 
-  const allPrograms = universities.flatMap((u: any, ui: number) =>
-    (u.courses || []).slice(0, 2).map((c: any, ci: number) => ({
-      key: `${u.id}-${ci}`,
-      uniId: u.id,
-      uni: u.name,
-      website: u.website,
-      course: c.name,
-      country: u.country,
-      city: u.city,
-      flag: FLAGS[u.country] || "🌍",
-      level: c.level,
-      duration: c.duration,
-      fee: `${u.averageFees?.currency || ""} ${(c.tuition || u.averageFees?.postgraduate || 0).toLocaleString()}/yr`,
-      badge: BADGES[(ui * 2 + ci) % BADGES.length],
-      field: getField(c.name),
-    })),
+  const allPrograms = universities.flatMap((u: any) =>
+    (u.courses || []).map((c: any, ci: number) => {
+      const level = c.level || inferCourseLevel(c.name || "");
+      const isUG = /bachelor/i.test(level);
+      // Course tuition if set, otherwise the university's average for that level
+      const rawFee: number = c.tuition || (isUG ? u.averageFees?.undergraduate : u.averageFees?.postgraduate) || 0;
+      // Guard against data-entry errors (e.g. 25,555,555/yr) — show "Contact us" instead
+      const feeValue = rawFee > 150000 ? 0 : rawFee;
+      return {
+        key: `${u.id}-${ci}`,
+        uniId: u.id,
+        uni: u.name,
+        website: u.website,
+        course: c.name,
+        country: u.country,
+        city: u.city,
+        flag: FLAGS[u.country] || "🌍",
+        level,
+        duration: c.duration || inferCourseDuration(c.name || ""),
+        feeIsAverage: !c.tuition,
+        fee: feeValue ? `${u.averageFees?.currency || ""} ${feeValue.toLocaleString()}/yr` : "Contact us",
+        badge: programBadge(u.ranking, feeValue),
+        field: getField(c.name),
+      };
+    }),
   );
 
+  // One card per university so the grid shows variety instead of near-duplicates
   const filteredPrograms = (
-    activeTab === "All"
-      ? allPrograms
-      : allPrograms.filter((p) => p.field === activeTab)
-  ).slice(0, 6);
+    activeTab === "All" ? allPrograms : allPrograms.filter((p) => p.field === activeTab)
+  )
+    .filter((p, i, arr) => arr.findIndex((q) => q.uniId === p.uniId) === i)
+    .slice(0, 6);
 
   return (
     <div className="min-h-screen bg-white">
@@ -2083,7 +1971,7 @@ export default function Home() {
           </div>
           <div className="animate-fade-in-up delay-160">
             <p className="text-lg text-blue-200/70 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Search 200,000+ courses at top universities across 40+ countries.
+              {HERO_TAGLINE}
               <br />Free to apply — our advisors guide you every step of the way.
             </p>
           </div>
@@ -2100,10 +1988,10 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => open("login")}
+                onClick={() => document.getElementById("talk-to-advisor")?.scrollIntoView({ behavior: "smooth" })}
                 className="bg-white/10 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-white/20 active:scale-95 transition-all flex items-center gap-2"
               >
-                <LogIn className="w-4 h-4" /> Sign In
+                <MessageCircle className="w-4 h-4" /> Talk to an Advisor
               </button>
             </div>
           )}
@@ -2119,10 +2007,10 @@ export default function Home() {
                   onChange={(e) => setDestination(e.target.value)}
                   className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
                 >
-                  <option value="">🌍 Destination</option>
+                  <option value="">Destination</option>
                   {countries.map((c) => (
                     <option key={c} value={c}>
-                      {FLAGS[c] || ""} {c}
+                      {c}
                     </option>
                   ))}
                 </select>
@@ -2136,7 +2024,7 @@ export default function Home() {
                   onChange={(e) => setField(e.target.value)}
                   className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
                 >
-                  <option value="">📚 Field of Study</option>
+                  <option value="">Field of Study</option>
                   {[
                     "Computer Science",
                     "Engineering",
@@ -2151,14 +2039,15 @@ export default function Home() {
                 </select>
               </div>
               <div className="hidden md:block w-px bg-gray-200 my-1" />
-              <div className="flex-1">
+              <div className="flex-1 relative">
+                <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <select
                   aria-label="Select degree level"
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
+                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
                 >
-                  <option value="">🎓 Degree Level</option>
+                  <option value="">Degree Level</option>
                   {[
                     "Bachelor's",
                     "Master's",
@@ -2184,23 +2073,24 @@ export default function Home() {
           <div className="animate-fade-in-up delay-400 flex flex-wrap justify-center gap-2 mt-5 items-center">
             <span className="text-sm text-blue-100">Popular:</span>
             {[
-              { label: "Canada", param: "country=Canada", icon: "🇨🇦" },
-              { label: "Germany", param: "country=Germany", icon: "🇩🇪" },
-              {
-                label: "Computer Science",
-                param: "q=Computer+Science",
-                icon: "💻",
-              },
-              { label: "Master's", param: "level=Master", icon: "🎓" },
-              { label: "Scholarship", param: "q=scholarship", icon: "🏆" },
+              { label: "Canada", param: "country=Canada", flagCode: "ca" },
+              { label: "Germany", param: "country=Germany", flagCode: "de" },
+              { label: "Computer Science", param: "q=Computer+Science", Icon: Monitor },
+              { label: "Master's", param: "level=Master", Icon: GraduationCap },
+              { label: "Scholarship", param: "q=scholarship", Icon: Star },
             ].map((tag) => (
               <button
                 key={tag.label}
                 type="button"
                 onClick={() => navigate(`/search?${tag.param}`)}
-                className="text-sm text-white hover:text-white bg-white/15 hover:bg-white/25 border border-white/20 active:scale-95 px-3 py-1 rounded-full transition-all flex items-center gap-1"
+                className="text-sm text-white hover:text-white bg-white/15 hover:bg-white/25 border border-white/20 active:scale-95 px-3 py-1 rounded-full transition-all flex items-center gap-1.5"
               >
-                <span>{tag.icon}</span>
+                {tag.flagCode ? (
+                  <img loading="lazy" decoding="async" src={`https://flagcdn.com/w40/${tag.flagCode}.png`} alt="" width={16} height={12}
+                    className="w-4 h-3 rounded-sm object-cover" />
+                ) : tag.Icon ? (
+                  <tag.Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                ) : null}
                 {tag.label}
               </button>
             ))}
@@ -2209,27 +2099,17 @@ export default function Home() {
       </section>
 
       {/* ── STATS ── */}
-      <section
-        ref={statsRef}
-        className="bg-white py-12 border-b border-gray-100"
-      >
+      <section className="bg-white py-12 border-b border-gray-100" aria-label={`${BRAND} at a glance`}>
         <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: "96%", label: "Visa Success Rate", icon: "✈️", color: "text-[#0d1b4b]" },
-              { value: "1,000+", label: "Students Placed", icon: "🎓", color: "text-[#0d1b4b]" },
-              { value: "20+", label: "Partner Countries", icon: "🌍", color: "text-[#0d1b4b]" },
-              { value: "10+", label: "Expert Counselors", icon: "👩‍💼", color: "text-[#0d1b4b]" },
-            ].map((s, i) => (
-              <FadeIn key={s.label} delayClass={STAGGER[i * 100]}>
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <div className={`text-3xl font-extrabold ${s.color}`}>
-                  <StatCounter raw={s.value} active={statsActive} />
-                </div>
-                <div className="text-sm text-gray-500 mt-1">{s.label}</div>
-              </FadeIn>
+          {/* Values come from siteFacts and are in the HTML from the first paint (no count-up) */}
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {HIGHLIGHTS.map((s) => (
+              <div key={s.label} className="flex flex-col-reverse">
+                <dt className="text-sm text-gray-500 mt-1">{s.label}</dt>
+                <dd className="text-3xl font-extrabold text-[#0d1b4b] font-display">{s.value}</dd>
+              </div>
             ))}
-          </div>
+          </dl>
         </div>
       </section>
 
@@ -2345,19 +2225,19 @@ export default function Home() {
       </section>
 
       {/* ── ABOUT US ── */}
-      <section ref={aboutRef} className="py-16 bg-[#eef2ff]">
+      <section id="about" className="py-16 bg-[#eef2ff] scroll-mt-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <FadeIn direction="left">
               <span className="inline-block bg-blue-100 text-blue-500 text-xs font-semibold px-3 py-1 rounded-full mb-4 uppercase tracking-wide">
-                About GradZest
+                About {BRAND}
               </span>
               <h2 className="text-3xl font-extrabold text-gray-900 mb-4 leading-tight">
                 We Make Studying Abroad<br/>
                 <span className="text-[#0d1b4b]">Simple, <span className="text-blue-500">Stress-Free</span> & Successful</span>
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
-                GradZest is India's trusted study abroad platform. We connect ambitious students with the right universities, the right programs, and the right support — completely free.
+                {BRAND} is a study abroad platform built for Indian students. We connect ambitious students with the right universities, the right programs, and the right support — completely free.
               </p>
               <p className="text-gray-600 leading-relaxed mb-6">
                 From shortlisting universities and writing your SOP, to scholarship hunting and visa prep — our expert counselors handle every step so you can focus on your future.
@@ -2390,50 +2270,22 @@ export default function Home() {
               </div>
             </FadeIn>
             <FadeIn direction="right">
+              {/* What students get — no repeated figures here; those live once in the stats strip */}
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  {
-                    value: "10+",
-                    label: "Years of Experience",
-                    to: "/universities",
-                    desc: "Explore our programs",
-                    icon: "🏆",
-                  },
-                  {
-                    value: "1,000+",
-                    label: "Students Placed Abroad",
-                    to: "/universities",
-                    desc: "See partner universities",
-                    icon: "🎓",
-                  },
-                  {
-                    value: "20+",
-                    label: "Partner Countries",
-                    to: "/search",
-                    desc: "Search by country",
-                    icon: "🌍",
-                  },
-                  {
-                    value: "10+",
-                    label: "Expert Counselors",
-                    to: null,
-                    desc: "Talk to an advisor",
-                    icon: "👩‍💼",
-                  },
+                  { Icon: BookOpen, label: "Program shortlisting", desc: "Matched to your profile", to: "/universities" },
+                  { Icon: CheckCircle, label: "SOP & document help", desc: "Reviewed by counselors", to: null },
+                  { Icon: DollarSign, label: "Scholarship guidance", desc: "Find funding you qualify for", to: "/search?q=scholarship" },
+                  { Icon: Globe, label: "Visa preparation", desc: "Documents & interview prep", to: null },
                 ].map((s) => (
                   <button
                     key={s.label}
                     type="button"
-                    onClick={() => (s.to ? navigate(s.to) : open("register"))}
+                    onClick={() => (s.to ? navigate(s.to) : document.getElementById("talk-to-advisor")?.scrollIntoView({ behavior: "smooth" }))}
                     className="bg-white rounded-2xl p-5 text-center border border-blue-100 hover:border-blue-300 hover:shadow-md active:scale-95 transition-all cursor-pointer group"
                   >
-                    <div className="text-2xl mb-2">{s.icon}</div>
-                    <div className="text-2xl font-extrabold text-[#0d1b4b] group-hover:scale-110 transition-transform duration-200">
-                      <StatCounter raw={s.value} active={aboutActive} />
-                    </div>
-                    <div className="text-gray-600 text-sm mt-1">
-                      {s.label}
-                    </div>
+                    <s.Icon className="w-6 h-6 text-[#0d1b4b] mx-auto mb-2" aria-hidden="true" />
+                    <div className="text-gray-900 text-sm font-semibold">{s.label}</div>
                     <div className="text-gray-400 text-xs mt-1.5 flex items-center justify-center gap-1 group-hover:text-[#0d1b4b] transition-colors">
                       {s.desc} <ChevronRight className="w-3 h-3" />
                     </div>
@@ -2499,11 +2351,11 @@ export default function Home() {
                   <div className="p-5 flex-1">
                     <div className="flex items-start justify-between mb-3">
                       <UniLogo name={p.uni} website={p.website} size="md" />
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${BADGE_STYLES[p.badge]}`}
-                      >
-                        {p.badge}
-                      </span>
+                      {p.badge && (
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${BADGE_STYLES[p.badge]}`}>
+                          {p.badge}
+                        </span>
+                      )}
                     </div>
                     <h3 className="font-bold text-gray-900 leading-snug mb-1">
                       {p.course}
@@ -2527,17 +2379,15 @@ export default function Home() {
                       <span className="bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
                         {p.duration}
                       </span>
-                      {(() => {
+                      {p.field !== "Other" && (() => {
                         const CourseIcon = getCourseIcon(p.course);
-                        const styles =
-                          COURSE_PILL_STYLES[p.field] ||
-                          COURSE_PILL_STYLES["Other"];
+                        const styles = COURSE_PILL_STYLES[p.field] || COURSE_PILL_STYLES["Other"];
                         return (
                           <span
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-medium ${styles.pill}`}
                           >
-                            <CourseIcon className="w-3 h-3" />
-                            {p.field !== "Other" ? p.field : "General"}
+                            <CourseIcon className="w-3 h-3" aria-hidden="true" />
+                            {p.field}
                           </span>
                         );
                       })()}
@@ -2545,7 +2395,7 @@ export default function Home() {
                   </div>
                   <div className="px-5 pb-5 pt-4 border-t border-gray-50 flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-gray-400">Tuition / year</p>
+                      <p className="text-xs text-gray-400">{p.feeIsAverage ? "Avg. tuition / year" : "Tuition / year"}</p>
                       <p className="font-bold text-gray-900 text-sm">{p.fee}</p>
                     </div>
                     <button
@@ -2608,12 +2458,13 @@ export default function Home() {
                   <p className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-[#0d1b4b] transition-colors line-clamp-2">
                     {u.name}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {FLAGS[u.country] || ""} {u.city}, {u.country}
+                  <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                    <CountryFlagImg name={u.country} flag={FLAGS[u.country] || ""} sizeCls="w-4 h-3" rounded="rounded-sm" quality="w40" />
+                    {[u.city, u.country].filter(Boolean).join(", ")}
                   </p>
-                  <p className="text-xs text-blue-500 font-medium mt-2">
-                    #{u.ranking} World
-                  </p>
+                  {u.ranking ? (
+                    <p className="text-xs text-blue-500 font-medium mt-2">#{u.ranking} World</p>
+                  ) : null}
                   <p className="text-xs text-gray-400">
                     <BookOpen className="w-3 h-3 inline mr-0.5" />
                     {(u.courses || []).length} programs
@@ -2644,15 +2495,10 @@ export default function Home() {
                   to={`/search?country=${encodeURIComponent(d.country)}`}
                   className="block bg-white rounded-2xl p-5 text-center border border-white hover:border-[#0d1b4b]/20 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group relative"
                 >
-                  {"badge" in d && (
-                    <span className="absolute top-3 right-3 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                      {d.badge}
-                    </span>
-                  )}
                   <div className="mb-3 flex justify-center group-hover:scale-110 transition-transform duration-300">
                     <CountryFlagImg
                       name={d.country}
-                      flag={d.flag}
+                      flag={FLAGS[d.country] || ""}
                       sizeCls="w-20 h-14"
                       rounded="rounded-xl"
                       className="shadow-md"
@@ -2662,7 +2508,7 @@ export default function Home() {
                   <p className="font-semibold text-gray-900 text-sm group-hover:text-[#0d1b4b] transition-colors">
                     {d.country}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">{d.count}</p>
+                  <p className="text-xs text-gray-400 mt-1">{d.note || "Explore programs →"}</p>
                 </Link>
               </FadeIn>
             ))}
@@ -2740,7 +2586,10 @@ export default function Home() {
               </button>
             </FadeIn>
             <FadeIn direction="right">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4" aria-label="Example dashboard">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1.5">
+                  <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" /> Example dashboard · illustrative data
+                </p>
                 {TRACKER_DEMO.map((item, i) => (
                   <div
                     key={i}
@@ -2796,7 +2645,7 @@ export default function Home() {
               What Our Students Say
             </h2>
             <p className="text-gray-500 mt-2">
-              Real stories from students who achieved their dream abroad with GradZest
+              Stories from students who achieved their dream abroad with {BRAND}
             </p>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -2839,41 +2688,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── SUCCESS RATE ── */}
-      <section ref={successRef} className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <FadeIn className="text-center mb-12">
-            <span className="inline-block bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full mb-3 uppercase tracking-wide">
-              Proven Results
-            </span>
-            <h2 className="text-3xl font-bold text-gray-900">
-              Our Track Record
-            </h2>
-            <p className="text-gray-500 mt-2">
-              Numbers that reflect our commitment to every student's success
-            </p>
-          </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SUCCESS_RATES.map((r, i) => (
-              <FadeIn key={r.label} delayClass={STAGGER[i * 80]}>
-                <div className="bg-white rounded-2xl p-7 border border-gray-100 shadow-sm text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 h-full">
-                  <div className="text-4xl mb-3">{r.icon}</div>
-                  <div className="text-4xl font-extrabold text-[#0d1b4b] mb-2">
-                    <StatCounter raw={r.value} active={successActive} />
-                  </div>
-                  <div className="font-semibold text-gray-900 mb-2">
-                    {r.label}
-                  </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    {r.desc}
-                  </p>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── MEET OUR TEAM ── */}
       <section className="py-20 bg-[#f8faff]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2893,11 +2707,13 @@ export default function Home() {
               <FadeIn key={member.name} delayClass={STAGGER[i * 80]}>
                 <div className="bg-white rounded-2xl p-6 border border-blue-100 text-center hover:border-blue-300 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group">
                   <div className="w-28 h-28 rounded-2xl overflow-hidden mx-auto mb-4 border-4 border-blue-50 shadow-md group-hover:scale-105 transition-transform duration-300">
-                    <img
-                      src={member.photo}
-                      alt={member.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {member.photo ? (
+                      <img src={member.photo} alt={member.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#0d1b4b] to-blue-600 flex items-center justify-center text-white text-3xl font-bold font-display" aria-hidden="true">
+                        {member.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                      </div>
+                    )}
                   </div>
                   <h3 className="font-bold text-gray-900">{member.name}</h3>
                   <p className="text-blue-500 text-sm font-medium mt-0.5">
@@ -2977,14 +2793,14 @@ export default function Home() {
       </section>
 
       {/* ── FOOTER CTA ── */}
-      <section className="bg-gradient-to-br from-[#0d1b4b] to-[#1a3a8a] py-20 text-white">
+      <section id="talk-to-advisor" className="bg-gradient-to-br from-[#0d1b4b] to-[#1a3a8a] py-20 text-white scroll-mt-20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <FadeIn>
             <h2 className="text-4xl font-bold mb-4">
               Your Future is Global — Start Today
             </h2>
             <p className="text-blue-100 text-lg mb-8">
-              Join 1,000+ students who found their dream university with GradZest. Free guidance, every step of the way.
+              Find your university with {BRAND}. Free guidance, every step of the way.
             </p>
           </FadeIn>
           <FadeIn
@@ -3007,9 +2823,9 @@ export default function Home() {
             </Link>
           </FadeIn>
           <FadeIn delayClass="delay-200">
+            <h3 className="text-white font-semibold text-lg mb-1">Talk to an advisor</h3>
             <p className="text-blue-200 text-sm mb-3">
-              Register free — get study abroad tips & expert guidance in your
-              inbox
+              Leave your details and a counselor will get in touch — free, no obligation.
             </p>
             {subscribed ? (
               <p className="text-white font-medium">
@@ -3025,7 +2841,7 @@ export default function Home() {
                       setSubName(e.target.value);
                       setSubError("");
                     }}
-                    placeholder="Your name"
+                    placeholder="Your name" aria-label="Your name" autoComplete="name"
                     disabled={subLoading}
                     className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
@@ -3036,7 +2852,7 @@ export default function Home() {
                       setSubPhone(e.target.value);
                       setSubError("");
                     }}
-                    placeholder="Phone number"
+                    placeholder="Phone number" aria-label="Phone number" autoComplete="tel"
                     disabled={subLoading}
                     className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
@@ -3050,7 +2866,7 @@ export default function Home() {
                       setSubError("");
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
-                    placeholder="Your email address"
+                    placeholder="Your email address" aria-label="Email address" autoComplete="email"
                     disabled={subLoading}
                     className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
@@ -3167,31 +2983,22 @@ export default function Home() {
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to="/" className="hover:text-white transition-colors">
+                  <Link to="/#about" className="hover:text-white transition-colors">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => open("register")}
-                    className="hover:text-white transition-colors"
-                  >
-                    Our Advisors
-                  </button>
-                </li>
-                <li>
-                  <Link to="/" className="hover:text-white transition-colors">
-                    Partner with Us
+                  <Link to="/#talk-to-advisor" className="hover:text-white transition-colors">
+                    Talk to an Advisor
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-white transition-colors">
+                  <Link to="/privacy" className="hover:text-white transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link to="/" className="hover:text-white transition-colors">
+                  <Link to="/terms" className="hover:text-white transition-colors">
                     Terms of Use
                   </Link>
                 </li>
@@ -3199,10 +3006,10 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
-            <p>© 2026 GradZest. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} {BRAND}. All rights reserved.</p>
             <p className="flex items-center gap-4">
-              <span>🔒 SSL Secured</span>
-              <span>GDPR Compliant</span>
+              <span>SSL Secured</span>
+              <Link to="/privacy" className="hover:text-white transition-colors">GDPR Compliant</Link>
               <span>Free to Apply</span>
             </p>
           </div>

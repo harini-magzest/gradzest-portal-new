@@ -1,7 +1,8 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { LayoutDashboard, GraduationCap, User, MessageSquare, BookOpen, CalendarDays, FileText, Zap, Globe } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Navbar from '../../components/Navbar';
+import DashboardSidebar from '../../components/DashboardSidebar';
+import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 
@@ -30,50 +31,28 @@ function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
 export default function StudentLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const unreadCount = useUnreadMessages();
-  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-900"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'student') return <Navigate to="/login" />;
 
+  const sidebarItems = navItems.map(item => ({
+    to: item.to, label: item.label, end: item.end,
+    icon: (typeof item.icon === 'string' ? GraduationCap : item.icon) as React.ComponentType<{ className?: string }>,
+    badge: item.label === 'Chat' ? unreadCount : undefined,
+  }));
+
   return (
-    <div className="min-h-screen bg-blue-50 dark:bg-gray-900">
-      <Navbar />
+    <div className="min-h-screen bg-blue-50">
+      <DashboardTopbar workspaceLabel="Student workspace" dashboardHome="/student" />
       <EmailVerificationBanner />
       <div className="flex">
         {/* Sidebar */}
-        <aside className="hidden md:flex flex-col items-center w-24 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-gradient-to-b from-[#152258] to-[#0d1b4b] py-4 gap-1">
-          <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center mb-3 flex-shrink-0" title={`${user.name} · Student Portal`}>
-            <GraduationCap className="w-5 h-5 text-white" />
-          </div>
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className="flex flex-col items-center gap-1 w-20 py-2 rounded-2xl hover:bg-blue-900/40 transition-colors group flex-shrink-0"
-            >
-              {({ isActive }) => (
-                <>
-                  <div className={`relative w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isActive ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-md' : 'text-blue-200/70 group-hover:text-white'
-                  }`}>
-                    <NavIcon icon={item.icon} size="md" />
-                    {item.label === 'Chat' && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0d1b4b]" />
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-medium text-center leading-tight px-0.5 ${isActive ? 'text-white' : 'text-blue-200/70 group-hover:text-white'}`}>
-                    {item.label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </aside>
+        <DashboardSidebar navItems={sidebarItems} />
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex z-40">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
           {navItems.filter(item => !item.mobileHide).map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-[#0d1b4b] dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-[#0d1b4b]' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />
                 {item.label === 'Chat' && unreadCount > 0 && (

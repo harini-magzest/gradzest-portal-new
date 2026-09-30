@@ -1,6 +1,6 @@
 function Skeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
+    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
   );
 }
 
@@ -10,7 +10,7 @@ export function SkeletonLine({ className = '' }: { className?: string }) {
 
 export function SkeletonStat() {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+    <div className="bg-white rounded-xl p-5 border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <Skeleton className="h-4 w-28" />
         <Skeleton className="w-10 h-10 rounded-xl" />
@@ -35,7 +35,7 @@ export function SkeletonTableRow({ cols = 5 }: { cols?: number }) {
 
 export function SkeletonCard() {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700 space-y-3">
+    <div className="bg-white rounded-xl p-5 border border-gray-100 space-y-3">
       <div className="flex items-center gap-3">
         <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
         <div className="flex-1 space-y-2">

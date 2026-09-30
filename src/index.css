@@ -11,6 +11,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* Brand display font for headings (loaded in index.html) */
+  h1, h2, h3 {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
 }
 
 @layer utilities {
@@ -89,6 +93,20 @@
   .marquee-wrap:hover .animate-marquee-right,
   .marquee-wrap:hover .animate-marquee-left2 {
     animation-play-state: paused;
+  }
+
+  /* Reduced motion: stop the tickers (scroll them by hand instead) and skip entrance animations */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee-left,
+    .animate-marquee-right,
+    .animate-marquee-left2 {
+      animation: none;
+      transform: none;
+    }
+    .marquee-wrap { overflow-x: auto; }
+    .animate-fade-in-up,
+    .animate-fade-in-left,
+    .animate-fade-in-right { animation: none; }
   }
 
   /* Scroll-triggered entrance animations */

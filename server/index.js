@@ -109,6 +109,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userSockets = new Map(); // userId -> Set<socketId>
 app.set('io', io);
 app.set('userSockets', userSockets);
+// userId -> ISO time their last connection closed (in memory; resets on restart)
+const lastSeen = new Map();
+app.set('lastSeen', lastSeen);
 
 // Nodemailer transporter — configure SMTP credentials in server/.env
 const nodemailer = require('nodemailer');
@@ -122,6 +125,8 @@ const mailer = nodemailer.createTransport({
   },
 });
 
+// Record every email sent to a student (shown on the student record's Emails tab)
+require('./lib/emailLog').withEmailLog(mailer);
 app.set('mailer', mailer);
 
 // Public email subscription / free registration
@@ -182,7 +187,7 @@ app.post('/api/subscribe', async (req, res) => {
             </p>
           </div>
           <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px;">
-            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@magzest.in'}
+            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@gradzest.com'}
           </p>
         </div>
       `,
@@ -253,9 +258,12 @@ io.on('connection', (socket) => {
   socket.on('register', () => {
     const uid = socket.data.userId;
     if (!uid) return;
-    if (!userSockets.has(uid)) userSockets.set(uid, new Set());
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
     userSockets.get(uid).add(socket.id);
     if (socket.data.role === 'admin') socket.join('admin-room');
+    // Presence: first open connection → online
+    if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });
 
   const relay = (event, to, payload) => {
@@ -277,7 +285,13 @@ io.on('connection', (socket) => {
       const sids = userSockets.get(socket.data.userId);
       if (sids) {
         sids.delete(socket.id);
-        if (sids.size === 0) userSockets.delete(socket.data.userId);
+        if (sids.size === 0) {
+          userSockets.delete(socket.data.userId);
+          // Presence: last connection closed → offline
+          const at = new Date().toISOString();
+          lastSeen.set(socket.data.userId, at);
+          io.emit('presence:update', { userId: socket.data.userId, online: false, lastSeen: at });
+        }
       }
     }
   });
@@ -289,6 +303,23 @@ app.use((err, req, res, next) => {
   const message = status < 500 ? err.message : 'Internal server error';
   if (status >= 500) console.error(`[error] ${req.method} ${req.path}`, err);
   res.status(status).json({ message });
+});
+
+// A promise rejection nobody awaited/caught (a missing .catch in a fire-and-forget
+// call, e.g. a mailer or logging call) would otherwise crash the whole process —
+// Node's default since v15. Log it and keep serving; one failed side-effect
+// shouldn't take down every other request in flight.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
+// A genuinely uncaught synchronous exception leaves the process in an unknown
+// state (corrupted internals, half-run middleware) — safer to exit and let the
+// process manager (nodemon locally, the host's restart policy in production)
+// bring up a clean instance than to keep serving from it.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+  process.exit(1);
 });
 
 const PORT = process.env.PORT || 5000;

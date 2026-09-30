@@ -6,11 +6,14 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, Info, UserX, Activity,
+  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy,
 } from 'lucide-react';
 import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
+import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -84,11 +87,205 @@ function BtnClose({ onClick }: { onClick: () => void }) {
   );
 }
 
+// ── Group meeting modal ──────────────────────────────────────────────────────
+// Creates one Jitsi room for the student plus the staff the admin ticks. Everyone
+// invited gets the same link (notification + email); the student sees it on their Meetings page.
+function localDateTime(d = new Date()) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+}
+
+function GroupMeetingModal({ student, counselors, onClose }: { student: any; counselors: any[]; onClose: () => void }) {
+  const { user } = useAuth();
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(student.counselorId ? [String(student.counselorId)] : []),
+  );
+  const [title, setTitle] = useState(`Welcome call – ${student.name}`);
+  const [when, setWhen] = useState<'now' | 'later'>('now');
+  const [date, setDate] = useState(localDateTime().date);
+  const [time, setTime] = useState('');
+  const [duration, setDuration] = useState('60');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [created, setCreated] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => {}); }, []);
+
+  const selfId = String(user?.id ?? '');
+  const groups = [
+    { key: 'admin', label: 'Admins', people: adminUsers.filter(u => !u.isAppTeam && normalId(u) !== selfId) },
+    { key: 'appteam', label: 'Application Team (HR)', people: adminUsers.filter(u => u.isAppTeam && normalId(u) !== selfId) },
+    { key: 'counselor', label: 'Counselors', people: counselors },
+  ];
+
+  const toggle = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const create = async () => {
+    if (when === 'later' && (!date || !time)) { setError('Pick a date and time.'); return; }
+    setCreating(true); setError('');
+    const at = when === 'now' ? localDateTime() : { date, time };
+    const staff = groups.flatMap(g => g.people
+      .filter(p => selected.has(normalId(p)))
+      .map(p => ({ userId: normalId(p), name: p.name, role: g.key, email: p.email })));
+    try {
+      const meeting = await api.meetings.create({
+        title: title.trim() || `Meeting – ${student.name}`,
+        scheduledDate: at.date, scheduledTime: at.time,
+        duration: parseInt(duration), platform: 'jitsi',
+        participants: [
+          { userId: selfId, name: user?.name, role: user?.isAppTeam ? 'appteam' : 'admin', email: user?.email },
+          { userId: normalId(student), name: student.name, role: 'student', email: student.email },
+          ...staff,
+        ],
+      });
+      setCreated({ ...meeting, invited: staff });
+      if (when === 'now' && meeting.meetingLink) window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create meeting.');
+    } finally { setCreating(false); }
+  };
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(created.meetingLink); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center"><Video className="w-5 h-5" /></div>
+            <div>
+              <h3 className="font-bold text-gray-900">Group meeting</h3>
+              <p className="text-xs text-gray-500">with {student.name}</p>
+            </div>
+          </div>
+          <BtnClose onClick={onClose} />
+        </div>
+
+        {created ? (
+          <div className="p-5 space-y-4 overflow-y-auto">
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              Meeting created — {created.invited.length + 1} people invited
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Meeting link</p>
+              <div className="flex gap-2">
+                <input readOnly value={created.meetingLink} aria-label="Meeting link"
+                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-700" />
+                <button type="button" onClick={copyLink}
+                  className="px-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-1.5">
+                  {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}{copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              <p><span className="text-gray-400">When:</span> {created.scheduledDate} at {created.scheduledTime} · {created.duration} min</p>
+              <p className="mt-1"><span className="text-gray-400">Invited:</span> {[student.name, ...created.invited.map((p: any) => p.name)].join(', ')}</p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
+              <BtnPrimary variant="blue" className="flex-1" onClick={() => window.open(created.meetingLink, '_blank', 'noopener,noreferrer')}>
+                <Video className="w-4 h-4" /> Join now
+              </BtnPrimary>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <label htmlFor="gm-title" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Title</label>
+                <input id="gm-title" value={title} onChange={e => setTitle(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">When</p>
+                <div className="flex gap-2">
+                  {([['now', 'Start now'], ['later', 'Schedule']] as const).map(([k, label]) => (
+                    <button key={k} type="button" onClick={() => setWhen(k)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${when === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                      {label}
+                    </button>
+                  ))}
+                  <select value={duration} onChange={e => setDuration(e.target.value)} title="Duration"
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {['30', '45', '60', '90'].map(d => <option key={d} value={d}>{d} min</option>)}
+                  </select>
+                </div>
+                {when === 'later' && (
+                  <div className="flex gap-2 mt-2">
+                    <input type="date" value={date} min={localDateTime().date} onChange={e => setDate(e.target.value)} aria-label="Date"
+                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="time" value={time} onChange={e => setTime(e.target.value)} aria-label="Time"
+                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Invite staff <span className="normal-case font-normal text-gray-400">({selected.size} selected)</span></p>
+                <div className="space-y-3">
+                  {groups.map(g => (
+                    <div key={g.key}>
+                      <p className="text-xs font-semibold text-gray-700 mb-1">{g.label}</p>
+                      {g.people.length === 0 ? (
+                        <p className="text-xs text-gray-400">None available</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {g.people.map(p => {
+                            const id = normalId(p);
+                            const on = selected.has(id);
+                            const isAssigned = g.key === 'counselor' && String(student.counselorId) === id;
+                            return (
+                              <button key={id} type="button" onClick={() => toggle(id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                                {on && <Check className="w-3 h-3" />}{p.name}{isAssigned && <span className="text-[10px] text-gray-400">(assigned)</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400">
+                A free Jitsi link is generated automatically. Everyone gets the same link. The student sees it on their Meetings page, and staff get a notification. Everyone is also emailed when email (SMTP) is set up.
+              </p>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+            <div className="p-5 border-t border-gray-100 flex gap-3">
+              <BtnGhost onClick={onClose} className="flex-1">Cancel</BtnGhost>
+              <BtnPrimary variant="blue" className="flex-1" onClick={create} disabled={creating}>
+                {creating ? <Spinner white /> : <Video className="w-4 h-4" />}
+                {when === 'now' ? 'Start meeting' : 'Schedule meeting'}
+              </BtnPrimary>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Student detail modal ─────────────────────────────────────────────────────
-function StudentDetailModal({ student, onClose, onChat, onNewApplication }: {
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange }: {
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
+  onLeadStage?: (stage: string) => Promise<unknown>;
+  onStudentChange?: (s: any) => void;
 }) {
-  const [tab, setTab] = useState<'overview' | 'courses'>('overview');
+  const [tab, setTab] = useState<'overview' | 'courses' | RecordTab>('overview');
+  const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
+  const recordTab = RECORD_TABS.find(t => t.key === tab)?.key;
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
 
@@ -120,6 +317,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication }: {
                 <p className="text-blue-200 text-sm mt-0.5">{student.email}</p>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <StatusBadge status={student.status} />
+                  {onLeadStage && <LeadStageSelect value={student.leadStage} onSave={onLeadStage} />}
                   {student.nationality && <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full font-medium border border-white/20">{student.nationality}</span>}
                 </div>
               </div>
@@ -135,16 +333,22 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication }: {
             ))}
           </div>
         </div>
-        <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white">
-          {(['overview', 'courses'] as const).map(t => (
-            <button key={t} type="button" onClick={() => { setTab(t); setEligFilter(''); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {t === 'courses' ? 'Course Eligibility' : 'Overview'}
+        <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white overflow-x-auto">
+          {[{ key: 'overview', label: 'Overview' }, ...RECORD_TABS, { key: 'courses', label: 'Course Eligibility' }].map(t => (
+            <button key={t.key} type="button" onClick={() => { setTab(t.key as any); setEligFilter(''); }}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {t.label}
             </button>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
-          {tab === 'overview' ? (
+          {recordTab ? (
+            <div className="p-6">
+              <StudentRecordPanel tab={recordTab} student={student} record={record} reload={reloadRecord}
+                loading={recordLoading} error={recordError} canEdit canReply
+                onStudentChange={s => onStudentChange?.(s)} />
+            </div>
+          ) : tab === 'overview' ? (
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-5">
                 <div>
@@ -600,13 +804,13 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
           ) : loading ? (
             <div className="space-y-3 py-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0" />
+                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
-                    <div className="h-3 bg-gray-100 dark:bg-gray-600 rounded w-1/2" />
+                    <div className="h-3.5 bg-gray-200 rounded w-2/3" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
                   </div>
-                  <div className="h-7 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                  <div className="h-7 w-16 bg-gray-200 rounded-lg" />
                 </div>
               ))}
             </div>
@@ -729,6 +933,7 @@ export default function AdminStudents() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showNewApp, setShowNewApp] = useState(false);
   const [newAppStudent, setNewAppStudent] = useState<any>(null);
+  const [meetingStudent, setMeetingStudent] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -737,6 +942,7 @@ export default function AdminStudents() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
+  const [filterStage, setFilterStage] = useState('');
   const [filterCounselorId, setFilterCounselorId] = useState('');
   const [filterIntake, setFilterIntake] = useState('');
   const [filterDateStart, setFilterDateStart] = useState('2025-01-01');
@@ -755,7 +961,7 @@ export default function AdminStudents() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [search, filterStatus, filterCountry, filterCounselorId, filterIntake, filterDateStart, filterDateEnd, filterLead]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterIntake, filterDateStart, filterDateEnd, filterLead]);
 
   const counselorNameById = Object.fromEntries(counselors.map(c => [normalId(c), c.name]));
   const countryOptions = Array.from(new Set(students.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
@@ -763,6 +969,7 @@ export default function AdminStudents() {
   const filtered = students.filter(s => {
     if (filterLead && s.leadStatus !== 'new') return false;
     if (filterStatus && s.status !== filterStatus) return false;
+    if (filterStage && leadStageOf(s).value !== filterStage) return false;
     if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
     if (filterCounselorId) {
       if (filterCounselorId === '__unassigned__') { if (s.counselorId) return false; }
@@ -820,6 +1027,13 @@ export default function AdminStudents() {
     setAssigningIds(prev => { const n = new Set(prev); n.delete(studentId); return n; });
   };
 
+  // Throws on failure so the stage picker can show the error
+  const handleLeadStage = async (id: string, leadStage: string) => {
+    const updated = await api.students.setLeadStage(id, leadStage);
+    setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, leadStage: updated.leadStage } : s));
+    setSelectedStudent((prev: any) => prev && normalId(prev) === id ? { ...prev, leadStage: updated.leadStage } : prev);
+  };
+
   const handleMarkContacted = async (id: string) => {
     setMarkingId(id);
     try {
@@ -833,7 +1047,7 @@ export default function AdminStudents() {
   const handleExport = () => {
     const rows = filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Nationality: s.nationality || '',
-      Status: s.status || '', Counselor: counselorNameById[s.counselorId] || 'Unassigned',
+      Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
     }));
     if (!rows.length) return;
@@ -852,11 +1066,12 @@ export default function AdminStudents() {
   const activeTags: { label: string; clear: () => void }[] = [];
   if (filterLead) activeTags.push({ label: 'New leads', clear: () => setFilterLead(false) });
   if (filterStatus) activeTags.push({ label: filterStatus, clear: () => setFilterStatus('') });
+  if (filterStage) activeTags.push({ label: `Stage: ${leadStageOf({ leadStage: filterStage }).label}`, clear: () => setFilterStage('') });
   if (filterCountry) activeTags.push({ label: filterCountry, clear: () => setFilterCountry('') });
   if (filterIntake) activeTags.push({ label: filterIntake, clear: () => setFilterIntake('') });
   if (filterCounselorId) activeTags.push({ label: `Counselor: ${filterCounselorId === '__unassigned__' ? 'Unassigned' : counselorNameById[filterCounselorId] || ''}`, clear: () => setFilterCounselorId('') });
   if (search) activeTags.push({ label: `"${search}"`, clear: () => { setSearch(''); setSearchInput(''); } });
-  const clearAll = () => { setFilterLead(false); setFilterStatus(''); setFilterCountry(''); setFilterCounselorId(''); setFilterIntake(''); setSearch(''); setSearchInput(''); };
+  const clearAll = () => { setFilterLead(false); setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterCounselorId(''); setFilterIntake(''); setSearch(''); setSearchInput(''); };
 
   const allPageSelected = paginated.length > 0 && paginated.every(s => selectedIds.has(normalId(s)));
   const toggleAll = () => {
@@ -887,9 +1102,16 @@ export default function AdminStudents() {
       {selectedStudent && (
         <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)}
           onChat={() => { navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } }); setSelectedStudent(null); }}
-          onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }} />
+          onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }}
+          onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)}
+          onStudentChange={updated => {
+            const id = normalId(selectedStudent);
+            setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...updated } : s));
+            setSelectedStudent((prev: any) => prev ? { ...prev, ...updated } : prev);
+          }} />
       )}
       {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
+      {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
 
       {/* Page wrapper */}
       <div className="space-y-6">
@@ -999,19 +1221,21 @@ export default function AdminStudents() {
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             </div>
+            {/* Lead stage */}
+            <div className="relative">
+              <select value={filterStage} onChange={e => setFilterStage(e.target.value)} title="Lead stage" className={dSel}>
+                <option value="">Lead Stage</option>
+                {LEAD_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+            </div>
             {/* Status */}
             <div className="relative">
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} title="Status" className={dSel}>
                 <option value="">Status</option>
-                <option value="counseling">Counseling</option>
-                <option value="shortlisting">Shortlisting</option>
-                <option value="application">Application</option>
-                <option value="test_preparation">Test Preparation</option>
-                <option value="visa_process">Visa Process</option>
-                <option value="loan_process">Loan Process</option>
-                <option value="enrolled">Enrolled</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="enrolled">Enrolled</option>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             </div>
@@ -1075,14 +1299,14 @@ export default function AdminStudents() {
                     <th className="w-10 px-4 py-3.5">
                       <input type="checkbox" checked={allPageSelected} onChange={toggleAll} className="w-4 h-4 rounded cursor-pointer accent-blue-500" />
                     </th>
-                    {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'STATUS', 'ACTIONS'].map(h => (
+                    {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
                       <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-16">
+                    <tr><td colSpan={9} className="text-center py-16">
                       <Users className="w-8 h-8 mx-auto mb-2 text-gray-600" />
                       <p className="text-sm text-gray-500">{filterLead ? 'No new leads right now.' : search || filterStatus || filterCountry || filterCounselorId ? 'No students match your filters.' : 'No students yet.'}</p>
                     </td></tr>
@@ -1137,6 +1361,8 @@ export default function AdminStudents() {
                             <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                           </div>
                         </td>
+                        {/* Lead stage */}
+                        <td className="px-4 py-3.5"><LeadStageSelect value={s.leadStage} onSave={stage => handleLeadStage(id, stage)} /></td>
                         {/* Status */}
                         <td className="px-4 py-3.5"><StatusPill status={s.status} /></td>
                         {/* Actions */}
@@ -1155,6 +1381,10 @@ export default function AdminStudents() {
                             <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })} title="Chat"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
                               <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
+                            <button type="button" onClick={() => setMeetingStudent(s)} title="Start group meeting"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors">
+                              <Video className="w-3.5 h-3.5" />
                             </button>
                             <button type="button" onClick={() => handleToggle(s)} disabled={isToggling} title={isActive ? 'Deactivate' : 'Activate'}
                               className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${isActive ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'}`}>

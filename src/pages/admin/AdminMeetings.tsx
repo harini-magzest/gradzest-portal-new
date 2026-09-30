@@ -22,6 +22,8 @@ const PLATFORM_META: Record<string, { label: string; color: string; icon: string
   meet:   { label: 'Google Meet',     color: 'bg-green-100  text-green-700  border-green-200',  icon: '🟢' },
   other:  { label: 'Other',           color: 'bg-gray-100   text-gray-700   border-gray-200',   icon: '⚫' },
 };
+// Display-only: Jitsi meetings are created from the Students page with an auto-generated link
+const JITSI_META = { label: 'Jitsi Meet', color: 'bg-sky-100 text-sky-700 border-sky-200', icon: '🎥' };
 
 function isFuture(date: string, time: string) {
   const dt = new Date(`${date}T${time}`);
@@ -246,7 +248,7 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
   const upcoming = isFuture(meeting.scheduledDate, meeting.scheduledTime);
   const active = isSessionActive(meeting.scheduledDate, meeting.scheduledTime, meeting.duration);
   const [showExpired, setShowExpired] = useState(false);
-  const meta = PLATFORM_META[meeting.platform] ?? PLATFORM_META.other;
+  const meta = PLATFORM_META[meeting.platform] ?? (meeting.platform === 'jitsi' ? JITSI_META : PLATFORM_META.other);
   const [deleting, setDeleting] = useState(false);
 
   const handleJoin = () => {
