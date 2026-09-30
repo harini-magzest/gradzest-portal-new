@@ -187,7 +187,7 @@ app.post('/api/subscribe', async (req, res) => {
             </p>
           </div>
           <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px;">
-            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@magzest.in'}
+            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@gradzest.com'}
           </p>
         </div>
       `,
