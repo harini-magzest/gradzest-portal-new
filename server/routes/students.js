@@ -8,7 +8,7 @@ const { logPiiAccess } = require('../lib/logPiiAccess');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
-const { can, loadAccess, studentFilter, canView, canManage } = require('../lib/access');
+const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 
 const router = express.Router();
 
