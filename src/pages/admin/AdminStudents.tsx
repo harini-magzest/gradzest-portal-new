@@ -1,21 +1,21 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users, UserCog, Plus, Trash2, X, GraduationCap,
   Eye, EyeOff, Check, Search, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy, Mail, Crown,
+  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
-import { RECORD_TABS, RecordNav, RecordTab, StudentRecordPanel, TabCount, recordTabCount, useStudentRecord } from '../../components/StudentRecord';
-import StudentInfoPanel from '../../components/StudentInfoPanel';
+import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
+import RecordNavArrows from '../../components/RecordNavArrows';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -279,13 +279,20 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
 }
 
 // ── Student detail modal ─────────────────────────────────────────────────────
-function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange, nav }: {
+type DetailTab = 'overview' | 'courses' | RecordTab;
+const DETAIL_TAB_KEYS: string[] = ['overview', 'courses', ...RECORD_TABS.map(t => t.key)];
+
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange, asPage = false, initialTab }: {
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
   onLeadStage?: (stage: string) => Promise<unknown>;
   onStudentChange?: (s: any) => void;
-  nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
+  /** Render inline as a full page (no overlay / close buttons) */
+  asPage?: boolean;
+  initialTab?: string | null;
 }) {
-  const [tab, setTab] = useState<'overview' | 'courses' | RecordTab>('overview');
+  const [tab, setTab] = useState<DetailTab>(
+    initialTab && DETAIL_TAB_KEYS.includes(initialTab) ? initialTab as DetailTab : 'overview'
+  );
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
   const recordTab = RECORD_TABS.find(t => t.key === tab)?.key;
   const [universities, setUniversities] = useState<any[]>([]);
@@ -306,10 +313,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
   };
   const visibleCourses = eligFilter ? allCourses.filter(c => c._elig.status === eligFilter) : allCourses;
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-4xl lg:max-w-6xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
+  const header = (
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 pt-6 pb-5 flex-shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -317,9 +321,6 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
               <div>
                 <h2 className="text-xl font-bold text-white">{student.name}</h2>
                 <p className="text-blue-200 text-sm mt-0.5">{student.email}</p>
-                <p className="flex items-center gap-1.5 text-sm text-white/90 mt-0.5">
-                  <Crown className="w-3.5 h-3.5 text-amber-300" />{record?.owner?.name || 'No counselor assigned'}
-                </p>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <StatusBadge status={student.status} />
                   {onLeadStage && <LeadStageSelect value={student.leadStage} onSave={onLeadStage} />}
@@ -327,10 +328,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              {nav && <RecordNav {...nav} dark />}
-              <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
-            </div>
+            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-4 gap-3 mt-5">
             {[{ label: 'Applications', value: student.applications?.length ?? 0 }, { label: 'Documents', value: student.documents?.length ?? 0 }, { label: 'GPA', value: student.gpa ?? '—' }, { label: 'Budget', value: student.budget ? `$${Number(student.budget).toLocaleString()}` : '—' }].map(stat => (
@@ -341,19 +339,18 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             ))}
           </div>
         </div>
-        <div className="flex flex-1 min-h-0">
-        <aside className="hidden lg:block w-80 flex-shrink-0 border-r border-gray-100 overflow-y-auto bg-white">
-          <StudentInfoPanel key={normalId(student)} student={student} owner={record?.owner} canEdit onStudentChange={s => onStudentChange?.(s)} />
-        </aside>
-        <div className="flex flex-col flex-1 min-w-0">
+  );
+  const tabBar = (
         <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white overflow-x-auto">
           {[{ key: 'overview', label: 'Overview' }, ...RECORD_TABS, { key: 'courses', label: 'Course Eligibility' }].map(t => (
             <button key={t.key} type="button" onClick={() => { setTab(t.key as any); setEligFilter(''); }}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {t.label}<TabCount n={recordTabCount(t.key, student, record)} />
+              {t.label}
             </button>
           ))}
         </div>
+  );
+  const body = (
         <div className="flex-1 overflow-y-auto min-h-0">
           {recordTab ? (
             <div className="p-6">
@@ -363,7 +360,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             </div>
           ) : tab === 'overview' ? (
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-5">
+              {!asPage && <div className="space-y-5">
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Personal Information</p>
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
@@ -390,8 +387,8 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
                     <div className="flex flex-wrap gap-2">{student.preferredCountries.map((c: string) => <span key={c} className="text-xs bg-sky-50 text-blue-700 px-3 py-1.5 rounded-full font-medium border border-blue-100">{c}</span>)}</div>
                   </div>
                 )}
-              </div>
-              <div className="space-y-5">
+              </div>}
+              <div className={asPage ? 'contents' : 'space-y-5'}>
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Applications{student.applications?.length > 0 ? ` (${student.applications.length})` : ''}</p>
                   {student.applications?.length > 0 ? (
@@ -475,15 +472,150 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             </div>
           )}
         </div>
-        </div>
-        </div>
+  );
+  const footer = (
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 flex gap-3">
-          <button type="button" onClick={() => setTab('emails')} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-md active:scale-[0.98] transition-all"><Mail className="w-4 h-4" />Send Mail</button>
-          {onChat &&<button type="button" onClick={onChat} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md active:scale-[0.98] transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
+          {onChat && <button type="button" onClick={onChat} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md active:scale-[0.98] transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
           {onNewApplication && <button type="button" onClick={onNewApplication} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 shadow-md active:scale-[0.98] transition-all"><Plus className="w-4 h-4" />New Application</button>}
           <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
         </div>
+  );
+
+  // Full page: student details on the left, tabs on the right (Bigin-style)
+  if (asPage) return (
+    <div className="flex flex-col lg:flex-row gap-5 items-start">
+      <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">{initials}</div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-white truncate" title={student.name}>{student.name}</h2>
+              <p className="flex items-center gap-1 text-xs text-blue-100 mt-0.5 min-w-0" title="Assigned counselor">
+                <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate">{student.counselorName || 'Unassigned'}</span>
+              </p>
+              <div className="mt-1"><StatusBadge status={student.status} /></div>
+            </div>
+          </div>
+          {onLeadStage && (
+            <div className="flex items-center gap-2 mt-4">
+              <span className="text-xs font-medium text-blue-100">Lead Stage</span>
+              <LeadStageSelect value={student.leadStage} onSave={onLeadStage} />
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-4 border-b border-gray-100">
+          {onChat && <button type="button" onClick={onChat} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
+          {onNewApplication && <button type="button" onClick={onNewApplication} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 shadow-sm transition-all"><Plus className="w-4 h-4" />Application</button>}
+        </div>
+        <div className="p-5 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
+          <div className="space-y-2 text-sm">
+            <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
+            <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
+            <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
+          </div>
+          <div className="mt-3">
+            <DetailRow label="Date of Birth" value={student.dateOfBirth} />
+            <DetailRow label="Gender" value={student.gender} />
+            <DetailRow label="Joined" value={student.joinedDate} />
+          </div>
+        </div>
+        <div className="p-5 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
+          <DetailRow label="Education Level" value={student.educationLevel} />
+          <DetailRow label="GPA" value={student.gpa} />
+          {student.englishScore?.score && <DetailRow label="English Score" value={`${student.englishScore.type} — ${student.englishScore.score}`} />}
+          <DetailRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}` : undefined} />
+        </div>
+        <div className="p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
+          {student.preferredCountries?.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">{student.preferredCountries.map((c: string) => <span key={c} className="text-xs bg-sky-50 text-blue-700 px-2.5 py-1 rounded-full font-medium border border-blue-100">{c}</span>)}</div>
+          ) : <p className="text-xs text-gray-300">—</p>}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{student.applications?.length ?? 0}</p><p className="text-[11px] text-gray-500">Applications</p></div>
+            <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{student.documents?.length ?? 0}</p><p className="text-[11px] text-gray-500">Documents</p></div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex-1 min-w-0 w-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[calc(100vh-10rem)]">
+        {tabBar}
+        {body}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl w-full max-w-4xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
+        {header}
+        {tabBar}
+        {body}
+        {footer}
+      </div>
+    </div>
+  );
+}
+
+// ── Student page (/admin/students/:studentId) ────────────────────────────────
+// Full-page student profile with Bigin-style ‹ › arrows to step through the list it was opened from.
+function AdminStudentPage({ studentId, listStudent, onChat, onNewApplication, onStudentChange }: {
+  studentId: string; listStudent?: any;
+  onChat: (s: any) => void; onNewApplication: (s: any) => void;
+  onStudentChange: (id: string, patch: any) => void;
+}) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [student, setStudent] = useState<any>(listStudent || null);
+  const [error, setError] = useState('');
+
+  // Reload whenever the student changes (incl. via the ‹ › arrows).
+  // Show the list's copy straight away, then swap in the full profile.
+  useEffect(() => {
+    let cancelled = false;
+    setError('');
+    setStudent(listStudent || null);
+    api.students.get(studentId)
+      .then(s => { if (!cancelled) setStudent(s); })
+      .catch(err => { if (!cancelled && !listStudent) setError(err.message || 'Could not load this student.'); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+
+  // Back returns to wherever the page was opened from (students list, applications, …)
+  const goBack = () => { if (location.key !== 'default') navigate(-1); else navigate('/admin/students'); };
+
+  const update = (patch: any) => {
+    setStudent((prev: any) => prev ? { ...prev, ...patch } : prev);
+    onStudentChange(studentId, patch);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={goBack} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <RecordNavArrows currentId={studentId} basePath="/admin/students" />
+      </div>
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <p className="text-sm font-semibold text-red-800">Failed to load student</p>
+          <p className="text-xs text-red-600 mt-1">{error}</p>
+        </div>
+      ) : !student ? (
+        <div className="text-center py-16"><Spinner size={8} /></div>
+      ) : (
+        <StudentDetailModal asPage initialTab={searchParams.get('tab')} student={student} onClose={goBack}
+          onChat={() => onChat(student)}
+          onNewApplication={() => onNewApplication(student)}
+          onLeadStage={async stage => { const u = await api.students.setLeadStage(studentId, stage); update({ leadStage: u.leadStage }); }}
+          onStudentChange={update} />
+      )}
     </div>
   );
 }
@@ -934,6 +1066,7 @@ function StatusPill({ status }: { status: string }) {
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function AdminStudents() {
   const navigate = useNavigate();
+  const openStudentId = useMatch('/admin/students/:studentId')?.params.studentId;
   const [searchParams, setSearchParams] = useSearchParams();
   const filterLead = searchParams.get('lead') === 'new';
   const setFilterLead = (on: boolean) => setSearchParams(prev => {
@@ -946,7 +1079,6 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showNewStudent, setShowNewStudent] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showNewApp, setShowNewApp] = useState(false);
   const [newAppStudent, setNewAppStudent] = useState<any>(null);
   const [meetingStudent, setMeetingStudent] = useState<any>(null);
@@ -1047,8 +1179,11 @@ export default function AdminStudents() {
   const handleLeadStage = async (id: string, leadStage: string) => {
     const updated = await api.students.setLeadStage(id, leadStage);
     setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, leadStage: updated.leadStage } : s));
-    setSelectedStudent((prev: any) => prev && normalId(prev) === id ? { ...prev, leadStage: updated.leadStage } : prev);
   };
+
+  // Open the full student page; pass the filtered order so ‹ › can step through it
+  const openStudent = (id: string) =>
+    navigate(`/admin/students/${id}`, { state: { ids: filtered.map(normalId) } });
 
   const handleMarkContacted = async (id: string) => {
     setMarkingId(id);
@@ -1115,31 +1250,21 @@ export default function AdminStudents() {
   return (
     <>
       {showNewStudent && <NewStudentModal counselors={counselors} onClose={() => setShowNewStudent(false)} onCreated={s => { setStudents(prev => [s, ...prev]); setShowNewStudent(false); }} />}
-      {selectedStudent && (
-        <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)}
-          onChat={() => { navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } }); setSelectedStudent(null); }}
-          onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }}
-          onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)}
-          nav={(() => {
-            // Step through the same filtered, sorted list the table shows (across all pages)
-            const i = filtered.findIndex(s => normalId(s) === normalId(selectedStudent));
-            return {
-              index: i, total: filtered.length,
-              onPrev: () => i > 0 && setSelectedStudent(filtered[i - 1]),
-              onNext: () => i < filtered.length - 1 && setSelectedStudent(filtered[i + 1]),
-            };
+      {openStudentId && (
+        <AdminStudentPage studentId={openStudentId}
+          listStudent={(() => {
+            const s = students.find(st => normalId(st) === openStudentId);
+            return s && { ...s, counselorName: counselorNameById[s.counselorId] || null };
           })()}
-          onStudentChange={updated => {
-            const id = normalId(selectedStudent);
-            setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...updated } : s));
-            setSelectedStudent((prev: any) => prev ? { ...prev, ...updated } : prev);
-          }} />
+          onChat={st => navigate('/admin/chat', { state: { openChatWith: { _id: normalId(st), name: st.name } } })}
+          onNewApplication={st => { setNewAppStudent(st); setShowNewApp(true); }}
+          onStudentChange={(id, patch) => setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...patch } : s))} />
       )}
       {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
       {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
 
-      {/* Page wrapper */}
-      <div className="space-y-6">
+      {/* Page wrapper — kept mounted (hidden) while a student page is open so filters survive Back */}
+      <div className={openStudentId ? 'hidden' : 'space-y-6'}>
 
         {/* ── Header ── */}
         <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
@@ -1356,7 +1481,8 @@ export default function AdminStudents() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
+                                <button type="button" onClick={() => openStudent(id)} title="Open profile"
+                                  className="text-sm font-semibold text-gray-900 truncate hover:text-blue-700 hover:underline text-left">{s.name}</button>
                                 {s.leadStatus === 'new' && (
                                   <span title={'New lead · signed up via ' + (LEAD_SOURCE_LABELS[s.source] || 'the website')}
                                     className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold uppercase tracking-wide">
@@ -1399,7 +1525,7 @@ export default function AdminStudents() {
                                 {markingId === id ? <Spinner size={3} /> : <CheckCircle className="w-3.5 h-3.5" />}
                               </button>
                             )}
-                            <button type="button" onClick={() => setSelectedStudent(s)} title="View details"
+                            <button type="button" onClick={() => openStudent(id)} title="View details"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors">
                               <Info className="w-3.5 h-3.5" />
                             </button>
