@@ -30,6 +30,8 @@ const { startAutomationScheduler } = require('./jobs/automationScheduler');
 const { startMeetingReminders } = require('./jobs/meetingReminders');
 const { startTaskReminders } = require('./jobs/taskReminders');
 const { startApplicationFollowups } = require('./jobs/applicationFollowups');
+const { startChatEscalation } = require('./jobs/chatEscalation');
+const { startWeeklyDigest } = require('./jobs/weeklyDigest');
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
@@ -44,6 +46,8 @@ connectDB().then(async () => {
   startMeetingReminders(io, userSockets, mailer);
   startTaskReminders(io, userSockets);
   startApplicationFollowups(io, userSockets);
+  startChatEscalation(io, userSockets);
+  startWeeklyDigest(mailer);
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);
