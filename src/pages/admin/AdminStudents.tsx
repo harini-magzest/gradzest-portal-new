@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users, UserCog, Plus, Trash2, X, GraduationCap,
-  Eye, EyeOff, Check, Search, ExternalLink, ToggleLeft, ToggleRight,
+  Eye, EyeOff, Check, Search, ExternalLink, Pencil,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
   ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
@@ -282,7 +282,143 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
 type DetailTab = 'overview' | 'courses' | RecordTab;
 const DETAIL_TAB_KEYS: string[] = ['overview', 'courses', ...RECORD_TABS.map(t => t.key)];
 
-function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange, asPage = false, initialTab }: {
+// ── Status picker ────────────────────────────────────────────────────────────
+const STUDENT_STATUSES = ['active', 'inactive'];
+
+/** Inline Active/Inactive picker; saves as soon as the value changes. */
+function StudentStatusSelect({ value, onSave }: { value?: string; onSave: (status: string) => Promise<unknown> }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const current = value === 'inactive' ? 'inactive' : 'active';
+  const tone = current === 'active'
+    ? 'bg-green-100 text-green-700 border-green-200'
+    : 'bg-gray-100 text-gray-600 border-gray-200';
+  const change = async (next: string) => {
+    if (next === value) return;
+    setSaving(true); setError('');
+    try { await onSave(next); }
+    catch (err: any) { setError(err.message || 'Could not update status'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <span className="inline-flex flex-col">
+      <select value={current} disabled={saving} onChange={e => change(e.target.value)}
+        aria-label="Student status" title={error || 'Change status'}
+        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 ${tone}`}>
+        {STUDENT_STATUSES.map(st => <option key={st} value={st}>{st === 'active' ? 'Active' : 'Inactive'}</option>)}
+      </select>
+      {error && <span className="text-[11px] text-red-600 mt-0.5">{error}</span>}
+    </span>
+  );
+}
+
+// ── Inline edit form (profile sidebar) ───────────────────────────────────────
+function EditStudentPanel({ student, onClose, onSaved }: {
+  student: any; onClose: () => void; onSaved: (s: any) => void;
+}) {
+  const [form, setForm] = useState({
+    name: student.name || '', phone: student.phone || '', nationality: student.nationality || '',
+    educationLevel: student.educationLevel || '',
+    gpa: student.gpa != null ? String(student.gpa) : '',
+    englishType: student.englishScore?.type || '',
+    englishScore: student.englishScore?.score != null ? String(student.englishScore.score) : '',
+    budget: student.budget != null ? String(student.budget) : '',
+    status: student.status === 'inactive' ? 'inactive' : 'active',
+    preferredCountries: (student.preferredCountries || []) as string[],
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (key: keyof typeof form, value: any) => setForm(f => ({ ...f, [key]: value }));
+  const toggleCountry = (c: string) => set('preferredCountries',
+    form.preferredCountries.includes(c) ? form.preferredCountries.filter(x => x !== c) : [...form.preferredCountries, c]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Name is required.'); return; }
+    setSaving(true); setError('');
+    try {
+      const updated = await api.students.update(normalId(student), {
+        name: form.name.trim(), phone: form.phone.trim(), nationality: form.nationality.trim(),
+        educationLevel: form.educationLevel,
+        gpa: form.gpa ? parseFloat(form.gpa) : null,
+        englishScore: (form.englishType && form.englishScore) ? { type: form.englishType, score: parseFloat(form.englishScore) } : null,
+        budget: form.budget ? parseInt(form.budget) : null,
+        status: form.status,
+        preferredCountries: form.preferredCountries,
+      });
+      onSaved(updated);
+    } catch (err: any) { setError(err.message || 'Failed to update student.'); }
+    setSaving(false);
+  };
+
+  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400';
+  const lbl = 'block text-xs font-semibold text-gray-700 mb-1.5';
+  const countries = Array.from(new Set([...COUNTRIES, ...form.preferredCountries]));
+  return (
+    <div className="bg-white">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center"><Pencil className="w-4 h-4 text-blue-600" /></div>
+          <h2 className="text-base font-bold text-gray-900">Edit Student</h2>
+        </div>
+        <BtnClose onClick={onClose} />
+      </div>
+      <form onSubmit={handleSubmit} className="p-5 space-y-3">
+        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</div>}
+        <div><label className={lbl}>Full Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} title="Full Name" className={inp} /></div>
+        <div><label className={lbl}>Email</label><input value={student.email || ''} disabled title="Email is the login ID and cannot be changed here" className={`${inp} bg-gray-50 text-gray-500`} /></div>
+        <div>
+          <label className={lbl}>Status</label>
+          <select value={form.status} onChange={e => set('status', e.target.value)} title="Status" className={`${inp} bg-white`}>
+            {STUDENT_STATUSES.map(st => <option key={st} value={st}>{st === 'active' ? 'Active' : 'Inactive'}</option>)}
+          </select>
+        </div>
+        <div><label className={lbl}>Phone</label><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 9999999999" className={inp} /></div>
+        <div><label className={lbl}>Nationality</label><input value={form.nationality} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Indian" className={inp} /></div>
+        <div>
+          <label className={lbl}>Education Level</label>
+          <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)} title="Education Level" className={`${inp} bg-white`}>
+            <option value="">Select level…</option>
+            {Array.from(new Set([...EDUCATION_LEVELS, form.educationLevel].filter(Boolean))).map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </div>
+        <div><label className={lbl}>GPA</label><input type="number" step="0.01" min="0" max="10" value={form.gpa} onChange={e => set('gpa', e.target.value)} placeholder="e.g. 8.5" className={inp} /></div>
+        <div><label className={lbl}>Budget (USD)</label><input type="number" min="0" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="e.g. 50000" className={inp} /></div>
+        <div>
+          <label className={lbl}>English Test</label>
+          <select value={form.englishType} onChange={e => set('englishType', e.target.value)} title="English Test" className={`${inp} bg-white`}>
+            <option value="">Select…</option>
+            {Array.from(new Set([...ENGLISH_TYPES, form.englishType].filter(Boolean))).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div><label className={lbl}>Score</label><input type="number" step="0.5" value={form.englishScore} onChange={e => set('englishScore', e.target.value)} placeholder="e.g. 7.5" className={inp} /></div>
+        <div>
+          <label className={lbl}>Preferred Countries</label>
+          <div className="flex flex-wrap gap-1.5">
+            {countries.map(c => { const sel = form.preferredCountries.includes(c); return (
+              <button key={c} type="button" onClick={() => toggleCountry(c)}
+                className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'}`}>
+                {sel && <Check className="w-3 h-3" />}{c}
+              </button>
+            ); })}
+          </div>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <BtnGhost onClick={onClose} className="flex-1">Cancel</BtnGhost>
+          <BtnPrimary type="submit" disabled={saving} className="flex-1" variant="blue">
+            {saving ? <><Spinner size={4} white />Saving…</> : <><Check className="w-4 h-4" />Save</>}
+          </BtnPrimary>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStatusChange, onEdit, editPanel, onStudentChange, asPage = false, initialTab }: {
+  onStatusChange?: (status: string) => Promise<unknown>;
+  onEdit?: () => void;
+  /** When set (page mode), replaces the sidebar details — used for inline editing */
+  editPanel?: React.ReactNode;
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
   onLeadStage?: (stage: string) => Promise<unknown>;
   onStudentChange?: (s: any) => void;
@@ -494,7 +630,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
                 <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="truncate">{student.counselorName || 'Unassigned'}</span>
               </p>
-              <div className="mt-1"><StatusBadge status={student.status} /></div>
+              <div className="mt-1">{onStatusChange ? <StudentStatusSelect value={student.status} onSave={onStatusChange} /> : <StatusBadge status={student.status} />}</div>
             </div>
           </div>
           {onLeadStage && (
@@ -507,7 +643,9 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
         <div className="grid grid-cols-2 gap-2 p-4 border-b border-gray-100">
           {onChat && <button type="button" onClick={onChat} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
           {onNewApplication && <button type="button" onClick={onNewApplication} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 shadow-sm transition-all"><Plus className="w-4 h-4" />Application</button>}
+          {onEdit && !editPanel && <button type="button" onClick={onEdit} className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"><Pencil className="w-4 h-4" />Edit Profile</button>}
         </div>
+        {editPanel ?? (<>
         <div className="p-5 border-b border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
           <div className="space-y-2 text-sm">
@@ -538,6 +676,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{student.documents?.length ?? 0}</p><p className="text-[11px] text-gray-500">Documents</p></div>
           </div>
         </div>
+        </>)}
       </aside>
 
       <div className="flex-1 min-w-0 w-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[calc(100vh-10rem)]">
@@ -572,12 +711,14 @@ function AdminStudentPage({ studentId, listStudent, onChat, onNewApplication, on
   const [searchParams] = useSearchParams();
   const [student, setStudent] = useState<any>(listStudent || null);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
 
   // Reload whenever the student changes (incl. via the ‹ › arrows).
   // Show the list's copy straight away, then swap in the full profile.
   useEffect(() => {
     let cancelled = false;
     setError('');
+    setEditing(false);
     setStudent(listStudent || null);
     api.students.get(studentId)
       .then(s => { if (!cancelled) setStudent(s); })
@@ -614,6 +755,12 @@ function AdminStudentPage({ studentId, listStudent, onChat, onNewApplication, on
           onChat={() => onChat(student)}
           onNewApplication={() => onNewApplication(student)}
           onLeadStage={async stage => { const u = await api.students.setLeadStage(studentId, stage); update({ leadStage: u.leadStage }); }}
+          onStatusChange={async status => { const u = await api.admin.updateStudentStatus(studentId, status); update({ status: u.status }); }}
+          onEdit={() => setEditing(true)}
+          editPanel={editing ? (
+            <EditStudentPanel student={student} onClose={() => setEditing(false)}
+              onSaved={u => { update(u); setEditing(false); }} />
+          ) : undefined}
           onStudentChange={update} />
       )}
     </div>
@@ -1043,26 +1190,6 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
   );
 }
 
-// ── Status pill ──────────────────────────────────────────────────────────────
-function StatusPill({ status }: { status: string }) {
-  const s = status?.toLowerCase() ?? '';
-  let cls = 'bg-purple-100 text-purple-700 border border-purple-200';
-  if (s === 'active') cls = 'bg-green-100 text-green-700 border border-green-200';
-  else if (s === 'inactive') cls = 'bg-gray-100 text-gray-600 border border-gray-200';
-  else if (s === 'counseling') cls = 'bg-sky-100 text-sky-700 border border-sky-200';
-  else if (s === 'shortlisting') cls = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
-  else if (s === 'application') cls = 'bg-blue-100 text-blue-700 border border-blue-200';
-  else if (s === 'test_preparation') cls = 'bg-yellow-100 text-yellow-700 border border-yellow-200';
-  else if (s === 'visa_process') cls = 'bg-orange-100 text-orange-700 border border-orange-200';
-  else if (s === 'loan_process') cls = 'bg-pink-100 text-pink-700 border border-pink-200';
-  else if (s === 'enrolled') cls = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-  else if (s === 'registered') cls = 'bg-slate-100 text-slate-600 border border-slate-200';
-  else if (s === 'under_review' || s === 'under review') cls = 'bg-blue-100 text-blue-700 border border-blue-200';
-  else if (s === 'pending' || s === 'incomplete') cls = 'bg-amber-100 text-amber-700 border border-amber-200';
-  const label = (status || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  return <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${cls}`}>{label}</span>;
-}
-
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function AdminStudents() {
   const navigate = useNavigate();
@@ -1083,7 +1210,6 @@ export default function AdminStudents() {
   const [newAppStudent, setNewAppStudent] = useState<any>(null);
   const [meetingStudent, setMeetingStudent] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [assigningIds, setAssigningIds] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState('');
@@ -1154,12 +1280,10 @@ export default function AdminStudents() {
     setDeletingId(null);
   };
 
-  const handleToggle = async (student: any) => {
-    const id = normalId(student); const newStatus = student.status === 'active' ? 'inactive' : 'active';
-    setTogglingId(id);
-    try { const updated = await api.admin.updateStudentStatus(id, newStatus); setStudents(prev => prev.map(s => normalId(s) === id ? updated : s)); }
-    catch { alert('Failed to update status.'); }
-    setTogglingId(null);
+  // Throws on failure so the status picker can show the error
+  const handleStatusChange = async (id: string, status: string) => {
+    const updated = await api.admin.updateStudentStatus(id, status);
+    setStudents(prev => prev.map(s => normalId(s) === id ? updated : s));
   };
 
   const handleInlineAssign = async (studentId: string, counselorId: string) => {
@@ -1385,7 +1509,6 @@ export default function AdminStudents() {
                 <option value="">Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="enrolled">Enrolled</option>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             </div>
@@ -1464,8 +1587,6 @@ export default function AdminStudents() {
                     const id = normalId(s);
                     const words = (s.name || '').trim().split(' ');
                     const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : (s.name?.slice(0, 2) || '??').toUpperCase();
-                    const isActive = s.status === 'active';
-                    const isToggling = togglingId === id;
                     const isAssigning = assigningIds.has(id);
                     const isDeleting = deletingId === id;
                     return (
@@ -1515,7 +1636,7 @@ export default function AdminStudents() {
                         {/* Lead stage */}
                         <td className="px-4 py-3.5"><LeadStageSelect value={s.leadStage} onSave={stage => handleLeadStage(id, stage)} /></td>
                         {/* Status */}
-                        <td className="px-4 py-3.5"><StatusPill status={s.status} /></td>
+                        <td className="px-4 py-3.5"><StudentStatusSelect value={s.status} onSave={next => handleStatusChange(id, next)} /></td>
                         {/* Actions */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1.5 justify-end">
@@ -1536,10 +1657,6 @@ export default function AdminStudents() {
                             <button type="button" onClick={() => setMeetingStudent(s)} title="Start group meeting"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors">
                               <Video className="w-3.5 h-3.5" />
-                            </button>
-                            <button type="button" onClick={() => handleToggle(s)} disabled={isToggling} title={isActive ? 'Deactivate' : 'Activate'}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${isActive ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'}`}>
-                              {isToggling ? <Spinner size={3} /> : isActive ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
                             </button>
                             <button type="button" onClick={() => handleDelete(id)} disabled={isDeleting} title="Delete"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50">
