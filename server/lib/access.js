@@ -147,7 +147,29 @@ function can(perm) {
   };
 }
 
+/**
+ * Route helper: 404s if the target isn't a student, 403s if the caller
+ * can't see (or, with `{ manage: true }`, can't change) them. Admins always
+ * pass. Sends the response itself and returns true when the caller should
+ * stop; returns false to let the route proceed.
+ */
+async function denyStudent(req, res, id, { manage = false } = {}) {
+  const student = await User.findById(id).select('role counselorId assignedStudents').lean();
+  if (!student || student.role !== 'student') {
+    res.status(404).json({ message: 'Student not found' });
+    return true;
+  }
+  if (req.user.role === 'admin') return false;
+  const access = await loadAccess(req);
+  const allowed = manage ? canManage(access, student) : canView(access, student);
+  if (!allowed) {
+    res.status(403).json({ message: 'Forbidden' });
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   PERMISSIONS, ALL_KEYS, seedProfiles, loadAccess, studentFilter,
-  ownsStudent, canView, canManage, can,
+  ownsStudent, canView, canManage, can, denyStudent,
 };

@@ -10,8 +10,18 @@ const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, canView } = require('../lib/access');
+const attachUserEmail = require('../middleware/attachUserEmail');
+const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 
 const router = express.Router();
+
+// Grants of admin-level access are rare and high-impact; the SOC raises an incident for each.
+function logPrivilegeChange(req, message) {
+  logSecurityEvent('privilege_change', {
+    severity: 'high', userId: req.user.id, email: req.user.email || '', role: req.user.role,
+    ip: req.ip, userAgent: req.headers['user-agent'] || '', message,
+  }).catch(() => {});
+}
 
 function adminOnly(req, res, next) {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
@@ -234,7 +244,7 @@ router.get('/appteam-users', authMiddleware, adminOnly, blockAppTeam, async (req
 });
 
 // Toggle isAppTeam for an admin user
-router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
   const makeAppTeam = !!req.body.isAppTeam;
   try {
     // Reclassifying the very last non-appteam admin into Application Team would leave no one
@@ -257,6 +267,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async 
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+    if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -265,7 +276,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async 
 
 // Create an Application Team member (admin-role account, isAppTeam: true). Open to any
 // admin — same permission as creating a counselor, not restricted to non-appteam admins.
-router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
@@ -277,6 +288,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res
       role: 'admin', isAppTeam: true, emailVerified: true,
     });
     await member.save();
+    logPrivilegeChange(req, `Admin-role account created for ${member.email}`);
     const obj = member.toJSON();
     delete obj.password;
     res.status(201).json(obj);
@@ -509,6 +521,7 @@ router.post('/applications', authMiddleware, can('applications.create'), async (
       status: 'submitted',
       submittedDate: today,
       updatedDate: now,
+      statusChangedAt: now,
     };
     const student = await User.findOneAndUpdate(
       { _id: studentId, role: 'student' },
@@ -561,6 +574,7 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
 
     const update = { 'applications.$.updatedDate': new Date().toISOString() };
     if (status) update['applications.$.status'] = status;
+    if (status && status !== currentStatus) update['applications.$.statusChangedAt'] = new Date();
     if (notes !== undefined) update['applications.$.notes'] = notes;
     if (status === 'rejected' && currentStatus) update['applications.$.rejectedFrom'] = currentStatus;
     if (offerType !== undefined) update['applications.$.offerType'] = status === 'offer_received' ? offerType : '';

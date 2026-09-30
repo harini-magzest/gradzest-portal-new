@@ -15,7 +15,7 @@ const securityIncidentSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "manual"],
+      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "impossible_travel", "credential_stuffing", "privilege_escalation", "off_hours_admin", "new_device_privileged", "password_reset_abuse", "mass_export", "manual"],
       required: true,
     },
     severity: {
@@ -43,6 +43,22 @@ const securityIncidentSchema = new mongoose.Schema(
       default: null,
     },
     notes: [NoteSchema],
+    // Auto-set by the daily security-digest job when an open/investigating
+    // incident has had no update (note, status change, new source event) in
+    // 14+ days — a triage-fatigue signal, not an analyst-driven outcome, so
+    // it's separate from `status` and never changes it.
+    stale: { type: Boolean, default: false },
+    // SLA + outcome tracking. acknowledgedAt = first analyst touch (status
+    // leaves "open", assignment, or a note); resolvedAt = closed as
+    // resolved/false_positive (cleared if reopened).
+    acknowledgedAt: { type: Date, default: null },
+    resolvedAt: { type: Date, default: null },
+    resolutionReason: {
+      type: String,
+      enum: ["", "fixed", "benign_activity", "expected_behavior", "testing", "duplicate", "other"],
+      default: "",
+    },
+    resolutionComment: { type: String, default: "" },
   },
   { timestamps: true },
 );

@@ -5,10 +5,12 @@ import {
 } from 'recharts';
 import {
   KeyRound, Lock, ShieldAlert, Globe2, RefreshCw, AlertCircle, Pause, Play, Trash2, Wifi, WifiOff,
-  LogIn, LogOut,
+  LogIn, LogOut, Download, Search,
 } from 'lucide-react';
 import { api, API_ORIGIN, getApiToken } from '../../api';
 import { SkeletonStat } from '../Skeleton';
+import OverviewInsights, { deltaLabel } from './OverviewInsights';
+import SavedFilters from './SavedFilters';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -36,13 +38,16 @@ const SEVERITY_STYLE: Record<string, { bg: string; text: string; label: string }
 const TYPE_ICON: Record<string, any> = {
   login_success: LogIn, login_failure: KeyRound, login_lockout: Lock,
   logout: LogOut, token_invalid: ShieldAlert, token_expired: ShieldAlert, password_reset: KeyRound,
+  password_reset_request: KeyRound, privilege_change: ShieldAlert,
 };
 const TYPE_LABEL: Record<string, string> = {
   login_success: 'Login', login_failure: 'Failed login', login_lockout: 'Lockout',
   logout: 'Logout', token_invalid: 'Invalid token', token_expired: 'Expired token', password_reset: 'Password reset',
+  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', malware_upload: 'Malware upload', waf_block: 'WAF block',
+  skyload_bot_flag: 'Bot flag', skyload_throttle: 'Throttled',
 };
 
-function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string | number; sub?: string; color: string }) {
+function StatCard({ icon: Icon, label, value, sub, color, delta }: { icon: any; label: string; value: string | number; sub?: string; color: string; delta?: { text: string; up: boolean | null } }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -52,6 +57,7 @@ function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: 
         <p className="text-2xl font-bold text-gray-900">{value}</p>
         <p className="text-sm font-medium text-gray-700 mt-0.5">{label}</p>
         {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        {delta?.text && <p className={`text-[11px] font-medium mt-0.5 ${delta.up === null ? 'text-gray-400' : delta.up ? 'text-red-600' : 'text-green-600'}`}>{delta.text}</p>}
       </div>
     </div>
   );
@@ -68,6 +74,9 @@ export default function OverviewTab() {
   const [isLive, setIsLive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedFilters, setFeedFilters] = useState({ q: '', type: 'all', severity: 'all' });
+  const filtersRef = useRef(feedFilters);
+  useEffect(() => { filtersRef.current = feedFilters; }, [feedFilters]);
   const pauseRef = useRef(isPaused);
   const pendingRef = useRef<SecurityEvent[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -84,12 +93,24 @@ export default function OverviewTab() {
 
   useEffect(() => {
     setFeedLoading(true);
-    fetch(`${API_ORIGIN}/api/soc/events?limit=50`, { headers: { Authorization: `Bearer ${getApiToken()}` } })
-      .then(res => res.json())
-      .then(data => setEvents(data.events || []))
-      .catch(() => {})
-      .finally(() => setFeedLoading(false));
-  }, []);
+    // Debounced so typing in the search box doesn't fire a request per keystroke.
+    const timer = setTimeout(() => {
+      api.soc.events({ limit: 50, q: feedFilters.q.trim() || undefined, type: feedFilters.type, severity: feedFilters.severity })
+        .then(data => setEvents(data.events || []))
+        .catch(() => {})
+        .finally(() => setFeedLoading(false));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [feedFilters]);
+
+  // Live events must respect the active filters too, or a filtered view would fill up with non-matches.
+  const matchesFilters = (e: SecurityEvent) => {
+    const f = filtersRef.current;
+    if (f.type !== 'all' && e.type !== f.type) return false;
+    if (f.severity !== 'all' && e.severity !== f.severity) return false;
+    const q = f.q.trim().toLowerCase();
+    return !q || [e.email, e.ip, e.message].some(v => (v || '').toLowerCase().includes(q));
+  };
 
   useEffect(() => {
     const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
@@ -100,6 +121,7 @@ export default function OverviewTab() {
     socket.on('disconnect', () => setIsLive(false));
     socket.on('connect_error', () => setIsLive(false));
     socket.on('security_event', (event: SecurityEvent) => {
+      if (!matchesFilters(event)) return;
       if (pauseRef.current) {
         pendingRef.current = [event, ...pendingRef.current];
         setPendingCount(pendingRef.current.length);
@@ -120,6 +142,11 @@ export default function OverviewTab() {
       }
       return !was;
     });
+  };
+  const exportFeedCsv = () => {
+    const params = new URLSearchParams({ type: feedFilters.type, severity: feedFilters.severity });
+    if (feedFilters.q.trim()) params.set('q', feedFilters.q.trim());
+    api.soc.download(`/events/export.csv?${params}`, 'soc-events.csv').catch(() => {});
   };
   const clearFeed = () => { setEvents([]); pendingRef.current = []; setPendingCount(0); };
 
@@ -157,9 +184,9 @@ export default function OverviewTab() {
       ) : stats && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={KeyRound} label="Failed Logins" value={stats.failedLogins} sub={`in last ${period}`} color="bg-gradient-to-br from-orange-500 to-amber-500" />
+            <StatCard icon={KeyRound} label="Failed Logins" value={stats.failedLogins} sub={`in last ${period}`} delta={deltaLabel(stats.failedLogins, stats.previous?.failedLogins, period)} color="bg-gradient-to-br from-orange-500 to-amber-500" />
             <StatCard icon={Lock} label="Active Lockouts" value={stats.activeLockouts} sub="locked right now" color="bg-gradient-to-br from-red-500 to-rose-600" />
-            <StatCard icon={ShieldAlert} label="Blocked / Unauthorized" value={stats.blockedRequests + stats.unauthorizedRequests} sub={`${stats.blockedRequests} rate-limited, ${stats.unauthorizedRequests} 401/403`} color="bg-gradient-to-br from-purple-600 to-indigo-600" />
+            <StatCard icon={ShieldAlert} label="Blocked / Unauthorized" value={stats.blockedRequests + stats.unauthorizedRequests} sub={`${stats.blockedRequests} rate-limited, ${stats.unauthorizedRequests} 401/403`} delta={deltaLabel(stats.blockedRequests + stats.unauthorizedRequests, stats.previous ? stats.previous.blockedRequests + stats.previous.unauthorizedRequests : undefined, period)} color="bg-gradient-to-br from-purple-600 to-indigo-600" />
             <StatCard icon={Globe2} label="Unique IPs" value={stats.uniqueIps} sub={`in last ${period}`} color="bg-gradient-to-br from-blue-500 to-indigo-600" />
           </div>
 
@@ -213,6 +240,8 @@ export default function OverviewTab() {
               </div>
             )}
           </div>
+
+          <OverviewInsights stats={stats} period={period} />
         </>
       )}
 
@@ -242,6 +271,30 @@ export default function OverviewTab() {
             </button>
             {isLive ? <Wifi className="w-3.5 h-3.5 text-green-500" /> : <WifiOff className="w-3.5 h-3.5 text-gray-300" />}
           </div>
+        </div>
+        <div className="px-5 py-3 border-b border-gray-100 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[12rem]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input value={feedFilters.q} onChange={e => setFeedFilters(f => ({ ...f, q: e.target.value }))} placeholder="Search email, IP or message…"
+                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <select value={feedFilters.type} onChange={e => setFeedFilters(f => ({ ...f, type: e.target.value }))}
+              className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="all">All types</option>
+              {Object.entries(TYPE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+            </select>
+            <select value={feedFilters.severity} onChange={e => setFeedFilters(f => ({ ...f, severity: e.target.value }))}
+              className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="all">All severities</option>
+              {Object.entries(SEVERITY_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <button type="button" onClick={exportFeedCsv}
+              className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          </div>
+          <SavedFilters storageKey="soc.feedFilters" current={feedFilters} onApply={setFeedFilters} />
         </div>
         <div className="flex-1 overflow-y-auto" style={{ maxHeight: '420px', minHeight: '160px' }}>
           {feedLoading ? (

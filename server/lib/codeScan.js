@@ -46,7 +46,6 @@ const FEATURE_PATTERNS = [
   { key: 'rate_limit', label: 'Rate limiting (express-rate-limit)', pattern: /rateLimit\(|authLimiter|generalLimiter/ },
   { key: 'helmet', label: 'Helmet security headers', pattern: /helmet\(/ },
   { key: 'nosql_sanitize', label: 'NoSQL sanitization (express-mongo-sanitize)', pattern: /mongoSanitize/ },
-  { key: 'oauth_csrf', label: 'OAuth CSRF state parameter', pattern: /github_oauth_state|oauth_state/ },
   { key: 'account_lockout', label: 'Account lockout (lockedUntil)', pattern: /lockedUntil/ },
   { key: 'password_reset_invalidation', label: 'Password reset session invalidation', pattern: /resetPasswordToken/ },
   { key: 'password_strength', label: 'Password strength validation', pattern: /validatePasswordStrength/ },

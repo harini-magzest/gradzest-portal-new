@@ -34,6 +34,16 @@ router.get('/', authMiddleware, can('applications.view'), async (req, res) => {
   }
 });
 
+// Fields a student may supply when applying. Everything else on an application
+// (offer letter, offer type, staff comments/notes, ids) is staff- or server-controlled.
+const STUDENT_APPLICATION_FIELDS = [
+  'universityId', 'universityName', 'courseId', 'courseName', 'intake', 'studyMode', 'scholarshipInterest',
+  'dateOfBirth', 'gender', 'passportNumber', 'phone', 'address',
+  'educationLevel', 'previousInstitution', 'previousDegree', 'previousMajor', 'graduationYear', 'percentage',
+  'englishTest', 'moi', 'englishProficiencyTest', 'fundingSource', 'sponsorName',
+  'whyCourse', 'careerGoals', 'whyUniversity', 'documentsChecklist',
+];
+
 // Create application (student only)
 router.post('/', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
@@ -43,7 +53,8 @@ router.post('/', authMiddleware, async (req, res) => {
   const now = new Date().toISOString();
   const today = now.split('T')[0];
   try {
-    const app = { ...req.body, studentId: req.user.id, submittedDate: today, updatedDate: now, status: 'submitted' };
+    const supplied = Object.fromEntries(STUDENT_APPLICATION_FIELDS.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
+    const app = { ...supplied, studentId: req.user.id, submittedDate: today, updatedDate: now, statusChangedAt: now, status: 'submitted' };
     const user = await User.findByIdAndUpdate(req.user.id, { $push: { applications: app } }, { new: true }).select('-password');
     const newApp = user.applications[user.applications.length - 1];
     fireEvent('application.created', { studentId: user._id, application: newApp });
@@ -101,6 +112,7 @@ router.put('/:appId', authMiddleware, can('applications.edit'), async (req, res)
 
     const updateFields = { 'applications.$.status': status, 'applications.$.updatedDate': new Date().toISOString() };
     if (notes !== undefined) updateFields['applications.$.notes'] = notes;
+    if (status && status !== currentStatus) updateFields['applications.$.statusChangedAt'] = new Date();
     if (status === 'rejected' && currentStatus) updateFields['applications.$.rejectedFrom'] = currentStatus;
     if (offerType !== undefined) updateFields['applications.$.offerType'] = status === 'offer_received' ? offerType : '';
 

@@ -63,6 +63,9 @@ const ApplicationSchema = new mongoose.Schema({
   },
   submittedDate: String,
   updatedDate: String,
+  // When `status` last changed — distinct from updatedDate, which also bumps on notes-only edits.
+  // Drives the "stuck application" / "offer response deadline" automation checks.
+  statusChangedAt: { type: Date, default: Date.now },
   notes: String,
   intake: String,
   offerLetterUrl: String,
@@ -223,6 +226,8 @@ const UserSchema = new mongoose.Schema({
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
   leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment', 'future_lead', 'other_agent', 'dropped_plans', 'test_prep', 'dnd', 'not_responding', 'other'] },
+  // When leadStage last changed — drives the "stale lead" automation field (days since last movement)
+  leadStageChangedAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
 
   // Email verification

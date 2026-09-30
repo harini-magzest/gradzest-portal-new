@@ -72,7 +72,17 @@ router.post('/login', async (req, res) => {
   if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
+    if (!user) {
+      // Logged too (with no userId) so spraying across accounts that don't exist
+      // is still visible to the credential-stuffing rule and the SOC feed.
+      logSecurityEvent('login_failure', {
+        severity: 'low',
+        email: String(email).toLowerCase().slice(0, 254),
+        ip: req.ip, userAgent: req.headers['user-agent'] || '',
+        message: 'Failed login attempt for unknown account',
+      }).catch(() => {});
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
     // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > Date.now()) {
@@ -307,6 +317,14 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ message: 'Email is required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
+    // Logged whether or not the account exists (the response is identical either
+    // way) so the reset-abuse rule sees enumeration attempts as well.
+    logSecurityEvent('password_reset_request', {
+      severity: 'info',
+      userId: user?._id, email: String(email).toLowerCase().slice(0, 254), role: user?.role || '',
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: 'Password reset link requested',
+    }).catch(() => {});
     if (!user) return res.json({ message: 'If that email exists, a reset link has been sent.' });
 
     const rawToken = crypto.randomBytes(32).toString('hex');

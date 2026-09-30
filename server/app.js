@@ -252,8 +252,6 @@ app.post('/api/subscribe', async (req, res) => {
 // Give the activity/security loggers access to the socket server
 initActivityLogger(io);
 initSecurityLogger(io);
-// Automation rules send mail and push socket notifications
-require('./lib/automation').initAutomation({ io, userSockets, mailer });
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/countries', require('./routes/countries'));
@@ -271,9 +269,9 @@ app.use('/api/soc', require('./routes/soc'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
+app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
-app.use('/api/automation',    require('./routes/automation'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');

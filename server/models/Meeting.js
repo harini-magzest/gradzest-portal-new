@@ -14,6 +14,8 @@ const MeetingSchema = new mongoose.Schema({
     email: String,
   }],
   status: { type: String, enum: ['scheduled', 'ongoing', 'completed', 'cancelled'], default: 'scheduled' },
+  // Which reminder windows have already fired for this meeting — e.g. ['24h', '1h']. Prevents duplicate reminders.
+  remindersSent: { type: [String], default: [] },
   notes: String,
   createdBy: String,
   createdByName: { type: String, default: '' },
