@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, X, Search, BookOpen, Edit2, DollarSign, Check, Award,
-  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle,
+  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag,
 } from 'lucide-react';
 import { api } from '../../api';
-import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
+import { checkCourseEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
+import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
+import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
+import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const CURRENCIES = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'SGD', 'NZD'];
@@ -576,8 +579,9 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   );
 }
 
-function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply }: {
+function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply, onCustom, eligibility }: {
   course: any; uniName: string; uniId?: string; onEdit: () => void; onDelete: () => void; onApply: () => void;
+  onCustom: () => void; eligibility?: EligibilityResult;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -620,11 +624,22 @@ function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply }: {
               </span>
             )}
           </div>
+          {eligibility && eligibility.status !== 'unknown' && (
+            <span title={[...eligibility.missing, ...eligibility.warnings].join(' · ')}
+              className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border mt-1.5 ${ELIGIBILITY_BADGE[eligibility.status].classes}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${ELIGIBILITY_BADGE[eligibility.status].dot}`} />{ELIGIBILITY_BADGE[eligibility.status].label}
+            </span>
+          )}
+          <div className="mt-1.5"><CourseCustomChips course={course} /></div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button type="button" onClick={onApply}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0d1b4b] hover:bg-[#152258] active:scale-95 transition-all shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Apply
+          </button>
+          <button type="button" onClick={onCustom}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
+            <Tag className="w-3.5 h-3.5" /> Tags
           </button>
           <button type="button" onClick={onEdit}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100 active:scale-95 transition-all">
@@ -679,10 +694,8 @@ export default function AdminCourses() {
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState('');
-  const [uniFilter, setUniFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
+  const [filters, setFilters] = useState<CourseFilters>(EMPTY_FILTERS);
+  const [customEdit, setCustomEdit] = useState<any | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<{ course: any; uniId: string } | null>(null);
   const [applyModal, setApplyModal] = useState<any | null>(null);
@@ -700,28 +713,19 @@ export default function AdminCourses() {
     api.admin.students().then(setStudents).catch(() => {});
   }, []);
 
-  const allCourses = universities.flatMap(uni =>
-    (uni.courses || []).map((c: any) => ({
-      ...c,
-      _uniId: normalId(uni),
-      _uniName: uni.name,
-      _uniCountry: uni.country || '',
-      website: uni.website,
-      _uniLogo: uni.logo,
-      _uniUpdatedAt: uni.updatedAt || uni.createdAt || 0,
-    }))
-  );
+  const allCourses = useMemo(() => flattenCourses(universities).map(c => ({
+    ...c, _uniId: c.uniMongoId, _uniName: c.uniName, _uniCountry: c.country || '', _uniLogo: c.uniLogo,
+  })), [universities]);
+  const results = useMemo(() => searchCourses(allCourses, filters, students), [allCourses, filters, students]);
+  const opts = useMemo(() => filterOptions(allCourses), [allCourses]);
 
-  const countryList = [...new Set(universities.map((u: any) => u.country).filter(Boolean))].sort() as string[];
-
-  const filtered = allCourses.filter(c => {
-    const q = query.toLowerCase();
-    const matchQ = !query || c.name?.toLowerCase().includes(q) || c._uniName?.toLowerCase().includes(q) || c.department?.toLowerCase().includes(q);
-    const matchLevel = !levelFilter || c.level === levelFilter;
-    const matchUni = !uniFilter || c._uniId === uniFilter;
-    const matchCountry = !countryFilter || c._uniCountry === countryFilter;
-    return matchQ && matchLevel && matchUni && matchCountry;
-  }).sort((a, b) => new Date(b._uniUpdatedAt).getTime() - new Date(a._uniUpdatedAt).getTime());
+  const applyCustom = (course: any, data: { tags: string[]; customFields: { key: string; value: string }[] }) => {
+    const cid = normalId(course);
+    setUniversities(prev => prev.map(u => normalId(u) !== course._uniId ? u : {
+      ...u, courses: (u.courses || []).map((c: any) => normalId(c) === cid ? { ...c, ...data } : c),
+    }));
+    setCustomEdit(null);
+  };
 
   const handleDelete = async (uniId: string, courseId: string) => {
     if (!window.confirm('Delete this course? This cannot be undone.')) return;
@@ -733,7 +737,6 @@ export default function AdminCourses() {
 
   const totalCourses = allCourses.length;
   const withScholarship = allCourses.filter(c => c.scholarshipAvailable).length;
-  const uniNames = universities.map(u => ({ id: normalId(u), name: u.name }));
 
   return (
     <>
@@ -759,6 +762,11 @@ export default function AdminCourses() {
           students={students}
           onClose={() => setApplyModal(null)}
         />
+      )}
+      {customEdit && (
+        <CourseCustomDataModal course={customEdit} uniId={customEdit._uniId}
+          knownTags={opts.tags} knownKeys={opts.customFieldKeys}
+          onClose={() => setCustomEdit(null)} onSaved={data => applyCustom(customEdit, data)} />
       )}
 
       <div className="space-y-6">
@@ -794,45 +802,23 @@ export default function AdminCourses() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search courses, universities, departments…"
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm" />
-          </div>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)}
-            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm text-gray-700">
-            <option value="">All Levels</option>
-            {LEVELS.map(l => <option key={l}>{l}</option>)}
-          </select>
-          <select value={uniFilter} onChange={e => setUniFilter(e.target.value)}
-            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm text-gray-700 max-w-[220px]">
-            <option value="">All Universities</option>
-            {uniNames.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
-          <select aria-label="Filter by country" value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
-            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm text-gray-700">
-            <option value="">All Countries</option>
-            {countryList.map(c => <option key={c}>{c}</option>)}
-          </select>
-        </div>
+        <AdvancedCourseSearch courses={allCourses} students={students} value={filters} onSearch={setFilters} accent="purple" resultCount={results.length} />
 
         {/* Course list */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : results.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-sm">
             <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="text-sm font-medium">
-              {query || levelFilter || uniFilter ? 'No courses match your filters.' : 'No courses yet. Add courses via universities or use the button above.'}
+              {allCourses.length ? 'No courses match your filters.' : 'No courses yet. Add courses via universities or use the button above.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(c => (
+            {results.map(({ course: c, eligibility }) => (
               <CourseCard
                 key={`${c._uniId}-${normalId(c)}`}
                 course={c}
@@ -841,6 +827,8 @@ export default function AdminCourses() {
                 onEdit={() => setEditing({ course: c, uniId: c._uniId })}
                 onDelete={() => handleDelete(c._uniId, normalId(c))}
                 onApply={() => setApplyModal(c)}
+                onCustom={() => setCustomEdit(c)}
+                eligibility={eligibility}
               />
             ))}
           </div>

@@ -6,14 +6,15 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, ToggleLeft, ToggleRight,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy,
+  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy, Mail, Crown,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
-import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
+import { RECORD_TABS, RecordNav, RecordTab, StudentRecordPanel, TabCount, recordTabCount, useStudentRecord } from '../../components/StudentRecord';
+import StudentInfoPanel from '../../components/StudentInfoPanel';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -278,10 +279,11 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
 }
 
 // ── Student detail modal ─────────────────────────────────────────────────────
-function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange }: {
+function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStudentChange, nav }: {
   student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void;
   onLeadStage?: (stage: string) => Promise<unknown>;
   onStudentChange?: (s: any) => void;
+  nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
 }) {
   const [tab, setTab] = useState<'overview' | 'courses' | RecordTab>('overview');
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
@@ -307,7 +309,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-4xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white rounded-2xl w-full max-w-4xl lg:max-w-6xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 pt-6 pb-5 flex-shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -315,6 +317,9 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
               <div>
                 <h2 className="text-xl font-bold text-white">{student.name}</h2>
                 <p className="text-blue-200 text-sm mt-0.5">{student.email}</p>
+                <p className="flex items-center gap-1.5 text-sm text-white/90 mt-0.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-300" />{record?.owner?.name || 'No counselor assigned'}
+                </p>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <StatusBadge status={student.status} />
                   {onLeadStage && <LeadStageSelect value={student.leadStage} onSave={onLeadStage} />}
@@ -322,7 +327,10 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
                 </div>
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {nav && <RecordNav {...nav} dark />}
+              <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
+            </div>
           </div>
           <div className="grid grid-cols-4 gap-3 mt-5">
             {[{ label: 'Applications', value: student.applications?.length ?? 0 }, { label: 'Documents', value: student.documents?.length ?? 0 }, { label: 'GPA', value: student.gpa ?? '—' }, { label: 'Budget', value: student.budget ? `$${Number(student.budget).toLocaleString()}` : '—' }].map(stat => (
@@ -333,11 +341,16 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             ))}
           </div>
         </div>
+        <div className="flex flex-1 min-h-0">
+        <aside className="hidden lg:block w-80 flex-shrink-0 border-r border-gray-100 overflow-y-auto bg-white">
+          <StudentInfoPanel key={normalId(student)} student={student} owner={record?.owner} canEdit onStudentChange={s => onStudentChange?.(s)} />
+        </aside>
+        <div className="flex flex-col flex-1 min-w-0">
         <div className="flex border-b border-gray-100 flex-shrink-0 px-6 bg-white overflow-x-auto">
           {[{ key: 'overview', label: 'Overview' }, ...RECORD_TABS, { key: 'courses', label: 'Course Eligibility' }].map(t => (
             <button key={t.key} type="button" onClick={() => { setTab(t.key as any); setEligFilter(''); }}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {t.label}
+              {t.label}<TabCount n={recordTabCount(t.key, student, record)} />
             </button>
           ))}
         </div>
@@ -462,8 +475,11 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
             </div>
           )}
         </div>
+        </div>
+        </div>
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 flex gap-3">
-          {onChat && <button type="button" onClick={onChat} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md active:scale-[0.98] transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
+          <button type="button" onClick={() => setTab('emails')} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-md active:scale-[0.98] transition-all"><Mail className="w-4 h-4" />Send Mail</button>
+          {onChat &&<button type="button" onClick={onChat} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md active:scale-[0.98] transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
           {onNewApplication && <button type="button" onClick={onNewApplication} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 shadow-md active:scale-[0.98] transition-all"><Plus className="w-4 h-4" />New Application</button>}
           <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
         </div>
@@ -1104,6 +1120,15 @@ export default function AdminStudents() {
           onChat={() => { navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } }); setSelectedStudent(null); }}
           onNewApplication={() => { setNewAppStudent(selectedStudent); setSelectedStudent(null); setShowNewApp(true); }}
           onLeadStage={stage => handleLeadStage(normalId(selectedStudent), stage)}
+          nav={(() => {
+            // Step through the same filtered, sorted list the table shows (across all pages)
+            const i = filtered.findIndex(s => normalId(s) === normalId(selectedStudent));
+            return {
+              index: i, total: filtered.length,
+              onPrev: () => i > 0 && setSelectedStudent(filtered[i - 1]),
+              onNext: () => i < filtered.length - 1 && setSelectedStudent(filtered[i + 1]),
+            };
+          })()}
           onStudentChange={updated => {
             const id = normalId(selectedStudent);
             setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...updated } : s));
