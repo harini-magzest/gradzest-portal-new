@@ -21,9 +21,13 @@ const TaskSchema = new mongoose.Schema({
   comments:       [CommentSchema],
   // Set when the task is a follow-up for a website subscriber lead
   subscriberId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscriber', default: null },
+  // Set when the task was created from a student's record
+  studentId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  studentName:    { type: String, default: '' },
 }, { timestamps: true });
 
 TaskSchema.index({ assignedTo: 1, createdAt: -1 });
 TaskSchema.index({ assignedBy: 1, createdAt: -1 });
+TaskSchema.index({ studentId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Task', TaskSchema);

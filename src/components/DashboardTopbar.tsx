@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, ChevronDown, ExternalLink, User, LogOut } from 'lucide-react';
+import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
 const ICON_BTN = 'w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors flex-shrink-0';
 
 export default function DashboardTopbar({
-  workspaceLabel, dashboardHome,
+  workspaceLabel,
 }: {
   workspaceLabel: string;
-  dashboardHome: string;
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -34,7 +33,7 @@ export default function DashboardTopbar({
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-stretch h-16">
       {/* Left cell */}
-      <Link to={dashboardHome} className="hidden md:flex items-center gap-2.5 w-56 shrink-0 px-5 border-r border-gray-100">
+      <Link to="/" className="hidden md:flex items-center gap-2.5 w-56 shrink-0 px-5 border-r border-gray-100">
         <div className="w-10 h-10 bg-[#0d1b4b] rounded-xl flex items-center justify-center flex-shrink-0">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
@@ -49,9 +48,6 @@ export default function DashboardTopbar({
       {/* Right cell */}
       <div className="flex-1 flex items-center px-4 md:px-6 min-w-0">
         <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-          <Link to="/" className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <ExternalLink className="w-4 h-4" />Back to website
-          </Link>
           <NotificationBell buttonClassName={`relative ${ICON_BTN}`} />
 
           <div className="relative" ref={profileRef}>

@@ -24,7 +24,8 @@ export default function DashboardSidebar({
   const hideTooltip = () => setTooltip(null);
 
   return (
-    <aside className="hidden md:flex flex-col items-center w-20 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
+    // z-40: keep the sidebar (and its name tooltips) above sticky page content, below the z-50 top bar
+    <aside className="hidden md:flex flex-col items-center w-20 shrink-0 sticky top-16 z-40 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
       <nav className="flex-1 py-4 space-y-1">
         {navItems.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end}
@@ -35,7 +36,7 @@ export default function DashboardSidebar({
             className={({ isActive }) => `relative flex items-center justify-center w-12 h-12 rounded-xl transition-colors ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
             {({ isActive }) => (
               <>
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-600'}`} />
                 {!!item.badge && (
                   <span className="absolute -top-1 -right-1 text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center bg-red-500 text-white">
                     {item.badge > 99 ? '99+' : item.badge}

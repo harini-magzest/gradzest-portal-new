@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import obfuscator from 'vite-plugin-javascript-obfuscator'
 
@@ -55,6 +55,14 @@ export default defineConfig({
         comments: false,
       },
     },
+  },
+  test: {
+    environment: 'node',
+    globals: true,
+    setupFiles: ['./server/test/setup.ts'],
+    include: ['server/test/**/*.test.{js,ts}'],
+    testTimeout: 20000,
+    hookTimeout: 90000,
   },
   server: {
     host: '0.0.0.0',

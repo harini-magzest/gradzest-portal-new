@@ -1,7 +1,7 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect } from 'react';
-import { Link, Routes, Route, useParams, useNavigate } from 'react-router-dom';
-import { Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye } from 'lucide-react';
+import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, MapPin, UserCog } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
@@ -10,6 +10,8 @@ import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect from '../../components/LeadStageSelect';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
+import RecordNavArrows from '../../components/RecordNavArrows';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -72,13 +74,6 @@ const ENGLISH_TYPES = ['IELTS', 'TOEFL', 'PTE', 'Duolingo', 'Other'];
 const COUNTRIES = ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'New Zealand', 'Ireland', 'Netherlands', 'Singapore', 'France', 'Other'];
 
 const STUDENT_STAGES = [
-  { value: 'counseling', label: 'Counseling' },
-  { value: 'shortlisting', label: 'Shortlisting' },
-  { value: 'application', label: 'Application' },
-  { value: 'test_preparation', label: 'Test Preparation' },
-  { value: 'visa_process', label: 'Visa Process' },
-  { value: 'loan_process', label: 'Loan Process' },
-  { value: 'enrolled', label: 'Enrolled' },
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ];
@@ -87,8 +82,39 @@ const STUDENTS_PER_PAGE = 8;
 
 const ROW_BTN = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1';
 
-function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClose: () => void; onSaved: () => void }) {
+/** Inline Active/Inactive picker; saves as soon as the value changes. */
+function StudentStatusSelect({ studentId, value, editable, onSaved }: { studentId: string; value?: string; editable: boolean; onSaved: (status: string) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!editable) return <StatusBadge status={value || ''} />;
+  const current = value === 'inactive' ? 'inactive' : 'active';
+  const tone = current === 'active'
+    ? 'bg-green-50 text-green-700 border-green-200'
+    : 'bg-gray-100 text-gray-600 border-gray-200';
+  async function change(next: string) {
+    if (next === value) return;
+    setSaving(true); setError('');
+    try { await api.students.update(studentId, { status: next }); onSaved(next); }
+    catch (err: any) { setError(err.message || 'Could not update status'); }
+    finally { setSaving(false); }
+  }
+  return (
+    <span className="inline-flex flex-col">
+      <select value={current} disabled={saving} onChange={e => change(e.target.value)}
+        aria-label="Student status" title={error || 'Change status'}
+        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 ${tone}`}>
+        {STUDENT_STAGES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
+      </select>
+      {error && <span className="text-[11px] text-red-600 mt-0.5">{error}</span>}
+    </span>
+  );
+}
+
+function StudentFormModal({ student, onClose, onSaved, inline = false }: { student?: any; onClose: () => void; onSaved: () => void; inline?: boolean }) {
   const isEdit = !!student;
+  // Inline mode renders inside the narrow profile sidebar, so paired fields stack.
+  const pairGrid = inline ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3';
+  const span2 = inline ? '' : 'col-span-2';
   const [form, setForm] = useState({
     name: student?.name ?? '',
     email: student?.email ?? '',
@@ -100,7 +126,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
     englishType: student?.englishScore?.type ?? 'IELTS',
     englishScore: student?.englishScore?.score != null ? String(student.englishScore.score) : '',
     preferredCountries: (student?.preferredCountries ?? []) as string[],
-    status: student?.status ?? 'counseling',
+    status: student?.status === 'inactive' ? 'inactive' : 'active',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -162,9 +188,9 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+    <div className={inline ? '' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm'}>
+      <div className={inline ? 'bg-white' : 'bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto'}>
+        <div className={`flex items-center justify-between border-b border-gray-100 bg-white ${inline ? 'px-5 py-3' : 'px-6 py-4 sticky top-0 rounded-t-2xl z-10'}`}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
               {isEdit ? <Edit2 className="w-4 h-4 text-blue-600" /> : <UserPlus className="w-4 h-4 text-blue-600" />}
@@ -176,7 +202,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className={`${inline ? 'px-5' : 'px-6'} py-5 space-y-4`}>
           {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-sm text-red-700">{error}</div>}
 
           {!isEdit && (
@@ -186,23 +212,23 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           )}
 
           {/* Basic info */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className={pairGrid}>
+            <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name *</label>
               <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Student's full name"
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
-            <div className="col-span-2">
+            <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email Address *</label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="student@email.com"
                 disabled={isEdit} title={isEdit ? 'Email is the student\'s login and cannot be changed here' : undefined}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500" />
             </div>
             {isEdit && (
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Stage</label>
+              <div className={span2}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Status</label>
                 <select value={form.status} onChange={e => set('status', e.target.value)}
-                  aria-label="Student stage"
+                  aria-label="Student status"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
                   {STUDENT_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -221,7 +247,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           </div>
 
           {/* Education */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={pairGrid}>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Education Level</label>
               <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)}
@@ -243,7 +269,7 @@ function StudentFormModal({ student, onClose, onSaved }: { student?: any; onClos
           {/* English score */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">English Proficiency</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={pairGrid}>
               <select value={form.englishType} onChange={e => set('englishType', e.target.value)}
                 aria-label="English test type"
                 className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
@@ -320,12 +346,12 @@ export default function CounselorStudents() {
 function StudentsList() {
   const { user } = useAuth();
   const counselor = user as Counselor;
+  const { can, restricted } = usePermissions();
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
   const [showCreate, setShowCreate] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<any>(null);
   const [page, setPage] = useState(1);
 
   function loadStudents() {
@@ -354,6 +380,8 @@ function StudentsList() {
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * STUDENTS_PER_PAGE;
   const pageStudents = filtered.slice(pageStart, pageStart + STUDENTS_PER_PAGE);
+  // Full filtered order (all pages) so the ‹ › arrows on the profile step through it
+  const filteredIds = filtered.map((s: any) => String(s._id || s.id));
 
   return (
     <div className="space-y-6">
@@ -361,13 +389,6 @@ function StudentsList() {
         <StudentFormModal
           onClose={() => setShowCreate(false)}
           onSaved={() => { loadStudents(); setTab('mine'); }}
-        />
-      )}
-      {editingStudent && (
-        <StudentFormModal
-          student={editingStudent}
-          onClose={() => setEditingStudent(null)}
-          onSaved={loadStudents}
         />
       )}
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
@@ -386,7 +407,7 @@ function StudentsList() {
 
       <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
         <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>All Students ({allStudents.length})</button>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{restricted ? 'Team Students' : 'All Students'} ({allStudents.length})</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -397,18 +418,20 @@ function StudentsList() {
               <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search students…"
                 className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
             </div>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by stage"
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status"
               className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-              <option value="">All stages</option>
+              <option value="">All statuses</option>
               {STUDENT_STAGES.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
-          <button type="button" onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
-            <UserPlus className="w-4 h-4" />Add Student
-          </button>
+          {can('students.create') && (
+            <button type="button" onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
+              <UserPlus className="w-4 h-4" />Add Student
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -419,16 +442,17 @@ function StudentsList() {
             </div>
           ) : pageStudents.map((student: any) => {
             const sid = student._id || student.id;
+            const navState = { ids: filteredIds };
             const apps = student.applications || [];
             const subtitle = [student.nationality, student.educationLevel, student.phone].filter(Boolean).join(' · ');
             return (
               <div key={sid} className="flex items-center gap-4 px-5 py-4 hover:bg-green-50/40 transition-colors">
-                <Link to={`/counselor/students/${sid}`} aria-label={`Open ${student.name}'s profile`}
+                <Link to={`/counselor/students/${sid}`} state={navState} aria-label={`Open ${student.name}'s profile`}
                   className="w-11 h-11 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
                   {student.name.charAt(0)}
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/counselor/students/${sid}`}
+                  <Link to={`/counselor/students/${sid}`} state={navState}
                     className="font-bold text-gray-900 text-sm hover:text-green-700 hover:underline transition-colors">
                     {student.name}
                   </Link>
@@ -441,24 +465,20 @@ function StudentsList() {
                   )}
                 </div>
                 <div className="hidden lg:flex items-center flex-shrink-0">
-                  <StatusBadge status={student.status} />
+                  <StudentStatusSelect studentId={sid} value={student.status} editable={isMine(student)}
+                    onSaved={status => setAllStudents((prev: any[]) => prev.map((x: any) => (x._id || x.id) === sid ? { ...x, status } : x))} />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
                   <Link to="/counselor/chat" title={`Chat with ${student.name}`} className={ROW_BTN}>
                     <MessageSquare className="w-3.5 h-3.5" />Chat
                   </Link>
-                  {isMine(student) && (
-                    <button type="button" onClick={() => setEditingStudent(student)} title={`Edit ${student.name}`} className={ROW_BTN}>
-                      <Edit2 className="w-3.5 h-3.5" />Edit
-                    </button>
-                  )}
                   {student.phone ? (
                     <a href={`tel:${student.phone.replace(/\s/g, '')}`} title={`Call ${student.phone}`}
                       className="w-8 h-8 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-sm transition-all">
                       <Phone className="w-3.5 h-3.5" />
                     </a>
                   ) : (
-                    <span title="No phone number — add one with Edit" aria-label="No phone number"
+                    <span title="No phone number — add one from the profile" aria-label="No phone number"
                       className="w-8 h-8 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center cursor-not-allowed">
                       <Phone className="w-3.5 h-3.5" />
                     </span>
@@ -499,11 +519,28 @@ function StudentsList() {
   );
 }
 
+// One label/value line in the student details side panel
+function InfoRow({ label, value }: { label: string; value?: any }) {
+  const empty = value === null || value === undefined || value === '';
+  return (
+    <div className="flex gap-3 py-1.5">
+      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
+      <span className={`text-xs flex-1 min-w-0 break-words ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
+    </div>
+  );
+}
+
 function StudentDetail() {
   const { studentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [student, setStudent] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes' | RecordTab>('overview');
+  // Kept separately: other student updates return the profile without it
+  const [counselorName, setCounselorName] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes' | RecordTab>(
+    (searchParams.get('tab') as any) || 'overview'
+  );
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(studentId);
   const [updating, setUpdating] = useState(false);
   const [showRequestDoc, setShowRequestDoc] = useState(false);
@@ -515,11 +552,28 @@ function StudentDetail() {
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
+  const { restricted } = usePermissions();
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (studentId) api.students.get(studentId).then(setStudent).catch(() => {});
     api.universities.list().then(setUniversities).catch(() => {});
+  }, []);
+
+  // Reload whenever the student changes (incl. via the ‹ › arrows)
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    setStudent(null);
+    setCounselorName(null);
+    setNoteText('');
+    setEditingNote(null);
+    api.students.get(studentId).then(s => {
+      if (cancelled) return;
+      setStudent(s);
+      setCounselorName(s.counselorName || null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [studentId]);
 
   const verifyDoc = async (docId: string, status: 'verified' | 'rejected') => {
@@ -555,7 +609,8 @@ function StudentDetail() {
     return tb - ta;
   });
   const docs = student.documents || [];
-  const canEditStudent = (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
+  // Own students, or — for counselors with a role — any team student the server let us open
+  const canEditStudent = restricted || (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
   const allCourses = universities.flatMap(uni =>
     (uni.courses || []).map((c: any) => ({ ...c, uniName: uni.name, uniCountry: uni.country || '', _elig: checkCourseEligibility(student, c) }))
   );
@@ -590,47 +645,97 @@ function StudentDetail() {
           }}
         />
       )}
-      <button type="button" onClick={() => navigate('/counselor/students')} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={() => { if (location.key !== 'default') navigate(-1); else navigate('/counselor/students'); }} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        {studentId && <RecordNavArrows currentId={studentId} basePath="/counselor/students" />}
+      </div>
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-        <div className="flex items-start gap-5">
-          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-2xl flex-shrink-0">{student.name.charAt(0)}</div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-xl font-bold text-gray-900">{student.name}</h2>
-              <StatusBadge status={student.status} size="md" />
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        {/* ── Left: student details ── */}
+        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl flex-shrink-0">{student.name.charAt(0)}</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-gray-900 truncate" title={student.name}>{student.name}</h2>
+                <p className="flex items-center gap-1 text-xs text-gray-500 mb-1 min-w-0" title="Assigned counselor">
+                  <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{counselorName || 'Unassigned'}</span>
+                </p>
+                <StudentStatusSelect studentId={studentId!} value={student.status} editable={canEditStudent}
+                  onSaved={status => setStudent((p: any) => ({ ...p, status }))} />
+              </div>
             </div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mt-4">
               <span className="text-xs font-medium text-gray-500">Lead Stage</span>
               <LeadStageSelect value={student.leadStage} size="md"
                 editable={canEditStudent}
                 onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
             </div>
-            <p className="text-gray-600">{student.email} • {student.phone}</p>
-            <p className="text-sm text-gray-500 mt-1">{student.nationality} • {student.educationLevel} • GPA: {student.gpa}/10</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {student.englishScore && <span className="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full">{student.englishScore.type}: {student.englishScore.score}</span>}
-              <span className="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-full">Budget: ${(student.budget || 0).toLocaleString()}/yr</span>
-              {(student.preferredCountries || []).map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Link to="/counselor/chat" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
+                <MessageSquare className="w-4 h-4" /> Chat
+              </Link>
+              <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
+                <Plus className="w-4 h-4" /> Application
+              </Link>
+              {canEditStudent && !editing && (
+                <button type="button" onClick={() => setEditing(true)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <Edit2 className="w-4 h-4" /> Edit Profile
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <Link to="/counselor/chat" className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-              <MessageSquare className="w-4 h-4" /> Chat
-            </Link>
-            <Link to="/counselor/universities" className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-              <Plus className="w-4 h-4" /> New Application
-            </Link>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+          {editing ? (
+            <StudentFormModal inline student={student} onClose={() => setEditing(false)}
+              onSaved={async () => {
+                const updated = await api.students.get(studentId!).catch(() => null);
+                if (updated) { setStudent(updated); setCounselorName(updated.counselorName || counselorName); }
+              }} />
+          ) : (<>
+
+          <div className="p-5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
+            <div className="space-y-2 text-sm">
+              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
+              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
+              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
+            </div>
+          </div>
+
+          <div className="p-5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
+            <InfoRow label="Education" value={student.educationLevel} />
+            <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
+            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
+            <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
+          </div>
+
+          <div className="p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
+            {(student.preferredCountries || []).length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {student.preferredCountries.map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
+              </div>
+            ) : <p className="text-xs text-gray-300">—</p>}
+            <div className="mt-4">
+              <InfoRow label="Applications" value={apps.length} />
+              <InfoRow label="Documents" value={docs.length} />
+              <InfoRow label="Joined" value={student.joinedDate} />
+            </div>
+          </div>
+          </>)}
+        </aside>
+
+        {/* ── Right: tabs ── */}
+        <div className="flex-1 min-w-0 w-full space-y-5">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
         {(['overview', 'timeline', 'notes', 'messages', 'activities', 'emails', 'pipelines', 'documents', 'applications', 'courses'] as const).map(t => (
           <button type="button" key={t} onClick={() => { setActiveTab(t); setEligFilter(''); setCountryFilter(''); setCourseSearch(''); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
             {t === 'courses' ? 'Course Eligibility' : t === 'documents' ? 'Files' : t}
           </button>
         ))}
@@ -955,6 +1060,8 @@ function StudentDetail() {
           </div>
         );
       })()}
+        </div>
+      </div>
     </div>
     {previewDoc && (
       <DocPreviewModal url={previewDoc.url} fileName={previewDoc.name} onClose={() => setPreviewDoc(null)} />

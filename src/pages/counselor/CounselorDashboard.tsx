@@ -305,28 +305,28 @@ export default function CounselorDashboard() {
       />
     )}
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+      <div className="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
-            <UserCog className="w-5 h-5 text-teal-600" />
+          <div className="w-10 h-10 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center">
+            <UserCog className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-teal-600 text-xs font-semibold uppercase tracking-wide">Counselor Portal</p>
-            <h1 className="text-2xl font-bold leading-tight text-gray-900">{counselor?.name || 'Counselor'}</h1>
-            <p className="text-gray-500 text-xs mt-0.5 capitalize">{counselor?.specialization?.join(' • ')}</p>
+            <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">Counselor Portal</p>
+            <h1 className="text-2xl font-bold leading-tight text-white">{counselor?.name || 'Counselor'}</h1>
+            <p className="text-green-200 text-xs mt-0.5 capitalize">{counselor?.specialization?.join(' • ')}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'My Students', value: stats.totalStudents, icon: Users, to: '/counselor/students', color: 'text-teal-600', hover: 'hover:bg-teal-50 hover:border-teal-200' },
-            { label: 'Active Apps', value: stats.activeApplications, icon: FileText, to: '/counselor/applications', color: 'text-blue-600', hover: 'hover:bg-blue-50 hover:border-blue-200' },
-            { label: 'Pending Docs', value: stats.pendingDocs, icon: AlertCircle, to: '/counselor/students', color: 'text-amber-600', hover: 'hover:bg-amber-50 hover:border-amber-200' },
-            { label: 'Offers Out', value: stats.offers, icon: Star, to: '/counselor/applications', color: 'text-violet-600', hover: 'hover:bg-violet-50 hover:border-violet-200' },
+            { label: 'My Students', value: stats.totalStudents, icon: Users, to: '/counselor/students' },
+            { label: 'Active Apps', value: stats.activeApplications, icon: FileText, to: '/counselor/applications' },
+            { label: 'Pending Docs', value: stats.pendingDocs, icon: AlertCircle, to: '/counselor/students' },
+            { label: 'Offers Out', value: stats.offers, icon: Star, to: '/counselor/applications' },
           ].map(s => (
-            <Link key={s.label} to={s.to} className={`bg-gray-50 border border-gray-100 rounded-xl p-3 transition-colors ${s.hover}`}>
-              <s.icon className={`w-4 h-4 mb-1 ${s.color}`} />
-              <div className="text-2xl font-extrabold text-gray-900">{s.value}</div>
-              <div className="text-xs font-bold text-gray-600">{s.label}</div>
+            <Link key={s.label} to={s.to} className="bg-white/15 border border-white/20 rounded-xl p-3 transition-colors hover:bg-white/25">
+              <s.icon className="w-4 h-4 mb-1 text-green-200" />
+              <div className="text-2xl font-extrabold text-white">{s.value}</div>
+              <div className="text-xs font-bold text-green-200">{s.label}</div>
             </Link>
           ))}
         </div>

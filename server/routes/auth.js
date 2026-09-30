@@ -8,6 +8,7 @@ const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
 const { assignNextCounselor } = require('../lib/assignCounselor');
+const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -24,11 +25,32 @@ function issueAccessToken(user) {
   return jwt.sign({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, process.env.JWT_SECRET, { expiresIn: '15m' });
 }
 
-async function issueRefreshToken(user) {
+const MAX_SESSIONS = 5;
+
+// Issues a new refresh token as its own session, independent of any other
+// device the user is already logged in on (up to MAX_SESSIONS at a time —
+// oldest is evicted first once the cap is hit).
+async function issueRefreshToken(user, req) {
   const raw = crypto.randomBytes(40).toString('hex');
   const hash = crypto.createHash('sha256').update(raw).digest('hex');
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  await User.findByIdAndUpdate(user._id, { refreshTokenHash: hash, refreshTokenExpires: expires });
+  const now = new Date();
+
+  const fresh = await User.findById(user._id).select('sessions');
+  let sessions = (fresh?.sessions || []).filter((s) => s.expires > now);
+  sessions.push({
+    tokenHash: hash,
+    expires,
+    userAgent: req?.headers?.['user-agent'] || '',
+    ip: req?.ip || '',
+    createdAt: now,
+    lastUsedAt: now,
+  });
+  if (sessions.length > MAX_SESSIONS) {
+    sessions = sessions.sort((a, b) => a.createdAt - b.createdAt).slice(sessions.length - MAX_SESSIONS);
+  }
+
+  await User.findByIdAndUpdate(user._id, { sessions });
   return { raw, expires };
 }
 
@@ -42,12 +64,6 @@ function setRefreshCookie(res, token, expires) {
   });
 }
 
-function sanitize(user) {
-  const obj = user.toJSON();
-  delete obj.password;
-  return obj;
-}
-
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -56,7 +72,17 @@ router.post('/login', async (req, res) => {
   if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
+    if (!user) {
+      // Logged too (with no userId) so spraying across accounts that don't exist
+      // is still visible to the credential-stuffing rule and the SOC feed.
+      logSecurityEvent('login_failure', {
+        severity: 'low',
+        email: String(email).toLowerCase().slice(0, 254),
+        ip: req.ip, userAgent: req.headers['user-agent'] || '',
+        message: 'Failed login attempt for unknown account',
+      }).catch(() => {});
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
     // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > Date.now()) {
@@ -75,7 +101,22 @@ router.post('/login', async (req, res) => {
         ...(shouldLock && { lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) }),
       });
       const remaining = MAX_LOGIN_ATTEMPTS - attempts;
+      const ip = req.ip;
+      const userAgent = req.headers['user-agent'] || '';
+      logSecurityEvent('login_failure', {
+        severity: shouldLock ? 'high' : 'medium',
+        userId: user._id, email: user.email, role: user.role,
+        ip, userAgent,
+        message: `Failed login attempt ${attempts}/${MAX_LOGIN_ATTEMPTS}`,
+        meta: { attemptsRemaining: Math.max(remaining, 0) },
+      }).catch(() => {});
       if (shouldLock) {
+        logSecurityEvent('login_lockout', {
+          severity: 'high',
+          userId: user._id, email: user.email, role: user.role,
+          ip, userAgent,
+          message: 'Account locked for 15 minutes after too many failed login attempts',
+        }).catch(() => {});
         return res.status(423).json({ message: 'Account locked for 15 minutes after too many failed attempts.' });
       }
       return res.status(401).json({
@@ -95,8 +136,14 @@ router.post('/login', async (req, res) => {
     await User.findByIdAndUpdate(user._id, { loginAttempts: 0, lockedUntil: null });
 
     const accessToken = issueAccessToken(user);
-    const { raw: refreshRaw, expires: refreshExpires } = await issueRefreshToken(user);
+    const { raw: refreshRaw, expires: refreshExpires } = await issueRefreshToken(user, req);
     setRefreshCookie(res, refreshRaw, refreshExpires);
+
+    logSecurityEvent('login_success', {
+      userId: user._id, email: user.email, role: user.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: 'Login successful',
+    }).catch(() => {});
 
     const userObj = user.toJSON();
     delete userObj.password;
@@ -222,7 +269,7 @@ router.post('/register', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);
-    const { raw, expires } = await issueRefreshToken(user);
+    const { raw, expires } = await issueRefreshToken(user, req);
     setRefreshCookie(res, raw, expires);
     const userObj = user.toJSON();
     delete userObj.password;
@@ -270,6 +317,14 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ message: 'Email is required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
+    // Logged whether or not the account exists (the response is identical either
+    // way) so the reset-abuse rule sees enumeration attempts as well.
+    logSecurityEvent('password_reset_request', {
+      severity: 'info',
+      userId: user?._id, email: String(email).toLowerCase().slice(0, 254), role: user?.role || '',
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: 'Password reset link requested',
+    }).catch(() => {});
     if (!user) return res.json({ message: 'If that email exists, a reset link has been sent.' });
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -313,7 +368,17 @@ router.post('/reset-password', async (req, res) => {
     user.password = await bcrypt.hash(password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    // Invalidate every active session, on every device — a stolen refresh
+    // token must not survive a password change.
+    user.sessions = [];
     await user.save();
+
+    logSecurityEvent('password_reset', {
+      severity: 'medium',
+      userId: user._id, email: user.email, role: user.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: 'Password reset via reset link',
+    }).catch(() => {});
 
     res.json({ message: 'Password reset successfully. You can now sign in.' });
   } catch (err) {
@@ -322,22 +387,31 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// POST /auth/refresh — exchange refresh token cookie for a new access token
+// POST /auth/refresh — exchange refresh token cookie for a new access token.
+// Rotates only the ONE session matching this cookie — every other device's
+// session is left untouched, which is the actual multi-session fix.
 router.post('/refresh', async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (!raw) return res.status(401).json({ message: 'No refresh token' });
   try {
     const hash = crypto.createHash('sha256').update(raw).digest('hex');
     const user = await User.findOne({
-      refreshTokenHash: hash,
-      refreshTokenExpires: { $gt: new Date() },
+      sessions: { $elemMatch: { tokenHash: hash, expires: { $gt: new Date() } } },
     });
     if (!user) return res.status(401).json({ message: 'Invalid or expired refresh token. Please log in again.' });
 
-    // Rotate refresh token on every use (prevents token reuse attacks)
-    const { raw: newRaw, expires } = await issueRefreshToken(user);
-    setRefreshCookie(res, newRaw, expires);
+    const session = user.sessions.find((s) => s.tokenHash === hash);
 
+    // Rotate this session's token on every use (prevents token reuse attacks)
+    const newRaw = crypto.randomBytes(40).toString('hex');
+    const newHash = crypto.createHash('sha256').update(newRaw).digest('hex');
+    const newExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    session.tokenHash = newHash;
+    session.expires = newExpires;
+    session.lastUsedAt = new Date();
+    await user.save();
+
+    setRefreshCookie(res, newRaw, newExpires);
     res.json({ token: issueAccessToken(user) });
   } catch (err) {
     console.error('[auth/refresh]', err);
@@ -345,15 +419,71 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// POST /auth/logout — revoke refresh token and clear cookie
+// POST /auth/logout — revoke just this device's session and clear its cookie
 router.post('/logout', async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (raw) {
     const hash = crypto.createHash('sha256').update(raw).digest('hex');
-    await User.findOneAndUpdate({ refreshTokenHash: hash }, { refreshTokenHash: null, refreshTokenExpires: null }).catch(() => {});
+    const user = await User.findOne({ 'sessions.tokenHash': hash }).catch(() => null);
+    if (user) {
+      user.sessions.pull({ tokenHash: hash });
+      await user.save().catch(() => {});
+      logSecurityEvent('logout', {
+        userId: user._id, email: user.email, role: user.role,
+        ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      }).catch(() => {});
+    }
   }
   res.clearCookie('refreshToken', { path: '/api/auth' });
   res.json({ message: 'Logged out' });
+});
+
+// GET /auth/sessions — list this user's own active sessions (device/IP/last-used)
+router.get('/sessions', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('sessions');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const currentRaw = req.cookies?.refreshToken;
+    const currentHash = currentRaw ? crypto.createHash('sha256').update(currentRaw).digest('hex') : null;
+
+    const sessions = user.sessions
+      .slice()
+      .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+      .map((s) => ({
+        id: s._id,
+        ip: s.ip,
+        userAgent: s.userAgent,
+        createdAt: s.createdAt,
+        lastUsedAt: s.lastUsedAt,
+        isCurrent: !!currentHash && s.tokenHash === currentHash,
+      }));
+
+    res.json({ sessions });
+  } catch (err) {
+    console.error('[auth/sessions]', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE /auth/sessions/:sessionId — revoke one specific session ("log out that device")
+router.delete('/sessions/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const before = user.sessions.length;
+    user.sessions.pull({ _id: req.params.sessionId });
+    if (user.sessions.length === before) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+    await user.save();
+
+    res.json({ message: 'Session revoked' });
+  } catch (err) {
+    console.error('[auth/sessions delete]', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;

@@ -5,6 +5,7 @@ const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
+const { can } = require('../lib/access');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -32,7 +33,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Admin or Counselor: create meeting
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, can('meetings.create'), async (req, res) => {
   if (!['admin', 'counselor'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     const { title, scheduledDate, scheduledTime, duration, platform, participants, notes } = req.body;
@@ -200,6 +201,10 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Admin or meeting creator: update meeting
+// Only these fields may be changed through the API. Passing req.body straight
+// through would let the caller rewrite createdBy, remindersSent, etc.
+const MEETING_EDITABLE = ['title', 'scheduledDate', 'scheduledTime', 'duration', 'platform', 'meetingLink', 'participants', 'status', 'notes'];
+
 router.put('/:id', auth, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
@@ -207,7 +212,8 @@ router.put('/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin' && meeting.createdBy?.toString() !== req.user.id?.toString()) {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const updated = await Meeting.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const changes = Object.fromEntries(MEETING_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
+    const updated = await Meeting.findByIdAndUpdate(req.params.id, changes, { new: true, runValidators: true });
 
     // Notify all participants (except the person making the update)
     const io = req.app.get('io');

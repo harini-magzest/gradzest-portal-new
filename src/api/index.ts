@@ -12,6 +12,11 @@ function authHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
 }
 
+function toQueryString(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  return new URLSearchParams(entries as [string, string][]).toString();
+}
+
 // Try once to get a new access token using the httpOnly refresh cookie
 let refreshing: Promise<string | null> | null = null;
 async function tryRefresh(): Promise<string | null> {
@@ -100,6 +105,10 @@ export const api = {
       }),
     refresh: () => tryRefresh(),
     logout: () => fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {}),
+    sessions: () => req<{ sessions: any[] }>('/auth/sessions', { headers: authHeaders() }),
+    revokeSession: (id: string) => req<{ message: string }>(`/auth/sessions/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
   },
 
   countries: {
@@ -111,6 +120,10 @@ export const api = {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
     autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
+    updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
+      req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+      }),
   },
 
   students: {
@@ -145,6 +158,10 @@ export const api = {
     setLeadStage: (studentId: string, leadStage: string) =>
       req<any>(`/students/${studentId}/lead-stage`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify({ leadStage }),
+      }),
+    setMeta: (studentId: string, data: { tags?: string[]; summary?: string }) =>
+      req<any>(`/students/${studentId}/meta`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     addNote: (studentId: string, text: string) =>
       req<any>(`/students/${studentId}/notes`, {
@@ -358,6 +375,69 @@ export const api = {
     }),
   },
 
+  soc: {
+    stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
+    statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
+    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
+      req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
+      req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
+    updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
+      req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
+    addIncidentNote: (id: string, text: string) =>
+      req<any>(`/soc/incidents/${id}/notes`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }) }),
+    searchUsers: (q: string) => req<any>(`/soc/investigate/search-users?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    investigateUser: (id: string) => req<any>(`/soc/investigate/user/${id}`, { headers: authHeaders() }),
+    logoutUserEverywhere: (id: string) =>
+      req<any>(`/soc/investigate/user/${id}/logout-everywhere`, { method: 'POST', headers: authHeaders() }),
+    investigateIp: (ip: string) => req<any>(`/soc/investigate/ip/${encodeURIComponent(ip)}`, { headers: authHeaders() }),
+    blockedIps: () => req<any>('/soc/blocked-ips', { headers: authHeaders() }),
+    blockIp: (ip: string, reason: string, expiresInHours?: number) =>
+      req<any>('/soc/blocked-ips', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ip, reason, expiresInHours }) }),
+    bulkBlockIps: (ips: string[], reason: string, expiresInHours?: number) =>
+      req<{ blocked: string[]; rejected: { ip: string; reason: string }[] }>('/soc/blocked-ips/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ips, reason, expiresInHours }) }),
+    suppressions: () => req<any>('/soc/suppressions', { headers: authHeaders() }),
+    addSuppression: (data: { kind: 'ip' | 'email'; value: string; incidentTypes?: string[]; reason?: string; expiresInHours?: number }) =>
+      req<any>('/soc/suppressions', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    removeSuppression: (id: string) => req<any>(`/soc/suppressions/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    revokeSession: (userId: string, sessionId: string) =>
+      req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
+    forcePasswordReset: (userId: string) =>
+      req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
+    download: async (path: string, filename: string) => {
+      const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    unblockIp: (ip: string) => req<any>(`/soc/blocked-ips/${encodeURIComponent(ip)}`, { method: 'DELETE', headers: authHeaders() }),
+    posture: (refresh?: boolean) => req<any>(`/soc/posture${refresh ? '?refresh=1' : ''}`, { headers: authHeaders() }),
+    downloadChecklistPdf: async () => {
+      const res = await fetch(`${BASE}/soc/posture/checklist-pdf`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to generate PDF');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-hardening-checklist.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    piiAudit: () => req<any>('/soc/pii-audit', { headers: authHeaders() }),
+    auditTrail: (limit?: number) => req<any>(`/soc/audit-trail${limit ? `?limit=${limit}` : ''}`, { headers: authHeaders() }),
+  },
+
   tasks: {
     list: () => req<any[]>('/tasks', { headers: authHeaders() }),
     assignees: () => req<{ _id: string; name: string; title?: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),
@@ -373,6 +453,65 @@ export const api = {
     addComment: (id: string, text: string) => req<any>(`/tasks/${id}/comments`, {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
     }),
+  },
+
+  roles: {
+    list: () => req<{ roles: any[]; staff: any[] }>('/roles', { headers: authHeaders() }),
+    create: (data: { name: string; description?: string; parentRole?: string | null }) =>
+      req<any>('/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null }) =>
+      req<any>(`/roles/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/roles/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    assign: (userId: string, roleId: string | null) =>
+      req<any>(`/roles/assign/${userId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ roleId }) }),
+  },
+
+  users: {
+    myPermissions: () => req<{ permissions: string[]; restricted: boolean }>('/users/me/permissions', { headers: authHeaders() }),
+    list: () => req<{ users: any[]; roles: any[]; profiles: any[] }>('/users', { headers: authHeaders() }),
+    create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
+    createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
+      req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    updateProfile: (id: string, data: any) =>
+      req<any>(`/users/profiles/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    deleteProfile: (id: string) => req<{ message: string }>(`/users/profiles/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  automation: {
+    meta: () => req<any>('/automation/meta', { headers: authHeaders() }),
+    rules: () => req<any[]>('/automation/rules', { headers: authHeaders() }),
+    createRule: (data: any) => req<any>('/automation/rules', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateRule: (id: string, data: any) => req<any>(`/automation/rules/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    setRuleActive: (id: string, active: boolean) => req<any>(`/automation/rules/${id}/active`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ active }),
+    }),
+    deleteRule: (id: string) => req<any>(`/automation/rules/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    runRule: (id: string, studentId: string) => req<any>(`/automation/rules/${id}/run`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId }),
+    }),
+    templates: () => req<any[]>('/automation/templates', { headers: authHeaders() }),
+    createTemplate: (data: any) => req<any>('/automation/templates', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateTemplate: (id: string, data: any) => req<any>(`/automation/templates/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteTemplate: (id: string) => req<any>(`/automation/templates/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    testTemplate: (id: string) => req<{ message: string }>(`/automation/templates/${id}/test`, {
+      method: 'POST', headers: authHeaders(),
+    }),
+    logs: (params: { ruleId?: string; status?: string; limit?: number } = {}) =>
+      req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

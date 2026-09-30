@@ -23,6 +23,19 @@ const EnglishProficiencyTestSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Each element gets its own auto-assigned _id — used to individually revoke one session
+// ("log out this device") without touching any of the user's other active sessions.
+const SessionSchema = new mongoose.Schema(
+  {
+    tokenHash: { type: String, required: true },
+    expires: { type: Date, required: true },
+    userAgent: { type: String, default: '' },
+    ip: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now },
+    lastUsedAt: { type: Date, default: Date.now },
+  },
+);
+
 const DocumentSchema = new mongoose.Schema({
   name: String,
   type: String,
@@ -50,6 +63,9 @@ const ApplicationSchema = new mongoose.Schema({
   },
   submittedDate: String,
   updatedDate: String,
+  // When `status` last changed — distinct from updatedDate, which also bumps on notes-only edits.
+  // Drives the "stuck application" / "offer response deadline" automation checks.
+  statusChangedAt: { type: Date, default: Date.now },
   notes: String,
   intake: String,
   offerLetterUrl: String,
@@ -163,6 +179,12 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: false },
   role: { type: String, enum: ['student', 'counselor', 'admin'], required: true },
   isAppTeam: { type: Boolean, default: false },
+  // Staff: position in the role hierarchy (admin Roles page)
+  hierarchyRole: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', default: null },
+  // Staff: permission profile (null = the default profile); see lib/access.js
+  profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', default: null },
+  // Staff: deactivated users cannot log in
+  active: { type: Boolean, default: true },
   // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
   smartfloAgent: { type: String, default: '' },
   avatar: String,
@@ -195,12 +217,17 @@ const UserSchema = new mongoose.Schema({
   counselorNotes: [CounselorNoteSchema],
   counselorId: String,
   joinedDate: String,
+  // Staff-maintained quick-reference info shown on the student record
+  tags: { type: [String], default: undefined },
+  summary: String,
 
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
   source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
   leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment'] },
+  // When leadStage last changed — drives the "stale lead" automation field (days since last movement)
+  leadStageChangedAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
 
   // Email verification
@@ -224,9 +251,9 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
-  // JWT refresh token (stored as SHA-256 hash)
-  refreshTokenHash: { type: String, default: null },
-  refreshTokenExpires: { type: Date, default: null },
+  // Active login sessions — one per device, each with its own refresh token
+  // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
+  sessions: { type: [SessionSchema], default: [] },
 
   // Admin: when this admin last opened the New Subscribers list (drives the unread badge)
   subscribersSeenAt: { type: Date, default: null },

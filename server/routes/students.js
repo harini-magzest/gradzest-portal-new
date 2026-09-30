@@ -2,15 +2,23 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { scanUploadedFile } = require('../middleware/scanUpload');
+const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
+const { logPiiAccess } = require('../lib/logPiiAccess');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
+const { fireEvent } = require('../lib/automation');
+const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 
 const router = express.Router();
 
 // Get all students (counselor only)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
     const students = await User.find({ role: 'student' }).select('-password');
+    const io = req.app.get('io');
+    students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -50,16 +58,17 @@ router.put('/me', authMiddleware, async (req, res) => {
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
-  const url = req.file ? `/uploads/${req.file.filename}` : (preExistingUrl || undefined);
+  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };
     const user = await User.findByIdAndUpdate(req.user.id, { $push: { documents: doc } }, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     const newDoc = user.documents[user.documents.length - 1];
+    fireEvent('document.uploaded', { studentId: user._id, document: newDoc });
     res.json(newDoc.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -78,7 +87,7 @@ router.delete('/me/documents/:docId', authMiddleware, async (req, res) => {
 });
 
 // Create new student (counselor only)
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, can('students.create'), async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { password, role, _id, ...data } = req.body;
   if (!data.name || !data.email) return res.status(400).json({ message: 'Name and email are required' });
@@ -125,6 +134,7 @@ router.post('/', authMiddleware, async (req, res) => {
     delete obj.password;
     // Return tempPassword so the counselor can share it manually if email fails
     recordStaffActivity(req, { kind: 'student', title: 'Student added', detail: student.email, studentId: student._id, studentName: student.name });
+    fireEvent('student.created', { studentId: student._id });
     res.status(201).json({ ...obj, tempPassword });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -132,11 +142,13 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Get student by ID (counselor or admin)
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
+    logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
     res.json(student.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -146,13 +158,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
 const COUNSELOR_EDITABLE_FIELDS = ['name', 'phone', 'nationality', 'educationLevel', 'gpa', 'englishScore', 'preferredCountries', 'budget', 'interestedCourses', 'status'];
 
 // Update an assigned student's profile (counselor only)
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, can('students.edit'), async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
-    const counselor = await User.findById(req.user.id).select('assignedStudents');
-    if (!counselor?.assignedStudents?.includes(req.params.id)) {
-      return res.status(403).json({ message: 'You can only edit your assigned students' });
-    }
+    if (await denyStudent(req, res, req.params.id, { manage: true })) return;
     const updates = {};
     for (const field of COUNSELOR_EDITABLE_FIELDS) {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
@@ -173,10 +182,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Request document for student (counselor only)
-router.post('/:id/documents', authMiddleware, async (req, res) => {
+router.post('/:id/documents', authMiddleware, can('documents.request'), async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { name, type } = req.body;
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const doc = { name, type, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };
     const user = await User.findByIdAndUpdate(req.params.id, { $push: { documents: doc } }, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'Student not found' });
@@ -220,10 +230,11 @@ router.post('/:id/documents', authMiddleware, async (req, res) => {
 });
 
 // Update document status (counselor only)
-router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
+router.put('/:id/documents/:docId', authMiddleware, can('documents.verify'), async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { status } = req.body;
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const user = await User.findOneAndUpdate(
       { _id: req.params.id, 'documents._id': req.params.docId },
       { $set: { 'documents.$.status': status } },
@@ -246,25 +257,34 @@ router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
 });
 
 // GET /api/students/:id/record — timeline, activities, emails and chats for the student record tabs
-router.get('/:id/record', authMiddleware, async (req, res) => {
+router.get('/:id/record', authMiddleware, can('students.view'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+  } catch { return res.status(500).json({ message: 'Server error' }); }
   const StaffActivity = require('../models/StaffActivity');
   const ActivityLog = require('../models/ActivityLog');
   const EmailLog = require('../models/EmailLog');
   const Meeting = require('../models/Meeting');
   const ChatRoom = require('../models/ChatRoom');
   try {
-    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents');
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents counselorId');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     const sid = String(student._id);
     const me = String(req.user.id);
 
-    const [staffActs, studentActs, emails, meetings, allRooms] = await Promise.all([
+    const Task = require('../models/Task');
+    const [staffActs, studentActs, emails, meetings, allRooms, tasks, owner] = await Promise.all([
       StaffActivity.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(300).lean(),
       ActivityLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
       EmailLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
       Meeting.find({ 'participants.userId': sid }).sort({ scheduledDate: -1, scheduledTime: -1 }).limit(100).lean(),
       ChatRoom.find({ participants: sid }).lean(),
+      Task.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
+      // Owner: the linked counselor, or (for counselor-created students) whoever lists them as assigned
+      User.findOne(student.counselorId
+        ? { _id: student.counselorId, role: 'counselor' }
+        : { role: 'counselor', assignedStudents: sid }).select('name title').lean(),
     ]);
 
     // Counselors see only their own conversation with the student; admins see all of them
@@ -311,6 +331,8 @@ router.get('/:id/record', authMiddleware, async (req, res) => {
     res.json({
       timeline: timeline.slice(0, 400),
       activities,
+      tasks: tasks.map(t => ({ ...t, id: String(t._id) })),
+      owner: owner ? { id: String(owner._id), name: owner.name, title: owner.title || '' } : null,
       emails: emails.map(e => ({ ...e, id: String(e._id) })),
       rooms: rooms.map(r => ({
         id: String(r._id), type: r.type, participants: r.participants, participantNames: r.participantNames,
@@ -323,7 +345,7 @@ router.get('/:id/record', authMiddleware, async (req, res) => {
 });
 
 // POST /api/students/:id/emails — staff writes an email to the student (logged via the mailer wrapper)
-router.post('/:id/emails', authMiddleware, async (req, res) => {
+router.post('/:id/emails', authMiddleware, can('students.email'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   const subject = String(req.body.subject || '').trim();
   const body = String(req.body.body || '').trim();
@@ -332,6 +354,7 @@ router.post('/:id/emails', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Email is not set up yet. Fill in the SMTP settings in server/.env.' });
   }
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email');
     if (!student?.email) return res.status(404).json({ message: 'Student has no email address' });
     const sender = await User.findById(req.user.id).select('name');
@@ -354,29 +377,27 @@ const LEAD_STAGES = {
   new_enquiry: 'New Enquiry', interested: 'Interested', counselling: 'Counselling', shortlisting: 'Shortlisting',
   applications: 'Applications', visa_process: 'Visa Process', visa_approved: 'Visa Approved', enrolment: 'Enrolment',
 };
-router.put('/:id/lead-stage', authMiddleware, async (req, res) => {
+router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   const { leadStage } = req.body;
   if (!LEAD_STAGES[leadStage]) return res.status(400).json({ message: 'Invalid lead stage' });
   try {
     const student = await User.findOne({ _id: req.params.id, role: 'student' });
     if (!student) return res.status(404).json({ message: 'Student not found' });
-    if (req.user.role === 'counselor' && String(student.counselorId) !== String(req.user.id)) {
-      // Counselor-created students are linked only via the counselor's assignedStudents list
-      const me = await User.findById(req.user.id).select('assignedStudents');
-      if (!me?.assignedStudents?.map(String).includes(String(student._id))) {
-        return res.status(403).json({ message: 'Only the assigned counselor can change this student\'s stage' });
-      }
+    if (req.user.role === 'counselor' && !canManage(await loadAccess(req), student)) {
+      return res.status(403).json({ message: 'Only the assigned counselor or their team lead can change this student\'s stage' });
     }
     const from = student.leadStage || 'new_enquiry';
     if (from !== leadStage) {
       student.leadStage = leadStage;
+      student.leadStageChangedAt = new Date();
       await student.save();
       recordStaffActivity(req, {
         kind: 'stage', title: 'Lead Stage updated',
         detail: `'${LEAD_STAGES[from]}' to '${LEAD_STAGES[leadStage]}'`,
         studentId: student._id, studentName: student.name,
       });
+      fireEvent('student.stageChanged', { studentId: student._id, fromStage: from });
     }
     const obj = student.toJSON();
     delete obj.password;
@@ -384,12 +405,40 @@ router.put('/:id/lead-stage', authMiddleware, async (req, res) => {
   } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
+// PUT /api/students/:id/meta — tags and short summary (admin, or the assigned counselor)
+router.put('/:id/meta', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' });
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (req.user.role === 'counselor' && String(student.counselorId) !== String(req.user.id)) {
+      const me = await User.findById(req.user.id).select('assignedStudents');
+      if (!me?.assignedStudents?.map(String).includes(String(student._id))) {
+        return res.status(403).json({ message: 'Only the assigned counselor can edit this student' });
+      }
+    }
+    if (Array.isArray(req.body.tags)) {
+      const seen = new Set();
+      student.tags = req.body.tags
+        .map(t => String(t).trim().slice(0, 40))
+        .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
+        .slice(0, 20);
+    }
+    if (req.body.summary !== undefined) student.summary = String(req.body.summary).trim().slice(0, 2000);
+    await student.save();
+    const obj = student.toJSON();
+    delete obj.password;
+    res.json(obj);
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
 // POST /api/students/:id/notes — add a note
-router.post('/:id/notes', authMiddleware, async (req, res) => {
+router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ message: 'Note text is required' });
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const author = await User.findById(req.user.id).select('name');
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -403,11 +452,12 @@ router.post('/:id/notes', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/students/:id/notes/:noteId — edit a note
-router.put('/:id/notes/:noteId', authMiddleware, async (req, res) => {
+router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ message: 'Note text is required' });
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const user = await User.findOneAndUpdate(
       { _id: req.params.id, 'counselorNotes._id': req.params.noteId },
       { $set: { 'counselorNotes.$.text': text.trim() } },
@@ -419,9 +469,10 @@ router.put('/:id/notes/:noteId', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/students/:id/notes/:noteId — delete a note
-router.delete('/:id/notes/:noteId', authMiddleware, async (req, res) => {
+router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
+    if (await denyStudent(req, res, req.params.id)) return;
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { $pull: { counselorNotes: { _id: req.params.noteId } } },

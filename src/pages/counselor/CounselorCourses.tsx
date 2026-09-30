@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
+import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
+import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
+import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -273,11 +276,9 @@ export default function CounselorCourses() {
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  const [level, setLevel] = useState('');
-  const [uniFilter, setUniFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
+  const [filters, setFilters] = useState<CourseFilters>(EMPTY_FILTERS);
   const [applyModal, setApplyModal] = useState<any | null>(null);
+  const [customEdit, setCustomEdit] = useState<any | null>(null);
 
   useEffect(() => {
     api.universities.list().then(setUniversities).catch(() => {});
@@ -285,23 +286,17 @@ export default function CounselorCourses() {
     api.countries.list().then(setCountries).catch(() => {});
   }, []);
 
-  const allCourses = universities.flatMap(uni =>
-    (uni.courses || []).map((c: any) => ({ ...c, uniName: uni.name, uniId: uni.id || uni._id, city: uni.city, country: uni.country, website: uni.website, uniLogo: uni.logo, _uniUpdatedAt: uni.updatedAt || uni.createdAt || 0 }))
-  );
+  const allCourses = useMemo(() => flattenCourses(universities), [universities]);
+  const results = useMemo(() => searchCourses(allCourses, filters, students), [allCourses, filters, students]);
+  const opts = useMemo(() => filterOptions(allCourses), [allCourses]);
 
-  const uniNames = [...new Set(universities.map(u => u.name))].sort() as string[];
-  const countryList = [...new Set(universities.map((u: any) => u.country).filter(Boolean))].sort() as string[];
-
-  const filtered = allCourses.filter(c => {
-    const q = query.toLowerCase();
-    const matchQ = !query || c.name?.toLowerCase().includes(q) || c.uniName?.toLowerCase().includes(q) || c.department?.toLowerCase().includes(q);
-    const matchLevel = !level || c.level === level;
-    const matchUni = !uniFilter || c.uniName === uniFilter;
-    const matchCountry = !countryFilter || c.country === countryFilter;
-    return matchQ && matchLevel && matchUni && matchCountry;
-  }).sort((a: any, b: any) => new Date(b._uniUpdatedAt).getTime() - new Date(a._uniUpdatedAt).getTime());
-
-  const hasFilters = query || level || uniFilter || countryFilter;
+  const applyCustom = (course: any, data: { tags: string[]; customFields: { key: string; value: string }[] }) => {
+    const cid = String(course._id || course.id);
+    setUniversities(prev => prev.map(u => String(u.id || u._id) !== course.uniId ? u : {
+      ...u, courses: (u.courses || []).map((c: any) => String(c._id || c.id) === cid ? { ...c, ...data } : c),
+    }));
+    setCustomEdit(null);
+  };
 
   const modalCountry = applyModal
     ? (countries.find((c: any) => c.name?.toLowerCase() === applyModal.country?.toLowerCase()) || null)
@@ -317,6 +312,11 @@ export default function CounselorCourses() {
           onClose={() => setApplyModal(null)}
         />
       )}
+      {customEdit && (
+        <CourseCustomDataModal course={customEdit} uniId={customEdit.uniId}
+          knownTags={opts.tags} knownKeys={opts.customFieldKeys}
+          onClose={() => setCustomEdit(null)} onSaved={data => applyCustom(customEdit, data)} />
+      )}
 
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-3">
@@ -330,41 +330,10 @@ export default function CounselorCourses() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search by course name, university, department..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <select aria-label="Filter by level" value={level} onChange={e => setLevel(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Levels</option>
-            {LEVELS.map(l => <option key={l}>{l}</option>)}
-          </select>
-          <select aria-label="Filter by university" value={uniFilter} onChange={e => setUniFilter(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Universities</option>
-            {uniNames.map(n => <option key={n}>{n}</option>)}
-          </select>
-          <select aria-label="Filter by country" value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Countries</option>
-            {countryList.map(c => <option key={c}>{c}</option>)}
-          </select>
-          {hasFilters && (
-            <button type="button" onClick={() => { setQuery(''); setLevel(''); setUniFilter(''); setCountryFilter(''); }}
-              className="flex items-center gap-1 px-3 py-2.5 text-red-500 hover:bg-red-50 rounded-xl text-sm">
-              <X className="w-4 h-4" />Clear
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-gray-500 mt-3">{filtered.length} courses found</p>
-      </div>
+      <AdvancedCourseSearch courses={allCourses} students={students} value={filters} onSearch={setFilters} accent="green" resultCount={results.length} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((course, i) => (
+        {results.map(({ course, eligibility }, i) => (
           <div key={course.id || course._id || i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col">
             <div className="flex items-start gap-3 mb-2">
               <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1 flex-shrink-0 mt-0.5">
@@ -409,6 +378,21 @@ export default function CounselorCourses() {
               </div>
             )}
 
+            {eligibility && eligibility.status !== 'unknown' && (() => {
+              const badge = ELIGIBILITY_BADGE[eligibility.status];
+              const why = [...eligibility.missing, ...eligibility.warnings];
+              return (
+                <div className="mb-2">
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${badge.classes}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />{badge.label}
+                  </span>
+                  {why.length > 0 && <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{why.join(' · ')}</p>}
+                </div>
+              );
+            })()}
+
+            <div className="mb-2"><CourseCustomChips course={course} /></div>
+
             {course.requirements?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {course.requirements.map((req: string) => (
@@ -419,16 +403,20 @@ export default function CounselorCourses() {
               </div>
             )}
 
-            <div className="mt-auto pt-2">
+            <div className="mt-auto pt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => setApplyModal(course)}
                 className="flex items-center gap-1.5 bg-[#0d1b4b] hover:bg-[#152258] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm">
                 <Plus className="w-4 h-4" />Apply for Student
+              </button>
+              <button type="button" onClick={() => setCustomEdit(course)}
+                className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+                <Tag className="w-4 h-4" />Tags &amp; details
               </button>
             </div>
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {results.length === 0 && (
           <div className="col-span-2 text-center py-14 text-gray-400">
             <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">{allCourses.length === 0 ? 'Loading courses…' : 'No courses match your filters.'}</p>

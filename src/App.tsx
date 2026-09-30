@@ -71,6 +71,8 @@ const AdminActivityFeed      = lazy(() => import('./pages/admin/AdminActivityFee
 const AdminMeetings          = lazy(() => import('./pages/admin/AdminMeetings'));
 const AdminSettings          = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminAnalytics         = lazy(() => import('./pages/admin/AdminAnalytics'));
+const SOCLayout                = lazy(() => import('./pages/soc/SOCLayout'));
+const SOCDashboard             = lazy(() => import('./pages/soc/SOCDashboard'));
 
 // App Team module
 const AppTeamLayout       = lazy(() => import('./pages/appteam/AppTeamLayout'));
@@ -128,7 +130,7 @@ export default function App() {
       <CallProvider>
       <NotificationProvider>
       <AuthModalProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <ScrollToTop />
         <ToastLayer />
         <FlashToast />
@@ -189,7 +191,7 @@ export default function App() {
               <Route path="countries" element={<AdminCountries />} />
               <Route path="counselors" element={<AdminCounselors />} />
               <Route path="counselors/:id/performance" element={<AdminCounselorPerformance />} />
-              <Route path="students" element={<AdminStudents />} />
+              <Route path="students/*" element={<AdminStudents />} />
               <Route path="applications" element={<AdminApplications />} />
               <Route path="application-board" element={<AdminApplicationBoard />} />
               <Route path="activities" element={<Activities />} />
@@ -198,7 +200,15 @@ export default function App() {
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="roles" element={<Navigate to="/admin/settings?section=users&tab=roles" replace />} />
+              <Route path="automation" element={<Navigate to="/admin/settings?section=automation" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Route>
+
+            {/* Security Operations Center — deliberately separate from /admin,
+                not listed in the admin sidebar. Still admin-only (see SOCLayout). */}
+            <Route path="/soc" element={<SOCLayout />}>
+              <Route index element={<SOCDashboard />} />
             </Route>
 
             {/* App Team module */}

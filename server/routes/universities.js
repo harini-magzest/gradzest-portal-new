@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const University = require('../models/University');
 const { fetchEnrichmentData } = require('../lib/enrichUniversity');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -33,6 +34,38 @@ router.get('/', async (req, res) => {
     res.json(unis);
   } catch (err) {
     console.error('GET /api/universities error:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// PUT /api/universities/:id/courses/:courseId/custom — course tags + custom fields (admins and counselors)
+router.put('/:id/courses/:courseId/custom', authMiddleware, async (req, res) => {
+  if (!['admin', 'counselor'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  if (!dbReady(res)) return;
+  try {
+    const { id, courseId } = req.params;
+    let uni = await University.findOne({ id });
+    if (!uni && mongoose.Types.ObjectId.isValid(id)) uni = await University.findById(id);
+    if (!uni) return res.status(404).json({ message: 'University not found' });
+    const course = (mongoose.Types.ObjectId.isValid(courseId) && uni.courses.id(courseId)) || uni.courses.find(c => c.id === courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    if (Array.isArray(req.body.tags)) {
+      const seen = new Set();
+      course.tags = req.body.tags
+        .map(t => String(t).trim().slice(0, 40))
+        .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
+        .slice(0, 30);
+    }
+    if (Array.isArray(req.body.customFields)) {
+      course.customFields = req.body.customFields
+        .map(f => ({ key: String(f?.key || '').trim().slice(0, 60), value: String(f?.value ?? '').trim().slice(0, 200) }))
+        .filter(f => f.key && f.value)
+        .slice(0, 30);
+    }
+    await uni.save();
+    res.json(course);
+  } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
 });

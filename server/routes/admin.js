@@ -8,9 +8,20 @@ const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
-const { assignNextCounselor } = require('../lib/assignCounselor');
+const { fireEvent } = require('../lib/automation');
+const { can, loadAccess, canView } = require('../lib/access');
+const attachUserEmail = require('../middleware/attachUserEmail');
+const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 
 const router = express.Router();
+
+// Grants of admin-level access are rare and high-impact; the SOC raises an incident for each.
+function logPrivilegeChange(req, message) {
+  logSecurityEvent('privilege_change', {
+    severity: 'high', userId: req.user.id, email: req.user.email || '', role: req.user.role,
+    ip: req.ip, userAgent: req.headers['user-agent'] || '', message,
+  }).catch(() => {});
+}
 
 function adminOnly(req, res, next) {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
@@ -233,7 +244,7 @@ router.get('/appteam-users', authMiddleware, adminOnly, blockAppTeam, async (req
 });
 
 // Toggle isAppTeam for an admin user
-router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
   const makeAppTeam = !!req.body.isAppTeam;
   try {
     // Reclassifying the very last non-appteam admin into Application Team would leave no one
@@ -256,6 +267,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async 
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+    if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -264,7 +276,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, async 
 
 // Create an Application Team member (admin-role account, isAppTeam: true). Open to any
 // admin — same permission as creating a counselor, not restricted to non-appteam admins.
-router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
@@ -276,6 +288,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, async (req, res
       role: 'admin', isAppTeam: true, emailVerified: true,
     });
     await member.save();
+    logPrivilegeChange(req, `Admin-role account created for ${member.email}`);
     const obj = member.toJSON();
     delete obj.password;
     res.status(201).json(obj);
@@ -338,6 +351,7 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
       await assignNextCounselor(student); // no counselor picked — round-robin one in
       await student.save();
     }
+    fireEvent('student.created', { studentId: student._id });
     const obj = student.toJSON();
     delete obj.password;
     res.status(201).json(obj);
@@ -434,6 +448,9 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
     }
 
     const updated = await User.findById(req.params.id).select('-password');
+    if (counselorId && String(counselorId) !== String(prevCounselorId || '')) {
+      fireEvent('counselor.assigned', { studentId });
+    }
 
     // Notify student and new counselor in real-time
     const io = req.app.get('io');
@@ -479,7 +496,7 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
 });
 
 // Create application for a student (admin or counselor)
-router.post('/applications', authMiddleware, async (req, res) => {
+router.post('/applications', authMiddleware, can('applications.create'), async (req, res) => {
   if (!['admin', 'counselor'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
@@ -490,6 +507,12 @@ router.post('/applications', authMiddleware, async (req, res) => {
   const now = new Date().toISOString();
   const today = now.split('T')[0];
   try {
+    if (req.user.role === 'counselor') {
+      const target = await User.findOne({ _id: studentId, role: 'student' }).select('counselorId').lean();
+      if (target && !canView(await loadAccess(req), target)) {
+        return res.status(403).json({ message: 'This student is outside your team' });
+      }
+    }
     const app = {
       universityName, courseName,
       intake: intake || '',
@@ -498,6 +521,7 @@ router.post('/applications', authMiddleware, async (req, res) => {
       status: 'submitted',
       submittedDate: today,
       updatedDate: now,
+      statusChangedAt: now,
     };
     const student = await User.findOneAndUpdate(
       { _id: studentId, role: 'student' },
@@ -511,6 +535,7 @@ router.post('/applications', authMiddleware, async (req, res) => {
       detail: `${universityName} – ${courseName}${intake ? ` · ${intake}` : ''}`,
       studentId: student._id, studentName: student.name,
     });
+    fireEvent('application.created', { studentId: student._id, application: newApp });
     res.json(newApp.toJSON ? newApp.toJSON() : newApp);
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -549,6 +574,7 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
 
     const update = { 'applications.$.updatedDate': new Date().toISOString() };
     if (status) update['applications.$.status'] = status;
+    if (status && status !== currentStatus) update['applications.$.statusChangedAt'] = new Date();
     if (notes !== undefined) update['applications.$.notes'] = notes;
     if (status === 'rejected' && currentStatus) update['applications.$.rejectedFrom'] = currentStatus;
     if (offerType !== undefined) update['applications.$.offerType'] = status === 'offer_received' ? offerType : '';
@@ -563,6 +589,9 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
 
     const app = student.applications.id(req.params.appId);
     if (!app) return res.status(404).json({ message: 'Application not found' });
+    if (status && status !== currentStatus) {
+      fireEvent('application.statusChanged', { studentId: student._id, application: app, fromStatus: currentStatus });
+    }
 
     // Notify student in real-time via socket
     const io = req.app.get('io');
