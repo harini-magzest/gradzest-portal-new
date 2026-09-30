@@ -8,6 +8,7 @@ const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
+const { assignNextCounselor } = require('../lib/assignCounselor');
 
 const router = express.Router();
 
@@ -328,9 +329,14 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
       emailVerified: true,
       source: 'admin_created',
     });
-    await student.save();
     if (counselorId) {
-      await User.findByIdAndUpdate(counselorId, { $push: { assignedStudents: student._id.toString() } });
+      student.counselorId = counselorId;
+      await User.findByIdAndUpdate(counselorId, { $addToSet: { assignedStudents: student._id.toString() } });
+      await student.save();
+    } else {
+      await student.save();
+      await assignNextCounselor(student); // no counselor picked — round-robin one in
+      await student.save();
     }
     const obj = student.toJSON();
     delete obj.password;

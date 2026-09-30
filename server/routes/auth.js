@@ -7,6 +7,7 @@ const User = require('../models/User');
 const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
+const { assignNextCounselor } = require('../lib/assignCounselor');
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -215,7 +216,9 @@ router.post('/register', async (req, res) => {
       leadStatus: 'new',
     });
     await user.save();
-    notifyAdminsOfNewLead(req.app, user); // fire-and-forget; never blocks or fails sign-up
+    const assignedCounselor = await assignNextCounselor(user);
+    if (assignedCounselor) await user.save();
+    notifyAdminsOfNewLead(req.app, user, assignedCounselor); // fire-and-forget; never blocks or fails sign-up
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);

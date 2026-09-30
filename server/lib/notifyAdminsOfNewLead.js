@@ -10,7 +10,7 @@ const SOURCE_LABELS = { self_signup: 'email' };
 // Saves one Notification per admin (so offline admins see it later), pushes it live to any of
 // their open sessions, and emails each admin (so it's seen even if no one is logged in at all).
 // Never throws: an alert failure must not break sign-up.
-async function notifyAdminsOfNewLead(app, student) {
+async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
   try {
     const admins = await User.find(RECIPIENT_FILTER).select('_id email');
     if (!admins.length) return;
@@ -19,10 +19,13 @@ async function notifyAdminsOfNewLead(app, student) {
     const contact = [email, student.phone].filter(Boolean).join(' · ');
     const via = SOURCE_LABELS[student.source] || 'the website';
     const unverified = student.emailVerified ? '' : ' Email not verified yet.';
+    const followUp = assignedCounselor
+      ? ` Auto-assigned to ${assignedCounselor.name}.`
+      : ' Assign a counselor to follow up.';
 
     const title = `🎯 New Lead: ${student.name}`;
-    const message = `${student.name}${contact ? ` (${contact})` : ''} just created an account via ${via}.${unverified} Assign a counselor to follow up.`;
-    const link = '/admin/students?lead=new';
+    const message = `${student.name}${contact ? ` (${contact})` : ''} just created an account via ${via}.${unverified}${followUp}`;
+    const link = assignedCounselor ? '/admin/students' : '/admin/students?lead=new';
 
     const saved = await Notification.insertMany(
       admins.map(a => ({ userId: a._id, type: 'lead', priority: 'normal', title, message, link }))
@@ -49,6 +52,7 @@ async function notifyAdminsOfNewLead(app, student) {
         ['Phone', student.phone || '—'],
         ['Signed up via', via],
         ['Email verified', student.emailVerified ? 'Yes' : 'No'],
+        ...(assignedCounselor ? [['Assigned counselor', assignedCounselor.name]] : []),
       ].map(([k, v]) => `
         <tr>
           <td style="padding:8px 12px;color:#6b7280;font-size:13px;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${k}</td>
@@ -68,10 +72,10 @@ async function notifyAdminsOfNewLead(app, student) {
                 <p style="color:#a5b4fc;margin:6px 0 0;font-size:13px;">New Lead Alert</p>
               </div>
               <div style="background:#fff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
-                <p style="font-size:15px;">A new student just created an account and needs a counselor assigned.</p>
+                <p style="font-size:15px;">${assignedCounselor ? `A new student just created an account and has been auto-assigned to ${assignedCounselor.name}.` : 'A new student just created an account and needs a counselor assigned.'}</p>
                 <table style="width:100%;border-collapse:collapse;margin:20px 0;">${rows}</table>
                 <div style="text-align:center;margin:28px 0;">
-                  <a href="${studentsUrl}" style="background:#0d1b4b;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">View New Leads</a>
+                  <a href="${studentsUrl}" style="background:#0d1b4b;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">${assignedCounselor ? 'View Student' : 'View New Leads'}</a>
                 </div>
                 <p style="font-size:13px;color:#6b7280;">You're receiving this because you're an admin on Gradzest.</p>
               </div>
