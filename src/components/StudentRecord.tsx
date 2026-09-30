@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, CalendarDays, Check, ChevronDown, ChevronRight, FileCheck, FileText, GitBranch, Mail,
   MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, Trash2, UserPlus, Video,
-  AlertCircle, Download, Clock, XCircle,
+  AlertCircle, Download, Clock, XCircle, Plus, CheckSquare, Square, ChevronLeft,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,41 @@ export const RECORD_TABS: { key: RecordTab; label: string }[] = [
   { key: 'pipelines', label: 'Pipelines' },
   { key: 'files', label: 'Files' },
 ];
+
+/** Item count shown as a badge next to a tab label (null = no badge). */
+export function recordTabCount(tab: string, student: any, record: any): number | null {
+  if (tab === 'notes') return student?.counselorNotes?.length || null;
+  if (tab === 'files') return student?.documents?.length || null;
+  if (!record) return null;
+  if (tab === 'activities') return ((record.tasks || []).filter((t: any) => t.status !== 'completed').length + (record.activities || []).length) || null;
+  if (tab === 'emails') return record.emails?.length || null;
+  return null;
+}
+
+export function TabCount({ n }: { n: number | null }) {
+  if (!n) return null;
+  return <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold">{n}</span>;
+}
+
+/** Previous / next arrows for stepping through a list of student records. */
+export function RecordNav({ index, total, onPrev, onNext, dark = false }: {
+  index: number; total: number; onPrev: () => void; onNext: () => void; dark?: boolean;
+}) {
+  if (index < 0 || total < 2) return null;
+  const btn = `w-9 h-9 flex items-center justify-center rounded-full border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+    dark ? 'border-white/30 text-white hover:bg-white/20' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'}`;
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <span className={`text-xs tabular-nums ${dark ? 'text-white/70' : 'text-gray-500'}`}>{index + 1} of {total}</span>
+      <button type="button" onClick={onPrev} disabled={index === 0} aria-label="Previous student" title="Previous student" className={btn}>
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button type="button" onClick={onNext} disabled={index === total - 1} aria-label="Next student" title="Next student" className={btn}>
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
 
 /** Loads timeline / activities / emails / chats for one student. */
 export function useStudentRecord(studentId?: string) {
@@ -71,7 +106,7 @@ const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm foc
 // ── Timeline ─────────────────────────────────────────────────────────────────
 const TIMELINE_ICON: Record<string, any> = {
   stage: GitBranch, application: FileText, comment: MessageCircle, document: FileCheck, note: StickyNote,
-  meeting: CalendarDays, student: UserPlus, email: Mail, call: Phone,
+  meeting: CalendarDays, student: UserPlus, email: Mail, call: Phone, task: CheckSquare,
 };
 
 function TimelinePanel({ record }: { record: any }) {
@@ -270,14 +305,115 @@ function MessagesPanel({ student, record, reload, canReply }: { student: any; re
   );
 }
 
-// ── Activities ───────────────────────────────────────────────────────────────
-function ActivitiesPanel({ record }: { record: any }) {
+// ── Activities: Tasks / Events / Calls ──────────────────────────────────────
+const PRIORITY_CLS: Record<string, string> = { high: 'bg-red-50 text-red-700', medium: 'bg-amber-50 text-amber-700', low: 'bg-gray-100 text-gray-600' };
+
+function TaskForm({ student, onDone, onCancel }: { student: any; onDone: () => Promise<void>; onCancel: () => void }) {
+  const { user } = useAuth();
+  const [assignees, setAssignees] = useState<{ _id: string; name: string; title?: string; dept: string }[]>([]);
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [assignedTo, setAssignedTo] = useState(String(user?.id ?? ''));
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { api.tasks.assignees().then(setAssignees).catch(() => {}); }, []);
+
+  const save = async () => {
+    setSaving(true); setError('');
+    try {
+      await api.tasks.create({ title: title.trim(), description: description.trim(), assignedTo: assignedTo || undefined, priority, dueDate, studentId: sid(student) });
+      await onDone();
+    } catch (err: any) { setError(err.message || 'Could not create task.'); setSaving(false); }
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/50">
+      <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Task name, e.g. Call about IELTS date" className={inputCls} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} aria-label="Due date" className={inputCls} />
+        <select value={priority} onChange={e => setPriority(e.target.value)} aria-label="Priority" className={`${inputCls} bg-white`}>
+          <option value="high">High priority</option><option value="medium">Medium priority</option><option value="low">Low priority</option>
+        </select>
+        <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} aria-label="Task owner" className={`${inputCls} bg-white`}>
+          {assignees.length === 0 && <option value={String(user?.id ?? '')}>Me</option>}
+          {assignees.map(a => <option key={a._id} value={a._id}>{a._id === String(user?.id) ? `${a.name} (me)` : a.name}{a.title ? ` · ${a.title}` : ''}</option>)}
+        </select>
+      </div>
+      <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Description (optional)" className={`${inputCls} resize-none`} />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50">Cancel</button>
+        <button type="button" onClick={save} disabled={saving || !title.trim()} className={btnPrimary}>{saving ? <Spinner /> : <Plus className="w-4 h-4" />} Create task</button>
+      </div>
+    </div>
+  );
+}
+
+function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<void> }) {
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const toggle = async (t: any) => {
+    setBusy(t.id); setError('');
+    try { await api.tasks.update(t.id, { status: t.status === 'completed' ? 'pending' : 'completed' }); await reload(); }
+    catch (err: any) { setError(err.message || 'Could not update task.'); }
+    finally { setBusy(''); }
+  };
+  if (!tasks.length) return <Empty icon={CheckSquare} text="This student doesn't have any tasks." />;
+  const sorted = [...tasks].sort((a, b) => (a.status === 'completed' ? 1 : 0) - (b.status === 'completed' ? 1 : 0));
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-x-auto">
+      {error && <p className="text-xs text-red-600 px-4 pt-3">{error}</p>}
+      <table className="w-full text-sm min-w-[36rem]">
+        <thead className="bg-gray-50 text-xs text-gray-500 text-left">
+          <tr>
+            <th className="font-medium px-4 py-2.5">Task name</th>
+            <th className="font-medium px-3 py-2.5">Due Date</th>
+            <th className="font-medium px-3 py-2.5">Status</th>
+            <th className="font-medium px-3 py-2.5">Task Owner</th>
+            <th className="font-medium px-3 py-2.5">Description</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {sorted.map(t => {
+            const done = t.status === 'completed';
+            const overdue = !done && t.dueDate && new Date(`${t.dueDate}T23:59:59`) < new Date();
+            return (
+              <tr key={t.id} className={done ? 'text-gray-400' : ''}>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => toggle(t)} disabled={busy === t.id} aria-label={done ? 'Mark as open' : 'Mark as completed'}
+                      className="text-gray-400 hover:text-blue-600 flex-shrink-0">
+                      {busy === t.id ? <Spinner /> : done ? <CheckSquare className="w-4 h-4 text-green-600" /> : <Square className="w-4 h-4" />}
+                    </button>
+                    <span className={`font-medium ${done ? 'line-through' : 'text-gray-900'}`}>{t.title}</span>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${PRIORITY_CLS[t.priority] || PRIORITY_CLS.medium}`}>{t.priority}</span>
+                  </div>
+                </td>
+                <td className={`px-3 py-3 whitespace-nowrap ${overdue ? 'text-red-600 font-medium' : ''}`}>{t.dueDate ? fmtDate(`${t.dueDate}T00:00`) : '—'}</td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${done ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                    {done ? 'Completed' : overdue ? 'Overdue' : 'Open'}
+                  </span>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">{t.assignedToName || '—'}</td>
+                <td className="px-3 py-3 max-w-[16rem]"><p className="truncate" title={t.description}>{t.description || '—'}</p></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ActivityList({ items }: { items: any[] }) {
   const when = (a: any) => a.at ? new Date(a.at) : new Date(`${a.date}T${a.time?.length === 5 ? a.time : '00:00'}`);
-  const items = [...(record.activities || [])].sort((a, b) => when(b).getTime() - when(a).getTime());
-  if (!items.length) return <Empty icon={CalendarDays} text="No meetings or calls with this student yet." />;
   return (
     <ul className="space-y-3">
-      {items.map(a => {
+      {[...items].sort((a, b) => when(b).getTime() - when(a).getTime()).map(a => {
         const upcoming = a.type === 'meeting' && when(a) > new Date() && a.status !== 'cancelled';
         const Icon = a.type === 'call' ? (a.status === 'answered' ? Phone : PhoneMissed) : a.type === 'meeting' && a.platform === 'jitsi' ? Video : CalendarDays;
         return (
@@ -305,6 +441,43 @@ function ActivitiesPanel({ record }: { record: any }) {
         );
       })}
     </ul>
+  );
+}
+
+function ActivitiesPanel({ student, record, reload, canEdit }: { student: any; record: any; reload: () => Promise<void>; canEdit: boolean }) {
+  const [sub, setSub] = useState<'tasks' | 'events' | 'calls'>('tasks');
+  const [adding, setAdding] = useState(false);
+  const tasks: any[] = record.tasks || [];
+  const events = (record.activities || []).filter((a: any) => a.type !== 'call');
+  const calls = (record.activities || []).filter((a: any) => a.type === 'call');
+  const SUBS = [
+    { key: 'tasks' as const, label: 'Tasks', n: tasks.length },
+    { key: 'events' as const, label: 'Events', n: events.length },
+    { key: 'calls' as const, label: 'Calls', n: calls.length },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="inline-flex p-1 border border-gray-200 rounded-full">
+          {SUBS.map(s => (
+            <button key={s.key} type="button" onClick={() => setSub(s.key)}
+              className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${sub === s.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900'}`}>
+              {s.label}{s.n > 0 && <span className="ml-1 text-xs text-gray-400">{s.n}</span>}
+            </button>
+          ))}
+        </div>
+        {canEdit && sub === 'tasks' && !adding && (
+          <button type="button" onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-white bg-green-600 hover:bg-green-700">
+            <Plus className="w-4 h-4" /> Task
+          </button>
+        )}
+      </div>
+      {sub === 'tasks' && adding && <TaskForm student={student} onCancel={() => setAdding(false)} onDone={async () => { setAdding(false); await reload(); }} />}
+      {sub === 'tasks' && <TasksTable tasks={tasks} reload={reload} />}
+      {sub === 'events' && (events.length ? <ActivityList items={events} /> : <Empty icon={CalendarDays} text="No meetings with this student yet." />)}
+      {sub === 'calls' && (calls.length ? <ActivityList items={calls} /> : <Empty icon={Phone} text="No calls with this student yet." />)}
+    </div>
   );
 }
 
@@ -498,7 +671,7 @@ export function StudentRecordPanel({ tab, loading, error, ...p }: RecordProps & 
   if (!p.record) return <div className="flex justify-center py-12">{loading && <Spinner />}</div>;
   if (tab === 'timeline') return <TimelinePanel record={p.record} />;
   if (tab === 'messages') return <MessagesPanel student={p.student} record={p.record} reload={p.reload} canReply={p.canReply} />;
-  if (tab === 'activities') return <ActivitiesPanel record={p.record} />;
+  if (tab === 'activities') return <ActivitiesPanel student={p.student} record={p.record} reload={p.reload} canEdit={p.canEdit} />;
   return <EmailsPanel student={p.student} record={p.record} reload={p.reload} canEdit={p.canEdit} />;
 }
 
@@ -514,7 +687,7 @@ export default function StudentRecord({ student, canEdit, canReply, onStudentCha
         {RECORD_TABS.map(t => (
           <button key={t.key} type="button" onClick={() => setTab(t.key)}
             className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${tab === t.key ? 'text-green-700 border-green-600' : 'text-gray-500 border-transparent hover:text-gray-800'}`}>
-            {t.label}
+            {t.label}<TabCount n={recordTabCount(t.key, student, record)} />
           </button>
         ))}
       </div>

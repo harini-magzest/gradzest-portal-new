@@ -111,6 +111,10 @@ export const api = {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
     autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
+    updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
+      req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+      }),
   },
 
   students: {
@@ -145,6 +149,10 @@ export const api = {
     setLeadStage: (studentId: string, leadStage: string) =>
       req<any>(`/students/${studentId}/lead-stage`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify({ leadStage }),
+      }),
+    setMeta: (studentId: string, data: { tags?: string[]; summary?: string }) =>
+      req<any>(`/students/${studentId}/meta`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     addNote: (studentId: string, text: string) =>
       req<any>(`/students/${studentId}/notes`, {

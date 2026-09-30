@@ -25,6 +25,9 @@ const CourseSchema = new mongoose.Schema({
     maxAge: Number,
     restrictedNationalities: [String],
   },
+  // Staff-entered labels and key/value details used by the course finder filters
+  tags: [String],
+  customFields: [{ _id: false, key: String, value: String }],
 });
 
 const UniversitySchema = new mongoose.Schema({

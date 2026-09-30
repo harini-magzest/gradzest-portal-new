@@ -201,6 +201,9 @@ const UserSchema = new mongoose.Schema({
   counselorNotes: [CounselorNoteSchema],
   counselorId: String,
   joinedDate: String,
+  // Staff-maintained quick-reference info shown on the student record
+  tags: { type: [String], default: undefined },
+  summary: String,
 
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
   source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },

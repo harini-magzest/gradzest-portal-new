@@ -330,9 +330,14 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
       emailVerified: true,
       source: 'admin_created',
     });
-    await student.save();
     if (counselorId) {
-      await User.findByIdAndUpdate(counselorId, { $push: { assignedStudents: student._id.toString() } });
+      student.counselorId = counselorId;
+      await User.findByIdAndUpdate(counselorId, { $addToSet: { assignedStudents: student._id.toString() } });
+      await student.save();
+    } else {
+      await student.save();
+      await assignNextCounselor(student); // no counselor picked — round-robin one in
+      await student.save();
     }
     fireEvent('student.created', { studentId: student._id });
     const obj = student.toJSON();
