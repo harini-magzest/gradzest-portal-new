@@ -8,7 +8,9 @@
     "client": "vite",
     "server": "cd server && npm run dev",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "date-fns": "^2.30.0",
@@ -17,7 +19,7 @@
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
+    "react-router-dom": "^7.18.4",
     "recharts": "^2.9.3",
     "socket.io-client": "^4.8.3"
   },
@@ -27,11 +29,14 @@
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
     "concurrently": "^9.2.1",
+    "mongodb-memory-server": "^11.3.0",
     "postcss": "^8.4.31",
+    "supertest": "^7.3.0",
     "tailwindcss": "^3.3.5",
     "terser": "^5.51.2",
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
-    "vite-plugin-javascript-obfuscator": "^3.1.0"
+    "vite-plugin-javascript-obfuscator": "^3.1.0",
+    "vitest": "^2.1.9"
   }
 }

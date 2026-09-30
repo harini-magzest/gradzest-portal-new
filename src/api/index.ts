@@ -12,6 +12,11 @@ function authHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
 }
 
+function toQueryString(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  return new URLSearchParams(entries as [string, string][]).toString();
+}
+
 // Try once to get a new access token using the httpOnly refresh cookie
 let refreshing: Promise<string | null> | null = null;
 async function tryRefresh(): Promise<string | null> {
@@ -100,6 +105,10 @@ export const api = {
       }),
     refresh: () => tryRefresh(),
     logout: () => fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {}),
+    sessions: () => req<{ sessions: any[] }>('/auth/sessions', { headers: authHeaders() }),
+    revokeSession: (id: string) => req<{ message: string }>(`/auth/sessions/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
   },
 
   countries: {
@@ -364,6 +373,43 @@ export const api = {
     deleteAppTeamMember: (id: string) => req<any>(`/admin/appteam/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+  },
+
+  soc: {
+    stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
+    events: (params: { limit?: number; since?: string; type?: string; severity?: string } = {}) =>
+      req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
+    incidents: (params: { status?: string; severity?: string; limit?: number } = {}) =>
+      req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    updateIncident: (id: string, data: { status?: string; assignedTo?: string | null }) =>
+      req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
+    addIncidentNote: (id: string, text: string) =>
+      req<any>(`/soc/incidents/${id}/notes`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }) }),
+    searchUsers: (q: string) => req<any>(`/soc/investigate/search-users?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    investigateUser: (id: string) => req<any>(`/soc/investigate/user/${id}`, { headers: authHeaders() }),
+    logoutUserEverywhere: (id: string) =>
+      req<any>(`/soc/investigate/user/${id}/logout-everywhere`, { method: 'POST', headers: authHeaders() }),
+    investigateIp: (ip: string) => req<any>(`/soc/investigate/ip/${encodeURIComponent(ip)}`, { headers: authHeaders() }),
+    blockedIps: () => req<any>('/soc/blocked-ips', { headers: authHeaders() }),
+    blockIp: (ip: string, reason: string) =>
+      req<any>('/soc/blocked-ips', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ip, reason }) }),
+    unblockIp: (ip: string) => req<any>(`/soc/blocked-ips/${encodeURIComponent(ip)}`, { method: 'DELETE', headers: authHeaders() }),
+    posture: (refresh?: boolean) => req<any>(`/soc/posture${refresh ? '?refresh=1' : ''}`, { headers: authHeaders() }),
+    downloadChecklistPdf: async () => {
+      const res = await fetch(`${BASE}/soc/posture/checklist-pdf`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Failed to generate PDF');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-hardening-checklist.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    piiAudit: () => req<any>('/soc/pii-audit', { headers: authHeaders() }),
+    auditTrail: (limit?: number) => req<any>(`/soc/audit-trail${limit ? `?limit=${limit}` : ''}`, { headers: authHeaders() }),
   },
 
   tasks: {

@@ -42,6 +42,8 @@ router.get('/', authMiddleware, async (req, res) => {
 // ── POST /api/activity/seed ──────────────────────────────────────────────────
 // Dev-only: inserts sample events so the feed is not empty on first load.
 router.post('/seed', authMiddleware, async (req, res) => {
+  // Never reachable in production — this is a local/dev convenience only.
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ message: 'Not found' });
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   if (process.env.NODE_ENV === 'production') return res.status(404).json({ message: 'Not found' });
 

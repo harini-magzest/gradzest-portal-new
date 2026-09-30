@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Student } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
+import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 
 const EDUCATION_LEVELS = ['10th Grade', '12th Grade / Intermediate', 'Diploma', "Bachelor's Degree", "Master's Degree", 'PhD', 'Other'];
 type AcadDoc = { name: string; url: string; docId: string; docType: string };
@@ -1499,6 +1500,8 @@ export default function StudentProfile() {
               </div>
             </div>
           </div>
+
+          <ActiveSessionsPanel />
         </div>
       </div>
     </div>

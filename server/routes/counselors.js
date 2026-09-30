@@ -2,6 +2,8 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { scanUploadedFile } = require('../middleware/scanUpload');
+const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 
 const router = express.Router();
 
@@ -42,10 +44,10 @@ router.get('/me/documents', authMiddleware, async (req, res) => {
 });
 
 // Upload own document (counselor) — multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { name, type } = req.body;
-  const url = req.file ? `/uploads/${req.file.filename}` : undefined;
+  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : undefined;
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };

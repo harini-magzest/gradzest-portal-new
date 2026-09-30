@@ -1,0 +1,36 @@
+import { afterAll, beforeAll } from 'vitest';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+
+// These must be set before any test file requires server/app.js or its models —
+// Vitest runs setupFiles before a test file's own top-level requires, so setting
+// them here (rather than lazily inside beforeAll) is what makes that ordering hold.
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret-do-not-use-in-production';
+process.env.FRONTEND_URL = 'http://localhost:5173';
+
+let mongod: MongoMemoryServer;
+
+beforeAll(async () => {
+  // mongod's own startup (WiredTiger init, etc.) can take 20s+ in this environment —
+  // well past mongodb-memory-server's 10s default launch timeout.
+  mongod = await MongoMemoryServer.create({ instance: { launchTimeout: 60000 } });
+  process.env.MONGODB_URI = mongod.getUri();
+
+  // connectDB() retries forever on failure by design (see server/db.js) — a broken
+  // memory-server startup should fail the suite fast instead of hanging it.
+  const { connectDB, mongoose } = require('../db');
+  await Promise.race([
+    connectDB(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('MongoDB memory server failed to connect within 45s')), 45000),
+    ),
+  ]);
+  // Silence noisy dev-mode logs during test runs.
+  mongoose.connection.removeAllListeners('connected');
+}, 90000);
+
+afterAll(async () => {
+  const { mongoose } = require('../db');
+  await mongoose.disconnect();
+  if (mongod) await mongod.stop();
+});

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
+import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,7 @@ function PasswordSecurity() {
         <Toggle checked={twoFA} onChange={setTwoFA} label="Enable two-factor authentication (2FA)" />
         <p className="text-xs text-gray-400 mt-3">When enabled, you'll be prompted for a verification code each time you sign in.</p>
       </SectionCard>
+      <ActiveSessionsPanel />
     </div>
   );
 }

@@ -2,15 +2,21 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { scanUploadedFile } = require('../middleware/scanUpload');
+const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
+const { logPiiAccess } = require('../lib/logPiiAccess');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
 
 // Get all students (counselor only)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
     const students = await User.find({ role: 'student' }).select('-password');
+    const io = req.app.get('io');
+    students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -50,10 +56,10 @@ router.put('/me', authMiddleware, async (req, res) => {
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
-  const url = req.file ? `/uploads/${req.file.filename}` : (preExistingUrl || undefined);
+  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };
@@ -132,11 +138,12 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Get student by ID (counselor or admin)
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
+    logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
     res.json(student.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });

@@ -4,6 +4,7 @@ import { User, Upload, FileText, Eye, Trash2, X, Award, Globe, Phone, MapPin } f
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
+import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 
 const DOC_TYPES = [
   'Degree Certificate', 'Teaching Certificate', 'Professional License',
@@ -314,6 +315,8 @@ export default function CounselorProfile() {
               <Upload className="w-4 h-4" /> Upload Document
             </button>
           </div>
+
+          <ActiveSessionsPanel />
         </div>
       </div>
     </div>
