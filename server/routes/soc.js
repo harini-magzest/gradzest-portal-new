@@ -369,7 +369,6 @@ const HARDENING_CHECKLIST = [
   { label: 'Helmet security headers + CSP', enabled: true },
   { label: 'NoSQL injection sanitization (express-mongo-sanitize)', enabled: true },
   { label: 'trust proxy set (correct IP resolution behind a reverse proxy)', enabled: true },
-  { label: 'GitHub OAuth CSRF state parameter', enabled: true },
   { label: 'Per-device session isolation (multi-session support)', enabled: true },
   { label: 'Account lockout after repeated failed logins', enabled: true },
   { label: 'Password reset invalidates all existing sessions', enabled: true },

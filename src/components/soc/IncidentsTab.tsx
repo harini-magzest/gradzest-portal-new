@@ -6,7 +6,7 @@ import { api, getApiToken } from '../../api';
 interface Note { author: string; authorRole: string; text: string; createdAt: string }
 interface Incident {
   _id: string; type: string; severity: string; status: string; title: string;
-  relatedIp?: string; relatedEmail?: string; notes: Note[]; createdAt: string; updatedAt: string;
+  relatedIp?: string; relatedEmail?: string; notes: Note[]; createdAt: string; updatedAt: string; stale?: boolean;
 }
 
 const SEVERITY_STYLE: Record<string, { backgroundColor: string; color: string }> = {
@@ -19,7 +19,7 @@ const STATUS_STYLE: Record<string, { backgroundColor: string; color: string }> =
 };
 const TYPE_LABEL: Record<string, string> = {
   brute_force: 'Brute Force', suspicious_ip: 'Suspicious IP', payment_anomaly: 'Payment Anomaly',
-  account_lockout: 'Account Lockout', pii_bulk_access: 'Bulk PII Access', malware_upload: 'Malware Upload', waf_block: 'WAF Block', skyload_bot_activity: 'Skyload Bot Activity', manual: 'Manual',
+  account_lockout: 'Account Lockout', pii_bulk_access: 'Bulk PII Access', malware_upload: 'Malware Upload', waf_block: 'WAF Block', skyload_bot_activity: 'Skyload Bot Activity', impossible_travel: 'Impossible Travel', manual: 'Manual',
 };
 
 function IncidentDetail({ incident, onClose, onUpdate }: { incident: Incident; onClose: () => void; onUpdate: (i: Incident) => void }) {
@@ -46,7 +46,10 @@ function IncidentDetail({ incident, onClose, onUpdate }: { incident: Incident; o
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase">{TYPE_LABEL[incident.type] || incident.type}</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase flex items-center gap-1.5">
+              {TYPE_LABEL[incident.type] || incident.type}
+              {incident.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 normal-case">Stale — 14+ days idle</span>}
+            </p>
             <h3 className="text-base font-bold text-gray-900 mt-0.5">{incident.title}</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -149,6 +152,7 @@ export default function IncidentsTab() {
                 <span className="text-sm font-semibold text-gray-900 truncate">{inc.title}</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
+                {inc.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-gray-100 text-gray-500">Stale</span>}
               </div>
               <p className="text-xs text-gray-400">{TYPE_LABEL[inc.type] || inc.type} · {inc.notes.length} note{inc.notes.length !== 1 ? 's' : ''}</p>
             </div>

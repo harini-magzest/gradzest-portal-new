@@ -17,7 +17,7 @@ const cache = new Map(); // ip -> { data, cachedAt }
 function fetchIpApi(ip) {
   return new Promise((resolve) => {
     const req = http.get(
-      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,countryCode,regionName,city,isp,org,as,query`,
+      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,countryCode,regionName,city,isp,org,as,lat,lon,query`,
       { timeout: 5000 },
       (res) => {
         let data = '';
@@ -44,6 +44,7 @@ async function getIpIntel(ip) {
         country: result.country, countryCode: result.countryCode,
         region: result.regionName, city: result.city,
         isp: result.isp, org: result.org, asn: result.as,
+        lat: result.lat, lon: result.lon,
       }
     : {
         available: false,

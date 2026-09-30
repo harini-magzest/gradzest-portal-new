@@ -15,7 +15,7 @@ const securityIncidentSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "manual"],
+      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "impossible_travel", "manual"],
       required: true,
     },
     severity: {
@@ -43,6 +43,11 @@ const securityIncidentSchema = new mongoose.Schema(
       default: null,
     },
     notes: [NoteSchema],
+    // Auto-set by the daily security-digest job when an open/investigating
+    // incident has had no update (note, status change, new source event) in
+    // 14+ days — a triage-fatigue signal, not an analyst-driven outcome, so
+    // it's separate from `status` and never changes it.
+    stale: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

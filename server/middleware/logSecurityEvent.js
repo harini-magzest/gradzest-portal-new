@@ -1,5 +1,5 @@
 const SecurityEvent = require('../models/SecurityEvent');
-const { checkLoginFailureRules, checkLockoutRule, checkWafBlockRule, checkSkyloadBotRule } = require('../lib/detectIncidents');
+const { checkLoginFailureRules, checkLockoutRule, checkWafBlockRule, checkSkyloadBotRule, checkImpossibleTravelRule } = require('../lib/detectIncidents');
 
 // Holds the Socket.io server instance — set once at startup via initSecurityLogger()
 let _io = null;
@@ -14,6 +14,7 @@ function initSecurityLogger(io) {
  *
  * @param {string} type - login_success | login_failure | login_lockout |
  *                         logout | token_invalid | token_expired | password_reset
+ *                         (login_success also runs the impossible-travel check)
  * @param {object} options
  *   @param {string}       options.severity
  *   @param {ObjectId|null} options.userId
@@ -57,6 +58,8 @@ async function logSecurityEvent(type, options = {}) {
       checkWafBlockRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     } else if (type === 'skyload_bot_flag') {
       checkSkyloadBotRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
+    } else if (type === 'login_success') {
+      checkImpossibleTravelRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     }
 
     return entry;

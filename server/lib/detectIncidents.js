@@ -8,6 +8,7 @@
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');
 const { sendCriticalIncidentAlert } = require('./criticalAlert');
+const { getIpIntel } = require('./ipIntel');
 
 const BRUTE_FORCE_WINDOW_MS = 10 * 60 * 1000;
 const BRUTE_FORCE_THRESHOLD = 5;
@@ -19,6 +20,15 @@ const PII_BULK_ACCESS_WINDOW_MS = 60 * 60 * 1000;
 const PII_BULK_ACCESS_THRESHOLD = 30;
 const SKYLOAD_BOT_WINDOW_MS = 10 * 60 * 1000;
 const SKYLOAD_BOT_THRESHOLD = 5;
+const IMPOSSIBLE_TRAVEL_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+// Both guards must trip together: a large minimum distance alone would flag
+// two nearby cities that geolocation just places on opposite sides of a
+// regional boundary, and a high speed alone would flag short local hops
+// where imprecise geolocation makes a small distance look sudden. Together
+// they approximate "further apart than a flight covers, faster than a
+// flight travels" — commercial jet cruise speed, not a hard physics limit.
+const IMPOSSIBLE_TRAVEL_MIN_DISTANCE_KM = 300;
+const IMPOSSIBLE_TRAVEL_MAX_PLAUSIBLE_KMH = 900;
 
 function emitIncident(io, event, incident) {
   if (io) io.to('admin-room').emit(event, incident.toObject());
@@ -222,4 +232,74 @@ async function checkSkyloadBotRule(event, io) {
   emitIncident(io, created ? 'incident_created' : 'incident_updated', incident);
 }
 
-module.exports = { checkLoginFailureRules, checkLockoutRule, checkSuspiciousIpRule, checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule };
+// Great-circle distance between two lat/lon points, in km. Exported
+// separately so the threshold math can be unit-tested with known city
+// coordinates without depending on a live geolocation lookup.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Called after every `login_success` SecurityEvent is persisted. Compares
+// against the same user's most recent prior login from a *different* IP
+// within the lookback window — if the two locations are further apart than
+// a flight could plausibly cover in the time between them, that's a strong
+// account-takeover signal (shared/stolen credentials used from two places
+// at once), not normal travel. `intelFn` defaults to the real getIpIntel
+// but is overridable so tests can supply fixed coordinates instead of
+// depending on a live network lookup, mirroring how criticalAlert.js takes
+// an injectable mailer.
+async function checkImpossibleTravelRule(event, io, intelFn = getIpIntel) {
+  if (!event.userId || !event.ip) return;
+  const since = new Date(Date.now() - IMPOSSIBLE_TRAVEL_LOOKBACK_MS);
+  const prior = await SecurityEvent.findOne({
+    type: 'login_success',
+    userId: event.userId,
+    ip: { $ne: event.ip, $ne: '' },
+    createdAt: { $gte: since, $lt: event.createdAt },
+  }).sort({ createdAt: -1 });
+  if (!prior) return;
+
+  const [currentIntel, priorIntel] = await Promise.all([intelFn(event.ip), intelFn(prior.ip)]);
+  if (!currentIntel.available || !priorIntel.available) return;
+  if (typeof currentIntel.lat !== 'number' || typeof priorIntel.lat !== 'number') return;
+
+  const distanceKm = haversineKm(priorIntel.lat, priorIntel.lon, currentIntel.lat, currentIntel.lon);
+  const hoursElapsed = (event.createdAt - prior.createdAt) / (1000 * 60 * 60);
+  if (hoursElapsed <= 0) return;
+  const speedKmh = distanceKm / hoursElapsed;
+  if (distanceKm < IMPOSSIBLE_TRAVEL_MIN_DISTANCE_KM || speedKmh < IMPOSSIBLE_TRAVEL_MAX_PLAUSIBLE_KMH) return;
+
+  const fromLabel = priorIntel.city || priorIntel.country || prior.ip;
+  const toLabel = currentIntel.city || currentIntel.country || event.ip;
+  const durationLabel = hoursElapsed < 1 ? `${Math.round(hoursElapsed * 60)} min` : `${hoursElapsed.toFixed(1)} h`;
+  const title = `Impossible travel: ${event.email || 'account'} — ${fromLabel} to ${toLabel} in ${durationLabel}`;
+
+  const { incident, created } = await findOrCreateOpenIncident(
+    { type: 'impossible_travel', relatedUserId: event.userId },
+    () => ({
+      type: 'impossible_travel',
+      severity: 'high',
+      title,
+      relatedIp: event.ip,
+      relatedUserId: event.userId,
+      relatedEmail: event.email,
+      sourceEventIds: [prior._id, event._id],
+    }),
+  );
+  if (!created) {
+    incident.sourceEventIds.push(event._id);
+    incident.title = title;
+    await incident.save();
+  }
+  emitIncident(io, created ? 'incident_created' : 'incident_updated', incident);
+}
+
+module.exports = {
+  checkLoginFailureRules, checkLockoutRule, checkSuspiciousIpRule, checkPaymentAnomalyRule,
+  checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule, checkImpossibleTravelRule, haversineKm,
+};
