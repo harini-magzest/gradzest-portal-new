@@ -23,6 +23,9 @@ if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
 if (!process.env.SMTP_PASS) {
   console.warn('[warn] SMTP_PASS is not set — emails will not be delivered. Set SMTP_PASS in server/.env to enable email features.');
 }
+if (!process.env.SMTP_FROM) {
+  console.warn('[warn] SMTP_FROM is not set — falling back to SMTP_USER as the sender. With Brevo this must be a verified sender address.');
+}
 
 const { connectDB } = require('./db');
 const { initActivityLogger } = require('./middleware/logActivity');
@@ -113,7 +116,7 @@ app.set('userSockets', userSockets);
 const lastSeen = new Map();
 app.set('lastSeen', lastSeen);
 
-// Nodemailer transporter — configure SMTP credentials in server/.env
+// Nodemailer transporter (Brevo SMTP relay) — configure SMTP credentials in server/.env
 const nodemailer = require('nodemailer');
 const mailer = nodemailer.createTransport({
   host:   process.env.SMTP_HOST   || 'smtp.gmail.com',
@@ -187,7 +190,7 @@ app.post('/api/subscribe', async (req, res) => {
             </p>
           </div>
           <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px;">
-            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_USER || 'info@magzest.in'}
+            © ${new Date().getFullYear()} Gradzest · ${process.env.SMTP_FROM || process.env.SMTP_USER || 'info@magzest.in'}
           </p>
         </div>
       `,
@@ -201,6 +204,8 @@ app.post('/api/subscribe', async (req, res) => {
 
 // Give the activity logger access to the socket server
 initActivityLogger(io);
+// Automation rules send mail and push socket notifications
+require('./lib/automation').initAutomation({ io, userSockets, mailer });
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/countries', require('./routes/countries'));
@@ -217,6 +222,8 @@ app.use('/api/activity', require('./routes/activity'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
+app.use('/api/roles',         require('./routes/roles'));
+app.use('/api/automation',    require('./routes/automation'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');
@@ -331,10 +338,13 @@ async function autoSeedIfEmpty() {
 }
 
 const { startDeadlineReminders } = require('./jobs/deadlineReminders');
+const { startAutomationScheduler } = require('./jobs/automationScheduler');
 
 connectDB().then(async () => {
   await autoSeedIfEmpty();
+  await require('./lib/automation').seedStarterTemplates();
   startDeadlineReminders(io, userSockets, mailer);
+  startAutomationScheduler();
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);

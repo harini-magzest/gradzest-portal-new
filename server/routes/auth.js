@@ -7,6 +7,7 @@ const User = require('../models/User');
 const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
+const { fireEvent } = require('../lib/automation');
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -80,6 +81,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         message: `Invalid email or password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`,
       });
+    }
+
+    // Staff deactivated in Settings → Users and Controls
+    if (user.active === false) {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact your administrator.' });
     }
 
     // Block login if email is not verified (only for self-registered students with pending token)
@@ -216,6 +222,7 @@ router.post('/register', async (req, res) => {
     });
     await user.save();
     notifyAdminsOfNewLead(req.app, user); // fire-and-forget; never blocks or fails sign-up
+    fireEvent('student.created', { studentId: user._id });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);
@@ -330,6 +337,7 @@ router.post('/refresh', async (req, res) => {
       refreshTokenExpires: { $gt: new Date() },
     });
     if (!user) return res.status(401).json({ message: 'Invalid or expired refresh token. Please log in again.' });
+    if (user.active === false) return res.status(401).json({ message: 'Your account has been deactivated.' });
 
     // Rotate refresh token on every use (prevents token reuse attacks)
     const { raw: newRaw, expires } = await issueRefreshToken(user);

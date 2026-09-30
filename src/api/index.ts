@@ -358,6 +358,53 @@ export const api = {
     }),
   },
 
+  roles: {
+    list: () => req<{ roles: any[]; staff: any[] }>('/roles', { headers: authHeaders() }),
+    create: (data: { name: string; description?: string; parentRole?: string | null }) => req<any>('/roles', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null }) => req<any>(`/roles/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    remove: (id: string) => req<any>(`/roles/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    assign: (userId: string, roleId: string | null) => req<any>(`/roles/assign/${userId}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ roleId }),
+    }),
+  },
+
+  automation: {
+    meta: () => req<any>('/automation/meta', { headers: authHeaders() }),
+    templates: () => req<any[]>('/automation/templates', { headers: authHeaders() }),
+    createTemplate: (data: any) => req<any>('/automation/templates', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateTemplate: (id: string, data: any) => req<any>(`/automation/templates/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteTemplate: (id: string) => req<any>(`/automation/templates/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    testTemplate: (id: string) => req<{ message: string }>(`/automation/templates/${id}/test`, {
+      method: 'POST', headers: authHeaders(),
+    }),
+    rules: () => req<any[]>('/automation/rules', { headers: authHeaders() }),
+    createRule: (data: any) => req<any>('/automation/rules', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateRule: (id: string, data: any) => req<any>(`/automation/rules/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    setRuleActive: (id: string, active: boolean) => req<any>(`/automation/rules/${id}/active`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ active }),
+    }),
+    deleteRule: (id: string) => req<any>(`/automation/rules/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    runRule: (id: string, studentId: string) => req<any>(`/automation/rules/${id}/run`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId }),
+    }),
+    logs: (params: { ruleId?: string; status?: string } = {}) => {
+      const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
+      return req<any[]>(`/automation/logs${q ? `?${q}` : ''}`, { headers: authHeaders() });
+    },
+  },
+
   tasks: {
     list: () => req<any[]>('/tasks', { headers: authHeaders() }),
     assignees: () => req<{ _id: string; name: string; title?: string; dept: 'counselor' | 'appteam' | 'admin' }[]>('/tasks/assignees', { headers: authHeaders() }),

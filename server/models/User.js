@@ -163,6 +163,12 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: false },
   role: { type: String, enum: ['student', 'counselor', 'admin'], required: true },
   isAppTeam: { type: Boolean, default: false },
+  // Staff: position in the role hierarchy (admin Roles page)
+  hierarchyRole: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', default: null },
+  // Staff: permission profile (null = the default profile); see lib/access.js
+  profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', default: null },
+  // Staff: deactivated users cannot log in
+  active: { type: Boolean, default: true },
   // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
   smartfloAgent: { type: String, default: '' },
   avatar: String,

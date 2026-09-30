@@ -172,7 +172,7 @@ function counselorPerf(counselor: any, allStudents: any[]) {
 
 // ── Student detail modal ─────────────────────────────────────────────────────
 
-function StudentDetailModal({ student, onClose, onChat, onNewApplication }: { student: any; onClose: () => void; onChat?: () => void; onNewApplication?: () => void }) {
+function StudentDetailModal({ student, counselorName, onClose, onChat, onNewApplication }: { student: any; counselorName?: string; onClose: () => void; onChat?: () => void; onNewApplication?: () => void }) {
   const initials = student.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3"
@@ -189,6 +189,9 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication }: { st
               <div>
                 <h2 className="text-xl font-bold text-white">{student.name}</h2>
                 <p className="text-purple-200 text-sm mt-0.5">{student.email}</p>
+                <p className="flex items-center gap-1 text-purple-100 text-xs mt-1" title="Assigned counselor">
+                  <UserCog className="w-3.5 h-3.5" /> {counselorName || 'Unassigned'}
+                </p>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <StatusBadge status={student.status} />
                   {student.nationality && (
@@ -1522,6 +1525,7 @@ export default function AdminDashboard() {
       {selectedStudent && (
         <StudentDetailModal
           student={selectedStudent}
+          counselorName={counselorNameById[selectedStudent.counselorId]}
           onClose={() => setSelectedStudent(null)}
           onChat={() => {
             navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } });
@@ -1779,9 +1783,9 @@ export default function AdminDashboard() {
                         {s.englishScore?.score && (
                           <span className="text-xs text-indigo-600 font-semibold">{s.englishScore.type} {s.englishScore.score}</span>
                         )}
-                        {s.counselorId && counselorNameById[s.counselorId] && (
-                          <span className="text-xs text-purple-600 font-medium">{counselorNameById[s.counselorId]}</span>
-                        )}
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 font-medium" title="Assigned counselor">
+                          <UserCog className="w-3 h-3" />{counselorNameById[s.counselorId] || 'Unassigned'}
+                        </span>
                       </div>
                     </div>
                     <div className="hidden sm:block text-center flex-shrink-0">

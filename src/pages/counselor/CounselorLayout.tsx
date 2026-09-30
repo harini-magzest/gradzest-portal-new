@@ -43,7 +43,7 @@ export default function CounselorLayout() {
 
   return (
     <div className="min-h-screen bg-green-50">
-      <DashboardTopbar workspaceLabel="Counselor workspace" dashboardHome="/counselor" />
+      <DashboardTopbar workspaceLabel="Counselor workspace" />
       <div className="flex">
         {/* Sidebar */}
         <DashboardSidebar navItems={sidebarItems} />

@@ -43,7 +43,7 @@ export default function StudentLayout() {
 
   return (
     <div className="min-h-screen bg-blue-50">
-      <DashboardTopbar workspaceLabel="Student workspace" dashboardHome="/student" />
+      <DashboardTopbar workspaceLabel="Student workspace" />
       <EmailVerificationBanner />
       <div className="flex">
         {/* Sidebar */}

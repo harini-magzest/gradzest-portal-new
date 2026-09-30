@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Building2, User, Lock, Palette, Bell, Mail, GitBranch,
+  Building2, User, Lock, Bell, GitBranch,
   ShieldCheck, MessageCircle, CalendarDays, Download, AlertTriangle,
   ChevronRight, Save, Eye, EyeOff, GripVertical, Check,
-  Smartphone, Globe,
+  Smartphone, Globe, Network, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
+import AdminRoles from './AdminRoles';
+import AdminAutomation from './AdminAutomation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SectionKey =
-  | 'company' | 'profile' | 'password' | 'branding'
-  | 'notifications' | 'email-templates' | 'app-stages'
-  | 'roles' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
+  | 'company' | 'profile' | 'password'
+  | 'notifications' | 'automation' | 'app-stages'
+  | 'roles' | 'permissions' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
 
@@ -22,11 +24,11 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'company',         label: 'Company Profile',      icon: Building2 },
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
-  { key: 'branding',        label: 'Branding & Theme',     icon: Palette },
   { key: 'notifications',   label: 'Notifications',        icon: Bell },
-  { key: 'email-templates', label: 'Email Templates',      icon: Mail },
+  { key: 'roles',           label: 'Roles',                icon: Network },
+  { key: 'automation',      label: 'Automation',           icon: Zap },
   { key: 'app-stages',      label: 'Application Stages',   icon: GitBranch },
-  { key: 'roles',           label: 'Roles & Permissions',  icon: ShieldCheck },
+  { key: 'permissions',     label: 'Permissions & App Team', icon: ShieldCheck },
   { key: 'whatsapp',        label: 'WhatsApp / SMS',       icon: Smartphone },
   { key: 'google-cal',      label: 'Google Calendar',      icon: CalendarDays },
   { key: 'export',          label: 'Export & Backup',      icon: Download },
@@ -223,55 +225,6 @@ function PasswordSecurity() {
   );
 }
 
-function BrandingTheme() {
-  const [primary, setPrimary] = useState('#7c3aed');
-  const [accent, setAccent] = useState('#0d1b4b');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const save = async () => {
-    setSaving(true); await new Promise(r => setTimeout(r, 600));
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000);
-  };
-  return (
-    <SectionCard title="Branding & Theme">
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Primary Color</label>
-            <div className="flex items-center gap-3">
-              <input type="color" value={primary} onChange={e => setPrimary(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-              <span className="text-sm text-gray-600 font-mono">{primary}</span>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Accent Color</label>
-            <div className="flex items-center gap-3">
-              <input type="color" value={accent} onChange={e => setAccent(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-              <span className="text-sm text-gray-600 font-mono">{accent}</span>
-            </div>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Theme Mode</label>
-          <div className="flex gap-3">
-            {(['light','dark'] as const).map(t => (
-              <button key={t} type="button" onClick={() => setTheme(t)}
-                className={`flex-1 py-3 rounded-xl border text-sm font-semibold capitalize transition-all
-                  ${theme === t ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                {t === 'light' ? '☀️' : '🌙'} {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      <SaveBar saving={saving} onSave={save} saved={saved} />
-    </SectionCard>
-  );
-}
-
 function NotificationsSection() {
   const [prefs, setPrefs] = useState({
     newStudent: true, newApplication: true, meetingReminder: true,
@@ -290,46 +243,6 @@ function NotificationsSection() {
         <Toggle checked={prefs.counselorReport} onChange={() => toggle('counselorReport')} label="Weekly counselor performance report" />
         <Toggle checked={prefs.emailDigest} onChange={() => toggle('emailDigest')} label="Daily email digest" />
         <Toggle checked={prefs.smsAlerts} onChange={() => toggle('smsAlerts')} label="SMS alerts for critical events" />
-      </div>
-    </SectionCard>
-  );
-}
-
-function EmailTemplates() {
-  const templates = [
-    { key: 'welcome', label: 'Welcome Email', desc: 'Sent to new students on registration' },
-    { key: 'app_submitted', label: 'Application Submitted', desc: 'Confirmation after application is submitted' },
-    { key: 'offer', label: 'Offer Received', desc: 'Notifies student of university offer' },
-    { key: 'meeting', label: 'Meeting Scheduled', desc: 'Calendar invite for scheduled meetings' },
-    { key: 'doc_request', label: 'Document Request', desc: 'Requests documents from student' },
-    { key: 'visa_approved', label: 'Visa Approved', desc: 'Congratulations on visa approval' },
-  ];
-  const [active, setActive] = useState('welcome');
-  const [body, setBody] = useState('Dear {{student_name}},\n\nWelcome to Gradzest! We\'re excited to help you begin your study abroad journey.\n\nBest regards,\nThe Gradzest Team');
-  return (
-    <SectionCard title="Email Templates">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-1">
-          {templates.map(t => (
-            <button key={t.key} type="button" onClick={() => setActive(t.key)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${active === t.key ? 'bg-purple-50 text-purple-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="col-span-2 space-y-3">
-          <div className="bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
-            <p className="text-xs font-semibold text-purple-700">{templates.find(t => t.key === active)?.label}</p>
-            <p className="text-xs text-purple-500 mt-0.5">{templates.find(t => t.key === active)?.desc}</p>
-          </div>
-          <p className="text-xs text-gray-400">Variables: {'{{student_name}}'}, {'{{counselor_name}}'}, {'{{university_name}}'}, {'{{date}}'}</p>
-          <textarea value={body} onChange={e => setBody(e.target.value)} rows={8}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none" />
-          <button type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 shadow-sm transition-all">
-            <Save className="w-3.5 h-3.5" />Save Template
-          </button>
-        </div>
       </div>
     </SectionCard>
   );
@@ -600,7 +513,7 @@ function DangerZone() {
         </div>
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
           <p className="text-sm font-bold text-orange-800">Reset to Default Settings</p>
-          <p className="text-xs text-orange-600 mt-0.5">Resets all notification preferences, email templates, and branding to factory defaults.</p>
+          <p className="text-xs text-orange-600 mt-0.5">Resets all notification preferences, and email templates to factory defaults.</p>
           <button type="button" className="mt-3 px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-xl hover:bg-orange-700 transition-colors">
             Reset Settings
           </button>
@@ -613,18 +526,22 @@ function DangerZone() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminSettings() {
-  const [active, setActive] = useState<SectionKey>('company');
+  // The open section lives in ?section= so it survives reloads and can be linked to
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('section') as SectionKey | null;
+  const active: SectionKey = NAV_ITEMS.some(i => i.key === requested) ? requested! : 'company';
+  const setActive = (key: SectionKey) => setParams({ section: key }, { replace: true });
 
   const renderContent = () => {
     switch (active) {
       case 'company':         return <CompanyProfile />;
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
-      case 'branding':        return <BrandingTheme />;
       case 'notifications':   return <NotificationsSection />;
-      case 'email-templates': return <EmailTemplates />;
+      case 'roles':           return <AdminRoles />;
+      case 'automation':      return <AdminAutomation />;
       case 'app-stages':      return <ApplicationStages />;
-      case 'roles':           return <RolesPermissions />;
+      case 'permissions':     return <RolesPermissions />;
       case 'whatsapp':        return <WhatsAppSMS />;
       case 'google-cal':      return <GoogleCalendar />;
       case 'export':          return <ExportBackup />;

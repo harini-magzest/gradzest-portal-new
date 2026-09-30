@@ -189,7 +189,7 @@ export default function App() {
               <Route path="countries" element={<AdminCountries />} />
               <Route path="counselors" element={<AdminCounselors />} />
               <Route path="counselors/:id/performance" element={<AdminCounselorPerformance />} />
-              <Route path="students" element={<AdminStudents />} />
+              <Route path="students/*" element={<AdminStudents />} />
               <Route path="applications" element={<AdminApplications />} />
               <Route path="application-board" element={<AdminApplicationBoard />} />
               <Route path="activities" element={<Activities />} />
@@ -198,6 +198,8 @@ export default function App() {
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="roles" element={<Navigate to="/admin/settings?section=roles" replace />} />
+              <Route path="automation" element={<Navigate to="/admin/settings?section=automation" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>
 
