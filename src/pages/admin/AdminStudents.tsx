@@ -1646,6 +1646,10 @@ export default function AdminStudents() {
                                 {markingId === id ? <Spinner size={3} /> : <CheckCircle className="w-3.5 h-3.5" />}
                               </button>
                             )}
+                            <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })} title="Chat"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
                             <button type="button" onClick={() => setMeetingStudent(s)} title="Start group meeting"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors">
                               <Video className="w-3.5 h-3.5" />
