@@ -23,6 +23,19 @@ const EnglishProficiencyTestSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Each element gets its own auto-assigned _id — used to individually revoke one session
+// ("log out this device") without touching any of the user's other active sessions.
+const SessionSchema = new mongoose.Schema(
+  {
+    tokenHash: { type: String, required: true },
+    expires: { type: Date, required: true },
+    userAgent: { type: String, default: '' },
+    ip: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now },
+    lastUsedAt: { type: Date, default: Date.now },
+  },
+);
+
 const DocumentSchema = new mongoose.Schema({
   name: String,
   type: String,
@@ -233,9 +246,9 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
-  // JWT refresh token (stored as SHA-256 hash)
-  refreshTokenHash: { type: String, default: null },
-  refreshTokenExpires: { type: Date, default: null },
+  // Active login sessions — one per device, each with its own refresh token
+  // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
+  sessions: { type: [SessionSchema], default: [] },
 
   // Admin: when this admin last opened the New Subscribers list (drives the unread badge)
   subscribersSeenAt: { type: Date, default: null },

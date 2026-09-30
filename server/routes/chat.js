@@ -3,6 +3,8 @@ const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { scanUploadedFile } = require('../middleware/scanUpload');
+const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
@@ -399,10 +401,10 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
 });
 
 // Send file in chat (+ auto-handle offer letters)
-router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
   const { senderName, isOfferLetter } = req.body;
   try {
-    const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const fileUrl = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : null;
     const fileName = req.file?.originalname || 'File';
     const fileSize = req.file?.size || 0;
     const offerFlag = isOfferLetter === 'true';

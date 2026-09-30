@@ -1,4 +1,5 @@
 const ActivityLog = require('../models/ActivityLog');
+const { checkPaymentAnomalyRule } = require('../lib/detectIncidents');
 
 // Holds the Socket.io server instance — set once at startup via initActivityLogger()
 let _io = null;
@@ -56,6 +57,10 @@ async function logActivity(type, action, detail, studentId = null, options = {})
     // Broadcast to every connected dashboard client
     if (_io) {
       _io.emit('new_activity', entry.toObject());
+    }
+
+    if (type === 'payment') {
+      checkPaymentAnomalyRule(entry, _io).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     }
 
     return entry;

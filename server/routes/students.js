@@ -2,29 +2,23 @@ const express = require('express');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { scanUploadedFile } = require('../middleware/scanUpload');
+const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
+const { logPiiAccess } = require('../lib/logPiiAccess');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, studentFilter, canView, canManage } = require('../lib/access');
 
 const router = express.Router();
 
-// 403 unless the caller may view (or, with manage=true, change) the student. Returns true if blocked.
-async function denyStudent(req, res, studentId, { manage = false } = {}) {
-  if (req.user.role !== 'counselor') return false;
-  const student = await User.findOne({ _id: studentId, role: 'student' }).select('counselorId').lean();
-  if (!student) { res.status(404).json({ message: 'Student not found' }); return true; }
-  const access = await loadAccess(req);
-  if (manage ? canManage(access, student) : canView(access, student)) return false;
-  res.status(403).json({ message: manage ? 'You can only change students assigned to you or your team' : 'This student is outside your team' });
-  return true;
-}
-
-// Get all students visible to the counselor (everyone, or their role team once roles are assigned)
-router.get('/', authMiddleware, can('students.view'), async (req, res) => {
+// Get all students (counselor only)
+router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
-    const filter = studentFilter(await loadAccess(req));
-    const students = await User.find({ role: 'student', ...(filter || {}) }).select('-password');
+    const students = await User.find({ role: 'student' }).select('-password');
+    const io = req.app.get('io');
+    students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -64,10 +58,10 @@ router.put('/me', authMiddleware, async (req, res) => {
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
-  const url = req.file ? `/uploads/${req.file.filename}` : (preExistingUrl || undefined);
+  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };
@@ -148,17 +142,14 @@ router.post('/', authMiddleware, can('students.create'), async (req, res) => {
 });
 
 // Get student by ID (counselor or admin)
-router.get('/:id', authMiddleware, can('students.view'), async (req, res) => {
+router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
-    // Include the assigned counselor's name (via counselorId, else the counselor's assignedStudents list)
-    const counselor = student.counselorId
-      ? await User.findOne({ _id: student.counselorId, role: 'counselor' }).select('name').catch(() => null)
-      : await User.findOne({ role: 'counselor', assignedStudents: String(student._id) }).select('name');
-    res.json({ ...student.toJSON(), counselorName: counselor?.name || null });
+    logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
+    res.json(student.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
