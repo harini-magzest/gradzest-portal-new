@@ -33,8 +33,8 @@ export default function DashboardTopbar({
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 flex items-stretch h-16">
-      {/* Left cell — matches sidebar width */}
-      <Link to={dashboardHome} className="hidden md:flex items-center gap-2.5 w-64 shrink-0 px-5 border-r border-gray-100">
+      {/* Left cell */}
+      <Link to={dashboardHome} className="hidden md:flex items-center gap-2.5 w-56 shrink-0 px-5 border-r border-gray-100">
         <div className="w-10 h-10 bg-[#0d1b4b] rounded-xl flex items-center justify-center flex-shrink-0">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
@@ -44,7 +44,6 @@ export default function DashboardTopbar({
           </p>
           <p className="text-[11px] text-gray-400 truncate">{workspaceLabel}</p>
         </div>
-        <ChevronDown className="w-3.5 h-3.5 text-gray-300 ml-auto flex-shrink-0" />
       </Link>
 
       {/* Right cell */}

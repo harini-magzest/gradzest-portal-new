@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 export type SidebarNavItem = {
@@ -14,31 +15,48 @@ export default function DashboardSidebar({
 }: {
   navItems: SidebarNavItem[];
 }) {
+  const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
+
+  const showTooltip = (e: React.FocusEvent<HTMLElement> | React.MouseEvent<HTMLElement>, label: string) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setTooltip({ label, top: r.top + r.height / 2, left: r.right + 10 });
+  };
+  const hideTooltip = () => setTooltip(null);
+
   return (
-    <aside className="hidden md:flex flex-col w-64 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+    <aside className="hidden md:flex flex-col items-center w-20 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
+      <nav className="flex-1 py-4 space-y-1">
         {navItems.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end}
-            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors group ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+            onMouseEnter={e => showTooltip(e, item.label)}
+            onMouseLeave={hideTooltip}
+            onFocus={e => showTooltip(e, item.label)}
+            onBlur={hideTooltip}
+            className={({ isActive }) => `relative flex items-center justify-center w-12 h-12 rounded-xl transition-colors ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
             {({ isActive }) => (
               <>
-                <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                <span className={`flex-1 truncate ${isActive ? 'text-blue-700 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                  {item.label}
-                </span>
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                 {!!item.badge && (
-                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className="absolute -top-1 -right-1 text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center bg-red-500 text-white">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
                 {item.dot && !item.badge && (
-                  <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
                 )}
               </>
             )}
           </NavLink>
         ))}
       </nav>
+
+      {/* Name tooltip — rendered fixed to the viewport so it isn't clipped by the sidebar's scroll area */}
+      {tooltip && (
+        <div className="fixed z-[60] -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-lg bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 shadow-lg"
+          style={{ top: tooltip.top, left: tooltip.left }}>
+          {tooltip.label}
+        </div>
+      )}
     </aside>
   );
 }
