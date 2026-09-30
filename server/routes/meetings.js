@@ -5,6 +5,7 @@ const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
+const { can } = require('../lib/access');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -32,7 +33,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Admin or Counselor: create meeting
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, can('meetings.create'), async (req, res) => {
   if (!['admin', 'counselor'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     const { title, scheduledDate, scheduledTime, duration, platform, participants, notes } = req.body;

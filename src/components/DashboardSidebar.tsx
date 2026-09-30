@@ -24,7 +24,8 @@ export default function DashboardSidebar({
   const hideTooltip = () => setTooltip(null);
 
   return (
-    <aside className="hidden md:flex flex-col items-center w-20 shrink-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
+    // z-40: keep the sidebar (and its name tooltips) above sticky page content, below the z-50 top bar
+    <aside className="hidden md:flex flex-col items-center w-20 shrink-0 sticky top-16 z-40 h-[calc(100vh-64px)] overflow-y-auto bg-white border-r border-gray-100">
       <nav className="flex-1 py-4 space-y-1">
         {navItems.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end}
