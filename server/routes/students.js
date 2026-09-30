@@ -254,17 +254,23 @@ router.get('/:id/record', authMiddleware, async (req, res) => {
   const Meeting = require('../models/Meeting');
   const ChatRoom = require('../models/ChatRoom');
   try {
-    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents');
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents counselorId');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     const sid = String(student._id);
     const me = String(req.user.id);
 
-    const [staffActs, studentActs, emails, meetings, allRooms] = await Promise.all([
+    const Task = require('../models/Task');
+    const [staffActs, studentActs, emails, meetings, allRooms, tasks, owner] = await Promise.all([
       StaffActivity.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(300).lean(),
       ActivityLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
       EmailLog.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
       Meeting.find({ 'participants.userId': sid }).sort({ scheduledDate: -1, scheduledTime: -1 }).limit(100).lean(),
       ChatRoom.find({ participants: sid }).lean(),
+      Task.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(200).lean(),
+      // Owner: the linked counselor, or (for counselor-created students) whoever lists them as assigned
+      User.findOne(student.counselorId
+        ? { _id: student.counselorId, role: 'counselor' }
+        : { role: 'counselor', assignedStudents: sid }).select('name title').lean(),
     ]);
 
     // Counselors see only their own conversation with the student; admins see all of them
@@ -311,6 +317,8 @@ router.get('/:id/record', authMiddleware, async (req, res) => {
     res.json({
       timeline: timeline.slice(0, 400),
       activities,
+      tasks: tasks.map(t => ({ ...t, id: String(t._id) })),
+      owner: owner ? { id: String(owner._id), name: owner.name, title: owner.title || '' } : null,
       emails: emails.map(e => ({ ...e, id: String(e._id) })),
       rooms: rooms.map(r => ({
         id: String(r._id), type: r.type, participants: r.participants, participantNames: r.participantNames,
@@ -378,6 +386,33 @@ router.put('/:id/lead-stage', authMiddleware, async (req, res) => {
         studentId: student._id, studentName: student.name,
       });
     }
+    const obj = student.toJSON();
+    delete obj.password;
+    res.json(obj);
+  } catch { res.status(500).json({ message: 'Server error' }); }
+});
+
+// PUT /api/students/:id/meta — tags and short summary (admin, or the assigned counselor)
+router.put('/:id/meta', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const student = await User.findOne({ _id: req.params.id, role: 'student' });
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (req.user.role === 'counselor' && String(student.counselorId) !== String(req.user.id)) {
+      const me = await User.findById(req.user.id).select('assignedStudents');
+      if (!me?.assignedStudents?.map(String).includes(String(student._id))) {
+        return res.status(403).json({ message: 'Only the assigned counselor can edit this student' });
+      }
+    }
+    if (Array.isArray(req.body.tags)) {
+      const seen = new Set();
+      student.tags = req.body.tags
+        .map(t => String(t).trim().slice(0, 40))
+        .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
+        .slice(0, 20);
+    }
+    if (req.body.summary !== undefined) student.summary = String(req.body.summary).trim().slice(0, 2000);
+    await student.save();
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);

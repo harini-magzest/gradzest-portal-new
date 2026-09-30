@@ -41,7 +41,7 @@ router.get('/assignees', authMiddleware, async (req, res) => {
 // POST /api/tasks
 router.post('/', authMiddleware, async (req, res) => {
   if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
-  const { title, description, assignedTo, priority, dueDate } = req.body;
+  const { title, description, assignedTo, priority, dueDate, studentId } = req.body;
   if (!title?.trim()) return res.status(400).json({ message: 'Title required' });
   try {
     const creator = await User.findById(req.user.id).select('name');
@@ -53,7 +53,15 @@ router.post('/', authMiddleware, async (req, res) => {
       assignedToName = assignee.name || '';
       assignedToRole = assignee.role === 'admin' && assignee.isAppTeam ? 'appteam' : assignee.role;
     }
+    let studentName = '';
+    if (studentId) {
+      const student = await User.findOne({ _id: studentId, role: 'student' }).select('name');
+      if (!student) return res.status(400).json({ message: 'Student not found' });
+      studentName = student.name || '';
+    }
     const task = await Task.create({
+      studentId: studentId || null,
+      studentName,
       title: title.trim(),
       description: (description || '').trim(),
       assignedTo: assignedTo || null,
@@ -64,6 +72,14 @@ router.post('/', authMiddleware, async (req, res) => {
       priority: priority || 'medium',
       dueDate: dueDate || '',
     });
+
+    if (task.studentId) {
+      recordStaffActivity(req, {
+        kind: 'task', title: 'Task created',
+        detail: `${task.title}${assignedToName ? ` · for ${assignedToName}` : ''}${task.dueDate ? ` · due ${task.dueDate}` : ''}`,
+        studentId: task.studentId, studentName: task.studentName,
+      });
+    }
 
     // Real-time push to the assignee (not when assigning to yourself)
     if (assignedTo && String(assignedTo) !== String(req.user.id)) {
@@ -112,6 +128,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       recordStaffActivity(req, {
         kind: 'task', title: 'Task completed',
         detail: `${task.title}${task.assignedByName && !isCreator ? ` · assigned by ${task.assignedByName}` : ''}`,
+        ...(task.studentId ? { studentId: task.studentId, studentName: task.studentName } : {}),
       });
     }
     res.json(task);
