@@ -5,20 +5,24 @@ const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const { checkEligibility } = require('../lib/eligibilityChecker');
 const { recordStaffActivity } = require('../lib/staffActivity');
+const { fireEvent } = require('../lib/automation');
+const { can, loadAccess, studentFilter, canView } = require('../lib/access');
 
 const statusLabel = (s) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const router = express.Router();
 
 // Get applications
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, can('applications.view'), async (req, res) => {
   try {
     if (req.user.role === 'student') {
       const user = await User.findById(req.user.id).select('applications');
       return res.json(user?.applications || []);
     }
     if (req.user.role === 'counselor') {
-      const students = await User.find({ role: 'student', counselorId: req.user.id }).select('applications name');
+      // Role-restricted counselors see their whole team's applications; others only their own
+      const teamFilter = studentFilter(await loadAccess(req));
+      const students = await User.find({ role: 'student', ...(teamFilter || { counselorId: req.user.id }) }).select('applications name');
       const apps = students.flatMap(s =>
         s.applications.map(a => ({ ...a.toJSON(), studentName: s.name, studentId: s._id }))
       );
@@ -42,6 +46,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const app = { ...req.body, studentId: req.user.id, submittedDate: today, updatedDate: now, status: 'submitted' };
     const user = await User.findByIdAndUpdate(req.user.id, { $push: { applications: app } }, { new: true }).select('-password');
     const newApp = user.applications[user.applications.length - 1];
+    fireEvent('application.created', { studentId: user._id, application: newApp });
     res.json(newApp.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -84,11 +89,14 @@ router.post('/:appId/comments', authMiddleware, async (req, res) => {
 });
 
 // Update application status
-router.put('/:appId', authMiddleware, async (req, res) => {
+router.put('/:appId', authMiddleware, can('applications.edit'), async (req, res) => {
   const { status, notes, offerType } = req.body;
   try {
     // Find current status before updating (to store rejectedFrom)
-    const existing = await User.findOne({ 'applications._id': req.params.appId }).select('applications.$');
+    const existing = await User.findOne({ 'applications._id': req.params.appId }).select('applications.$ counselorId');
+    if (existing && req.user.role === 'counselor' && !canView(await loadAccess(req), existing)) {
+      return res.status(403).json({ message: 'This student is outside your team' });
+    }
     const currentStatus = existing?.applications?.[0]?.status;
 
     const updateFields = { 'applications.$.status': status, 'applications.$.updatedDate': new Date().toISOString() };
@@ -110,6 +118,7 @@ router.put('/:appId', authMiddleware, async (req, res) => {
         detail: `${app.universityName} – ${app.courseName}: '${statusLabel(currentStatus)}' to '${statusLabel(status)}'`,
         studentId: user._id, studentName: user.name,
       });
+      fireEvent('application.statusChanged', { studentId: user._id, application: app, fromStatus: currentStatus });
     }
 
     // Notify student in real-time via socket

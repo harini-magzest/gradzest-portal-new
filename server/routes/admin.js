@@ -8,7 +8,8 @@ const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
-const { assignNextCounselor } = require('../lib/assignCounselor');
+const { fireEvent } = require('../lib/automation');
+const { can, loadAccess, canView } = require('../lib/access');
 
 const router = express.Router();
 
@@ -338,6 +339,7 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
       await assignNextCounselor(student); // no counselor picked — round-robin one in
       await student.save();
     }
+    fireEvent('student.created', { studentId: student._id });
     const obj = student.toJSON();
     delete obj.password;
     res.status(201).json(obj);
@@ -434,6 +436,9 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
     }
 
     const updated = await User.findById(req.params.id).select('-password');
+    if (counselorId && String(counselorId) !== String(prevCounselorId || '')) {
+      fireEvent('counselor.assigned', { studentId });
+    }
 
     // Notify student and new counselor in real-time
     const io = req.app.get('io');
@@ -479,7 +484,7 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
 });
 
 // Create application for a student (admin or counselor)
-router.post('/applications', authMiddleware, async (req, res) => {
+router.post('/applications', authMiddleware, can('applications.create'), async (req, res) => {
   if (!['admin', 'counselor'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
@@ -490,6 +495,12 @@ router.post('/applications', authMiddleware, async (req, res) => {
   const now = new Date().toISOString();
   const today = now.split('T')[0];
   try {
+    if (req.user.role === 'counselor') {
+      const target = await User.findOne({ _id: studentId, role: 'student' }).select('counselorId').lean();
+      if (target && !canView(await loadAccess(req), target)) {
+        return res.status(403).json({ message: 'This student is outside your team' });
+      }
+    }
     const app = {
       universityName, courseName,
       intake: intake || '',
@@ -511,6 +522,7 @@ router.post('/applications', authMiddleware, async (req, res) => {
       detail: `${universityName} – ${courseName}${intake ? ` · ${intake}` : ''}`,
       studentId: student._id, studentName: student.name,
     });
+    fireEvent('application.created', { studentId: student._id, application: newApp });
     res.json(newApp.toJSON ? newApp.toJSON() : newApp);
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -563,6 +575,9 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
 
     const app = student.applications.id(req.params.appId);
     if (!app) return res.status(404).json({ message: 'Application not found' });
+    if (status && status !== currentStatus) {
+      fireEvent('application.statusChanged', { studentId: student._id, application: app, fromStatus: currentStatus });
+    }
 
     // Notify student in real-time via socket
     const io = req.app.get('io');

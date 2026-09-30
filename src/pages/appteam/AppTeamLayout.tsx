@@ -29,7 +29,7 @@ export default function AppTeamLayout() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <DashboardTopbar workspaceLabel="Application Team workspace" dashboardHome="/appteam" />
+      <DashboardTopbar workspaceLabel="Application Team workspace" />
       <div className="flex">
 
         {/* Sidebar */}

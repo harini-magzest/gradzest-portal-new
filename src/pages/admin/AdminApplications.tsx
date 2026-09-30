@@ -463,6 +463,9 @@ export default function AdminApplications() {
       return tb - ta;
     });
 
+  // Unique students in the visible order, so the profile's arrows step through them
+  const studentNav = { ids: [...new Set(filtered.map(a => String(a.studentId)))] };
+
   const filteredSubs = subscribers.filter(s => {
     const q = subSearch.toLowerCase();
     const matchesSearch =
@@ -738,7 +741,8 @@ export default function AdminApplications() {
 
                       {/* Student info */}
                       <div className="w-36 flex-shrink-0 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{app.studentName}</p>
+                        <Link to={`/admin/students/${app.studentId}`} state={studentNav} title="Open student profile"
+                          className="text-sm font-semibold text-gray-900 hover:text-purple-700 hover:underline truncate block">{app.studentName}</Link>
                         <p className="text-xs text-gray-400 truncate">{app.studentNationality || app.studentEmail}</p>
                       </div>
 

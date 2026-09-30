@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
@@ -20,6 +20,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
+  { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
@@ -46,7 +47,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-purple-50">
-      <DashboardTopbar workspaceLabel="Admin workspace" dashboardHome="/admin" />
+      <DashboardTopbar workspaceLabel="Admin workspace" />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
 

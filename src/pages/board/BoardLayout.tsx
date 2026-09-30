@@ -27,7 +27,7 @@ export default function BoardLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <DashboardTopbar workspaceLabel="Board workspace" dashboardHome="/board" />
+      <DashboardTopbar workspaceLabel="Board workspace" />
       <div className="flex">
         <DashboardSidebar navItems={navItems} />
 

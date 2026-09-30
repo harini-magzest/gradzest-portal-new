@@ -417,6 +417,9 @@ export default function CounselorApplications() {
       return tb - ta;
     });
 
+  // Unique students in the visible order, so the profile's arrows step through them
+  const studentNav = { ids: [...new Set(filtered.map(a => String(a.studentId)))] };
+
   const handleUpdated = (updated: any) => {
     setApplications(prev =>
       prev.map(a =>
@@ -551,7 +554,8 @@ export default function CounselorApplications() {
                       </div>
 
                       <div className="w-36 flex-shrink-0 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{app.studentName}</p>
+                        <Link to={`/counselor/students/${app.studentId}?tab=applications`} state={studentNav} title="Open student profile"
+                          className="text-sm font-semibold text-gray-900 hover:text-green-700 hover:underline truncate block">{app.studentName}</Link>
                       </div>
 
                       <div className="flex-1 min-w-0">

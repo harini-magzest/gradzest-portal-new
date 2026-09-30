@@ -4,7 +4,7 @@ import { api, API_ORIGIN, getApiToken } from '../api';
 import { useAuth } from './AuthContext';
 import { notifyLeadsChanged } from '../hooks/useNewLeadCount';
 
-export type NotifType = 'meeting' | 'application' | 'discount' | 'subscriber' | 'counselor' | 'task' | 'deadline' | 'lead';
+export type NotifType = 'meeting' | 'application' | 'discount' | 'subscriber' | 'counselor' | 'task' | 'deadline' | 'lead' | 'automation';
 export type NotifPriority = 'urgent' | 'normal' | 'info';
 
 export interface AppNotification {
@@ -455,6 +455,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const registerSocket = () => socket.emit('register', userId);
     socket.on('connect', registerSocket);
     if (socket.connected) registerSocket(); // already connected (e.g. hot-reload)
+
+    // Any role: notification sent by an admin automation rule. The server has already saved it.
+    socket.on('automation:notification', (n: { notificationId: string; priority?: NotifPriority; title: string; message: string; link?: string }) => {
+      addNotif(
+        { type: 'automation', priority: n.priority ?? 'normal', title: n.title, message: n.message, link: n.link },
+        { id: n.notificationId, skipSave: true },
+      );
+    });
 
     // Admin: new subscriber
     if (userRole === 'admin') {

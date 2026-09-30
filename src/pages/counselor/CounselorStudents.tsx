@@ -1,16 +1,17 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect } from 'react';
-import { Link, Routes, Route, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, Crown } from 'lucide-react';
+import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, MapPin, UserCog } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect from '../../components/LeadStageSelect';
-import { RecordNav, RecordTab, StudentRecordPanel, TabCount, recordTabCount, useStudentRecord } from '../../components/StudentRecord';
-import StudentInfoPanel from '../../components/StudentInfoPanel';
+import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
+import RecordNavArrows from '../../components/RecordNavArrows';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -321,6 +322,7 @@ export default function CounselorStudents() {
 function StudentsList() {
   const { user } = useAuth();
   const counselor = user as Counselor;
+  const { can, restricted } = usePermissions();
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -355,6 +357,8 @@ function StudentsList() {
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * STUDENTS_PER_PAGE;
   const pageStudents = filtered.slice(pageStart, pageStart + STUDENTS_PER_PAGE);
+  // Full filtered order (all pages) so the ‹ › arrows on the profile step through it
+  const filteredIds = filtered.map((s: any) => String(s._id || s.id));
 
   return (
     <div className="space-y-6">
@@ -387,7 +391,7 @@ function StudentsList() {
 
       <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
         <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>All Students ({allStudents.length})</button>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{restricted ? 'Team Students' : 'All Students'} ({allStudents.length})</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -406,10 +410,12 @@ function StudentsList() {
               ))}
             </select>
           </div>
-          <button type="button" onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
-            <UserPlus className="w-4 h-4" />Add Student
-          </button>
+          {can('students.create') && (
+            <button type="button" onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
+              <UserPlus className="w-4 h-4" />Add Student
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -420,16 +426,17 @@ function StudentsList() {
             </div>
           ) : pageStudents.map((student: any) => {
             const sid = student._id || student.id;
+            const navState = { ids: filteredIds };
             const apps = student.applications || [];
             const subtitle = [student.nationality, student.educationLevel, student.phone].filter(Boolean).join(' · ');
             return (
               <div key={sid} className="flex items-center gap-4 px-5 py-4 hover:bg-green-50/40 transition-colors">
-                <Link to={`/counselor/students/${sid}`} state={{ studentIds: filtered.map((f: any) => String(f._id || f.id)) }} aria-label={`Open ${student.name}'s profile`}
+                <Link to={`/counselor/students/${sid}`} state={navState} aria-label={`Open ${student.name}'s profile`}
                   className="w-11 h-11 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
                   {student.name.charAt(0)}
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/counselor/students/${sid}`} state={{ studentIds: filtered.map((f: any) => String(f._id || f.id)) }}
+                  <Link to={`/counselor/students/${sid}`} state={navState}
                     className="font-bold text-gray-900 text-sm hover:text-green-700 hover:underline transition-colors">
                     {student.name}
                   </Link>
@@ -500,11 +507,28 @@ function StudentsList() {
   );
 }
 
+// One label/value line in the student details side panel
+function InfoRow({ label, value }: { label: string; value?: any }) {
+  const empty = value === null || value === undefined || value === '';
+  return (
+    <div className="flex gap-3 py-1.5">
+      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
+      <span className={`text-xs flex-1 min-w-0 break-words ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
+    </div>
+  );
+}
+
 function StudentDetail() {
   const { studentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [student, setStudent] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes' | RecordTab>('overview');
+  // Kept separately: other student updates return the profile without it
+  const [counselorName, setCounselorName] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'documents' | 'courses' | 'notes' | RecordTab>(
+    (searchParams.get('tab') as any) || 'overview'
+  );
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(studentId);
   const [updating, setUpdating] = useState(false);
   const [showRequestDoc, setShowRequestDoc] = useState(false);
@@ -516,35 +540,28 @@ function StudentDetail() {
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
+  const { restricted } = usePermissions();
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
-  const location = useLocation();
-  const [studentIds, setStudentIds] = useState<string[]>((location.state as any)?.studentIds || []);
 
-  // Opened directly (no list order passed along): fall back to "My students", newest first
   useEffect(() => {
-    if (studentIds.length || !counselor) return;
-    api.students.list().then((all: any[]) => {
-      const mine = all.filter(s => (counselor as any).assignedStudents?.includes(s._id || s.id) || String(s.counselorId) === String(counselor.id));
-      mine.sort((a, b) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
-      setStudentIds(mine.map(s => String(s._id || s.id)));
+    api.universities.list().then(setUniversities).catch(() => {});
+  }, []);
+
+  // Reload whenever the student changes (incl. via the ‹ › arrows)
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    setStudent(null);
+    setCounselorName(null);
+    setNoteText('');
+    setEditingNote(null);
+    api.students.get(studentId).then(s => {
+      if (cancelled) return;
+      setStudent(s);
+      setCounselorName(s.counselorName || null);
     }).catch(() => {});
-  }, [counselor, studentIds.length]);
-
-  const navIndex = studentIds.indexOf(String(studentId));
-  const goTo = (i: number) => {
-    if (i < 0 || i >= studentIds.length) return;
-    navigate(`/counselor/students/${studentIds[i]}`, { state: { studentIds } });
-  };
-
-  useEffect(() => {
-    // Ignore a slow response for a student we've already moved past (fast next/prev clicks)
-    let current = true;
-    if (studentId) api.students.get(studentId).then(s => { if (current) setStudent(s); }).catch(() => {});
-    setEditingNote(null); setNoteText('');
-    return () => { current = false; };
+    return () => { cancelled = true; };
   }, [studentId]);
-
-  useEffect(() => { api.universities.list().then(setUniversities).catch(() => {}); }, []);
 
   const verifyDoc = async (docId: string, status: 'verified' | 'rejected') => {
     if (!student || !studentId) return;
@@ -579,7 +596,8 @@ function StudentDetail() {
     return tb - ta;
   });
   const docs = student.documents || [];
-  const canEditStudent = (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
+  // Own students, or — for counselors with a role — any team student the server let us open
+  const canEditStudent = restricted || (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
   const allCourses = universities.flatMap(uni =>
     (uni.courses || []).map((c: any) => ({ ...c, uniName: uni.name, uniCountry: uni.country || '', _elig: checkCourseEligibility(student, c) }))
   );
@@ -615,68 +633,82 @@ function StudentDetail() {
         />
       )}
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => navigate('/counselor/students')} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
+        <button type="button" onClick={() => { if (location.key !== 'default') navigate(-1); else navigate('/counselor/students'); }} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <RecordNav index={navIndex} total={studentIds.length} onPrev={() => goTo(navIndex - 1)} onNext={() => goTo(navIndex + 1)} />
+        {studentId && <RecordNavArrows currentId={studentId} basePath="/counselor/students" />}
       </div>
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-        <div className="flex items-start gap-5">
-          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-2xl flex-shrink-0">{student.name.charAt(0)}</div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-xl font-bold text-gray-900">{student.name}</h2>
-              <StatusBadge status={student.status} size="md" />
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        {/* ── Left: student details ── */}
+        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl flex-shrink-0">{student.name.charAt(0)}</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-gray-900 truncate" title={student.name}>{student.name}</h2>
+                <p className="flex items-center gap-1 text-xs text-gray-500 mb-1 min-w-0" title="Assigned counselor">
+                  <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{counselorName || 'Unassigned'}</span>
+                </p>
+                <StatusBadge status={student.status} />
+              </div>
             </div>
-            {record?.owner && (
-              <p className="flex items-center gap-1.5 text-sm text-gray-500 mb-2">
-                <Crown className="w-3.5 h-3.5 text-amber-500" />{record.owner.name}
-              </p>
-            )}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mt-4">
               <span className="text-xs font-medium text-gray-500">Lead Stage</span>
               <LeadStageSelect value={student.leadStage} size="md"
                 editable={canEditStudent}
                 onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
             </div>
-            <p className="text-gray-600">{student.email} • {student.phone}</p>
-            <p className="text-sm text-gray-500 mt-1">{student.nationality} • {student.educationLevel} • GPA: {student.gpa}/10</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {student.englishScore && <span className="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full">{student.englishScore.type}: {student.englishScore.score}</span>}
-              <span className="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-full">Budget: ${(student.budget || 0).toLocaleString()}/yr</span>
-              {(student.preferredCountries || []).map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Link to="/counselor/chat" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
+                <MessageSquare className="w-4 h-4" /> Chat
+              </Link>
+              <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
+                <Plus className="w-4 h-4" /> Application
+              </Link>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={() => setActiveTab('emails')} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-              <Mail className="w-4 h-4" /> Send Mail
-            </button>
-            <Link to="/counselor/chat" className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-              <MessageSquare className="w-4 h-4" /> Chat
-            </Link>
-            <Link to="/counselor/universities" className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-              <Plus className="w-4 h-4" /> New Application
-            </Link>
-          </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[20rem_minmax(0,1fr)] gap-5 items-start">
-      <aside className="bg-white rounded-2xl border border-gray-100 shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-        <StudentInfoPanel key={String(studentId)} student={student} owner={record?.owner} canEdit={canEditStudent}
-          onStudentChange={u => setStudent((p: any) => ({ ...p, ...u }))} />
-      </aside>
-      <div className="space-y-5 min-w-0">
-      <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+          <div className="p-5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
+            <div className="space-y-2 text-sm">
+              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
+              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
+              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
+            </div>
+          </div>
+
+          <div className="p-5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
+            <InfoRow label="Education" value={student.educationLevel} />
+            <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
+            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
+            <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
+          </div>
+
+          <div className="p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
+            {(student.preferredCountries || []).length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {student.preferredCountries.map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
+              </div>
+            ) : <p className="text-xs text-gray-300">—</p>}
+            <div className="mt-4">
+              <InfoRow label="Applications" value={apps.length} />
+              <InfoRow label="Documents" value={docs.length} />
+              <InfoRow label="Joined" value={student.joinedDate} />
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Right: tabs ── */}
+        <div className="flex-1 min-w-0 w-full space-y-5">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
         {(['overview', 'timeline', 'notes', 'messages', 'activities', 'emails', 'pipelines', 'documents', 'applications', 'courses'] as const).map(t => (
           <button type="button" key={t} onClick={() => { setActiveTab(t); setEligFilter(''); setCountryFilter(''); setCourseSearch(''); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
             {t === 'courses' ? 'Course Eligibility' : t === 'documents' ? 'Files' : t}
-            <TabCount n={
-              t === 'notes' ? (student.counselorNotes || []).filter((n: any) => n.counselorId === ((counselor as any)?._id || counselor?.id)).length || null
-              : t === 'applications' ? apps.length || null
-              : recordTabCount(t === 'documents' ? 'files' : t, student, record)} />
           </button>
         ))}
       </div>
@@ -1000,7 +1032,7 @@ function StudentDetail() {
           </div>
         );
       })()}
-      </div>
+        </div>
       </div>
     </div>
     {previewDoc && (
