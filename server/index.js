@@ -24,13 +24,17 @@ async function autoSeedIfEmpty() {
 }
 
 const { startDeadlineReminders } = require('./jobs/deadlineReminders');
+const { startAutomationScheduler } = require('./jobs/automationScheduler');
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
 
 connectDB().then(async () => {
   await autoSeedIfEmpty();
+  await require('./lib/automation').seedStarterTemplates();
+  await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
+  startAutomationScheduler();
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);
