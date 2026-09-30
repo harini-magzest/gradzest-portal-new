@@ -3,6 +3,7 @@ const { checkWafBlockRule } = require('../lib/detectIncidents');
 const User = require('../models/User');
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');
+const { waitUntil } = require('./helpers');
 
 describe('Critical incident email alerts', () => {
   it('emails every admin with the incident details when initialized with a real mailer', async () => {
@@ -50,12 +51,14 @@ describe('Critical incident email alerts', () => {
     const ip = `10.9.${Math.floor(Math.random() * 250)}.1`;
     const event1 = await SecurityEvent.create({ type: 'waf_block', severity: 'critical', ip, meta: { category: 'command_injection' } });
     await checkWafBlockRule(event1, null);
-    await new Promise((r) => setTimeout(r, 200)); // sendCriticalIncidentAlert is fire-and-forget, give it a moment
+    // sendCriticalIncidentAlert is fire-and-forget — poll instead of a fixed
+    // sleep, since how long it takes depends on whatever else is queued.
+    await waitUntil(() => sendMail.mock.calls.length >= 1);
     expect(sendMail).toHaveBeenCalledTimes(1); // new critical incident -> alert fires
 
     const event2 = await SecurityEvent.create({ type: 'waf_block', severity: 'critical', ip, meta: { category: 'command_injection' } });
     await checkWafBlockRule(event2, null);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300)); // reused incident -> incident_updated, not _created, so no alert is ever queued here to poll for
     expect(sendMail).toHaveBeenCalledTimes(1); // same open incident reused -> no second alert
 
     await SecurityEvent.deleteMany({ ip });
