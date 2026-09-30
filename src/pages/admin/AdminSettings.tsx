@@ -4,11 +4,11 @@ import {
   Building2, User, Lock, Bell, GitBranch,
   ShieldCheck, MessageCircle, CalendarDays, Download, AlertTriangle,
   ChevronRight, Save, Eye, EyeOff, GripVertical, Check,
-  Smartphone, Globe, Network, Zap,
+  Smartphone, Globe, Users, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
-import AdminRoles from './AdminRoles';
+import AdminUsersControls from './AdminUsersControls';
 import AdminAutomation from './AdminAutomation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ import AdminAutomation from './AdminAutomation';
 type SectionKey =
   | 'company' | 'profile' | 'password'
   | 'notifications' | 'automation' | 'app-stages'
-  | 'roles' | 'permissions' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
+  | 'users' | 'permissions' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
 
@@ -25,10 +25,10 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
   { key: 'notifications',   label: 'Notifications',        icon: Bell },
-  { key: 'roles',           label: 'Roles',                icon: Network },
+  { key: 'users',           label: 'Users and Controls',   icon: Users },
   { key: 'automation',      label: 'Automation',           icon: Zap },
   { key: 'app-stages',      label: 'Application Stages',   icon: GitBranch },
-  { key: 'permissions',     label: 'Permissions & App Team', icon: ShieldCheck },
+  { key: 'permissions',     label: 'App Team',             icon: ShieldCheck },
   { key: 'whatsapp',        label: 'WhatsApp / SMS',       icon: Smartphone },
   { key: 'google-cal',      label: 'Google Calendar',      icon: CalendarDays },
   { key: 'export',          label: 'Export & Backup',      icon: Download },
@@ -306,16 +306,6 @@ function RolesPermissions() {
     }
   };
 
-  const roles = [
-    { role: 'Admin', perms: { viewAll: true, editStudents: true, editCounselors: true, deleteRecords: true, exportData: true } },
-    { role: 'Counselor', perms: { viewAll: false, editStudents: true, editCounselors: false, deleteRecords: false, exportData: false } },
-    { role: 'Student', perms: { viewAll: false, editStudents: false, editCounselors: false, deleteRecords: false, exportData: false } },
-  ];
-  const PERM_LABELS: Record<string, string> = {
-    viewAll: 'View all records', editStudents: 'Edit student profiles', editCounselors: 'Manage counselors',
-    deleteRecords: 'Delete records', exportData: 'Export data',
-  };
-
   return (
     <div className="space-y-6">
       <SectionCard title="App Team Users">
@@ -362,36 +352,13 @@ function RolesPermissions() {
         <p className="text-xs text-gray-400 mt-4">Changes take effect immediately — counselor chat rooms will be relabeled on next load.</p>
       </SectionCard>
 
-      <SectionCard title="Roles & Permissions">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2.5 pr-6 text-xs font-semibold text-gray-500 uppercase">Permission</th>
-                {roles.map(r => (
-                  <th key={r.role} className="text-center py-2.5 px-3 text-xs font-semibold text-gray-500 uppercase">{r.role}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {Object.keys(PERM_LABELS).map(perm => (
-                <tr key={perm}>
-                  <td className="py-3 pr-6 text-gray-700">{PERM_LABELS[perm]}</td>
-                  {roles.map(r => (
-                    <td key={r.role} className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${r.perms[perm as keyof typeof r.perms] ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-300'}`}>
-                          {r.perms[perm as keyof typeof r.perms] ? <Check className="w-3 h-3" /> : '×'}
-                        </div>
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-gray-400 mt-4">Contact support to modify role permissions.</p>
+      <SectionCard title="Permissions">
+        <p className="text-sm text-gray-500">
+          Counselor permissions are now set with editable profiles in{' '}
+          <Link to="/admin/settings?section=users&tab=profiles" className="text-purple-600 font-medium hover:underline">
+            Users and Controls → Profiles
+          </Link>. Admin accounts always have full access.
+        </p>
       </SectionCard>
     </div>
   );
@@ -528,9 +495,14 @@ function DangerZone() {
 export default function AdminSettings() {
   // The open section lives in ?section= so it survives reloads and can be linked to
   const [params, setParams] = useSearchParams();
-  const requested = params.get('section') as SectionKey | null;
+  const raw = params.get('section');
+  // Old links: ?section=roles → Users and Controls, Roles tab
+  const requested = (raw === 'roles' ? 'users' : raw) as SectionKey | null;
   const active: SectionKey = NAV_ITEMS.some(i => i.key === requested) ? requested! : 'company';
   const setActive = (key: SectionKey) => setParams({ section: key }, { replace: true });
+  useEffect(() => {
+    if (raw === 'roles') setParams({ section: 'users', tab: 'roles' }, { replace: true });
+  }, [raw, setParams]);
 
   const renderContent = () => {
     switch (active) {
@@ -538,7 +510,7 @@ export default function AdminSettings() {
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
       case 'notifications':   return <NotificationsSection />;
-      case 'roles':           return <AdminRoles />;
+      case 'users':           return <AdminUsersControls />;
       case 'automation':      return <AdminAutomation />;
       case 'app-stages':      return <ApplicationStages />;
       case 'permissions':     return <RolesPermissions />;

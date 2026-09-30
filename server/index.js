@@ -223,6 +223,7 @@ app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
 app.use('/api/roles',         require('./routes/roles'));
+app.use('/api/users',         require('./routes/users'));
 app.use('/api/automation',    require('./routes/automation'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
@@ -343,6 +344,7 @@ const { startAutomationScheduler } = require('./jobs/automationScheduler');
 connectDB().then(async () => {
   await autoSeedIfEmpty();
   await require('./lib/automation').seedStarterTemplates();
+  await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
   startAutomationScheduler();
 }).catch((err) => {

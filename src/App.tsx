@@ -198,7 +198,7 @@ export default function App() {
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="roles" element={<Navigate to="/admin/settings?section=roles" replace />} />
+              <Route path="roles" element={<Navigate to="/admin/settings?section=users&tab=roles" replace />} />
               <Route path="automation" element={<Navigate to="/admin/settings?section=automation" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>

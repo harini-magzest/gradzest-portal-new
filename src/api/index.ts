@@ -372,6 +372,25 @@ export const api = {
     }),
   },
 
+  users: {
+    list: () => req<{ users: any[]; roles: any[]; profiles: any[] }>('/users', { headers: authHeaders() }),
+    create: (data: any) => req<any>('/users', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    update: (id: string, data: any) => req<any>(`/users/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    myPermissions: () => req<{ permissions: string[]; restricted: boolean }>('/users/me/permissions', { headers: authHeaders() }),
+    profiles: () => req<{ catalogue: any[]; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
+    createProfile: (data: any) => req<any>('/users/profiles', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    updateProfile: (id: string, data: any) => req<any>(`/users/profiles/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
+    }),
+    deleteProfile: (id: string) => req<any>(`/users/profiles/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
   automation: {
     meta: () => req<any>('/automation/meta', { headers: authHeaders() }),
     templates: () => req<any[]>('/automation/templates', { headers: authHeaders() }),

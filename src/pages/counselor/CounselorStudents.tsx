@@ -11,6 +11,7 @@ import LeadStageSelect from '../../components/LeadStageSelect';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -321,6 +322,7 @@ export default function CounselorStudents() {
 function StudentsList() {
   const { user } = useAuth();
   const counselor = user as Counselor;
+  const { can, restricted } = usePermissions();
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -389,7 +391,7 @@ function StudentsList() {
 
       <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
         <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>All Students ({allStudents.length})</button>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{restricted ? 'Team Students' : 'All Students'} ({allStudents.length})</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -408,10 +410,12 @@ function StudentsList() {
               ))}
             </select>
           </div>
-          <button type="button" onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
-            <UserPlus className="w-4 h-4" />Add Student
-          </button>
+          {can('students.create') && (
+            <button type="button" onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
+              <UserPlus className="w-4 h-4" />Add Student
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -536,6 +540,7 @@ function StudentDetail() {
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
+  const { restricted } = usePermissions();
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -591,7 +596,8 @@ function StudentDetail() {
     return tb - ta;
   });
   const docs = student.documents || [];
-  const canEditStudent = (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
+  // Own students, or — for counselors with a role — any team student the server let us open
+  const canEditStudent = restricted || (counselor as any)?.assignedStudents?.includes(studentId) || String(student.counselorId) === String(counselor?.id);
   const allCourses = universities.flatMap(uni =>
     (uni.courses || []).map((c: any) => ({ ...c, uniName: uni.name, uniCountry: uni.country || '', _elig: checkCourseEligibility(student, c) }))
   );
