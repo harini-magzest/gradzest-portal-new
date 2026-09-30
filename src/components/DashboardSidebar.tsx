@@ -35,7 +35,7 @@ export default function DashboardSidebar({
             className={({ isActive }) => `relative flex items-center justify-center w-12 h-12 rounded-xl transition-colors ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
             {({ isActive }) => (
               <>
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-600'}`} />
                 {!!item.badge && (
                   <span className="absolute -top-1 -right-1 text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center bg-red-500 text-white">
                     {item.badge > 99 ? '99+' : item.badge}
