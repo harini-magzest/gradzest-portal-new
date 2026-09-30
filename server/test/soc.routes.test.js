@@ -4,6 +4,7 @@ const User = require('../models/User');
 const BlockedIp = require('../models/BlockedIp');
 const AnalystAction = require('../models/AnalystAction');
 const PiiAccessLog = require('../models/PiiAccessLog');
+const SecurityIncident = require('../models/SecurityIncident');
 
 async function makeAdmin(emailPrefix) {
   const email = `${emailPrefix}-${Date.now()}@example.com`;
@@ -89,5 +90,42 @@ describe('PII access logging — real endpoint, real log entries', () => {
     expect(logEntry).toBeTruthy();
     expect(logEntry.fieldsAccessed).toEqual(expect.arrayContaining(['passport', 'address']));
     expect(logEntry.accessType).toBe('view');
+  });
+});
+
+describe('Investigate — surfaces related incidents so an analyst doesn\'t have to cross-check the Incidents tab separately', () => {
+  it('GET /investigate/user/:id includes open incidents tied to that user', async () => {
+    const { token } = await makeAdmin('investigate-admin');
+    const target = await makeStudent('investigate-target');
+
+    const incident = await SecurityIncident.create({
+      type: 'manual', severity: 'high', title: 'Test incident for investigate cross-link',
+      relatedUserId: target.userId, relatedEmail: target.email,
+    });
+
+    const res = await request(app).get(`/api/soc/investigate/user/${target.userId}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.relatedIncidents).toBeInstanceOf(Array);
+    expect(res.body.relatedIncidents.some((i) => String(i._id) === String(incident._id))).toBe(true);
+
+    await SecurityIncident.deleteOne({ _id: incident._id });
+  });
+
+  it('GET /investigate/ip/:ip includes incidents tied to that IP', async () => {
+    const { token } = await makeAdmin('investigate-admin-ip');
+    const testIp = '192.0.2.77'; // TEST-NET-1, reserved for documentation/testing
+
+    const incident = await SecurityIncident.create({
+      type: 'manual', severity: 'medium', title: 'Test incident for IP investigate cross-link', relatedIp: testIp,
+    });
+
+    const res = await request(app).get(`/api/soc/investigate/ip/${testIp}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.relatedIncidents).toBeInstanceOf(Array);
+    expect(res.body.relatedIncidents.some((i) => String(i._id) === String(incident._id))).toBe(true);
+
+    await SecurityIncident.deleteOne({ _id: incident._id });
   });
 });

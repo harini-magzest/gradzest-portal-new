@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin } from 'lucide-react';
+import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import { api } from '../../api';
+import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
+import IncidentDetail from './IncidentDetail';
 
 type Mode = 'user' | 'ip';
 
@@ -8,6 +10,31 @@ const SEVERITY_STYLE: Record<string, { backgroundColor: string; color: string }>
   critical: { backgroundColor: '#FCE8E8', color: '#8B1A1A' }, high: { backgroundColor: '#FCEBEB', color: '#791F1F' },
   medium: { backgroundColor: '#FAEEDA', color: '#633806' }, low: { backgroundColor: '#E6F1FB', color: '#0C447C' },
 };
+
+function RelatedIncidents({ incidents, onSelect }: { incidents: Incident[]; onSelect: (i: Incident) => void }) {
+  if (!incidents.length) return null;
+  return (
+    <div className="px-5 py-3 border-b border-gray-100 bg-amber-50/40">
+      <div className="flex items-center gap-1.5 mb-2">
+        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+        <span className="text-xs font-semibold text-gray-500 uppercase">Related incidents ({incidents.length})</span>
+      </div>
+      <div className="space-y-1.5">
+        {incidents.map(inc => (
+          <button key={inc._id} onClick={() => onSelect(inc)}
+            className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left text-sm bg-white border border-gray-100 hover:border-purple-200 hover:bg-purple-50/40 transition-colors">
+            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-gray-800 truncate">{inc.title}</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={INCIDENT_SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
+            </div>
+            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{TYPE_LABEL[inc.type] || inc.type}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function TimelineList({ timeline }: { timeline: any[] }) {
   if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-400">No activity found.</div>;
@@ -43,6 +70,16 @@ export default function InvestigateTab() {
   const [ipData, setIpData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+
+  const patchRelatedIncident = (updated: Incident) => {
+    setUserData((prev: any) => prev && prev.relatedIncidents
+      ? { ...prev, relatedIncidents: prev.relatedIncidents.map((i: Incident) => i._id === updated._id ? updated : i) }
+      : prev);
+    setIpData((prev: any) => prev && prev.relatedIncidents
+      ? { ...prev, relatedIncidents: prev.relatedIncidents.map((i: Incident) => i._id === updated._id ? updated : i) }
+      : prev);
+  };
 
   const searchUsers = async () => {
     if (!query.trim()) return;
@@ -146,6 +183,7 @@ export default function InvestigateTab() {
               <LogOut className="w-4 h-4" /> Log out everywhere
             </button>
           </div>
+          <RelatedIncidents incidents={userData.relatedIncidents || []} onSelect={setSelectedIncident} />
           <TimelineList timeline={userData.timeline} />
         </div>
       )}
@@ -182,8 +220,14 @@ export default function InvestigateTab() {
               )}
             </div>
           )}
+          <RelatedIncidents incidents={ipData.relatedIncidents || []} onSelect={setSelectedIncident} />
           <TimelineList timeline={ipData.timeline} />
         </div>
+      )}
+
+      {selectedIncident && (
+        <IncidentDetail incident={selectedIncident} onClose={() => setSelectedIncident(null)}
+          onUpdate={(updated) => { setSelectedIncident(updated); patchRelatedIncident(updated); }} />
       )}
     </div>
   );

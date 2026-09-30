@@ -205,10 +205,11 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
     const user = await User.findById(userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const [events, activity, requests] = await Promise.all([
+    const [events, activity, requests, relatedIncidents] = await Promise.all([
       SecurityEvent.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       ActivityLog.find({ $or: [{ studentId: userId }, { counsellorId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       RequestLog.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
+      SecurityIncident.find({ relatedUserId: userId }).sort({ createdAt: -1 }).limit(20).lean(),
     ]);
 
     const timeline = [
@@ -220,6 +221,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
     res.json({
       user: { id: user._id, name: user.name, email: user.email, role: user.role, activeSessions: (user.sessions || []).length },
       timeline,
+      relatedIncidents,
     });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -242,10 +244,11 @@ router.post('/investigate/user/:id/logout-everywhere', authMiddleware, adminOnly
 router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) => {
   try {
     const ip = req.params.ip;
-    const [events, requests, intel] = await Promise.all([
+    const [events, requests, intel, relatedIncidents] = await Promise.all([
       SecurityEvent.find({ ip }).sort({ createdAt: -1 }).limit(150).lean(),
       RequestLog.find({ ip }).sort({ createdAt: -1 }).limit(150).lean(),
       getIpIntel(ip),
+      SecurityIncident.find({ relatedIp: ip }).sort({ createdAt: -1 }).limit(20).lean(),
     ]);
 
     const timeline = [
@@ -254,7 +257,7 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 200);
 
     const isBlocked = !!(await BlockedIp.findOne({ ip }).lean());
-    res.json({ ip, isBlocked, timeline, intel });
+    res.json({ ip, isBlocked, timeline, intel, relatedIncidents });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
