@@ -313,13 +313,17 @@ router.get('/events/export.csv', authMiddleware, adminOnly, attachUserEmail, asy
 router.get('/events', authMiddleware, adminOnly, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildEventQuery(req.query);
 
-    const events = await SecurityEvent.find(query).sort({ createdAt: -1 }).limit(limit).lean();
-    const rawCounts = await SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]);
+    const [events, total, rawCounts] = await Promise.all([
+      SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      SecurityEvent.countDocuments(query),
+      SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+    ]);
     const counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
 
-    res.json({ events, counts });
+    res.json({ events, total, skip, limit, counts });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -328,19 +332,30 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 // ── Incidents ─────────────────────────────────────────────────────────────────
 
 const INCIDENT_SEARCH_FIELDS = ['title', 'relatedIp', 'relatedEmail'];
-function buildIncidentQuery({ status, severity, type, q }) {
+// assignedTo: 'me' and 'unassigned' are resolved against the caller before this runs,
+// since this function has no access to req.user — see the two routes below.
+function buildIncidentQuery({ status, severity, type, q, assignedTo }) {
   const query = {};
   if (status && status !== 'all') query.status = status;
   if (severity && severity !== 'all') query.severity = severity;
   if (type && type !== 'all') query.type = type;
+  if (assignedTo === null) query.assignedTo = null;
+  else if (assignedTo && isObjectId(assignedTo)) query.assignedTo = assignedTo;
   return query;
+}
+// 'me' -> the caller's id, 'unassigned' -> null (matches the query above), anything
+// else passes through untouched (a specific analyst id, or undefined for "all").
+function resolveAssignedTo(raw, req) {
+  if (raw === 'me') return req.user.id;
+  if (raw === 'unassigned') return null;
+  return raw;
 }
 
 router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
-    const query = buildIncidentQuery(req.query);
+    const query = buildIncidentQuery({ ...req.query, assignedTo: resolveAssignedTo(req.query.assignedTo, req) });
 
     let incidents; let total;
     if (req.query.q && req.query.q.trim()) {
@@ -364,7 +379,7 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const iq = buildIncidentQuery(req.query);
+    const iq = buildIncidentQuery({ ...req.query, assignedTo: resolveAssignedTo(req.query.assignedTo, req) });
     const base = req.query.q && req.query.q.trim()
       ? await searchRows(SecurityIncident, iq, req.query.q, INCIDENT_SEARCH_FIELDS)
       : await SecurityIncident.find(iq).sort({ createdAt: -1 }).limit(5000).lean();
@@ -379,6 +394,20 @@ router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, 
       { label: 'SLA ack breached', value: (i) => (computeSla(i).ackBreached ? 'yes' : 'no') },
       { label: 'SLA resolve breached', value: (i) => (computeSla(i).resolveBreached ? 'yes' : 'no') },
     ], incidents);
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// A single incident by id — lets the client deep-link to one (e.g. from a shared URL)
+// even when it isn't on the currently loaded page of the list above. Must stay after
+// the literal '/incidents/export.csv' route, or ':id' would shadow it.
+router.get('/incidents/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Incident not found' });
+    const incident = await SecurityIncident.findById(req.params.id).populate('assignedTo', 'name email').lean();
+    if (!incident) return res.status(404).json({ message: 'Incident not found' });
+    res.json({ incident, slaPolicy: SLA_POLICY });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

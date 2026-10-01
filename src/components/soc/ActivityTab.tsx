@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, Loader2, LogIn, LogOut, Laptop } from 'lucide-react';
-import { api, getApiToken } from '../../api';
+import { api } from '../../api';
+import { useSocSocket } from './SocketContext';
 import SavedFilters from './SavedFilters';
 import FeatureUsage from './FeatureUsage';
 import { Mask } from './Mask';
@@ -50,13 +50,13 @@ const matches = (r: UiRow, f: Filters) =>
 // Who did what, where: every page opened, button/link clicked, file picked or
 // downloaded and form submitted by tracked staff, with the source file of the page.
 function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => void }) {
+  const { socket, isLive } = useSocSocket();
   const [rows, setRows] = useState<UiRow[]>([]);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [tracked, setTracked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [live, setLive] = useState(false);
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
@@ -91,17 +91,14 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
   };
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
-    });
-    socket.on('connect', () => setLive(true));
-    socket.on('disconnect', () => setLive(false));
-    socket.on('ui_activity', (batch: UiRow[]) => {
+    if (!socket) return;
+    const onActivity = (batch: UiRow[]) => {
       const fresh = batch.filter(r => matches(r, filtersRef.current)).reverse();
       if (fresh.length) { setRows(prev => [...fresh, ...prev].slice(0, 1000)); setTotal(t => t + fresh.length); }
-    });
-    return () => { socket.disconnect(); };
-  }, []);
+    };
+    socket.on('ui_activity', onActivity);
+    return () => { socket.off('ui_activity', onActivity); };
+  }, [socket]);
 
   const exportCsv = () => {
     const p = new URLSearchParams(Object.entries(params(filters, 0)).filter(([k, v]) => v && k !== 'limit' && k !== 'skip') as [string, string][]);
@@ -118,7 +115,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
           Only metadata is recorded — never what is typed into a field, and never file contents. Kept 90 days.
           Student activity is not recorded unless enabled with <span className="font-mono">SOC_UI_TRACK_ROLES</span>.
         </p>
-        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${live ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{live ? 'Live' : 'Offline'}</span>
+        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${isLive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{isLive ? 'Live' : 'Offline'}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

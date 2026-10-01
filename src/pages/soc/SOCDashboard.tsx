@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ShieldAlert, Activity, AlertTriangle, Search, ClipboardList, ClipboardCheck, MousePointerClick, FileSearch } from 'lucide-react';
+import { SocSocketProvider } from '../../components/soc/SocketContext';
 import OverviewTab from '../../components/soc/OverviewTab';
 import IncidentsTab from '../../components/soc/IncidentsTab';
 import InvestigateTab from '../../components/soc/InvestigateTab';
@@ -9,6 +10,7 @@ import ActivityTab from '../../components/soc/ActivityTab';
 import UploadsTab from '../../components/soc/UploadsTab';
 
 type Tab = 'overview' | 'incidents' | 'investigate' | 'activity' | 'uploads' | 'audit' | 'posture';
+const TAB_KEYS: Tab[] = ['overview', 'incidents', 'investigate', 'activity', 'uploads', 'audit', 'posture'];
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'overview', label: 'Overview', icon: Activity },
@@ -21,12 +23,27 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
 ];
 
 export default function SOCDashboard() {
-  const [tab, setTab] = useState<Tab>('overview');
-  // Any tab can jump straight to a person's details + response actions.
-  const [investigateUserId, setInvestigateUserId] = useState<string | undefined>(undefined);
-  const openUser = (id: string) => { setInvestigateUserId(id); setTab('investigate'); };
+  // Tab + the user under investigation live in the URL, so a link to "Investigate this
+  // person" (or a bookmark of a tab) can be shared with another analyst or reopened as-is.
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab') as Tab | null;
+  const tab: Tab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'overview';
+  const investigateUserId = params.get('user') || undefined;
+
+  const setTab = (next: Tab) => setParams(p => {
+    const n = new URLSearchParams(p);
+    if (next === 'overview') n.delete('tab'); else n.set('tab', next);
+    if (next !== 'investigate') n.delete('user');
+    return n;
+  });
+  const openUser = (id: string) => setParams(p => {
+    const n = new URLSearchParams(p);
+    n.set('tab', 'investigate'); n.set('user', id);
+    return n;
+  });
 
   return (
+    <SocSocketProvider>
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-700 to-purple-800 rounded-2xl p-6 text-white shadow-lg">
@@ -63,5 +80,6 @@ export default function SOCDashboard() {
       {tab === 'audit' && <AuditTab />}
       {tab === 'posture' && <PostureTab />}
     </div>
+    </SocSocketProvider>
   );
 }

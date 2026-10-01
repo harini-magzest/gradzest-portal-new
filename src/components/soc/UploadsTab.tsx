@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { FileText, ExternalLink, Search, Loader2, Info, Copy, ShieldBan, Undo2, Trash2, Check, Flag, RotateCcw, AlertTriangle } from 'lucide-react';
-import { api, getApiToken } from '../../api';
+import { FileText, ExternalLink, Search, Loader2, Info, Copy, ShieldBan, Undo2, Trash2, Check, Flag, RotateCcw, AlertTriangle, X } from 'lucide-react';
+import { api } from '../../api';
+import { useSocSocket } from './SocketContext';
 import ReviewBadge, { type ReviewResult } from './ReviewBadge';
 import { Mask } from './Mask';
 
@@ -23,10 +23,27 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE = 50;
 
 function fmtSize(b: number) { return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`; }
+// Mirrors server/routes/soc.js's vtLink() — the live 'upload_recorded' payload is the raw
+// record and doesn't carry it (only the REST list/detail responses compute it server-side).
+const vtLink = (sha256: string) => `https://www.virustotal.com/gui/file/${sha256}`;
+
+// Whether a freshly-recorded upload belongs in the currently filtered view. Skipped while a
+// search is active — matching the server's search semantics client-side isn't worth it, so
+// a live upload just won't appear until the next refresh.
+const matchesUploadFilter = (u: Upload, filter: string, q: string) => {
+  if (q.trim()) return false;
+  const status = u.review?.status || 'unreviewed';
+  if (filter === 'flagged') return status === 'flagged';
+  if (filter === 'clean') return status === 'clean';
+  if (filter === 'unreviewed') return status === 'unreviewed';
+  if (filter === 'review') return ['medium', 'high'].includes(u.inspection?.risk || 'none') || !!u.quarantined;
+  return true;
+};
 
 // Every document that entered the system and who sent it. VirusTotal is checked by hand: copy the hash or open its
 // VirusTotal page, look at the result, then record the verdict here. Nothing is sent to VirusTotal automatically.
 export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (userId: string) => void }) {
+  const { socket } = useSocSocket();
   const [rows, setRows] = useState<Upload[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<Record<string, number>>({});
@@ -39,6 +56,10 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [copied, setCopied] = useState('');
+  // Replace window.prompt/confirm: the former blocks the tab, can't validate (e.g. an
+  // empty "flagged" note), and looks nothing like the rest of the SOC's confirmation UI.
+  const [reviewModal, setReviewModal] = useState<{ u: Upload; status: 'clean' | 'flagged'; note: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ u: Upload; action: 'quarantine' | 'restore' | 'purge' } | null>(null);
 
   const fetchPage = useCallback((skip: number) => api.soc.uploads({
     limit: PAGE, skip, q: q.trim() || undefined, risk: filter === 'all' ? undefined : filter,
@@ -65,27 +86,36 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
   };
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { auth: (cb: (data: object) => void) => cb({ token: getApiToken() }) });
-    socket.on('upload_recorded', () => load());
-    socket.on('upload_updated', (u: Upload) => setRows(prev => prev.map(r => r._id === u._id ? { ...r, ...u, vtLink: r.vtLink } : r)));
-    return () => { socket.disconnect(); };
-  }, [load]);
+    if (!socket) return;
+    // Prepend rather than refetch page 1 — refetching would silently discard any extra
+    // pages the analyst had already loaded with "Load more".
+    const onRecorded = (raw: Upload) => {
+      const status = raw.review?.status || 'unreviewed';
+      setSummary(s => ({ ...s, [status]: (s[status] || 0) + 1 }));
+      if (['medium', 'high'].includes(raw.inspection?.risk || 'none') || raw.quarantined) setNeedsReview(n => n + 1);
+      if (!matchesUploadFilter(raw, filter, q)) return;
+      const u = { ...raw, vtLink: vtLink(raw.sha256) };
+      setRows(prev => prev.some(r => r._id === u._id) ? prev : [u, ...prev]);
+      setTotal(t => t + 1);
+    };
+    const onUpdated = (u: Upload) => setRows(prev => prev.map(r => r._id === u._id ? { ...r, ...u, vtLink: r.vtLink } : r));
+    socket.on('upload_recorded', onRecorded);
+    socket.on('upload_updated', onUpdated);
+    return () => { socket.off('upload_recorded', onRecorded); socket.off('upload_updated', onUpdated); };
+  }, [socket, filter, q]);
 
   const copy = async (hash: string) => {
     try { await navigator.clipboard.writeText(hash); setCopied(hash); setTimeout(() => setCopied(''), 1500); } catch { /* clipboard unavailable */ }
   };
 
+  // 'unreviewed' (the reset action) needs no note, so it saves immediately; 'clean' and
+  // 'flagged' go through reviewModal first so the analyst can enter one.
   const setReview = async (u: Upload, status: 'clean' | 'flagged' | 'unreviewed') => {
-    let note = '';
-    if (status === 'flagged') {
-      const answer = window.prompt('What did VirusTotal show? (e.g. "14/70 engines flag it"). This opens an incident.', '');
-      if (answer === null) return; // cancelled
-      note = answer;
-    } else if (status === 'clean') {
-      const answer = window.prompt('Optional note (e.g. "0/70 on VirusTotal"):', '');
-      if (answer === null) return;
-      note = answer;
-    }
+    if (status !== 'unreviewed') { setReviewModal({ u, status, note: '' }); return; }
+    await submitReview(u, status, '');
+  };
+
+  const submitReview = async (u: Upload, status: 'clean' | 'flagged' | 'unreviewed', note: string) => {
     setBusyId(u._id); setError(''); setInfo('');
     try {
       const updated = await api.soc.reviewUpload(u._id, status, note);
@@ -96,13 +126,9 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
     setBusyId(null);
   };
 
-  const quarantineAction = async (u: Upload, action: 'quarantine' | 'restore' | 'purge') => {
-    const prompts = {
-      quarantine: `Quarantine "${u.originalName}"? It is moved out of the served uploads folder, so its download link stops working. You can restore it later.`,
-      restore: `Restore "${u.originalName}"? Its download link starts working again.`,
-      purge: `Permanently delete "${u.originalName}"? This cannot be undone.`,
-    };
-    if (!window.confirm(prompts[action])) return;
+  const quarantineAction = (u: Upload, action: 'quarantine' | 'restore' | 'purge') => setConfirmModal({ u, action });
+
+  const runQuarantine = async (u: Upload, action: 'quarantine' | 'restore' | 'purge') => {
     setBusyId(u._id); setError(''); setInfo('');
     try {
       const updated = await api.soc.quarantineUpload(u._id, action);
@@ -235,6 +261,60 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
           </div>
         )}
       </div>
+
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setReviewModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <h3 className="text-sm font-bold text-gray-900">{reviewModal.status === 'flagged' ? 'Flag as malicious' : 'Mark clean'}</h3>
+              <button onClick={() => setReviewModal(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-gray-500">
+              {reviewModal.status === 'flagged'
+                ? 'What did VirusTotal show (e.g. "14/70 engines flag it")? This opens an incident.'
+                : 'Optional note (e.g. "0/70 on VirusTotal").'}
+            </p>
+            <input autoFocus value={reviewModal.note} onChange={e => setReviewModal(m => m && { ...m, note: e.target.value })}
+              placeholder={reviewModal.status === 'flagged' ? 'Required — what did VirusTotal show?' : 'Optional note'}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setReviewModal(null)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button type="button" disabled={reviewModal.status === 'flagged' && !reviewModal.note.trim()}
+                onClick={() => { const m = reviewModal; setReviewModal(null); submitReview(m.u, m.status, m.note.trim()); }}
+                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmModal && (() => {
+        const { u, action } = confirmModal;
+        const text = action === 'quarantine'
+          ? `Quarantine "${u.originalName}"? It is moved out of the served uploads folder, so its download link stops working. You can restore it later.`
+          : action === 'restore'
+          ? `Restore "${u.originalName}"? Its download link starts working again.`
+          : `Permanently delete "${u.originalName}"? This cannot be undone.`;
+        return (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setConfirmModal(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between">
+                <h3 className="text-sm font-bold text-gray-900 capitalize">{action}</h3>
+                <button onClick={() => setConfirmModal(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-sm text-gray-600">{text}</p>
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setConfirmModal(null)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="button" onClick={() => { setConfirmModal(null); runQuarantine(u, action); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white ${action === 'purge' ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'}`}>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

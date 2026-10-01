@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, UserCircle2, Loader2, Search, Download, Clock } from 'lucide-react';
-import { api, getApiToken } from '../../api';
+import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext';
+import { useSocSocket } from './SocketContext';
 import {
   type Incident, type SlaPolicy, DEFAULT_SLA_POLICY, SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
@@ -11,27 +13,65 @@ import SuppressionPanel from './SuppressionPanel';
 
 const PAGE_SIZE = 50;
 
-interface Filters { status: string; severity: string; type: string; q: string }
-const DEFAULT_FILTERS: Filters = { status: 'open', severity: 'all', type: 'all', q: '' };
+interface Filters { status: string; severity: string; type: string; q: string; assignedTo: string }
+const DEFAULT_FILTERS: Filters = { status: 'open', severity: 'all', type: 'all', q: '', assignedTo: 'all' };
 
 const apiFilters = (f: Filters) => ({
   status: f.status === 'all' ? undefined : f.status,
   severity: f.severity === 'all' ? undefined : f.severity,
   type: f.type === 'all' ? undefined : f.type,
   q: f.q.trim() || undefined,
+  assignedTo: f.assignedTo === 'all' ? undefined : f.assignedTo,
 });
 
+// Whether a freshly-created incident belongs in the currently filtered view. Skipped
+// entirely while a free-text search is active — matching the server's search semantics
+// client-side isn't worth it, so a live incident just won't appear until the next refresh.
+// A brand-new incident is never pre-assigned, so an assignedTo filter other than "all"
+// never matches it either.
+const matchesFilters = (inc: Incident, f: Filters) =>
+  !f.q.trim() && f.assignedTo === 'all' && (f.status === 'all' || inc.status === f.status)
+  && (f.severity === 'all' || inc.severity === f.severity)
+  && (f.type === 'all' || inc.type === f.type);
+
 export default function IncidentsTab() {
+  const { user } = useAuth();
+  const { socket } = useSocSocket();
+  const [params, setParams] = useSearchParams();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [slaPolicy, setSlaPolicy] = useState<SlaPolicy>(DEFAULT_SLA_POLICY);
+  const [analysts, setAnalysts] = useState<{ _id: string; name: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
   const [selected, setSelected] = useState<Incident | null>(null);
   const [now, setNow] = useState(Date.now());
 
   const patch = (p: Partial<Filters>) => setFilters(f => ({ ...f, ...p }));
+
+  const select = (inc: Incident | null) => {
+    setSelected(inc);
+    setParams(p => {
+      const n = new URLSearchParams(p);
+      if (inc) n.set('incident', inc._id); else n.delete('incident');
+      return n;
+    });
+  };
+
+  useEffect(() => { api.soc.analysts().then(d => setAnalysts(d.analysts || [])).catch(() => {}); }, []);
+
+  // Deep-linked incident (?incident=<id>): open it once loaded, fetching it directly
+  // if it isn't on the currently loaded page.
+  useEffect(() => {
+    const id = params.get('incident');
+    if (!id || selected?._id === id) return;
+    const onPage = incidents.find(i => i._id === id);
+    if (onPage) { setSelected(onPage); return; }
+    api.soc.incident(id).then(d => { if (d.incident) setSelected(d.incident); }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, incidents]);
 
   // SLA countdowns are derived from the clock, so tick once a minute.
   useEffect(() => {
@@ -40,23 +80,27 @@ export default function IncidentsTab() {
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: 0 });
       setIncidents(data.incidents || []);
       setTotal(data.total ?? (data.incidents || []).length);
       if (data.slaPolicy) setSlaPolicy(data.slaPolicy);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      setError(err.message || 'Could not load incidents.');
+    }
     setLoading(false);
   }, [filters]);
 
   const loadMore = async () => {
-    setLoadingMore(true);
+    setLoadingMore(true); setError('');
     try {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: incidents.length });
       setIncidents(prev => [...prev, ...(data.incidents || [])]);
       setTotal(data.total ?? incidents.length);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      setError(err.message || 'Could not load more incidents.');
+    }
     setLoadingMore(false);
   };
 
@@ -67,19 +111,25 @@ export default function IncidentsTab() {
   }, [load, filters.q]);
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
-    });
-    socket.on('incident_created', () => load());
-    socket.on('incident_updated', (updated: Incident) => {
+    if (!socket) return;
+    // Prepend rather than refetch page 1 — refetching would silently discard any extra
+    // pages the analyst had already loaded with "Load more".
+    const onCreated = (incident: Incident) => {
+      if (!matchesFilters(incident, filters)) return;
+      setIncidents(prev => prev.some(i => i._id === incident._id) ? prev : [incident, ...prev]);
+      setTotal(t => t + 1);
+    };
+    const onUpdated = (updated: Incident) => {
       setIncidents(prev => prev.map(i => i._id === updated._id ? updated : i));
-    });
-    return () => { socket.disconnect(); };
-  }, [load]);
+    };
+    socket.on('incident_created', onCreated);
+    socket.on('incident_updated', onUpdated);
+    return () => { socket.off('incident_created', onCreated); socket.off('incident_updated', onUpdated); };
+  }, [socket, filters]);
 
   const exportCsv = () => {
-    const params = new URLSearchParams(Object.entries(apiFilters(filters)).filter(([, v]) => v) as [string, string][]);
-    api.soc.download(`/incidents/export.csv?${params}`, 'soc-incidents.csv').catch(() => {});
+    const qs = new URLSearchParams(Object.entries(apiFilters(filters)).filter(([, v]) => v) as [string, string][]);
+    api.soc.download(`/incidents/export.csv?${qs}`, 'soc-incidents.csv').catch(() => {});
   };
 
   const selectCls = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500';
@@ -108,12 +158,19 @@ export default function IncidentsTab() {
           <option value="all">All types</option>
           {Object.entries(TYPE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
         </select>
+        <select value={filters.assignedTo} onChange={e => patch({ assignedTo: e.target.value })} className={selectCls} aria-label="Assignee">
+          <option value="all">Anyone</option>
+          <option value="me">Assigned to me</option>
+          <option value="unassigned">Unassigned</option>
+          {analysts.filter(a => a._id !== user?.id).map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+        </select>
         <button type="button" onClick={exportCsv}
           className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
           <Download className="w-3.5 h-3.5" /> CSV
         </button>
       </div>
       <SavedFilters storageKey="soc.incidentFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
+      {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
@@ -121,14 +178,14 @@ export default function IncidentsTab() {
         ) : incidents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <AlertTriangle className="w-10 h-10 text-gray-200 mb-3" />
-            <p className="text-sm font-semibold text-gray-500">No incidents</p>
-            <p className="text-xs text-gray-400 mt-1">Nothing matches these filters.</p>
+            <p className="text-sm font-semibold text-gray-500">{error ? "Couldn't load incidents" : 'No incidents'}</p>
+            <p className="text-xs text-gray-400 mt-1">{error || 'Nothing matches these filters.'}</p>
           </div>
         ) : incidents.map(inc => {
           const sla = slaState(inc, slaPolicy, now);
           const showSla = inc.status === 'open' || inc.status === 'investigating' || sla.breached;
           return (
-            <button key={inc._id} onClick={() => setSelected(inc)}
+            <button key={inc._id} onClick={() => select(inc)}
               className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 text-left transition-colors">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -167,7 +224,7 @@ export default function IncidentsTab() {
       <SuppressionPanel />
 
       {selected && (
-        <IncidentDetail incident={selected} slaPolicy={slaPolicy} onClose={() => setSelected(null)}
+        <IncidentDetail incident={selected} slaPolicy={slaPolicy} onClose={() => select(null)}
           onUpdate={(updated) => { setSelected(updated); setIncidents(prev => prev.map(i => i._id === updated._id ? updated : i)); }} />
       )}
     </div>

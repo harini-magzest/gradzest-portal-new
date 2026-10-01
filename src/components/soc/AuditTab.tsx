@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { ClipboardCheck, Eye, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
-import { api, getApiToken } from '../../api';
+import { api } from '../../api';
+import { useSocSocket } from './SocketContext';
 import { Mask } from './Mask';
 
 interface TopAccessor { _id: string; accessorEmail: string; accessorRole: string; totalAccesses: number; uniqueApplicants: number }
@@ -22,39 +22,44 @@ function formatTime(iso: string) {
 }
 
 export default function AuditTab() {
+  const { socket } = useSocSocket();
   const [topAccessors, setTopAccessors] = useState<TopAccessor[]>([]);
   const [recentAccesses, setRecentAccesses] = useState<PiiAccess[]>([]);
   const [actions, setActions] = useState<AnalystAction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [chain, setChain] = useState<ChainStatus | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const [pii, trail, verify] = await Promise.all([api.soc.piiAudit(), api.soc.auditTrail(), api.soc.verifyAuditTrail().catch(() => null)]);
       setChain(verify);
       setTopAccessors(pii.topAccessors || []);
       setRecentAccesses(pii.recentAccesses || []);
       setActions(trail.actions || []);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      setError(err.message || 'Could not load audit data.');
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
-    });
-    socket.on('pii_access', () => load());
-    socket.on('analyst_action', (entry: AnalystAction) => setActions(prev => [entry, ...prev].slice(0, 50)));
-    return () => { socket.disconnect(); };
-  }, [load]);
+    if (!socket) return;
+    const onPiiAccess = () => load();
+    const onAnalystAction = (entry: AnalystAction) => setActions(prev => [entry, ...prev].slice(0, 50));
+    socket.on('pii_access', onPiiAccess);
+    socket.on('analyst_action', onAnalystAction);
+    return () => { socket.off('pii_access', onPiiAccess); socket.off('analyst_action', onAnalystAction); };
+  }, [socket, load]);
 
   if (loading) return <div className="p-8 text-center text-sm text-gray-400">Loading…</div>;
 
   return (
     <div className="space-y-6">
+      {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <Eye className="w-4 h-4 text-purple-600" />
