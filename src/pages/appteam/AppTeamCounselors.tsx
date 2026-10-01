@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
 import { PresenceDot, PresenceLabel } from '../../components/Presence';
 import {
   Search, X, Mail, Phone, Layers, Users, UserCog, Award, MessageSquare, Wifi, UserX,
-  ChevronDown, SlidersHorizontal, Briefcase, Languages, AlertCircle, RefreshCw,
+  ChevronDown, SlidersHorizontal, Briefcase, Languages, AlertCircle, RefreshCw, ChevronRight,
 } from 'lucide-react';
 
 const STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -56,17 +56,27 @@ function PipelineBar({ counts, total }: { counts: Record<string, number>; total:
   );
 }
 
-function Kpi({ icon: Icon, label, value, tone }: { icon: any; label: string; value: number | string; tone: string }) {
+function Kpi({ icon: Icon, label, value, tone, active, hint, onClick }: {
+  icon: any; label: string; value: number | string; tone: string; active?: boolean; hint: string; onClick: () => void;
+}) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+    <button type="button" onClick={onClick} aria-pressed={active} title={hint}
+      className={`text-left bg-white rounded-2xl border shadow-sm px-4 py-3 flex items-center gap-3 transition-all hover:shadow-md hover:border-orange-200 ${
+        active ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-100'}`}>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tone}`}><Icon className="w-4 h-4" /></div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
         <p className="text-xs text-gray-500 truncate">{label}</p>
       </div>
-    </div>
+      <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${active ? 'rotate-90 text-orange-500' : 'text-gray-300'}`} />
+    </button>
   );
 }
+
+type Panel = 'assigned' | 'unassigned' | 'applications' | 'offers';
+const PANEL_TITLE: Record<Panel, string> = {
+  assigned: 'Assigned students', unassigned: 'Unassigned students', applications: 'All applications', offers: 'Offers',
+};
 
 function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
@@ -88,6 +98,10 @@ export default function AppTeamCounselors() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLParagraphElement>(null);
   const { isOnline } = useCallContext();
 
   // Filters
@@ -100,7 +114,7 @@ export default function AppTeamCounselors() {
   const load = () => {
     setLoading(true); setError('');
     Promise.all([api.admin.counselors(), api.admin.students(), api.admin.applications()])
-      .then(([c, s, a]) => { setCounselors(c); setStudents(s); setApplications(a); })
+      .then(([c, s, a]) => { setCounselors(c); setStudents(s); setApplications(a); setUpdatedAt(new Date()); })
       .catch(err => setError(err.message || 'Could not load counselors.'))
       .finally(() => setLoading(false));
   };
@@ -170,6 +184,16 @@ export default function AppTeamCounselors() {
 
   const selected = counselors.find(c => idOf(c) === selectedId) || null;
 
+  // Tiles: the first two filter the counselor list, the rest open a list of records on this page
+  const togglePanel = (p: Panel) => setPanel(cur => (cur === p ? null : p));
+  const showCounselors = (p: Presence) => {
+    setPanel(null); clearFilters(); setPresence(p);
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+  useEffect(() => {
+    if (panel) panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [panel]);
+
   if (loading && !counselors.length) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -184,10 +208,17 @@ export default function AppTeamCounselors() {
           <h1 className="text-2xl font-bold text-gray-900">Counselors</h1>
           <p className="text-sm text-gray-500">Workload, applications and availability across the counselling team</p>
         </div>
-        <button type="button" onClick={load} disabled={loading} aria-label="Refresh"
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {updatedAt && (
+            <span className="text-xs text-gray-400" aria-live="polite">
+              {loading ? 'Refreshing…' : `Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+            </span>
+          )}
+          <button type="button" onClick={load} disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'Refreshing' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -198,13 +229,26 @@ export default function AppTeamCounselors() {
 
       {/* Team summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Kpi icon={UserCog} label="Counselors" value={counselors.length} tone="bg-teal-50 text-teal-700" />
-        <Kpi icon={Wifi} label="Online now" value={onlineCount} tone="bg-green-50 text-green-700" />
-        <Kpi icon={Users} label="Assigned students" value={assignedCount} tone="bg-blue-50 text-blue-700" />
-        <Kpi icon={UserX} label="Unassigned students" value={unassignedCount} tone={unassignedCount ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-600'} />
-        <Kpi icon={Layers} label="Applications" value={totalApps} tone="bg-orange-50 text-orange-600" />
-        <Kpi icon={Award} label="Offers" value={totalOffers} tone="bg-purple-50 text-purple-700" />
+        <Kpi icon={UserCog} label="Counselors" value={counselors.length} tone="bg-teal-50 text-teal-700"
+          active={!panel && !filtersOn} hint="Show all counselors" onClick={() => showCounselors('all')} />
+        <Kpi icon={Wifi} label="Online now" value={onlineCount} tone="bg-green-50 text-green-700"
+          active={!panel && presence === 'online'} hint="Show counselors who are online" onClick={() => showCounselors('online')} />
+        <Kpi icon={Users} label="Assigned students" value={assignedCount} tone="bg-blue-50 text-blue-700"
+          active={panel === 'assigned'} hint="List students who have a counselor" onClick={() => togglePanel('assigned')} />
+        <Kpi icon={UserX} label="Unassigned students" value={unassignedCount} tone={unassignedCount ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-600'}
+          active={panel === 'unassigned'} hint="List students without a counselor" onClick={() => togglePanel('unassigned')} />
+        <Kpi icon={Layers} label="Applications" value={totalApps} tone="bg-orange-50 text-orange-600"
+          active={panel === 'applications'} hint="List all applications" onClick={() => togglePanel('applications')} />
+        <Kpi icon={Award} label="Offers" value={totalOffers} tone="bg-purple-50 text-purple-700"
+          active={panel === 'offers'} hint="List applications with an offer" onClick={() => togglePanel('offers')} />
       </div>
+
+      {panel && (
+        <div ref={panelRef} className="scroll-mt-4">
+          <RecordsPanel panel={panel} students={students} applications={applications} counselors={counselors}
+            appsByStudent={appsByStudent} onClose={() => setPanel(null)} onOpenCounselor={setSelectedId} />
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-wrap items-center gap-2">
@@ -246,7 +290,7 @@ export default function AppTeamCounselors() {
         )}
       </div>
 
-      <p className="text-xs text-gray-500 flex items-center gap-1.5">
+      <p ref={listRef} className="text-xs text-gray-500 flex items-center gap-1.5 scroll-mt-4">
         <SlidersHorizontal className="w-3.5 h-3.5" />Showing {filtered.length} of {counselors.length} counselors
       </p>
 
@@ -344,6 +388,128 @@ export default function AppTeamCounselors() {
           students={studentsByCounselor[idOf(selected)] || []} appsByStudent={appsByStudent}
           onClose={() => setSelectedId(null)} />
       )}
+    </div>
+  );
+}
+
+/** Students or applications behind a summary tile, listed on the page with their own search and filters. */
+function RecordsPanel({ panel, students, applications, counselors, appsByStudent, onClose, onOpenCounselor }: {
+  panel: Panel; students: any[]; applications: any[]; counselors: any[]; appsByStudent: Record<string, any[]>;
+  onClose: () => void; onOpenCounselor: (id: string) => void;
+}) {
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('');
+  useEffect(() => { setQ(''); setStatus(''); }, [panel]);
+
+  const counselorName = useMemo(() => Object.fromEntries(counselors.map(c => [idOf(c), c.name])), [counselors]);
+  const counselorOfStudent = useMemo(() => Object.fromEntries(students.map(s => [idOf(s), idOf(s.counselorId)])), [students]);
+  const match = (...vals: any[]) => !q || vals.some(v => String(v || '').toLowerCase().includes(q.toLowerCase()));
+
+  const isStudentPanel = panel === 'assigned' || panel === 'unassigned';
+  const studentRows = isStudentPanel
+    ? students
+        .filter(s => (panel === 'assigned' ? !!idOf(s.counselorId) : !idOf(s.counselorId)))
+        .filter(s => match(s.name, s.email, s.phone, s.nationality, counselorName[idOf(s.counselorId)]))
+    : [];
+  const appRows = !isStudentPanel
+    ? applications
+        .filter(a => panel === 'applications' || OFFER_STATUSES.includes(a.status))
+        .filter(a => !status || a.status === status)
+        .filter(a => match(a.studentName, a.universityName, a.courseName, a.intake, counselorName[counselorOfStudent[idOf(a.studentId)]]))
+    : [];
+  const statusOptions = panel === 'offers' ? OFFER_STATUSES : STATUS_ORDER;
+  const count = isStudentPanel ? studentRows.length : appRows.length;
+
+  // Counselor name opens their details drawer
+  const counselorCell = (cid: string) => (cid && counselorName[cid] ? (
+    <button type="button" onClick={() => onOpenCounselor(cid)} className="text-sm text-teal-700 hover:text-orange-600 hover:underline text-left">
+      {counselorName[cid]}
+    </button>
+  ) : <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Unassigned</span>);
+
+  return (
+    <div className="bg-white rounded-2xl border border-orange-200 shadow-sm overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-orange-50/50">
+        <h2 className="font-semibold text-gray-900 flex-1">{PANEL_TITLE[panel]} <span className="text-gray-400 font-normal">({count})</span></h2>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input value={q} onChange={e => setQ(e.target.value)} aria-label="Search this list"
+            placeholder={isStudentPanel ? 'Search students' : 'Search student, university, course'}
+            className="pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm w-56 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        </div>
+        {!isStudentPanel && (
+          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status"
+            className="py-1.5 pl-2 pr-6 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white">
+            <option value="">Any status</option>
+            {statusOptions.map(s => <option key={s} value={s}>{STATUSES[s].label}</option>)}
+          </select>
+        )}
+        <button type="button" onClick={onClose} aria-label="Close list" className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="max-h-[28rem] overflow-y-auto">
+        {count === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-10">
+            {q || status ? 'Nothing matches.' : panel === 'unassigned' ? 'Every student has a counselor.' : 'Nothing here yet.'}
+          </p>
+        ) : isStudentPanel ? (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-[11px] text-gray-500 uppercase tracking-wide text-left sticky top-0">
+              <tr>
+                <th className="font-semibold px-5 py-2">Student</th>
+                <th className="font-semibold px-3 py-2 hidden md:table-cell">Nationality</th>
+                <th className="font-semibold px-3 py-2">Counselor</th>
+                <th className="font-semibold px-3 py-2 text-center">Applications</th>
+                <th className="font-semibold px-3 py-2 hidden md:table-cell">Latest status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {studentRows.map(s => {
+                const apps = appsByStudent[idOf(s)] || [];
+                const latest = apps[apps.length - 1];
+                return (
+                  <tr key={idOf(s)} className="hover:bg-gray-50">
+                    <td className="px-5 py-2.5">
+                      <p className="font-medium text-gray-900">{s.name}</p>
+                      <p className="text-xs text-gray-400">{s.email || s.phone || '—'}</p>
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">{s.nationality || '—'}</td>
+                    <td className="px-3 py-2.5">{counselorCell(idOf(s.counselorId))}</td>
+                    <td className="px-3 py-2.5 text-center font-semibold text-gray-800">{apps.length}</td>
+                    <td className="px-3 py-2.5 hidden md:table-cell">{latest ? <AppBadge status={latest.status} /> : <span className="text-xs text-gray-400">—</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-[11px] text-gray-500 uppercase tracking-wide text-left sticky top-0">
+              <tr>
+                <th className="font-semibold px-5 py-2">Student</th>
+                <th className="font-semibold px-3 py-2">University &amp; course</th>
+                <th className="font-semibold px-3 py-2 hidden md:table-cell">Counselor</th>
+                <th className="font-semibold px-3 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {appRows.map((a, i) => (
+                <tr key={idOf(a) || i} className="hover:bg-gray-50">
+                  <td className="px-5 py-2.5 font-medium text-gray-900">{a.studentName}</td>
+                  <td className="px-3 py-2.5">
+                    <p className="text-gray-800">{a.universityName}</p>
+                    <p className="text-xs text-gray-400">{[a.courseName, a.intake].filter(Boolean).join(' · ')}</p>
+                  </td>
+                  <td className="px-3 py-2.5 hidden md:table-cell">{counselorCell(counselorOfStudent[idOf(a.studentId)])}</td>
+                  <td className="px-3 py-2.5"><AppBadge status={a.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
