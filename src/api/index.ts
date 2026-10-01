@@ -42,7 +42,8 @@ export function setSocToken(token: string | null) {
   try { if (token) sessionStorage.setItem(SOC_TOKEN_KEY, token); else sessionStorage.removeItem(SOC_TOKEN_KEY); } catch { /* ignore */ }
 }
 export function getSocToken(): string | null { return _socToken; }
-const socHeader = (url: string): Record<string, string> => (url.startsWith('/soc/') && _socToken ? { 'X-SOC-Token': _socToken } : {});
+// /soc-auth/status also gets the token: the server answers "verified" only when it is present and valid.
+const socHeader = (url: string): Record<string, string> => ((url.startsWith('/soc/') || url === '/soc-auth/status') && _socToken ? { 'X-SOC-Token': _socToken } : {});
 
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
