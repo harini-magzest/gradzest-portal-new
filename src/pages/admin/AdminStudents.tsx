@@ -16,6 +16,7 @@ import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/Lead
 import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Constants ────────────────────────────────────────────────────────────────

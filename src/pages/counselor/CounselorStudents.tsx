@@ -14,6 +14,7 @@ import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/Lead
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { usePermissions } from '../../hooks/usePermissions';
 import { usePortalName } from '../../hooks/usePortalName';
 
