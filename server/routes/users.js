@@ -213,9 +213,15 @@ router.put('/:id', async (req, res) => {
       }
       target.active = !!req.body.active;
       // Sign a deactivated user out everywhere (their access token expires within 15 min)
-      if (!target.active) target.sessions = [];
+      if (!target.active) {
+        // (This used to clear refreshTokenHash/refreshTokenExpires, which are not fields on the schema, so nothing
+        // was ever revoked.) Sessions are the real refresh tokens.
+        target.sessions = [];
+      }
     }
     await target.save();
+    require('../lib/accountState').invalidate(target._id);
+    if (req.body.active === false) req.app.get('io')?.in(`user:${target._id}`).disconnectSockets(true);
     res.json(await User.findById(target._id).select(STAFF_FIELDS).lean());
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });

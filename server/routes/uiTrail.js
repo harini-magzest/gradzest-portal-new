@@ -6,6 +6,7 @@ const router = express.Router();
 const UiActivity = require('../models/UiActivity');
 const authMiddleware = require('../middleware/auth');
 const attachUserEmail = require('../middleware/attachUserEmail');
+const { buildDevice } = require('../lib/device');
 
 // Roles whose UI activity is recorded. Staff by default; student tracking is
 // opt-in (SOC_UI_TRACK_ROLES=admin,counselor,student) because recording every
@@ -63,6 +64,7 @@ router.post('/', authMiddleware, limiter, attachUserEmail, async (req, res) => {
     const base = {
       userId: req.user.id, email: req.user.email || '', name: req.user.name || '', role: req.user.role,
       sessionKey: cut(sessionKey, 40), ip: req.ip, userAgent: cut(req.headers['user-agent'], 300),
+      device: buildDevice(req.headers['user-agent'], req.body?.device),
     };
     const docs = events.slice(0, MAX_BATCH).map((e) => sanitizeEntry(e, base)).filter(Boolean);
     if (docs.length) {

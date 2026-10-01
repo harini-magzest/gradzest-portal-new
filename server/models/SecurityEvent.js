@@ -51,4 +51,6 @@ securityEventSchema.index({ userId: 1, createdAt: -1 });
 // Audit-grade retention: auto-expire after ~6 months
 securityEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 180 });
 
+securityEventSchema.plugin(require('../lib/encryptedFields'), { fields: ['email','ip','userAgent','message'] });
+
 module.exports = mongoose.model("SecurityEvent", securityEventSchema);
