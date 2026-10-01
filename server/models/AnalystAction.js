@@ -31,4 +31,6 @@ analystActionSchema.index({ analystId: 1, createdAt: -1 });
 analystActionSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 analystActionSchema.index({ createdAt: -1 });
 
+analystActionSchema.plugin(require('../lib/encryptedFields'), { fields: ['analystEmail','targetId','reason'] });
+
 module.exports = mongoose.model('AnalystAction', analystActionSchema);

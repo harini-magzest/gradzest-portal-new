@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClipboardCheck, Eye, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import { api, getApiToken } from '../../api';
+import { Mask } from './Mask';
 
 interface TopAccessor { _id: string; accessorEmail: string; accessorRole: string; totalAccesses: number; uniqueApplicants: number }
 interface PiiAccess { _id: string; accessorEmail: string; accessorRole: string; applicantEmail: string; fieldsAccessed: string[]; accessType: string; createdAt: string }
@@ -75,7 +76,7 @@ export default function AuditTab() {
               <tbody>
                 {topAccessors.map(a => (
                   <tr key={a._id} className="border-b border-gray-50 last:border-0">
-                    <td className="py-2 pr-4 font-medium text-gray-800">{a.accessorEmail}</td>
+                    <td className="py-2 pr-4 font-medium text-gray-800"><Mask value={a.accessorEmail} /></td>
                     <td className="py-2 pr-4 text-gray-500 capitalize">{a.accessorRole}</td>
                     <td className="py-2 pr-4">
                       <span className={a.uniqueApplicants >= 30 ? 'text-red-600 font-semibold' : 'text-gray-700'}>{a.uniqueApplicants}</span>
@@ -101,9 +102,9 @@ export default function AuditTab() {
             {recentAccesses.map(a => (
               <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
                 <div className="min-w-0">
-                  <span className="font-medium text-gray-800">{a.accessorEmail}</span>
+                  <span className="font-medium text-gray-800"><Mask value={a.accessorEmail} /></span>
                   <span className="text-gray-400"> viewed </span>
-                  <span className="font-medium text-gray-800">{a.applicantEmail}</span>
+                  <span className="font-medium text-gray-800"><Mask value={a.applicantEmail} /></span>
                   <span className="text-xs text-gray-400 ml-2">{a.fieldsAccessed.join(', ')}</span>
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
@@ -139,7 +140,7 @@ export default function AuditTab() {
             {actions.map(a => (
               <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
                 <div className="min-w-0">
-                  <span className="font-medium text-gray-800">{a.analystEmail}</span>
+                  <span className="font-medium text-gray-800"><Mask value={a.analystEmail} /></span>
                   <span className="text-gray-400"> · {ACTION_LABEL[a.action] || a.action} · </span>
                   <span className="font-mono text-xs text-gray-600">{a.targetId}</span>
                   {a.reason && <span className="text-xs text-gray-400 ml-2">({a.reason})</span>}

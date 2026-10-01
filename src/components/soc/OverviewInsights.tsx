@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Timer, Hourglass, AlarmClock, Flag } from 'lucide-react';
 import { api } from '../../api';
 import { TYPE_LABEL, humanDuration } from './incidentShared';
+import { Mask } from './Mask';
 
 export type Period = '24h' | '7d' | '30d';
 
@@ -107,7 +108,7 @@ export default function OverviewInsights({ stats, period }: { stats: any; period
         <Card title="Most targeted accounts (failed logins)">
           {targeted.length === 0 ? <Empty text="No failed logins in this period" /> : (
             <div className="space-y-3">
-              {targeted.slice(0, 8).map((t: any) => <Bar key={t.email} label={<span className="font-mono">{t.email}</span>} value={t.count} max={targetedMax} right={`${t.count} · ${t.distinctIps} IP${t.distinctIps !== 1 ? 's' : ''}`} />)}
+              {targeted.slice(0, 8).map((t: any) => <Bar key={t.email} label={<span className="font-mono"><Mask value={t.email} /></span>} value={t.count} max={targetedMax} right={`${t.count} · ${t.distinctIps} IP${t.distinctIps !== 1 ? 's' : ''}`} />)}
             </div>
           )}
         </Card>
