@@ -15,6 +15,12 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
     const admins = await User.find(RECIPIENT_FILTER).select('_id email');
     if (!admins.length) return;
 
+    // Same phone number already on another student — usually a lead who signed up twice
+    // with a different email, or called in before and is now self-registering.
+    const duplicate = student.phone
+      ? await User.findOne({ role: 'student', _id: { $ne: student._id }, phone: student.phone }).select('name email').lean()
+      : null;
+
     const email = student.email && !student.email.endsWith('@social.gradzest') ? student.email : '';
     const contact = [email, student.phone].filter(Boolean).join(' · ');
     const via = SOURCE_LABELS[student.source] || 'the website';
@@ -22,13 +28,15 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
     const followUp = assignedCounselor
       ? ` Auto-assigned to ${assignedCounselor.name}.`
       : ' Assign a counselor to follow up.';
+    const dupeWarning = duplicate ? ` ⚠️ Shares a phone number with existing student "${duplicate.name}" — possible duplicate lead.` : '';
 
-    const title = `🎯 New Lead: ${student.name}`;
-    const message = `${student.name}${contact ? ` (${contact})` : ''} just created an account via ${via}.${unverified}${followUp}`;
+    const title = duplicate ? `⚠️ New Lead (possible duplicate): ${student.name}` : `🎯 New Lead: ${student.name}`;
+    const message = `${student.name}${contact ? ` (${contact})` : ''} just created an account via ${via}.${unverified}${followUp}${dupeWarning}`;
     const link = assignedCounselor ? '/admin/students' : '/admin/students?lead=new';
 
+    const priority = duplicate ? 'urgent' : 'normal';
     const saved = await Notification.insertMany(
-      admins.map(a => ({ userId: a._id, type: 'lead', priority: 'normal', title, message, link }))
+      admins.map(a => ({ userId: a._id, type: 'lead', priority, title, message, link }))
     );
 
     const io = app.get('io');
@@ -53,6 +61,7 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
         ['Signed up via', via],
         ['Email verified', student.emailVerified ? 'Yes' : 'No'],
         ...(assignedCounselor ? [['Assigned counselor', assignedCounselor.name]] : []),
+        ...(duplicate ? [['⚠️ Possible duplicate of', `${duplicate.name} (${duplicate.email || 'no email'})`]] : []),
       ].map(([k, v]) => `
         <tr>
           <td style="padding:8px 12px;color:#6b7280;font-size:13px;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${k}</td>

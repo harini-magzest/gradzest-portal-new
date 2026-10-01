@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, Pencil,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, Info, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
+  ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -1646,10 +1646,6 @@ export default function AdminStudents() {
                                 {markingId === id ? <Spinner size={3} /> : <CheckCircle className="w-3.5 h-3.5" />}
                               </button>
                             )}
-                            <button type="button" onClick={() => openStudent(id)} title="View details"
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors">
-                              <Info className="w-3.5 h-3.5" />
-                            </button>
                             <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })} title="Chat"
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
                               <MessageSquare className="w-3.5 h-3.5" />

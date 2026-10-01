@@ -218,7 +218,7 @@ export default function App() {
               <Route index element={<AppTeamDashboard />} />
               <Route path="applications" element={<AppTeamApplications />} />
               <Route path="counselors" element={<AppTeamCounselors />} />
-              <Route path="students" element={<AppTeamStudents />} />
+              <Route path="students/*" element={<AppTeamStudents />} />
               <Route path="activities" element={<Activities />} />
               <Route path="live-feed" element={<AppTeamActivityFeed />} />
               <Route path="chat" element={<AppTeamChat />} />
