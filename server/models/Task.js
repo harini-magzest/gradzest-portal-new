@@ -6,6 +6,17 @@ const CommentSchema = new mongoose.Schema({
   text:       { type: String, required: true },
 }, { timestamps: true });
 
+// One entry per status change, so the task's progress can be followed over time
+const StatusChangeSchema = new mongoose.Schema({
+  from:     { type: String, default: '' },
+  to:       { type: String, required: true },
+  note:     { type: String, default: '' },
+  by:       { type: String, default: '' },
+  byRole:   { type: String, default: '' },
+}, { timestamps: true });
+
+const TASK_STATUSES = ['pending', 'in_progress', 'on_hold', 'completed'];
+
 const TaskSchema = new mongoose.Schema({
   title:          { type: String, required: true },
   description:    { type: String, default: '' },
@@ -17,8 +28,9 @@ const TaskSchema = new mongoose.Schema({
   assignedByName: { type: String, default: '' },
   priority:       { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
   dueDate:        { type: String, default: '' },
-  status:         { type: String, enum: ['pending', 'completed'], default: 'pending' },
+  status:         { type: String, enum: TASK_STATUSES, default: 'pending' },
   comments:       [CommentSchema],
+  history:        [StatusChangeSchema],
   // Set when the task is a follow-up for a website subscriber lead
   subscriberId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscriber', default: null },
   // Set when the task was created from a student's record
@@ -31,3 +43,4 @@ TaskSchema.index({ assignedBy: 1, createdAt: -1 });
 TaskSchema.index({ studentId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Task', TaskSchema);
+module.exports.TASK_STATUSES = TASK_STATUSES;

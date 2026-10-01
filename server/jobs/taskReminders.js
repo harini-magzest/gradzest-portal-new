@@ -7,14 +7,14 @@ async function runOverdueTaskCheck(io, userSockets) {
   const todayStr = now.toISOString().split('T')[0];
 
   const overdue = await Task.find({
-    status: 'pending',
+    status: { $ne: 'completed' },
     assignedTo: { $ne: null },
     dueDate: { $ne: '', $lt: todayStr },
   }).select('title dueDate assignedTo assignedToName');
 
   for (const task of overdue) {
     const title = 'Task overdue';
-    const message = `"${task.title}" was due ${task.dueDate} and is still pending.`;
+    const message = `"${task.title}" was due ${task.dueDate} and is still open.`;
     const link = '/activities';
 
     // Dedup — one overdue nudge per task per day
