@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
-  GraduationCap, BadgeCheck, Percent, BarChart3, ClipboardList, Pencil, Trash2,
+  GraduationCap, BadgeCheck, Percent, ClipboardList, Pencil, Trash2,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
@@ -38,19 +38,19 @@ const DEFAULT_FORM = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function normalId(obj: any) { return (obj?._id || obj?.id)?.toString() ?? ''; }
+export function normalId(obj: any) { return (obj?._id || obj?.id)?.toString() ?? ''; }
 
-function initials(name: string) {
+export function initials(name: string) {
   return (name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
 }
 
-function avatarColor(name: string) {
+export function avatarColor(name: string) {
   let h = 0;
   for (const ch of name || '') h = (h * 31 + ch.charCodeAt(0)) & 0xffff;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-function counselorMetrics(counselor: any, allStudents: any[], allApplications: any[]) {
+export function counselorMetrics(counselor: any, allStudents: any[], allApplications: any[]) {
   const cid = normalId(counselor);
   const myStudents = allStudents.filter(s =>
     s.counselorId?.toString() === cid || (counselor.assignedStudents || []).includes(normalId(s))
@@ -631,6 +631,98 @@ function CounselorDetailModal({
   );
 }
 
+// ── Counselor Profile Card (inline, used on the Performance page) ────────────
+
+export function CounselorProfileCard({
+  counselor, metrics, onChat, onStatClick,
+}: {
+  counselor: any; metrics: ReturnType<typeof counselorMetrics>; onChat: () => void;
+  onStatClick: (type: StatType) => void;
+}) {
+  const color = avatarColor(counselor.name);
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 py-5 flex flex-wrap items-center gap-5">
+        <div className="flex items-center gap-4 flex-1 min-w-[240px]">
+          <div className={`w-16 h-16 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0`}>
+            {initials(counselor.name)}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-white truncate">{counselor.name}</h2>
+            <p className="text-purple-200 text-sm">{counselor.title || 'Education Counselor'}</p>
+            {counselor.email && <p className="text-purple-300 text-xs mt-0.5 truncate">{counselor.email}</p>}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 w-full sm:w-auto">
+          {([
+            { key: 'students' as StatType, label: 'Students', value: metrics.studentCount },
+            { key: 'enrolled' as StatType, label: 'Enrolled', value: metrics.enrolled },
+            { key: 'visa'     as StatType, label: 'Visa Rate', value: `${metrics.visaRate}%` },
+          ]).map(stat => (
+            <button key={stat.key} type="button" onClick={() => onStatClick(stat.key)}
+              className="bg-white/10 border border-white/20 rounded-xl px-5 py-2.5 text-center hover:bg-white/20 transition-colors">
+              <p className="text-lg font-bold text-white">{stat.value}</p>
+              <p className="text-xs text-purple-200 mt-0.5">{stat.label}</p>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onChat}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white text-indigo-700 hover:bg-indigo-50 transition-colors">
+          <MessageSquare className="w-4 h-4" />Chat
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          {counselor.specialization?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Specializations</p>
+              <div className="flex flex-wrap gap-2">
+                {counselor.specialization.map((s: string) => (
+                  <span key={s} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium border border-purple-100">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {counselor.phone && (
+              <div><span className="text-gray-400">Phone: </span><span className="text-gray-800">{counselor.phone}</span></div>
+            )}
+            {counselor.experience !== undefined && counselor.experience !== null && (
+              <div><span className="text-gray-400">Experience: </span><span className="text-gray-800">{counselor.experience} years</span></div>
+            )}
+          </div>
+          {counselor.bio && <p className="text-sm text-gray-600">{counselor.bio}</p>}
+        </div>
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Performance Score</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${metrics.scoreColor}`} style={{ width: `${metrics.score}%` }} />
+              </div>
+              <span className={`text-sm font-bold ${metrics.scoreText}`}>{metrics.score}/100</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Workload</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${metrics.workloadColor}`} style={{ width: `${metrics.workloadPct}%` }} />
+              </div>
+              <span className={`text-sm font-semibold ${metrics.workloadText}`}>
+                {metrics.workloadLabel} — {metrics.workloadPct}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
@@ -923,9 +1015,9 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
 
 // ── Counselor Stats Modal ─────────────────────────────────────────────────────
 
-type StatType = 'students' | 'enrolled' | 'visa';
+export type StatType = 'students' | 'enrolled' | 'visa';
 
-function CounselorStatsModal({
+export function CounselorStatsModal({
   counselor, metrics, type, onClose,
 }: {
   counselor: any;
@@ -1515,13 +1607,13 @@ return (
                 const tags = (c.specialization || []).slice(0, 2);
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
-                    <button type="button" onClick={() => setViewing(c)} aria-label={`Open ${c.name}'s profile`}
+                    <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)} aria-label={`Open ${c.name}'s profile`}
                       className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
                       {initials(c.name)}
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <button type="button" onClick={() => setViewing(c)}
+                        <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)}
                           className="text-sm font-semibold text-gray-900 truncate hover:text-purple-700 hover:underline transition-colors">
                           {c.name}
                         </button>
@@ -1537,10 +1629,6 @@ return (
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)} title="Stats"
-                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors">
-                        <BarChart3 className="w-4 h-4" />
-                      </button>
                       <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })} title="Chat"
                         className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
                         <MessageSquare className="w-4 h-4" />
