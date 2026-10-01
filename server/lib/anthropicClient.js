@@ -11,6 +11,11 @@ try {
 }
 
 const { getToolsForRole, executeTool } = require('./zestTools');
+const { askOllama } = require('./ollamaChat');
+
+// Which model backend answers: ZEST_PROVIDER=ollama for a self-hosted Ollama server, otherwise
+// the Claude API. Prompt building, history and tool scoping below are shared by both.
+const zestProvider = () => (String(process.env.ZEST_PROVIDER || '').toLowerCase() === 'ollama' ? 'ollama' : 'anthropic');
 
 let client = null;
 function getClient() {
@@ -19,6 +24,7 @@ function getClient() {
 }
 
 function isZestConfigured() {
+  if (zestProvider() === 'ollama') return true; // reachability is checked at startup and on every call
   return !!(process.env.ANTHROPIC_API_KEY && Anthropic);
 }
 
@@ -155,7 +161,7 @@ const MAX_TOOL_ROUNDS = 4;
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
 async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null) {
-  if (!isZestConfigured()) throw new Error('Zest is not configured (missing ANTHROPIC_API_KEY)');
+  if (!isZestConfigured()) throw new Error('Zest is not configured (set ZEST_PROVIDER=ollama or ANTHROPIC_API_KEY)');
 
   const context = chunks.length
     ? chunks.map((c, i) => `[Source ${i + 1}: ${c.title}]\n${c.text}`).join('\n\n---\n\n')
@@ -173,6 +179,14 @@ async function askZest(question, chunks, history = [], role = 'student', attache
   ];
 
   const tools = getToolsForRole(role);
+
+  if (zestProvider() === 'ollama') {
+    return askOllama(
+      { system: buildSystemPrompt(role), messages, tools, maxTokens: 800, maxToolRounds: MAX_TOOL_ROUNDS },
+      (name, input) => executeTool(name, input, user),
+    );
+  }
+
   const toolsUsed = [];
   const createParams = {
     model: process.env.ZEST_MODEL || 'claude-haiku-4-5-20251001',
@@ -202,4 +216,4 @@ async function askZest(question, chunks, history = [], role = 'student', attache
   return { text, toolsUsed };
 }
 
-module.exports = { askZest, isZestConfigured, buildSystemPrompt };
+module.exports = { askZest, isZestConfigured, buildSystemPrompt, zestProvider };

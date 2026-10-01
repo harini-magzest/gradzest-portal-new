@@ -15,6 +15,21 @@ const { askZest, isZestConfigured } = require('../lib/anthropicClient');
 const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { filterByRelativeScore } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
+const { notifyZestFailure } = require('../lib/zestAlert');
+
+const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ZEST_PROVIDER=ollama (free, self-hosted) or ANTHROPIC_API_KEY.';
+const UNAVAILABLE = "Zest's AI is unavailable right now and the team has been notified. Please try again later.";
+
+// When the AI fails, answer with the knowledge-base passages retrieval already found rather than
+// nothing — plain text, since the chat widget renders answers as-is.
+function knowledgeBaseFallback(matches) {
+  if (!matches.length) return null;
+  const passages = matches.slice(0, 3).map(m => {
+    const text = m.text.trim();
+    return `From "${m.documentTitle}":\n${text.length > 600 ? `${text.slice(0, 600).trimEnd()}…` : text}`;
+  });
+  return `Zest's AI is unavailable right now, so here is what Gradzest's knowledge base says:\n\n${passages.join('\n\n')}`;
+}
 
 const router = express.Router();
 
@@ -88,10 +103,11 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
 router.post('/ask', authMiddleware, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' });
+  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
 
   const history = sanitizeHistory(req.body.history);
 
+  let matches = [];
   try {
     // A short follow-up reply ("UK", "the second one") won't $text-match anything on its own —
     // fold in the previous user turn so retrieval still has real keywords to work with.
@@ -103,16 +119,25 @@ router.post('/ask', authMiddleware, async (req, res) => {
       { $text: { $search: searchQuery } },
       { score: { $meta: 'textScore' } },
     ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
-    const matches = filterByRelativeScore(ranked);
+    matches = filterByRelativeScore(ranked);
+    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+    const sourceDocIds = sources.map(src => String(src.documentId));
 
-    const { text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user,
-    );
-    const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+    let answer, toolsUsed;
+    try {
+      ({ text: answer, toolsUsed } = await askZest(
+        question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user,
+      ));
+    } catch (err) {
+      // Stop here — no retry — tell the team, and give the user the knowledge-base passages instead
+      notifyZestFailure({ kind: err.kind || 'error', message: err.message }, { route: '/api/zest/ask', role: req.user.role });
+      const fallback = knowledgeBaseFallback(matches);
+      if (!fallback) return res.status(503).json({ message: UNAVAILABLE });
+      await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [] });
+      return res.json({ answer: fallback, sources, degraded: true });
+    }
 
     await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
     res.json({ answer, sources });
   } catch (err) {
     console.error('[zest/ask]', err.message);
@@ -128,7 +153,7 @@ router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploade
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!req.file) return res.status(400).json({ message: 'A file is required' });
   if (!question) { fs.unlink(req.file.path, () => {}); return res.status(400).json({ message: 'question is required' }); }
-  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' }); }
+  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: NOT_CONFIGURED }); }
 
   // multipart fields arrive as strings, not JSON — the KB-less /ask route gets a real array.
   let rawHistory = req.body.history;
@@ -146,7 +171,13 @@ router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploade
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, req.user);
+    let answer, toolsUsed;
+    try {
+      ({ text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, req.user));
+    } catch (err) {
+      notifyZestFailure({ kind: err.kind || 'error', message: err.message }, { route: '/api/zest/ask-with-file', role: req.user.role });
+      return res.status(503).json({ message: UNAVAILABLE });
+    }
     await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
       question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
