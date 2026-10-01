@@ -153,7 +153,8 @@ router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTea
     // ── Timeline: recorded staff actions + every call ──
     const actions = await StaffActivity.find({ actorId: cid, createdAt: { $gte: from } }).sort({ createdAt: -1 }).limit(300).lean();
     actions.forEach(a => timeline.push({
-      id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, detail: a.detail, studentName: a.studentName,
+      // Older note entries stored a snippet of the note, which may be private — never show it
+      id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, detail: a.kind === 'note' ? '' : a.detail, studentName: a.studentName,
     }));
     const CHANNEL_LABEL = { incoming: 'Incoming call', click_to_call: 'Click-to-call', whatsapp: 'WhatsApp call', in_app: 'In-app call' };
     calls.forEach(c => {

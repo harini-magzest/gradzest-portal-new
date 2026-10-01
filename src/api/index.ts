@@ -45,6 +45,13 @@ export function getSocToken(): string | null { return _socToken; }
 // /soc-auth/status also gets the token: the server answers "verified" only when it is present and valid.
 const socHeader = (url: string): Record<string, string> => ((url.startsWith('/soc/') || url === '/soc-auth/status') && _socToken ? { 'X-SOC-Token': _socToken } : {});
 
+export type NoteVisibility = 'public' | 'private';
+export interface StudentNote {
+  id: string; text: string; visibility: NoteVisibility;
+  authorId: string; authorName: string; mine: boolean;
+  createdAt?: string; updatedAt?: string;
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     credentials: 'include', ...options,
@@ -199,16 +206,19 @@ export const api = {
       req<any>(`/students/${studentId}/meta`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
-    addNote: (studentId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
+    // Staff notes: public (every staff member who can open the student) or private (author only)
+    notes: (studentId: string) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, { headers: authHeaders() }),
+    addNote: (studentId: string, text: string, visibility: NoteVisibility) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text, visibility }),
       }),
-    editNote: (studentId: string, noteId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
-        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ text }),
+    editNote: (studentId: string, noteId: string, data: { text?: string; visibility?: NoteVisibility }) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     deleteNote: (studentId: string, noteId: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
         method: 'DELETE', headers: authHeaders(),
       }),
   },
