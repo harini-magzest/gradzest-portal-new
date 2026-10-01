@@ -517,10 +517,10 @@ export default function StudentApplications() {
         </div>
         <div className="flex items-center gap-2">
           <Link to="/student/learning"
-            className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+            className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors">
             <GraduationCap className="w-4 h-4" /> Learning Hub
           </Link>
-          <Link to="/student/universities" className="flex items-center gap-2 bg-[#0d1b4b] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#152258] transition-colors">
+          <Link to="/student/universities" className="flex items-center gap-2 bg-[#0d1b4b] text-white px-3.5 py-2 rounded-xl text-sm font-medium hover:bg-[#152258] transition-colors">
             <Plus className="w-4 h-4" /> New Application
           </Link>
         </div>
@@ -538,12 +538,12 @@ export default function StudentApplications() {
           </div>
         </div>
         <Link to="/student/learning"
-          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap flex-shrink-0">
+          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-semibold text-sm px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap flex-shrink-0">
           Open Learning Hub <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {([
           { key: 'all',            label: 'All',            inactive: 'bg-blue-50 border-blue-200 text-blue-800',       active: 'bg-[#0d1b4b] border-[#0d1b4b] text-white' },
           { key: 'submitted',      label: 'Submitted',      inactive: 'bg-sky-50 border-sky-200 text-sky-800',           active: 'bg-sky-500 border-sky-500 text-white' },
@@ -554,11 +554,12 @@ export default function StudentApplications() {
           { key: 'rejected',       label: 'Rejected',       inactive: 'bg-red-50 border-red-200 text-red-800',           active: 'bg-red-500 border-red-500 text-white' },
         ] as const).map(({ key, label, inactive, active }) => (
           <button type="button" key={key} onClick={() => setFilter(key)}
-            className={`py-7 px-4 rounded-3xl text-center border-2 flex flex-col items-center justify-center gap-1 transition-all shadow-sm ${
-              filter === key ? active : inactive
+            aria-pressed={filter === key}
+            className={`py-2.5 px-3 rounded-2xl text-center border flex flex-col items-center justify-center transition-all hover:shadow-sm ${
+              filter === key ? `${active} shadow-sm` : inactive
             }`}>
-            <div className="text-3xl font-bold">{counts[key]}</div>
-            <div className="text-xs font-medium opacity-80">{label}</div>
+            <div className="text-xl font-bold leading-tight">{counts[key]}</div>
+            <div className="text-[11px] font-medium opacity-80 truncate max-w-full">{label}</div>
           </button>
         ))}
       </div>
