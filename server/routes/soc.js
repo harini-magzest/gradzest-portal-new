@@ -43,7 +43,7 @@ const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 // SOC_OWNER_EMAILS (comma separated, default hameed@magzest.in) — being an admin is not enough. Application Team
 // accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
 // in admin.js), and stay blocked here too.
-const { isSocOwnerEmail } = require('../lib/socOwners');
+const { isSocOwnerEmail, ownerEmails } = require('../lib/socOwners');
 
 async function adminOnly(req, res, next) {
   try {
@@ -115,6 +115,11 @@ function logExport(req, what, rows) {
 const PERIOD_MS = { '24h': 24 * 60 * 60 * 1000, '7d': 7 * 24 * 60 * 60 * 1000, '30d': 30 * 24 * 60 * 60 * 1000 };
 
 // ── GET /api/soc/stats ───────────────────────────────────────────────────────
+// The SOC maintainers' own emails, so the UI can hide those (and only those) behind ********.
+router.get('/owners', authMiddleware, adminOnly, (req, res) => {
+  res.json({ emails: ownerEmails() });
+});
+
 router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     const period = PERIOD_MS[req.query.period] ? req.query.period : '24h';

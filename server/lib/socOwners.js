@@ -13,4 +13,7 @@ function isSocOwnerEmail(email) {
   return owners().some((o) => (o.startsWith('@') ? e.endsWith(o) : e === o));
 }
 
-module.exports = { isSocOwnerEmail };
+// Exact owner emails only (domain entries excluded); the SOC UI uses these to hide the maintainers' own emails.
+const ownerEmails = () => owners().filter((o) => !o.startsWith('@'));
+
+module.exports = { isSocOwnerEmail, ownerEmails };

@@ -383,6 +383,7 @@ export const api = {
   },
 
   soc: {
+    owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
     events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
