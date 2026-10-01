@@ -356,9 +356,9 @@ function RolesPermissions() {
 
       <SectionCard title="Permissions">
         <p className="text-sm text-gray-500">
-          Counselor permissions are now set with editable profiles in{' '}
-          <Link to="/admin/settings?section=users&tab=profiles" className="text-purple-600 font-medium hover:underline">
-            Users and Controls → Profiles
+          Counselor permissions come from the profile assigned to each user in{' '}
+          <Link to="/admin/settings?section=users&tab=users" className="text-purple-600 font-medium hover:underline">
+            Users and Controls → Users
           </Link>. Admin accounts always have full access.
         </p>
       </SectionCard>
@@ -461,6 +461,25 @@ function ExportBackup() {
 
 function DangerZone() {
   const [confirm, setConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const deleteAll = async () => {
+    if (confirm !== 'DELETE') return;
+    if (!window.confirm('Really delete ALL student data? This cannot be undone.')) return;
+    setErr(''); setMsg(''); setDeleting(true);
+    try {
+      const { deletedCount } = await api.admin.deleteAllStudents(confirm);
+      setMsg(`Deleted ${deletedCount} student${deletedCount === 1 ? '' : 's'} and their applications and documents.`);
+      setConfirm('');
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to delete student data.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <SectionCard title="Danger Zone">
       <div className="space-y-4">
@@ -474,18 +493,13 @@ function DangerZone() {
           </div>
           <div className="mt-4 space-y-3">
             <InputField label={'Type "DELETE" to confirm'} value={confirm} onChange={setConfirm} placeholder="DELETE" />
-            <button type="button" disabled={confirm !== 'DELETE'}
+            {err && <p className="text-sm text-red-600 bg-white border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
+            {msg && <p className="text-sm text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-xl flex items-center gap-1.5"><Check className="w-4 h-4" />{msg}</p>}
+            <button type="button" onClick={deleteAll} disabled={confirm !== 'DELETE' || deleting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <AlertTriangle className="w-4 h-4" />Permanently Delete
+              {deleting ? <><Spinner white />Deleting…</> : <><AlertTriangle className="w-4 h-4" />Permanently Delete</>}
             </button>
           </div>
-        </div>
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <p className="text-sm font-bold text-orange-800">Reset to Default Settings</p>
-          <p className="text-xs text-orange-600 mt-0.5">Resets all notification preferences, and email templates to factory defaults.</p>
-          <button type="button" className="mt-3 px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-xl hover:bg-orange-700 transition-colors">
-            Reset Settings
-          </button>
         </div>
       </div>
     </SectionCard>

@@ -16,7 +16,9 @@ const router = express.Router();
 router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
-    const students = await User.find({ role: 'student' }).select('-password');
+    // Role hierarchy: a counselor sees their own students plus those of everyone in roles below theirs
+    const teamFilter = studentFilter(await loadAccess(req));
+    const students = await User.find({ role: 'student', ...teamFilter }).select('-password');
     const io = req.app.get('io');
     students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));

@@ -294,6 +294,9 @@ export const api = {
     deleteStudent: (id: string) => req<any>(`/admin/students/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+    deleteAllStudents: (confirm: string) => req<{ message: string; deletedCount: number }>('/admin/danger/delete-all-students', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm }),
+    }),
     assignCounselor: (studentId: string, counselorId: string | null) => req<any>(`/admin/students/${studentId}/assign`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ counselorId }),
     }),
@@ -471,6 +474,7 @@ export const api = {
     list: () => req<{ users: any[]; roles: any[]; profiles: any[] }>('/users', { headers: authHeaders() }),
     create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
     profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
     createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
       req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),

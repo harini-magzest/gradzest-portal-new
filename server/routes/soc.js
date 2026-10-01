@@ -52,6 +52,7 @@ const SECURITY_TYPE_LABEL = {
   password_reset_request: 'Password reset requested',
   privilege_change: 'Privilege change',
   data_export: 'Data export',
+  bulk_delete: 'Bulk data deletion',
 };
 
 // Every CSV download from the SOC is itself a security event, so a burst of

@@ -43,7 +43,7 @@ const TYPE_ICON: Record<string, any> = {
 const TYPE_LABEL: Record<string, string> = {
   login_success: 'Login', login_failure: 'Failed login', login_lockout: 'Lockout',
   logout: 'Logout', token_invalid: 'Invalid token', token_expired: 'Expired token', password_reset: 'Password reset',
-  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', malware_upload: 'Malware upload', waf_block: 'WAF block',
+  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', bulk_delete: 'Bulk delete', malware_upload: 'Malware upload', waf_block: 'WAF block',
   skyload_bot_flag: 'Bot flag', skyload_throttle: 'Throttled',
 };
 

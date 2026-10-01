@@ -19,6 +19,7 @@ const securityEventSchema = new mongoose.Schema(
         "password_reset_request",
         "privilege_change",
         "data_export",
+        "bulk_delete",
       ],
       required: true,
     },
