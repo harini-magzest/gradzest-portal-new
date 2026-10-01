@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_ENV=production node index.js",
-    "predev": "npx kill-port 5000 --silent || true",
+    "predev": "kill-port 5000 || exit 0",
     "dev": "cross-env NODE_ENV=development nodemon index.js",
     "seed": "node seed.js"
   },
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
+    "kill-port": "^2.0.1",
     "nodemon": "^3.0.2"
   }
 }
