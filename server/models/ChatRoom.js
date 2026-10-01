@@ -6,7 +6,8 @@ const MessageSchema = new mongoose.Schema({
   senderRole: String,
   content: { type: String, default: "" },
   timestamp: { type: Date, default: Date.now },
-  read: { type: Boolean, default: false },
+  read: { type: Boolean, default: false }, // 1:1 chats only; groups track each reader in readBy
+  readBy: { type: [String], default: undefined }, // user ids who have opened the chat since this arrived
   type: { type: String, default: "text" }, // 'text' | 'call' | 'file' | 'meeting'
   callStatus: String, // 'answered' | 'no_answer' | 'declined'
   callDuration: { type: Number, default: 0 }, // seconds

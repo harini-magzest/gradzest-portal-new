@@ -565,14 +565,16 @@ router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
   }
 });
 
-// Mark all messages from others as read
+// Mark all messages from others as read — for this user only. In a group, one member opening the chat
+// must not clear it for everyone else, so readers are tracked per message in readBy.
 router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
   try {
-    await ChatRoom.updateOne(
-      memberFilter(req),
-      { $set: { 'messages.$[elem].read': true } },
-      { arrayFilters: [{ 'elem.senderId': { $ne: req.user.id.toString() } }] }
-    );
+    const me = req.user.id.toString();
+    const room = await ChatRoom.findOne(memberFilter(req)).select('participants');
+    if (!room) return res.status(404).json({ message: 'Room not found' });
+    const update = { $addToSet: { 'messages.$[elem].readBy': me } };
+    if (room.participants.length === 2) update.$set = { 'messages.$[elem].read': true };
+    await ChatRoom.updateOne({ _id: room._id }, update, { arrayFilters: [{ 'elem.senderId': { $ne: me } }] });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ message: 'Server error' });
