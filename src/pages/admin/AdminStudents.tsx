@@ -18,6 +18,7 @@ import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { usePortalName } from '../../hooks/usePortalName';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
