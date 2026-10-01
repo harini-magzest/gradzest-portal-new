@@ -273,8 +273,6 @@ export default function StudentDashboard() {
         />
       )}
 
-      <OnboardingChecklist />
-
       {/* Welcome header */}
       <div className="bg-gradient-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
         <div className="flex items-start justify-between">
@@ -710,6 +708,9 @@ export default function StudentDashboard() {
           </div>
         )}
       </div>
+
+      {/* Getting-started checklist — last, collapsed to its progress line; the cards above cover the first steps */}
+      <OnboardingChecklist defaultCollapsed />
     </div>
   );
 }
