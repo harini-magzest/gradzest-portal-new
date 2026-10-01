@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, X, Search, BookOpen, Edit2, DollarSign, Check, Award,
-  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag,
+  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag, AlertCircle,
 } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
+import { useToast } from '../../context/ToastContext';
 import { usePortalName } from '../../hooks/usePortalName';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
@@ -693,9 +694,11 @@ function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply, onCusto
 
 export default function AdminCourses() {
   const { portal } = usePortalName();
+  const { toast } = useToast();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [filters, setFilters] = useState<CourseFilters>(EMPTY_FILTERS);
   const [customEdit, setCustomEdit] = useState<any | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -704,15 +707,17 @@ export default function AdminCourses() {
 
   const fetchUniversities = () => {
     setLoading(true);
+    setLoadError('');
     api.universities.list()
       .then(setUniversities)
-      .catch(() => {})
+      .catch(() => setLoadError('Failed to load courses.'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchUniversities();
-    api.admin.students().then(setStudents).catch(() => {});
+    api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allCourses = useMemo(() => flattenCourses(universities).map(c => ({
@@ -810,6 +815,11 @@ export default function AdminCourses() {
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+            <button type="button" onClick={fetchUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
           </div>
         ) : results.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-sm">

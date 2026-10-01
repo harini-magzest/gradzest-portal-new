@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
+import { useToast } from '../../context/ToastContext';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
@@ -152,6 +153,7 @@ function MeetingMessage({ msg, isMe, senderRole }: { msg: any; isMe: boolean; se
 export default function AppTeamChat() {
   const { user } = useAuth();
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const autoCounselorId = searchParams.get('counselorId');
   const [rooms, setRooms] = useState<any[]>([]);
@@ -212,8 +214,11 @@ export default function AppTeamChat() {
         }
 
         if (roomList.length > 0) setSelectedRoom(roomList[0]);
-      } catch {}
+      } catch {
+        toast.error('Failed to load conversations.');
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -224,7 +229,8 @@ export default function AppTeamChat() {
         const updated = roomList.find((r: any) => r.id === selectedRoom.id);
         if (updated) setSelectedRoom(updated);
       }
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to refresh conversations.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessageTime]);
 
   useEffect(() => {
