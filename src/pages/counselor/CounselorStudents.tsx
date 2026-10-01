@@ -357,6 +357,7 @@ function StudentsList() {
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
   const [showCreate, setShowCreate] = useState(false);
+  const [showNewLead, setShowNewLead] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -464,6 +465,10 @@ function StudentsList() {
 
   return (
     <div className="space-y-6">
+      {showNewLead && (
+        <StudentEditForm basePath="/counselor/students" onClose={() => setShowNewLead(false)}
+          onSaved={s => { setShowNewLead(false); navigate(`/counselor/students/${s._id || s.id}`); }} />
+      )}
       {showCreate && (
         <StudentFormModal onClose={() => setShowCreate(false)} onSaved={() => { loadStudents(); setTab('mine'); }} />
       )}
@@ -493,6 +498,12 @@ function StudentsList() {
               className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
               <Plus className="w-4 h-4" />New Application
             </Link>
+            {can('students.create') && (
+              <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+                <Phone className="w-4 h-4" />New Lead
+              </button>
+            )}
             {can('students.create') && (
               <button type="button" onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors shadow-sm">
@@ -894,42 +905,22 @@ function StudentDetail() {
           </div>
 
           {editing ? (
-            <StudentFormModal inline student={student} onClose={() => setEditing(false)}
-              onSaved={async () => {
-                const updated = await api.students.get(studentId!).catch(() => null);
-                if (updated) { setStudent(updated); setCounselorName(updated.counselorName || counselorName); }
-              }} />
+            <StudentEditForm inline student={{ ...student, counselorName }} basePath="/counselor/students" onClose={() => setEditing(false)}
+              onSaved={u => { setStudent((p: any) => ({ ...p, ...u })); setEditing(false); }} />
           ) : (<>
-
-          <div className="p-5 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
-              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
-              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
-            </div>
-          </div>
+          <StudentProfileFields student={student} />
 
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
             <InfoRow label="Education" value={student.educationLevel} />
             <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
-            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
             <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
           </div>
 
           <div className="p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-            {(student.preferredCountries || []).length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {student.preferredCountries.map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
-              </div>
-            ) : <p className="text-xs text-gray-300">—</p>}
-            <div className="mt-4">
-              <InfoRow label="Applications" value={apps.length} />
-              <InfoRow label="Documents" value={docs.length} />
-              <InfoRow label="Joined" value={student.joinedDate} />
-            </div>
+            <InfoRow label="Applications" value={apps.length} />
+            <InfoRow label="Documents" value={docs.length} />
+            <InfoRow label="Joined" value={student.joinedDate} />
           </div>
           </>)}
         </aside>

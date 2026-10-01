@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Search, X, Download, FileText, BookOpen, Phone, Mail, MapPin, UserCog, Users, MessageSquare,
-  CheckCircle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Activity, UserX, Layers, AlertTriangle, Eye,
+  CheckCircle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Activity, UserX, Layers, AlertTriangle, Eye, Pencil,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
@@ -11,6 +11,7 @@ import DocPreviewModal from '../../components/DocPreviewModal';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 
 const APP_STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400' },
@@ -54,6 +55,7 @@ function StudentsList() {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
+  const [showNewLead, setShowNewLead] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -191,6 +193,14 @@ function StudentsList() {
               className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
             </button>
+            <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+              className="flex items-center gap-2 px-3 py-2 bg-white text-orange-700 rounded-xl text-sm font-bold hover:bg-orange-50 transition-colors shadow-sm">
+              <Phone className="w-4 h-4" />New Lead
+            </button>
+            {showNewLead && (
+              <StudentEditForm basePath="/appteam/students" onClose={() => setShowNewLead(false)}
+                onSaved={s => { setStudents(prev => [s, ...prev]); setShowNewLead(false); navigate(`/appteam/students/${normalId(s)}`); }} />
+            )}
           </div>
         </div>
       </div>
@@ -449,13 +459,14 @@ function StudentDetail() {
   const [error, setError] = useState('');
   const [apps, setApps] = useState<any[]>([]);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [editing, setEditing] = useState(false);
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(studentId);
 
   // Reload whenever the student changes (incl. via the ‹ › arrows)
   useEffect(() => {
     if (!studentId) return;
     let cancelled = false;
-    setStudent(null); setError(''); setApps([]);
+    setStudent(null); setError(''); setApps([]); setEditing(false);
     api.students.get(studentId)
       .then(s => { if (!cancelled) setStudent(s); })
       .catch(err => { if (!cancelled) setError(err.message || 'Could not load this student.'); });
@@ -568,46 +579,37 @@ function StudentDetail() {
                 onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
             </div>
           </div>
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setEditing(true)} disabled={editing}
+              className="disabled:opacity-50 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all">
+              <Pencil className="w-4 h-4" />Edit
+            </button>
             <Link to="/appteam/chat" className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all">
               <MessageSquare className="w-4 h-4" />Chat
             </Link>
           </div>
 
-          <div className="p-5 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
-              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
-              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
-            </div>
-            <div className="mt-3">
-              <InfoRow label="Date of Birth" value={student.dateOfBirth} />
-              <InfoRow label="Gender" value={student.gender} />
-              <InfoRow label="Joined" value={student.joinedDate} />
-            </div>
-          </div>
+          {editing ? (
+            <StudentEditForm inline student={student} basePath="/appteam/students" onClose={() => setEditing(false)}
+              onSaved={u => { setStudent((p: any) => ({ ...p, ...u })); setEditing(false); }} />
+          ) : (<>
+          <StudentProfileFields student={student} />
 
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
             <InfoRow label="Education" value={student.educationLevel} />
             <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
-            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
             <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
           </div>
 
           <div className="p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-            {(student.preferredCountries || []).length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {student.preferredCountries.map((c: string) => <span key={c} className="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full font-medium border border-orange-100">{c}</span>)}
-              </div>
-            ) : <p className="text-xs text-gray-300">—</p>}
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <InfoRow label="Joined" value={student.joinedDate} />
+            <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{sortedApps.length}</p><p className="text-[11px] text-gray-500">Applications</p></div>
               <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{docs.length}</p><p className="text-[11px] text-gray-500">Documents</p></div>
             </div>
           </div>
+          </>)}
         </aside>
 
         {/* ── Right: tabs ── */}
