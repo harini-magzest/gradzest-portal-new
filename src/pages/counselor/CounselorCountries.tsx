@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, ChevronDown, ChevronUp, Clock, DollarSign, FileCheck2, CreditCard, Check, GraduationCap, Globe } from 'lucide-react';
 import { api } from '../../api';
 import { CountryFlag } from '../../components/CountryFlag';
+import { usePortalName } from '../../hooks/usePortalName';
 
 function UniMiniCard({ uni }: { uni: any }) {
   return (
@@ -194,6 +195,7 @@ function CountryCard({ country, unis }: { country: any; unis: any[] }) {
 }
 
 export default function CounselorCountries() {
+  const { portal } = usePortalName();
   const [countries, setCountries] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,7 +228,7 @@ export default function CounselorCountries() {
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Study Destinations</h1>
           </div>
         </div>

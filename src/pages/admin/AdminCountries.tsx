@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { CountryFlag } from '../../components/CountryFlag';
+import { usePortalName } from '../../hooks/usePortalName';
 
 /* ── Shared UI primitives ──────────────────────────────────────────────────── */
 
@@ -856,6 +857,7 @@ function CountryRow({ country, unis, onEdit, onDelete, onView }: {
 /* ── Main page ─────────────────────────────────────────────────────────────── */
 
 export default function AdminCountries() {
+  const { portal } = usePortalName();
   const [countries, setCountries] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -940,7 +942,7 @@ export default function AdminCountries() {
                 <span className="text-2xl leading-none">🌍</span>
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Countries, Visa &amp; Passport</h1>
               </div>
             </div>

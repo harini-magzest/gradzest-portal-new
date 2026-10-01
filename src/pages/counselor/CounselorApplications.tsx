@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const ALL_STATUSES = [
   { value: 'draft',          label: 'Draft' },
@@ -376,6 +377,7 @@ function UpdateStatusModal({
 }
 
 export default function CounselorApplications() {
+  const { portal } = usePortalName();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -447,7 +449,7 @@ export default function CounselorApplications() {
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+                <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Student Applications</h1>
               </div>
             </div>
