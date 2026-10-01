@@ -50,7 +50,6 @@ const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 // accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
 // in admin.js), and stay blocked here too.
 const { isSocOwnerEmail, ownerEmails } = require('../lib/socOwners');
-const { socMfaOk } = require('../lib/socMfa');
 
 async function adminOnly(req, res, next) {
   try {
@@ -63,8 +62,6 @@ async function adminOnly(req, res, next) {
     if (!isSocOwnerEmail(email)) {
       return res.status(403).json({ message: 'Not authorised for the SOC' });
     }
-    // Being the owner is not enough: the SOC also needs a current two-factor step-up token (lib/socMfa.js).
-    if (!(await socMfaOk(req, res))) return;
     next();
   } catch (err) {
     res.status(500).json({ message: 'Server error' });

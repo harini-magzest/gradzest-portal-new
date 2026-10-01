@@ -2,8 +2,6 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { ShieldAlert, LogOut, Eye, EyeOff } from 'lucide-react';
 import { RevealProvider, useReveal } from '../../components/soc/Mask';
 import { useAuth } from '../../context/AuthContext';
-import SocMfaGate from '../../components/soc/SocMfaGate';
-import { api, setSocToken } from '../../api';
 
 // Deliberately separate from AdminLayout — its own route tree at /soc, not
 // nested under /admin and not listed in the admin sidebar. Also does NOT
@@ -50,8 +48,7 @@ export default function SOCLayout() {
             <span className="text-xs text-gray-400">{user?.name} · analyst</span>
             <button
               type="button"
-              // Signing out also closes the SOC: it voids the two-factor step-up and leaves the live feed.
-              onClick={() => { api.socAuth.logout().catch(() => {}); setSocToken(null); logout(); }}
+              onClick={logout}
               className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-100 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -61,9 +58,7 @@ export default function SOCLayout() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-6">
-        <SocMfaGate>
-          <Outlet />
-        </SocMfaGate>
+        <Outlet />
       </main>
     </div>
     </RevealProvider>
