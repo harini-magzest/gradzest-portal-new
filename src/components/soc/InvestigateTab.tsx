@@ -29,7 +29,7 @@ function RelatedIncidents({ incidents, onSelect }: { incidents: Incident[]; onSe
           <button key={inc._id} onClick={() => onSelect(inc)}
             className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left text-sm bg-white border border-gray-100 hover:border-purple-200 hover:bg-purple-50/40 transition-colors">
             <div className="min-w-0 flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-gray-800 truncate">{inc.title}</span>
+              <span className="font-medium text-gray-800 truncate"><Mask value={inc.title} /></span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={INCIDENT_SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
             </div>
@@ -136,10 +136,10 @@ function TimelineList({ timeline }: { timeline: any[] }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">{item.source}</span>
-                <span className="text-sm font-medium text-gray-800 truncate">{item.title}</span>
+                <span className="text-sm font-medium text-gray-800 truncate"><Mask value={item.title} /></span>
                 {sev && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={sev}>{item.severityOrLevel}</span>}
               </div>
-              {item.detail && <p className="text-xs text-gray-400 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
+              {item.detail && <p className="text-xs text-gray-400 truncate"><Mask value={item.detail} />{item.ip ? ` · ${item.ip}` : ''}</p>}
             </div>
             <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           </div>

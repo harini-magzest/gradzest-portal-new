@@ -103,7 +103,7 @@ export default function DeviceDetails({ event }: { event: DeviceEvent }) {
         <Row label="Type" value={event.type.replace(/_/g, ' ')} />
         <Row label="Severity" value={event.severity} />
         <Row label="Time" value={new Date(event.createdAt).toLocaleString('en-IN')} />
-        <Row label="Message" value={event.message} />
+        <Row label="Message" value={<Mask value={event.message} />} />
         <Row label="Event ID" value={event._id} mono />
       </dl>
       <dl>

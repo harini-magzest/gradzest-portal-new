@@ -81,7 +81,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
               {TYPE_LABEL[incident.type] || incident.type}
               {incident.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 normal-case">Stale — 14+ days idle</span>}
             </p>
-            <h3 className="text-base font-bold text-gray-900 mt-0.5">{incident.title}</h3>
+            <h3 className="text-base font-bold text-gray-900 mt-0.5"><Mask value={incident.title} /></h3>
           </div>
           <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>

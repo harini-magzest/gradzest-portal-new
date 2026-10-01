@@ -322,12 +322,11 @@ io.use(async (socket, next) => {
 
 // WebRTC signaling
 io.on('connection', (socket) => {
-  socket.on('register', async () => {
+  // Rooms are joined on connection, not only on 'register': the SOC tabs open their own socket and never send
+  // 'register', so without this their live feeds would say "Live" but never receive an event.
+  const joinRooms = async () => {
     const uid = socket.data.userId;
     if (!uid) return;
-    const wasOffline = !userSockets.has(uid);
-    if (wasOffline) userSockets.set(uid, new Set());
-    userSockets.get(uid).add(socket.id);
     // Rooms decide who is pushed what:
     //   user:<id>        one person (targeted activity)
     //   activity-room    admins + Application Team (the business activity feed)
@@ -346,6 +345,16 @@ io.on('connection', (socket) => {
         } catch { /* no owner room on a lookup failure: fail closed */ }
       }
     }
+  };
+  void joinRooms();
+
+  socket.on('register', async () => {
+    const uid = socket.data.userId;
+    if (!uid) return;
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
+    userSockets.get(uid).add(socket.id);
+    await joinRooms();
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });

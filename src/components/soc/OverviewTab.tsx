@@ -327,7 +327,7 @@ export default function OverviewTab() {
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
                     <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                   </div>
-                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? ` — ${e.message}` : ''}</p>
+                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? <> — <Mask value={e.message} /></> : ''}</p>
                   {e.userAgent && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{e.userAgent}</p>}
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums pt-0.5">{time}</span>

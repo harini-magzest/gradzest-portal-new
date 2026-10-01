@@ -8,6 +8,7 @@ import {
 import IncidentDetail from './IncidentDetail';
 import SavedFilters from './SavedFilters';
 import SuppressionPanel from './SuppressionPanel';
+import { Mask } from './Mask';
 
 const PAGE_SIZE = 50;
 
@@ -132,7 +133,7 @@ export default function IncidentsTab() {
               className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 text-left transition-colors">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                  <span className="text-sm font-semibold text-gray-900 truncate">{inc.title}</span>
+                  <span className="text-sm font-semibold text-gray-900 truncate"><Mask value={inc.title} /></span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
                   {inc.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-gray-100 text-gray-500">Stale</span>}
