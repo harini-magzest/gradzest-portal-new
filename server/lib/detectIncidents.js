@@ -312,6 +312,23 @@ async function checkMassExportRule(event, io) {
   );
 }
 
+// Called by the VirusTotal checker when a recorded upload's hash is known to
+// VirusTotal as malicious or suspicious. ClamAV already passed the file, so this is
+// the "known bad by other engines" signal; the file is already stored, so it needs a human.
+async function raiseUploadRiskIncident(record, io) {
+  const v = record.vt || {};
+  const engines = (v.malicious || 0) + (v.suspicious || 0);
+  const severity = v.status === 'malicious' ? ((v.malicious || 0) >= 5 ? 'critical' : 'high') : 'medium';
+  await createIncident(io, {
+    type: 'malware_upload',
+    severity,
+    title: `VirusTotal flagged "${record.originalName}" uploaded by ${record.email || 'unknown'} (${engines} engine${engines === 1 ? '' : 's'}${v.label ? ', ' + v.label : ''})`,
+    relatedIp: record.ip,
+    relatedUserId: record.userId,
+    relatedEmail: record.email,
+  });
+}
+
 // Great-circle distance between two lat/lon points, in km. Exported
 // separately so the threshold math can be unit-tested with known city
 // coordinates without depending on a live geolocation lookup.
@@ -427,6 +444,6 @@ async function checkNewDevicePrivilegedRule(event, io) {
 module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
-  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, checkImpossibleTravelRule,
+  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseUploadRiskIncident, checkImpossibleTravelRule,
   checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
 };

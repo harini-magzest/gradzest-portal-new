@@ -77,6 +77,13 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export const api = {
+  // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
+  uiTrail: {
+    send: (sessionKey: string, events: unknown[]) =>
+      req<{ tracking: boolean; accepted: number }>('/ui-trail', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ sessionKey, events }), keepalive: true,
+      }),
+  },
   auth: {
     login: (email: string, password: string) =>
       req<{ token: string; user: any }>('/auth/login', {
@@ -406,6 +413,15 @@ export const api = {
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    uploads: (params: { limit?: number; skip?: number; risk?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
+    recheckUpload: (id: string) => req<any>(`/soc/uploads/${id}/virustotal`, { method: 'POST', headers: authHeaders() }),
+    featureUsage: (period: string, userId?: string) =>
+      req<any>(`/soc/feature-usage?${toQueryString({ period, userId })}`, { headers: authHeaders() }),
+    lockUser: (userId: string, locked: boolean, reason?: string) =>
+      req<{ locked: boolean; message: string }>(`/soc/investigate/user/${userId}/lock`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ locked, reason }) }),
+    uiActivity: (params: { limit?: number; skip?: number; email?: string; kind?: string; page?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/ui-activity?${toQueryString(params)}`, { headers: authHeaders() }),
     // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
     download: async (path: string, filename: string) => {
       const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });

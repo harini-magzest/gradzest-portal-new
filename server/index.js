@@ -38,6 +38,7 @@ connectDB().then(async () => {
   await autoSeedIfEmpty();
   startDeadlineReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
+  require('./lib/virusTotal').startSweeper(() => io);
   initAutomation({ io, userSockets, mailer });
   await seedStarterTemplates();
   startAutomationScheduler();
