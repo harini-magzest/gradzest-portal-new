@@ -1,8 +1,9 @@
 ﻿import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info } from 'lucide-react';
+import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { checkCourseEligibility } from '../../utils/eligibility';
 
 
@@ -98,15 +99,22 @@ function UniversityCard({ uni, student }: { uni: any; student: any }) {
 
 export default function StudentUniversities() {
   const { user, refreshUser } = useAuth();
+  const { toast } = useToast();
   const [student, setStudent] = useState<any>(user);
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [country, setCountry] = useState('');
   const [level, setLevel] = useState('');
 
+  const loadUniversities = () => {
+    setLoadError('');
+    api.universities.list().then(setAllUniversities).catch(() => setLoadError('Failed to load universities.'));
+  };
+
   useEffect(() => {
-    api.universities.list().then(setAllUniversities).catch(() => {});
-    api.students.me().then(setStudent).catch(() => {});
+    loadUniversities();
+    api.students.me().then(setStudent).catch(() => toast.error('Failed to load your eligibility info.'));
     if (user?.role === 'student' && !(user as any)?.onboarding?.universityBrowsed) {
       api.onboarding.markStep('universityBrowsed').then(refreshUser).catch(() => {});
     }
@@ -167,6 +175,13 @@ export default function StudentUniversities() {
         </div>
         <p className="text-sm text-gray-500 mt-3">{filtered.length} universities</p>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(uni => (

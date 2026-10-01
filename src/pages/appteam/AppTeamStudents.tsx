@@ -12,6 +12,7 @@ import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/Lead
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import { useToast } from '../../context/ToastContext';
 
 const APP_STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400' },
@@ -452,6 +453,7 @@ function StudentDetail() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') as DetailTab | null;
   const [tab, setTab] = useState<DetailTab>(initialTab && DETAIL_TABS.some(t => t.key === initialTab) ? initialTab : 'overview');
@@ -472,8 +474,9 @@ function StudentDetail() {
       .catch(err => { if (!cancelled) setError(err.message || 'Could not load this student.'); });
     api.admin.applications()
       .then(all => { if (!cancelled) setApps(all.filter((a: any) => String(a.studentId) === studentId)); })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) toast.error('Failed to load applications.'); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
   const goBack = () => { if (location.key !== 'default') navigate(-1); else navigate('/appteam/students'); };

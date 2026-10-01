@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../api';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
@@ -270,6 +271,7 @@ function GroupModal({ mode, room, students, team, onClose, onSaved }: {
 export default function AdminChat() {
   const { user } = useAuth();
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
+  const { toast } = useToast();
   const location = useLocation();
   const [rooms, setRooms] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -337,8 +339,11 @@ export default function AdminChat() {
         } else if (roomList.length > 0) {
           setSelectedRoom(roomList[0]);
         }
-      } catch {}
+      } catch {
+        toast.error('Failed to load conversations.');
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -349,7 +354,8 @@ export default function AdminChat() {
         const updated = roomList.find((r: any) => r.id === selectedRoom.id);
         if (updated) setSelectedRoom(updated);
       }
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to refresh conversations.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessageTime]);
 
   useEffect(() => {

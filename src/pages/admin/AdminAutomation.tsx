@@ -477,7 +477,7 @@ function RunRuleModal({ rule, onClose }: { rule: Rule; onClose: () => void }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  useEffect(() => { api.admin.students().then(setStudents).catch(() => {}); }, []);
+  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students.')); }, []);
   const filtered = students.filter(s => `${s.name} ${s.email}`.toLowerCase().includes(search.toLowerCase())).slice(0, 50);
 
   const run = async () => {
