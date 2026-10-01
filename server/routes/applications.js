@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { checkEligibility } = require('../lib/eligibilityChecker');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
-const { can, loadAccess, studentFilter, canView } = require('../lib/access');
+const { can, loadAccess, studentFilter, canView, denyStudent } = require('../lib/access');
 
 const statusLabel = (s) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -69,6 +69,18 @@ router.post('/:appId/comments', authMiddleware, async (req, res) => {
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
   try {
+    // Whose application is this, and may the caller touch it? (Previously any signed-in user could comment on,
+    // and read back the full record of, any application they knew the id of.)
+    if (!mongoose.isValidObjectId(req.params.appId)) return res.status(404).json({ message: 'Application not found' });
+    const owner = await User.findOne({ 'applications._id': req.params.appId }).select('role counselorId assignedStudents');
+    if (!owner) return res.status(404).json({ message: 'Application not found' });
+    if (req.user.role === 'student') {
+      if (String(owner._id) !== String(req.user.id)) return res.status(404).json({ message: 'Application not found' });
+    } else if (req.user.role === 'counselor') {
+      if (!canView(await loadAccess(req), owner)) return res.status(404).json({ message: 'Application not found' });
+    } else if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
     const poster = await User.findById(req.user.id).select('name role');
     const comment = { author: poster.name, authorRole: poster.role, text: text.trim() };
     const user = await User.findOneAndUpdate(
@@ -192,6 +204,8 @@ router.post('/check-eligibility-bulk', authMiddleware, async (req, res) => {
     if (req.user.role === 'student') {
       student = await User.findById(req.user.id).select('-password');
     } else if (studentId) {
+      if (!mongoose.isValidObjectId(studentId)) return res.status(400).json({ message: 'Invalid studentId' });
+      if (req.user.role !== 'admin' && await denyStudent(req, res, studentId)) return;
       student = await User.findById(studentId).select('-password');
     } else {
       return res.status(400).json({ message: 'studentId required for non-student users' });
@@ -223,6 +237,8 @@ router.post('/check-eligibility', authMiddleware, async (req, res) => {
     if (req.user.role === 'student') {
       student = await User.findById(req.user.id).select('-password');
     } else if (studentId) {
+      if (!mongoose.isValidObjectId(studentId)) return res.status(400).json({ message: 'Invalid studentId' });
+      if (req.user.role !== 'admin' && await denyStudent(req, res, studentId)) return;
       student = await User.findById(studentId).select('-password');
     } else {
       return res.status(400).json({ message: 'studentId required for non-student users' });

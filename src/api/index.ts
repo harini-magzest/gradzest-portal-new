@@ -418,7 +418,9 @@ export const api = {
       req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
     quarantineUpload: (id: string, action: 'quarantine' | 'restore' | 'purge', reason?: string) =>
       req<any>(`/soc/uploads/${id}/quarantine`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ action, reason }) }),
-    recheckUpload: (id: string) => req<any>(`/soc/uploads/${id}/virustotal`, { method: 'POST', headers: authHeaders() }),
+    // Records the analyst's manual VirusTotal verdict (there is no automatic lookup).
+    reviewUpload: (id: string, status: 'clean' | 'flagged' | 'unreviewed', note?: string) =>
+      req<any>(`/soc/uploads/${id}/review`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ status, note }) }),
     featureUsage: (period: string, userId?: string) =>
       req<any>(`/soc/feature-usage?${toQueryString({ period, userId })}`, { headers: authHeaders() }),
     lockUser: (userId: string, locked: boolean, reason?: string) =>

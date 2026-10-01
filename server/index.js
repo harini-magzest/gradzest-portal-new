@@ -42,7 +42,6 @@ connectDB().then(async () => {
   await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
-  require('./lib/virusTotal').startSweeper(() => io);
   initAutomation({ io, userSockets, mailer });
   await seedStarterTemplates();
   startAutomationScheduler();

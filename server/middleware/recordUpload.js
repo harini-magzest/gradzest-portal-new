@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const UploadRecord = require('../models/UploadRecord');
-const { isConfigured, checkUpload } = require('../lib/virusTotal');
 const { inspectFile } = require('../lib/fileInspect');
 const { quarantineFreshFile } = require('../lib/quarantine');
 
@@ -42,7 +41,6 @@ function recordUpload(source) {
         mimeType: req.file.mimetype || '', size: req.file.size || 0, sha256,
         ip: req.ip, userAgent: String(req.headers?.['user-agent'] || '').slice(0, 300),
         inspection: inspection || undefined,
-        vt: { status: isConfigured() ? 'pending' : 'not_configured' },
       };
 
       if (blocked) {
@@ -54,7 +52,6 @@ function recordUpload(source) {
           quarantineReason: `Blocked at upload: ${codes.join(', ')}`,
         });
         io?.to('admin-room').emit('upload_recorded', rec.toObject());
-        if (isConfigured()) checkUpload(rec._id, { io }).catch(() => {});
         await require('../lib/detectIncidents').raiseUnsafeUploadIncident(rec, io).catch((err) => console.error('[recordUpload] incident failed:', err.message));
         if (!moved) fs.unlink(req.file.path, () => {}); // never leave a high-risk file in the served folder
         return blockedResponse();
@@ -62,7 +59,6 @@ function recordUpload(source) {
 
       const rec = await UploadRecord.create(base);
       io?.to('admin-room').emit('upload_recorded', rec.toObject());
-      if (isConfigured()) checkUpload(rec._id, { io }).catch(() => {});
     } catch (err) {
       console.error('[recordUpload] Failed:', err.message);
       if (blocked) {

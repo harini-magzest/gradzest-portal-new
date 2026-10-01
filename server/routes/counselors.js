@@ -20,12 +20,16 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+const COUNSELOR_SELF_EDITABLE = ['name', 'phone', 'avatar', 'bio', 'title', 'specialization', 'experience', 'languages', 'certifications', 'linkedIn', 'website'];
+
 // Update own profile (counselor)
 router.put('/me', authMiddleware, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
-  const { password, role, _id, ...updates } = req.body;
+  // Allowlist: profileId (permissions), hierarchyRole (whose students they can see), assignedStudents,
+  // isAppTeam, active, smartfloAgent etc. are admin-controlled and must never be self-editable.
+  const updates = Object.fromEntries(COUNSELOR_SELF_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
   try {
-    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user.toJSON());
   } catch {

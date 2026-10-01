@@ -28,7 +28,8 @@ const { refreshSuppressions } = require('../lib/suppression');
 const SuppressionRule = require('../models/SuppressionRule');
 const UiActivity = require('../models/UiActivity');
 const UploadRecord = require('../models/UploadRecord');
-const virusTotal = require('../lib/virusTotal');
+// Manual check only: a link to the file's page on virustotal.com, built from its SHA-256. Nothing is sent automatically.
+const vtLink = (sha256) => `https://www.virustotal.com/gui/file/${sha256}`;
 const quarantine = require('../lib/quarantine');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -39,7 +40,9 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
 function adminOnly(req, res, next) {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+  // Application Team accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere
+  // (see blockAppTeam in admin.js). The SOC exposes PII, account locks and IP blocking, so the same applies here.
+  if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
   next();
 }
 
@@ -491,7 +494,7 @@ function normalizeUi(u) {
 }
 function normalizeUpload(u) {
   const kb = Math.max(1, Math.round((u.size || 0) / 1024));
-  return { source: 'upload', type: u.source, severityOrLevel: u.vt?.status === 'malicious' ? 'high' : u.vt?.status === 'suspicious' ? 'medium' : null, title: `Uploaded "${u.originalName}"`, detail: `${kb} KB · VirusTotal: ${u.vt?.status || 'n/a'}`, ip: u.ip || '', createdAt: u.createdAt };
+  return { source: 'upload', type: u.source, severityOrLevel: u.review?.status === 'flagged' ? 'high' : null, title: `Uploaded "${u.originalName}"`, detail: `${kb} KB · review: ${u.review?.status || 'unreviewed'}`, ip: u.ip || '', createdAt: u.createdAt };
 }
 function normalizeIncident(i) {
   return { source: 'incident', type: i.type, severityOrLevel: i.severity, title: `Incident opened: ${i.title}`, detail: `status: ${i.status}`, ip: i.relatedIp || '', createdAt: i.createdAt };
@@ -561,7 +564,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
         lastActive: uiRows[0]?.createdAt || null,
         uploadsCount,
       },
-      recentUploads: uploads.slice(0, 5).map((u) => ({ ...u, vtLink: virusTotal.permalink(u.sha256) })),
+      recentUploads: uploads.slice(0, 5).map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
       sessions,
       timeline,
       relatedIncidents,
@@ -696,7 +699,7 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-// ── Uploaded documents + VirusTotal ──────────────────────────────────────────
+// ── Uploaded documents (manual VirusTotal review) ──────────────────────────────────────────
 
 router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
   try {
@@ -705,10 +708,10 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     const { userId, risk, q } = req.query;
     const query = {};
     if (userId && isObjectId(userId)) query.userId = userId;
-    if (risk === 'flagged') query['vt.status'] = { $in: ['malicious', 'suspicious'] };
+    if (risk === 'flagged') query['review.status'] = 'flagged';
+    else if (risk === 'clean') query['review.status'] = 'clean';
+    else if (risk === 'unreviewed') query['review.status'] = { $in: [null, 'unreviewed'] }; // null also matches records written before reviews existed
     else if (risk === 'review') query.$or = [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }];
-    else if (risk === 'attention') query['vt.status'] = { $in: ['pending', 'rate_limited', 'error', 'not_configured'] };
-    else if (risk && risk !== 'all') query['vt.status'] = risk;
     if (q && q.trim()) {
       const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
       const search = [{ originalName: rx }, { email: rx }, { sha256: rx }];
@@ -717,14 +720,13 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     const [rows, total, byStatus, needsReview] = await Promise.all([
       UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       UploadRecord.countDocuments(query),
-      UploadRecord.aggregate([{ $group: { _id: '$vt.status', count: { $sum: 1 } } }]),
+      UploadRecord.aggregate([{ $group: { _id: { $ifNull: ['$review.status', 'unreviewed'] }, count: { $sum: 1 } } }]),
       UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
     ]);
     res.json({
       needsReview,
-      uploads: rows.map((u) => ({ ...u, vtLink: virusTotal.permalink(u.sha256) })),
+      uploads: rows.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
       total, skip, limit,
-      vtConfigured: virusTotal.isConfigured(),
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
   } catch (err) {
@@ -764,22 +766,39 @@ router.post('/uploads/:id/quarantine', authMiddleware, adminOnly, attachUserEmai
     const io = req.app.get('io');
     io?.to('admin-room').emit('upload_updated', rec.toObject());
     logAnalystAction({ analyst: req.user, action: `${action}_upload`, targetType: 'upload', targetId: rec._id, reason: `${rec.originalName}${req.body?.reason ? ' — ' + String(req.body.reason).slice(0, 200) : ''}`, io });
-    res.json({ ...rec.toObject(), vtLink: virusTotal.permalink(rec.sha256) });
+    res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
-router.post('/uploads/:id/virustotal', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+// The analyst opened this file's hash on virustotal.com and records what they found.
+// Flagging opens an incident (once) so the finding is visible and tracked; it does not move the file —
+// use Quarantine for that.
+router.post('/uploads/:id/review', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
     if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
-    if (!virusTotal.isConfigured()) return res.status(400).json({ message: 'VirusTotal is not configured — set VT_API_KEY on the server.' });
-    const exists = await UploadRecord.exists({ _id: req.params.id });
-    if (!exists) return res.status(404).json({ message: 'Upload not found' });
-    const rec = await virusTotal.checkUpload(req.params.id, { io: req.app.get('io'), force: true });
-    if (!rec) return res.status(502).json({ message: 'The check could not be completed.' });
-    logAnalystAction({ analyst: req.user, action: 'virustotal_recheck', targetType: 'upload', targetId: rec._id, reason: `${rec.originalName} → ${rec.vt.status}`, io: req.app.get('io') });
-    res.json({ ...rec.toObject(), vtLink: virusTotal.permalink(rec.sha256) });
+    const status = req.body?.status;
+    if (!['clean', 'flagged', 'unreviewed'].includes(status)) return res.status(400).json({ message: 'status must be clean, flagged or unreviewed' });
+    const rec = await UploadRecord.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Upload not found' });
+
+    const wasFlagged = rec.review?.status === 'flagged';
+    rec.review = {
+      status,
+      by: status === 'unreviewed' ? '' : req.user.email || '',
+      at: status === 'unreviewed' ? null : new Date(),
+      note: status === 'unreviewed' ? '' : String(req.body?.note || '').slice(0, 500),
+    };
+    await rec.save();
+
+    const io = req.app.get('io');
+    io?.to('admin-room').emit('upload_updated', rec.toObject());
+    logAnalystAction({ analyst: req.user, action: 'review_upload', targetType: 'upload', targetId: rec._id, reason: `${rec.originalName} → ${status}${rec.review.note ? ' — ' + rec.review.note : ''}`, io });
+    if (status === 'flagged' && !wasFlagged) {
+      require('../lib/detectIncidents').raiseAnalystFlaggedUploadIncident(rec, req.user.email, io).catch((err) => console.error('[review_upload] incident failed:', err.message));
+    }
+    res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

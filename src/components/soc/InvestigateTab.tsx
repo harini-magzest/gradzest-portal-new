@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
 import IncidentDetail from './IncidentDetail';
 import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
-import VtBadge from './VtBadge';
+import ReviewBadge from './ReviewBadge';
 import FeatureUsage from './FeatureUsage';
 import { parseUserAgent } from './DeviceDetails';
 
@@ -110,7 +110,7 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
             {data.recentUploads.map((u: any) => (
               <div key={u._id} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-sm">
                 <span className="truncate text-gray-800">{u.originalName} <span className="text-[11px] text-gray-400">· {new Date(u.createdAt).toLocaleDateString('en-IN')}</span></span>
-                <span className="flex items-center gap-2 flex-shrink-0"><VtBadge vt={u.vt} /><a href={u.vtLink} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-purple-700 hover:underline">VirusTotal ↗</a></span>
+                <span className="flex items-center gap-2 flex-shrink-0"><ReviewBadge review={u.review} /><a href={u.vtLink} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-purple-700 hover:underline">VirusTotal ↗</a></span>
               </div>
             ))}
           </div>
