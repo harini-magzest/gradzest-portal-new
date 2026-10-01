@@ -3,6 +3,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
+const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { logPiiAccess } = require('../lib/logPiiAccess');
 const attachUserEmail = require('../middleware/attachUserEmail');
@@ -58,7 +59,7 @@ router.put('/me', authMiddleware, async (req, res) => {
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
+router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
   const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);

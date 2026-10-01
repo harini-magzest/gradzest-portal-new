@@ -4,6 +4,8 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
+const { recordUpload } = require('../middleware/recordUpload');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
@@ -401,7 +403,7 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
 });
 
 // Send file in chat (+ auto-handle offer letters)
-router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
+router.post('/rooms/:roomId/files', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('chat_file'), uploadToS3IfConfigured, async (req, res) => {
   const { senderName, isOfferLetter } = req.body;
   try {
     const fileUrl = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : null;

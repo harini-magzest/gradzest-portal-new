@@ -265,6 +265,7 @@ app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
+app.use('/api/ui-trail', require('./routes/uiTrail'));
 app.use('/api/soc', require('./routes/soc'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));

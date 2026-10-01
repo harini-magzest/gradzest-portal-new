@@ -26,9 +26,15 @@ const { SLA_POLICY, CLOSED, computeSla } = require('../lib/sla');
 const { parseIpEntry, buildIpMatcher } = require('../lib/ipMatch');
 const { refreshSuppressions } = require('../lib/suppression');
 const SuppressionRule = require('../models/SuppressionRule');
+const UiActivity = require('../models/UiActivity');
+const UploadRecord = require('../models/UploadRecord');
+const virusTotal = require('../lib/virusTotal');
+const quarantine = require('../lib/quarantine');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
+const mongoose = require('mongoose');
+const LOCKED_BY_ADMIN_UNTIL = new Date('2099-01-01T00:00:00Z');
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
@@ -474,6 +480,19 @@ function normalizePii(p, userId) {
 function normalizeAnalystAction(a) {
   return { source: 'analyst', type: a.action, severityOrLevel: null, title: `SOC action: ${a.action.replace(/_/g, ' ')}`, detail: [a.analystEmail, a.reason].filter(Boolean).join(' — '), ip: '', createdAt: a.createdAt };
 }
+function normalizeUi(u) {
+  const where = u.file ? `${u.page} (${u.file})` : u.page;
+  const what = u.kind === 'page_view' ? 'Opened page'
+    : u.kind === 'click' ? `Clicked ${u.element?.label ? '"' + u.element.label + '"' : (u.element?.tag || 'element')}`
+    : u.kind === 'download' ? `Downloaded ${u.element?.label || u.element?.href || 'file'}`
+    : u.kind === 'file_select' ? `Selected ${(u.files || []).map((f) => f.name).join(', ') || 'file'}`
+    : `Submitted form ${u.element?.label || u.element?.id || ''}`.trim();
+  return { source: 'ui', type: u.kind, severityOrLevel: null, title: what, detail: where, ip: u.ip || '', createdAt: u.createdAt };
+}
+function normalizeUpload(u) {
+  const kb = Math.max(1, Math.round((u.size || 0) / 1024));
+  return { source: 'upload', type: u.source, severityOrLevel: u.vt?.status === 'malicious' ? 'high' : u.vt?.status === 'suspicious' ? 'medium' : null, title: `Uploaded "${u.originalName}"`, detail: `${kb} KB · VirusTotal: ${u.vt?.status || 'n/a'}`, ip: u.ip || '', createdAt: u.createdAt };
+}
 function normalizeIncident(i) {
   return { source: 'incident', type: i.type, severityOrLevel: i.severity, title: `Incident opened: ${i.title}`, detail: `status: ${i.status}`, ip: i.relatedIp || '', createdAt: i.createdAt };
 }
@@ -502,17 +521,22 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
     const user = await User.findById(userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const [events, activity, requests, pii, actions, relatedIncidents] = await Promise.all([
+    const [events, activity, requests, pii, actions, relatedIncidents, uiRows, uploads, uploadsCount] = await Promise.all([
       SecurityEvent.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       ActivityLog.find({ $or: [{ studentId: userId }, { counsellorId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       RequestLog.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       PiiAccessLog.find({ $or: [{ accessorId: userId }, { applicantId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       AnalystAction.find({ $or: [{ analystId: userId }, { targetType: 'user', targetId: String(userId) }] }).sort({ createdAt: -1 }).limit(50).lean(),
       SecurityIncident.find({ relatedUserId: userId }).sort({ createdAt: -1 }).limit(20).populate('assignedTo', 'name email').lean(),
+      UiActivity.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
+      UploadRecord.find({ userId }).sort({ createdAt: -1 }).limit(20).lean(),
+      UploadRecord.countDocuments({ userId }),
     ]);
 
     const timeline = [
       ...events.map(normalizeSecurityEvent),
+      ...uiRows.map(normalizeUi),
+      ...uploads.map(normalizeUpload),
       ...activity.map(normalizeActivity),
       ...requests.map(normalizeRequest),
       ...pii.map((p) => normalizePii(p, userId)),
@@ -527,6 +551,17 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
 
     res.json({
       user: { id: user._id, name: user.name, email: user.email, role: user.role, activeSessions: sessions.length },
+      // Everything needed to contact and act on this person without leaving the page.
+      profile: {
+        phone: user.phone || '', status: user.status || '', isAppTeam: !!user.isAppTeam,
+        joined: user.createdAt || user.joinedDate || null,
+        locked: !!(user.lockedUntil && new Date(user.lockedUntil) > new Date()),
+        lockedUntil: user.lockedUntil || null,
+        lastLogin: (() => { const e = events.find((x) => x.type === 'login_success'); return e ? { at: e.createdAt, ip: e.ip, userAgent: e.userAgent } : null; })(),
+        lastActive: uiRows[0]?.createdAt || null,
+        uploadsCount,
+      },
+      recentUploads: uploads.slice(0, 5).map((u) => ({ ...u, vtLink: virusTotal.permalink(u.sha256) })),
       sessions,
       timeline,
       relatedIncidents,
@@ -615,6 +650,26 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
   }
 });
 
+// Locks an account out immediately: sign-in is refused with a clear message and every
+// session is revoked. Already-issued access tokens stay valid until they expire (15 min).
+router.post('/investigate/user/:id/lock', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+    if (String(req.params.id) === String(req.user.id)) return res.status(400).json({ message: 'You cannot lock your own account.' });
+    const locked = req.body?.locked !== false;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.lockedUntil = locked ? LOCKED_BY_ADMIN_UNTIL : null;
+    user.loginAttempts = 0;
+    if (locked) user.sessions = [];
+    await user.save();
+    logAnalystAction({ analyst: req.user, action: locked ? 'lock_account' : 'unlock_account', targetType: 'user', targetId: user._id, reason: String(req.body?.reason || '').slice(0, 300) || (locked ? `Locked ${user.email}` : `Unlocked ${user.email}`), io: req.app.get('io') });
+    res.json({ locked, message: locked ? 'Account locked and all sessions revoked.' : 'Account unlocked.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) => {
   try {
     const ip = req.params.ip;
@@ -636,6 +691,184 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
     const blockRows = await BlockedIp.find({ $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] }, 'ip').lean();
     const isBlocked = buildIpMatcher(blockRows.map((r) => r.ip))(ip);
     res.json({ ip, isBlocked, timeline, intel, relatedIncidents });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── Uploaded documents + VirusTotal ──────────────────────────────────────────
+
+router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+    const { userId, risk, q } = req.query;
+    const query = {};
+    if (userId && isObjectId(userId)) query.userId = userId;
+    if (risk === 'flagged') query['vt.status'] = { $in: ['malicious', 'suspicious'] };
+    else if (risk === 'review') query.$or = [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }];
+    else if (risk === 'attention') query['vt.status'] = { $in: ['pending', 'rate_limited', 'error', 'not_configured'] };
+    else if (risk && risk !== 'all') query['vt.status'] = risk;
+    if (q && q.trim()) {
+      const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
+      const search = [{ originalName: rx }, { email: rx }, { sha256: rx }];
+      if (query.$or) { query.$and = [{ $or: query.$or }, { $or: search }]; delete query.$or; } else query.$or = search;
+    }
+    const [rows, total, byStatus, needsReview] = await Promise.all([
+      UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      UploadRecord.countDocuments(query),
+      UploadRecord.aggregate([{ $group: { _id: '$vt.status', count: { $sum: 1 } } }]),
+      UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
+    ]);
+    res.json({
+      needsReview,
+      uploads: rows.map((u) => ({ ...u, vtLink: virusTotal.permalink(u.sha256) })),
+      total, skip, limit,
+      vtConfigured: virusTotal.isConfigured(),
+      summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Quarantine moves the stored file out of the served /uploads folder (so its link stops working);
+// restore puts it back; purge deletes it for good. Files blocked at upload were never attached to a
+// profile, so they can be purged but not restored.
+router.post('/uploads/:id/quarantine', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
+    const action = req.body?.action;
+    if (!['quarantine', 'restore', 'purge'].includes(action)) return res.status(400).json({ message: 'action must be quarantine, restore or purge' });
+    const rec = await UploadRecord.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Upload not found' });
+
+    let result;
+    if (action === 'quarantine') {
+      if (rec.quarantined) return res.status(409).json({ message: 'Already quarantined.' });
+      result = quarantine.quarantineStored(rec.storedName);
+      if (result.ok) { rec.quarantined = true; rec.quarantinedAt = new Date(); rec.quarantineReason = String(req.body?.reason || 'Quarantined by analyst').slice(0, 300); }
+    } else if (action === 'restore') {
+      if (!rec.quarantined) return res.status(409).json({ message: 'This file is not quarantined.' });
+      if (rec.blocked) return res.status(409).json({ message: 'This file was blocked at upload and never attached to a profile, so it cannot be restored. Ask the user to upload a clean copy.' });
+      result = quarantine.restoreStored(rec.storedName);
+      if (result.ok) { rec.quarantined = false; rec.quarantinedAt = null; rec.quarantineReason = ''; }
+    } else {
+      if (!rec.quarantined) return res.status(409).json({ message: 'Quarantine the file first; only quarantined files can be deleted.' });
+      result = quarantine.purgeQuarantined(rec.storedName);
+      if (result.ok) rec.purgedAt = new Date();
+    }
+    if (!result.ok) return res.status(409).json({ message: result.reason });
+
+    await rec.save();
+    const io = req.app.get('io');
+    io?.to('admin-room').emit('upload_updated', rec.toObject());
+    logAnalystAction({ analyst: req.user, action: `${action}_upload`, targetType: 'upload', targetId: rec._id, reason: `${rec.originalName}${req.body?.reason ? ' — ' + String(req.body.reason).slice(0, 200) : ''}`, io });
+    res.json({ ...rec.toObject(), vtLink: virusTotal.permalink(rec.sha256) });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.post('/uploads/:id/virustotal', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
+    if (!virusTotal.isConfigured()) return res.status(400).json({ message: 'VirusTotal is not configured — set VT_API_KEY on the server.' });
+    const exists = await UploadRecord.exists({ _id: req.params.id });
+    if (!exists) return res.status(404).json({ message: 'Upload not found' });
+    const rec = await virusTotal.checkUpload(req.params.id, { io: req.app.get('io'), force: true });
+    if (!rec) return res.status(502).json({ message: 'The check could not be completed.' });
+    logAnalystAction({ analyst: req.user, action: 'virustotal_recheck', targetType: 'upload', targetId: rec._id, reason: `${rec.originalName} → ${rec.vt.status}`, io: req.app.get('io') });
+    res.json({ ...rec.toObject(), vtLink: virusTotal.permalink(rec.sha256) });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── Feature usage (what people actually use, from the UI activity trail) ──────
+
+router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const period = PERIOD_MS[req.query.period] ? req.query.period : '7d';
+    const since = new Date(Date.now() - PERIOD_MS[period]);
+    const base = { createdAt: { $gte: since } };
+    if (req.query.userId && isObjectId(req.query.userId)) base.userId = new mongoose.Types.ObjectId(req.query.userId);
+
+    const [pages, features, users, uploads, totals] = await Promise.all([
+      UiActivity.aggregate([
+        { $match: { ...base, kind: 'page_view' } },
+        { $group: { _id: { $cond: [{ $ne: ['$file', ''] }, '$file', '$page'] }, views: { $sum: 1 }, users: { $addToSet: '$userId' }, example: { $first: '$page' } } },
+        { $project: { views: 1, users: { $size: '$users' }, example: 1 } }, { $sort: { views: -1 } }, { $limit: 15 },
+      ]),
+      UiActivity.aggregate([
+        { $match: { ...base, kind: { $in: ['click', 'download', 'form_submit'] }, 'element.label': { $ne: '' } } },
+        { $group: { _id: { file: '$file', label: '$element.label', kind: '$kind' }, uses: { $sum: 1 }, users: { $addToSet: '$userId' } } },
+        { $project: { uses: 1, users: { $size: '$users' } } }, { $sort: { uses: -1 } }, { $limit: 25 },
+      ]),
+      UiActivity.aggregate([
+        { $match: base },
+        { $group: { _id: '$userId', email: { $first: '$email' }, role: { $first: '$role' }, actions: { $sum: 1 }, pages: { $addToSet: '$page' }, lastActive: { $max: '$createdAt' } } },
+        { $project: { email: 1, role: 1, actions: 1, distinctPages: { $size: '$pages' }, lastActive: 1 } }, { $sort: { actions: -1 } }, { $limit: 25 },
+      ]),
+      UploadRecord.countDocuments(base),
+      UiActivity.aggregate([{ $match: base }, { $group: { _id: null, events: { $sum: 1 }, users: { $addToSet: '$userId' } } }]),
+    ]);
+
+    res.json({
+      period,
+      totals: { events: totals[0]?.events || 0, activeUsers: totals[0]?.users?.length || 0, uploads },
+      pages: pages.map((p) => ({ file: p._id, views: p.views, users: p.users, example: p.example })),
+      features: features.map((f) => ({ file: f._id.file, label: f._id.label, kind: f._id.kind, uses: f.uses, users: f.users })),
+      users: users.map((u) => ({ userId: u._id, email: u.email, role: u.role, actions: u.actions, distinctPages: u.distinctPages, lastActive: u.lastActive })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── UI activity (page / button / file trail) ─────────────────────────────────
+
+function buildUiQuery({ userId, email, kind, q, page, since }) {
+  const query = {};
+  if (userId && isObjectId(userId)) query.userId = userId;
+  if (email && email.trim()) query.email = new RegExp('^' + escapeRegex(email.trim().slice(0, 100)), 'i');
+  if (kind && kind !== 'all') query.kind = kind;
+  if (page && page.trim()) query.page = new RegExp(escapeRegex(page.trim().slice(0, 100)), 'i');
+  if (since) { const d = new Date(since); if (!isNaN(d)) query.createdAt = { $gt: d }; }
+  if (q && q.trim()) {
+    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
+    query.$or = [{ 'element.label': rx }, { 'element.id': rx }, { 'element.href': rx }, { file: rx }, { page: rx }, { 'files.name': rx }, { context: rx }];
+  }
+  return query;
+}
+
+router.get('/ui-activity/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    const rows = await UiActivity.find(buildUiQuery(req.query)).sort({ createdAt: -1 }).limit(5000).lean();
+    logExport(req, 'ui-activity', rows.length);
+    sendCsv(res, 'soc-ui-activity.csv', [
+      { label: 'Time', key: 'createdAt' }, { label: 'User', key: 'email' }, { label: 'Role', key: 'role' },
+      { label: 'Action', key: 'kind' }, { label: 'Page', key: 'page' }, { label: 'Source file', key: 'file' },
+      { label: 'Element', value: (r) => r.element?.label || r.element?.id || r.element?.tag || '' },
+      { label: 'Context', key: 'context' }, { label: 'Link', value: (r) => r.element?.href || '' },
+      { label: 'Files', value: (r) => (r.files || []).map((f) => f.name).join('; ') },
+      { label: 'IP', key: 'ip' },
+    ], rows);
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 300);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+    const query = buildUiQuery(req.query);
+    const [rows, total] = await Promise.all([
+      UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      UiActivity.countDocuments(query),
+    ]);
+    res.json({ activity: rows, total, skip, limit, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

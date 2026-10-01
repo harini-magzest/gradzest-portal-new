@@ -1,23 +1,30 @@
 import { useState } from 'react';
-import { ShieldAlert, Activity, AlertTriangle, Search, ClipboardList, ClipboardCheck } from 'lucide-react';
+import { ShieldAlert, Activity, AlertTriangle, Search, ClipboardList, ClipboardCheck, MousePointerClick, FileSearch } from 'lucide-react';
 import OverviewTab from '../../components/soc/OverviewTab';
 import IncidentsTab from '../../components/soc/IncidentsTab';
 import InvestigateTab from '../../components/soc/InvestigateTab';
 import PostureTab from '../../components/soc/PostureTab';
 import AuditTab from '../../components/soc/AuditTab';
+import ActivityTab from '../../components/soc/ActivityTab';
+import UploadsTab from '../../components/soc/UploadsTab';
 
-type Tab = 'overview' | 'incidents' | 'investigate' | 'audit' | 'posture';
+type Tab = 'overview' | 'incidents' | 'investigate' | 'activity' | 'uploads' | 'audit' | 'posture';
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'overview', label: 'Overview', icon: Activity },
   { key: 'incidents', label: 'Incidents', icon: AlertTriangle },
   { key: 'investigate', label: 'Investigate', icon: Search },
+  { key: 'activity', label: 'Activity', icon: MousePointerClick },
+  { key: 'uploads', label: 'Uploads', icon: FileSearch },
   { key: 'audit', label: 'Audit', icon: ClipboardCheck },
   { key: 'posture', label: 'Posture', icon: ClipboardList },
 ];
 
 export default function SOCDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
+  // Any tab can jump straight to a person's details + response actions.
+  const [investigateUserId, setInvestigateUserId] = useState<string | undefined>(undefined);
+  const openUser = (id: string) => { setInvestigateUserId(id); setTab('investigate'); };
 
   return (
     <div className="space-y-6">
@@ -50,7 +57,9 @@ export default function SOCDashboard() {
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'incidents' && <IncidentsTab />}
-      {tab === 'investigate' && <InvestigateTab />}
+      {tab === 'investigate' && <InvestigateTab initialUserId={investigateUserId} />}
+      {tab === 'activity' && <ActivityTab onInvestigateUser={openUser} />}
+      {tab === 'uploads' && <UploadsTab onInvestigateUser={openUser} />}
       {tab === 'audit' && <AuditTab />}
       {tab === 'posture' && <PostureTab />}
     </div>

@@ -87,6 +87,12 @@ function makeWafMiddleware(getTexts) {
     // already authenticated + admin-only, so it isn't the untrusted surface
     // this layer exists to protect.
     if (req.path.startsWith('/api/soc')) return next();
+    // The UI activity trail carries *observed* interface text (button labels, file
+    // names) — data to be recorded, not content the app interprets. A staff member
+    // clicking a button that happens to read like an attack string must not get a
+    // batch dropped and their IP's reputation penalised. The route is authenticated,
+    // rate-limited, length-capped and stores everything as plain strings.
+    if (req.path === '/api/ui-trail') return next();
     try {
       for (const text of getTexts(req)) {
         if (!text) continue;
