@@ -16,7 +16,7 @@ import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/Lead
 import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
-import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -1075,6 +1075,7 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
 
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function AdminStudents() {
+  const { portal } = usePortalName();
   const navigate = useNavigate();
   const openStudentId = useMatch('/admin/students/:studentId')?.params.studentId;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1286,7 +1287,7 @@ export default function AdminStudents() {
                 <Users className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Students</h1>
               </div>
             </div>

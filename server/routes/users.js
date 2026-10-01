@@ -11,14 +11,44 @@ const { PERMISSIONS, ALL_KEYS, loadAccess } = require('../lib/access');
 const router = express.Router();
 
 const validId = (id) => id && mongoose.isValidObjectId(id);
-const STAFF_FIELDS = 'name email role isAppTeam title phone hierarchyRole profileId active createdAt';
+const STAFF_FIELDS = 'name firstName lastName email role isAppTeam title phone mobile website fax dateOfBirth address hierarchyRole profileId active createdAt';
+
+const CONTACT_FIELDS = ['title', 'phone', 'mobile', 'website', 'fax', 'dateOfBirth'];
+const ADDRESS_FIELDS = ['street', 'city', 'state', 'country', 'postalCode'];
+
+// Copies the User Information / Address Information fields that are present in the body onto
+// the user. First + last name also set `name`, which the rest of the app displays.
+function applyDetails(user, body) {
+  if (body.firstName !== undefined || body.lastName !== undefined) {
+    const first = String(body.firstName ?? user.firstName ?? '').trim();
+    const last = String(body.lastName ?? user.lastName ?? '').trim();
+    if (!last) return 'Last name is required';
+    user.firstName = first;
+    user.lastName = last;
+    user.name = `${first} ${last}`.trim();
+  }
+  for (const k of CONTACT_FIELDS) if (body[k] !== undefined) user[k] = String(body[k] || '').trim();
+  if (body.address && typeof body.address === 'object') {
+    for (const k of ADDRESS_FIELDS) {
+      if (body.address[k] !== undefined) user.set(`address.${k}`, String(body.address[k] || '').trim());
+    }
+  }
+  return null;
+}
 
 // Any logged-in staff member: their own effective permissions (drives which buttons the UI shows)
 router.get('/me/permissions', authMiddleware, async (req, res) => {
-  if (req.user.role === 'student') return res.json({ permissions: [], restricted: false });
+  if (req.user.role === 'student') return res.json({ permissions: [], restricted: false, hasTeam: false });
   try {
     const access = await loadAccess(req);
-    res.json({ permissions: [...access.permissions], restricted: !!access.teamIds });
+    // roleName: their place in the Roles tree (e.g. "Associate Counsellor HO") — names the portal
+    const role = access.me?.hierarchyRole && await Role.findById(access.me.hierarchyRole).select('name').lean();
+    // hasTeam: the role hierarchy gives them other staff's students to see (users in roles
+    // below theirs, or peers when their role has Peer Data Visibility on)
+    res.json({
+      permissions: [...access.permissions], restricted: !!access.teamIds,
+      hasTeam: (access.teamIds?.length || 0) > 1, roleName: role?.name || null,
+    });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
@@ -133,27 +163,28 @@ async function validateLinks(body) {
 
 // Add a staff user. type: counselor | admin | appteam
 router.post('/', async (req, res) => {
-  const name = String(req.body.name || '').trim();
+  const lastName = String(req.body.lastName || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const type = ['counselor', 'admin', 'appteam'].includes(req.body.type) ? req.body.type : 'counselor';
-  if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
+  if (!lastName || !email || !password) return res.status(400).json({ message: 'Last name, email and password are required' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email address' });
   if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
   try {
     const linkError = await validateLinks(req.body);
     if (linkError) return res.status(400).json({ message: linkError });
     if (await User.exists({ email })) return res.status(409).json({ message: 'An account with this email already exists' });
-    const user = await User.create({
-      name, email, password: await bcrypt.hash(password, 10),
+    const user = new User({
+      email, password: await bcrypt.hash(password, 10),
       role: type === 'counselor' ? 'counselor' : 'admin',
       isAppTeam: type === 'appteam',
-      title: String(req.body.title || ''), phone: String(req.body.phone || ''),
       hierarchyRole: req.body.roleId || null,
       profileId: type === 'counselor' ? (req.body.profileId || null) : null,
       emailVerified: true, active: true,
       ...(type === 'counselor' && { specialization: [], assignedStudents: [], experience: 0 }),
     });
+    applyDetails(user, { ...req.body, lastName });
+    await user.save();
     res.status(201).json(await User.findById(user._id).select(STAFF_FIELDS).lean());
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -173,7 +204,14 @@ router.put('/:id', async (req, res) => {
       if (!name) return res.status(400).json({ message: 'Name is required' });
       target.name = name;
     }
-    if (req.body.title !== undefined) target.title = String(req.body.title);
+    const detailsError = applyDetails(target, req.body);
+    if (detailsError) return res.status(400).json({ message: detailsError });
+    if (req.body.email !== undefined) {
+      const email = String(req.body.email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email address' });
+      if (email !== target.email && await User.exists({ email })) return res.status(409).json({ message: 'An account with this email already exists' });
+      target.email = email;
+    }
     if (req.body.roleId !== undefined) target.hierarchyRole = req.body.roleId || null;
     if (req.body.profileId !== undefined && target.role === 'counselor') target.profileId = req.body.profileId || null;
     if (req.body.active !== undefined) {
@@ -182,12 +220,34 @@ router.put('/:id', async (req, res) => {
       }
       target.active = !!req.body.active;
       // Sign a deactivated user out everywhere (their access token expires within 15 min)
-      if (!target.active) target.sessions = [];
+      if (!target.active) {
+        // (This used to clear refreshTokenHash/refreshTokenExpires, which are not fields on the schema, so nothing
+        // was ever revoked.) Sessions are the real refresh tokens.
+        target.sessions = [];
+      }
     }
     await target.save();
+    require('../lib/accountState').invalidate(target._id);
+    if (req.body.active === false) req.app.get('io')?.in(`user:${target._id}`).disconnectSockets(true);
     res.json(await User.findById(target._id).select(STAFF_FIELDS).lean());
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Permanently delete a staff user. Their students are unassigned, not deleted.
+router.delete('/:id', async (req, res) => {
+  if (!validId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+  if (req.params.id === String(req.user.id)) return res.status(400).json({ message: "You can't delete your own account" });
+  try {
+    const target = await User.findOneAndDelete({ _id: req.params.id, role: { $in: ['admin', 'counselor'] } });
+    if (!target) return res.status(404).json({ message: 'User not found' });
+    if (target.role === 'counselor') {
+      await User.updateMany({ role: 'student', counselorId: String(target._id) }, { $unset: { counselorId: 1 } });
+    }
+    res.json({ message: 'User deleted' });
+  } catch {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -8,6 +8,7 @@ import {
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
 import { PresenceDot, PresenceLabel } from '../../components/Presence';
+import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -1217,6 +1218,7 @@ export function CounselorStatsModal({
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminCounselors() {
+  const { portal } = usePortalName();
   const navigate = useNavigate();
   const [activeRole, setActiveRole] = useState<'counselor' | 'appteam'>('counselor');
   const [counselors, setCounselors] = useState<any[]>([]);
@@ -1399,7 +1401,7 @@ return (
                 {activeRole === 'counselor' ? <UserCog className="w-5 h-5 text-white" /> : <ClipboardList className="w-5 h-5 text-white" />}
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Team</h1>
               </div>
             </div>

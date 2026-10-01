@@ -6,6 +6,7 @@ import {
 import { BarChart2, TrendingUp, Users, Award, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { SkeletonStat } from '../../components/Skeleton';
+import { usePortalName } from '../../hooks/usePortalName';
 
 type Period = '7d' | '30d' | '90d' | '1yr';
 
@@ -51,6 +52,7 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export default function AdminAnalytics() {
+  const { portal } = usePortalName();
   const [period, setPeriod] = useState<Period>('30d');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function AdminAnalytics() {
               <BarChart2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+              <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
               <h1 className="text-2xl font-bold leading-tight">Analytics</h1>
             </div>
           </div>

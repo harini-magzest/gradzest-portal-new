@@ -12,6 +12,7 @@ import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';
 import SavedFilters from './SavedFilters';
 import DeviceDetails from './DeviceDetails';
+import { Mask } from './Mask';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -45,7 +46,7 @@ const TYPE_ICON: Record<string, any> = {
 const TYPE_LABEL: Record<string, string> = {
   login_success: 'Login', login_failure: 'Failed login', login_lockout: 'Lockout',
   logout: 'Logout', token_invalid: 'Invalid token', token_expired: 'Expired token', password_reset: 'Password reset',
-  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', malware_upload: 'Malware upload', waf_block: 'WAF block',
+  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', bulk_delete: 'Bulk delete', malware_upload: 'Malware upload', waf_block: 'WAF block',
   skyload_bot_flag: 'Bot flag', skyload_throttle: 'Throttled',
 };
 
@@ -322,7 +323,7 @@ export default function OverviewTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-sm font-semibold text-gray-900 truncate">{e.email || 'Unknown'}</span>
+                    <span className="text-sm font-semibold text-gray-900 truncate"><Mask value={e.email} fallback="Unknown" /></span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
                     <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                   </div>

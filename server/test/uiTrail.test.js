@@ -41,7 +41,7 @@ describe('UI activity trail — ingest', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ tracking: true, accepted: 4 });
 
-    const rows = await UiActivity.find({ userId: id }).lean(); // events in one batch share a timestamp, so look up by content, not order
+    const rows = await UiActivity.find({ userId: id, kind: { $ne: 'login' } }).lean(); // (the sign-in row isn't a tracker event) // events in one batch share a timestamp, so look up by content, not order
     expect(rows).toHaveLength(4);
     const click = rows.find((r) => r.kind === 'click' && !r.clientTime === false);
     expect(click).toMatchObject({ email, role: 'admin', page: '/admin/students', sessionKey: 'sess-1' });
@@ -57,7 +57,7 @@ describe('UI activity trail — ingest', () => {
     const { token, id } = await login('counselor');
     const res = await request(app).post('/api/ui-trail').set(auth(token)).send({ events: Array.from({ length: 80 }, () => ev()) });
     expect(res.body.accepted).toBe(50);
-    expect(await UiActivity.countDocuments({ userId: id })).toBe(50);
+    expect(await UiActivity.countDocuments({ userId: id, kind: { $ne: 'login' } })).toBe(50);
     const bad = await request(app).post('/api/ui-trail').set(auth(token)).send({ events: 'nope' });
     expect(bad.status).toBe(400);
   });
@@ -66,7 +66,7 @@ describe('UI activity trail — ingest', () => {
     const { token, id } = await login('student');
     const res = await request(app).post('/api/ui-trail').set(auth(token)).send({ events: [ev()] });
     expect(res.body).toEqual({ tracking: false, accepted: 0 });
-    expect(await UiActivity.countDocuments({ userId: id })).toBe(0);
+    expect(await UiActivity.countDocuments({ userId: id, kind: { $ne: 'login' } })).toBe(0);
   });
 
   it('records students only when explicitly enabled via SOC_UI_TRACK_ROLES', async () => {
@@ -75,7 +75,7 @@ describe('UI activity trail — ingest', () => {
     try {
       const res = await request(app).post('/api/ui-trail').set(auth(token)).send({ events: [ev()] });
       expect(res.body.tracking).toBe(true);
-      expect(await UiActivity.countDocuments({ userId: id })).toBe(1);
+      expect(await UiActivity.countDocuments({ userId: id, kind: { $ne: 'login' } })).toBe(1);
     } finally {
       delete process.env.SOC_UI_TRACK_ROLES;
     }
@@ -94,11 +94,12 @@ describe('UI activity trail — SOC read side', () => {
   it('lists, filters and exports activity; admin-only', async () => {
     const admin = await login('admin');
     const tag = `Unique-${Date.now()}`;
+    const exactLabel = `Approve ${tag}`; // button labels are stored encrypted, so the search is an exact match
     await request(app).post('/api/ui-trail').set(auth(admin.token)).send({
       events: [ev({ element: { tag: 'button', label: `Approve ${tag}` }, page: '/admin/applications' }), ev({ kind: 'page_view', page: '/admin/chat' })],
     });
 
-    let res = await request(app).get('/api/soc/ui-activity').query({ q: tag }).set(auth(admin.token));
+    let res = await request(app).get('/api/soc/ui-activity').query({ q: exactLabel }).set(auth(admin.token));
     expect(res.status).toBe(200);
     expect(res.body.activity).toHaveLength(1);
     expect(res.body.activity[0].element.label).toContain(tag);
@@ -107,7 +108,7 @@ describe('UI activity trail — SOC read side', () => {
     res = await request(app).get('/api/soc/ui-activity').query({ email: admin.email, kind: 'page_view' }).set(auth(admin.token));
     expect(res.body.activity.every((r) => r.kind === 'page_view' && r.email === admin.email)).toBe(true);
 
-    const csv = await request(app).get('/api/soc/ui-activity/export.csv').query({ q: tag }).set(auth(admin.token));
+    const csv = await request(app).get('/api/soc/ui-activity/export.csv').query({ q: exactLabel }).set(auth(admin.token));
     expect(csv.status).toBe(200);
     expect(csv.text).toContain(tag);
 

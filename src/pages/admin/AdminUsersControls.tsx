@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, Search, ShieldCheck, Lock, Star, Trash2, Save, Users as UsersIcon, Network, Contact } from 'lucide-react';
+import { Plus, X, Search, ShieldCheck, Lock, Trash2, Pencil, Users as UsersIcon, Network } from 'lucide-react';
 import { api } from '../../api';
 import { useToast } from '../../context/ToastContext';
 import AdminRoles from './AdminRoles';
@@ -10,6 +10,8 @@ const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-
 interface StaffUser {
   _id: string; name: string; email: string; role: 'admin' | 'counselor'; isAppTeam?: boolean;
   title?: string; hierarchyRole?: string | null; profileId?: string | null; active?: boolean;
+  firstName?: string; lastName?: string; phone?: string; mobile?: string; website?: string; fax?: string; dateOfBirth?: string;
+  address?: { street?: string; city?: string; state?: string; country?: string; postalCode?: string };
 }
 interface Named { _id: string; name: string; isSystem?: boolean; isDefault?: boolean }
 
@@ -20,21 +22,53 @@ function userType(u: StaffUser) {
 
 /* ── Users tab ─────────────────────────────────────────────────────────────── */
 
-function AddUserModal({ roles, profiles, onClose, onSaved }: {
-  roles: Named[]; profiles: Named[]; onClose: () => void; onSaved: () => void;
+function splitName(u: StaffUser) {
+  if (u.firstName || u.lastName) return { first: u.firstName || '', last: u.lastName || '' };
+  const parts = u.name.trim().split(/\s+/);
+  return parts.length > 1 ? { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] } : { first: '', last: parts[0] || '' };
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="sm:grid sm:grid-cols-[130px_1fr] sm:items-center gap-3">
+      <label className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:text-right">{label}{required && <span className="text-red-500"> *</span>}</label>
+      {children}
+    </div>
+  );
+}
+
+// Add a new staff user (user = null) or edit an existing one
+function UserModal({ user, roles, profiles, onClose, onSaved }: {
+  user: StaffUser | null; roles: Named[]; profiles: Named[]; onClose: () => void; onSaved: () => void;
 }) {
   const { toast } = useToast();
   const def = profiles.find(p => p.isDefault);
-  const [form, setForm] = useState({ name: '', email: '', password: '', type: 'counselor', title: '', profileId: def?._id || '', roleId: '' });
+  const name = user ? splitName(user) : { first: '', last: '' };
+  const [form, setForm] = useState({
+    firstName: name.first, lastName: name.last, email: user?.email || '', password: '',
+    type: user ? (user.role === 'counselor' ? 'counselor' : user.isAppTeam ? 'appteam' : 'admin') : 'counselor',
+    profileId: user?.profileId || def?._id || '', roleId: user?.hierarchyRole || '',
+    title: user?.title || '', phone: user?.phone || '', mobile: user?.mobile || '', website: user?.website || '',
+    fax: user?.fax || '', dateOfBirth: user?.dateOfBirth || '',
+    address: { street: '', city: '', state: '', country: '', postalCode: '', ...user?.address },
+  });
   const [saving, setSaving] = useState(false);
   const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+  const setAddr = (patch: Partial<typeof form.address>) => setForm(f => ({ ...f, address: { ...f.address, ...patch } }));
+  const isCounselor = form.type === 'counselor';
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.users.create(form);
-      toast.success(`${form.name} added`);
+      if (user) {
+        const { password, type, ...patch } = form;
+        await api.users.update(user._id, patch);
+        toast.success('User updated');
+      } else {
+        await api.users.create(form);
+        toast.success(`${`${form.firstName} ${form.lastName}`.trim()} added`);
+      }
       onSaved();
     } catch (err: any) {
       toast.error(err.message);
@@ -43,66 +77,95 @@ function AddUserModal({ roles, profiles, onClose, onSaved }: {
     }
   };
 
+  const canSave = form.lastName.trim() && form.email.trim() && (user || form.password.length >= 8);
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+      <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold text-gray-900">Add user</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{user ? 'Edit User' : 'Add User'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
-        <div className="p-6 space-y-4 overflow-y-auto">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full name *</label>
-              <input autoFocus value={form.name} onChange={e => set({ name: e.target.value })} className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Job title</label>
-              <input value={form.title} onChange={e => set({ title: e.target.value })} className={inputCls} placeholder="e.g. Senior Counselor" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-            <input type="email" value={form.email} onChange={e => set({ email: e.target.value })} className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Temporary password *</label>
-            <input type="text" value={form.password} onChange={e => set({ password: e.target.value })} className={inputCls} placeholder="At least 8 characters" />
-            <p className="text-xs text-gray-500 mt-1">Share it with the user. They can change it after logging in.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">User type</label>
-            <select value={form.type} onChange={e => set({ type: e.target.value })} className={inputCls}>
-              <option value="counselor">Counselor</option>
-              <option value="admin">Admin</option>
-              <option value="appteam">Application Team</option>
-            </select>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Profile</label>
-              {form.type === 'counselor' ? (
-                <select value={form.profileId} onChange={e => set({ profileId: e.target.value })} className={inputCls}>
-                  {profiles.filter(p => !p.isSystem).map(p => <option key={p._id} value={p._id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
-                </select>
-              ) : (
-                <p className="text-sm text-gray-600 py-2">Administrator (full access)</p>
+        <div className="p-6 space-y-8 overflow-y-auto">
+          <section>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">User Information</h3>
+            <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
+              <Field label="First Name">
+                <input autoFocus value={form.firstName} onChange={e => set({ firstName: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Last Name" required>
+                <input value={form.lastName} onChange={e => set({ lastName: e.target.value })} className={inputCls} />
+              </Field>
+              {!user && (
+                <Field label="User Type" required>
+                  <select value={form.type} onChange={e => set({ type: e.target.value })} className={inputCls}>
+                    <option value="counselor">Counselor</option>
+                    <option value="admin">Admin</option>
+                    <option value="appteam">Application Team</option>
+                  </select>
+                </Field>
               )}
+              <Field label="Profile" required>
+                {isCounselor ? (
+                  <select value={form.profileId} onChange={e => set({ profileId: e.target.value })} className={inputCls}>
+                    {profiles.filter(p => !p.isSystem).map(p => <option key={p._id} value={p._id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
+                  </select>
+                ) : (
+                  <p className="text-sm text-gray-600 py-2 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Administrator (full access)</p>
+                )}
+              </Field>
+              <Field label="Role">
+                <select value={form.roleId} onChange={e => set({ roleId: e.target.value })} className={inputCls}>
+                  <option value="">— No role —</option>
+                  {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Email" required>
+                <input type="email" value={form.email} onChange={e => set({ email: e.target.value })} className={inputCls} />
+              </Field>
+              {!user && (
+                <Field label="Temp. Password" required>
+                  <input type="text" value={form.password} onChange={e => set({ password: e.target.value })} className={inputCls} placeholder="At least 8 characters" />
+                </Field>
+              )}
+              <Field label="Job Title">
+                <input value={form.title} onChange={e => set({ title: e.target.value })} className={inputCls} placeholder="e.g. Senior Counselor" />
+              </Field>
+              <Field label="Phone">
+                <input type="tel" value={form.phone} onChange={e => set({ phone: e.target.value })} className={inputCls} placeholder="+91 99999 99999" />
+              </Field>
+              <Field label="Mobile">
+                <input type="tel" value={form.mobile} onChange={e => set({ mobile: e.target.value })} className={inputCls} placeholder="+91 99999 99999" />
+              </Field>
+              <Field label="Website">
+                <input value={form.website} onChange={e => set({ website: e.target.value })} className={inputCls} placeholder="www.gradzest.com" />
+              </Field>
+              <Field label="Fax">
+                <input value={form.fax} onChange={e => set({ fax: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Date of Birth">
+                <input type="date" value={form.dateOfBirth} onChange={e => set({ dateOfBirth: e.target.value })} className={inputCls} />
+              </Field>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <select value={form.roleId} onChange={e => set({ roleId: e.target.value })} className={inputCls}>
-                <option value="">— No role —</option>
-                {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
-              </select>
+            {!user && <p className="text-xs text-gray-500 mt-3">Share the temporary password with the user. They can change it after logging in.</p>}
+          </section>
+
+          <section>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Address Information</h3>
+            <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
+              <Field label="Street"><input value={form.address.street} onChange={e => setAddr({ street: e.target.value })} className={inputCls} /></Field>
+              <Field label="City"><input value={form.address.city} onChange={e => setAddr({ city: e.target.value })} className={inputCls} /></Field>
+              <Field label="State"><input value={form.address.state} onChange={e => setAddr({ state: e.target.value })} className={inputCls} /></Field>
+              <Field label="Country"><input value={form.address.country} onChange={e => setAddr({ country: e.target.value })} className={inputCls} /></Field>
+              <Field label="Postal Code"><input value={form.address.postalCode} onChange={e => setAddr({ postalCode: e.target.value })} className={inputCls} /></Field>
             </div>
-          </div>
+          </section>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-          <button type="submit" disabled={saving || !form.name.trim() || !form.email.trim() || form.password.length < 8}
-            className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add user'}
+          <button type="submit" disabled={saving || !canSave}
+            className="px-5 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+            {saving ? 'Saving…' : user ? 'Save' : 'Add user'}
           </button>
         </div>
       </form>
@@ -119,6 +182,11 @@ function UsersTab() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive' | 'all'>('active');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<StaffUser | null>(null);
+  // Users toggled in this view stay listed even when they no longer match the Active/Deactivated
+  // filter, so flipping the switch doesn't make the row vanish. Cleared when the filter changes.
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
+  const changeStatus = (s: typeof status) => { setStatus(s); setToggled(new Set()); };
 
   const load = async () => {
     try {
@@ -142,26 +210,57 @@ function UsersTab() {
     }
   };
 
+  const toggleActive = async (u: StaffUser) => {
+    const deactivating = u.active !== false;
+    if (deactivating && !confirm(`Deactivate ${u.name}? They will be signed out and unable to log in.`)) return;
+    setToggled(prev => new Set(prev).add(u._id));
+    await update(u, { active: !deactivating });
+  };
+
+  const remove = async (u: StaffUser) => {
+    if (!confirm(`Permanently delete ${u.name}? This cannot be undone.${u.role === 'counselor' ? ' Their students will be left unassigned.' : ''}`)) return;
+    try {
+      await api.users.remove(u._id);
+      setUsers(prev => prev.filter(x => x._id !== u._id));
+      toast.success(`${u.name} deleted`);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const defaultProfile = profiles.find(p => p.isDefault);
   const shown = users.filter(u =>
-    (status === 'all' || (status === 'active' ? u.active !== false : u.active === false)) &&
+    (status === 'all' || toggled.has(u._id) || (status === 'active' ? u.active !== false : u.active === false)) &&
     `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()));
+
+  const activeCount = users.filter(u => u.active !== false).length;
+  const statusTabs: { key: typeof status; label: string; count: number }[] = [
+    { key: 'active', label: 'Active', count: activeCount },
+    { key: 'inactive', label: 'Inactive', count: users.length - activeCount },
+    { key: 'all', label: 'All', count: users.length },
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <div role="tablist" aria-label="Filter users by status" className="inline-flex items-center gap-1 p-1 border border-gray-200 rounded-full bg-white">
+          {statusTabs.map(t => (
+            <button key={t.key} type="button" role="tab" aria-selected={status === t.key} onClick={() => changeStatus(t.key)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm transition-colors ${status === t.key ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+              {t.label}
+              <span className={`min-w-[1.5rem] px-1.5 py-0.5 rounded-full text-xs tabular-nums ${status === t.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                {loading ? '–' : t.count}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-sm ml-auto">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…" className={`${inputCls} pl-9`} />
         </div>
-        <select value={status} onChange={e => setStatus(e.target.value as typeof status)} className="border border-gray-200 rounded-lg px-2 py-2 text-sm">
-          <option value="active">Active users</option>
-          <option value="inactive">Deactivated users</option>
-          <option value="all">All users</option>
-        </select>
         <button type="button" onClick={() => setAdding(true)}
-          className="ml-auto flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700">
-          <Plus className="w-4 h-4" /> Add user
+          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700">
+          <Plus className="w-4 h-4" /> New User
         </button>
       </div>
 
@@ -174,13 +273,14 @@ function UsersTab() {
               <th className="px-4 py-3">Profile</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3 text-center">Active</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-gray-400">Loading…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={5} className="p-8 text-center text-gray-400">No users found.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No users found.</td></tr>
             ) : shown.map(u => {
               const t = userType(u);
               return (
@@ -214,13 +314,19 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button type="button" role="switch" aria-checked={u.active !== false}
-                      onClick={() => {
-                        if (u.active !== false && !confirm(`Deactivate ${u.name}? They will be signed out and unable to log in.`)) return;
-                        update(u, { active: u.active === false });
-                      }}
+                      aria-label={u.active !== false ? `Deactivate ${u.name}` : `Activate ${u.name}`}
+                      onClick={() => toggleActive(u)}
                       className={`relative w-10 h-5 rounded-full transition-colors ${u.active !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
                       <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${u.active !== false ? 'left-5' : 'left-0.5'}`} />
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => setEditing(u)} aria-label={`Edit ${u.name}`} title="Edit"
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => remove(u)} aria-label={`Delete ${u.name}`} title="Delete"
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -233,175 +339,17 @@ function UsersTab() {
         Counselors without a role keep full visibility. Admins always have full access.
       </p>
 
-      {adding && <AddUserModal roles={roles} profiles={profiles} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
-    </div>
-  );
-}
-
-/* ── Profiles tab ──────────────────────────────────────────────────────────── */
-
-interface Profile { _id: string; name: string; description?: string; permissions: string[]; isSystem?: boolean; isDefault?: boolean; userCount?: number }
-interface Catalogue { module: string; items: { key: string; label: string }[] }
-
-function ProfilesTab() {
-  const { toast } = useToast();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [catalogue, setCatalogue] = useState<Catalogue[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Profile | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const load = async (select?: string) => {
-    try {
-      const data = await api.users.profiles();
-      setProfiles(data.profiles);
-      setCatalogue(data.catalogue);
-      const id = select || selectedId || data.profiles.find((p: Profile) => !p.isSystem)?._id || data.profiles[0]?._id || null;
-      setSelectedId(id);
-      const p = data.profiles.find((x: Profile) => x._id === id);
-      setDraft(p ? { ...p, permissions: [...p.permissions] } : null);
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, []);
-
-  const select = (p: Profile) => { setSelectedId(p._id); setDraft({ ...p, permissions: [...p.permissions] }); };
-  const readOnly = !!draft?.isSystem;
-  const has = (k: string) => !!draft?.permissions.includes(k);
-  const toggle = (k: string) => draft && !readOnly &&
-    setDraft({ ...draft, permissions: has(k) ? draft.permissions.filter(x => x !== k) : [...draft.permissions, k] });
-  const toggleModule = (m: Catalogue) => {
-    if (!draft || readOnly) return;
-    const keys = m.items.map(i => i.key);
-    const all = keys.every(has);
-    setDraft({ ...draft, permissions: all ? draft.permissions.filter(k => !keys.includes(k)) : [...new Set([...draft.permissions, ...keys])] });
-  };
-
-  const original = profiles.find(p => p._id === selectedId);
-  const dirty = useMemo(() => !!draft && !!original && (
-    draft.name !== original.name || (draft.description || '') !== (original.description || '') ||
-    [...draft.permissions].sort().join() !== [...original.permissions].sort().join()
-  ), [draft, original]);
-
-  const save = async () => {
-    if (!draft) return;
-    setSaving(true);
-    try {
-      await api.users.updateProfile(draft._id, { name: draft.name, description: draft.description, permissions: draft.permissions });
-      toast.success('Profile saved');
-      load(draft._id);
-    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
-  };
-
-  const create = async () => {
-    const name = prompt('New profile name', draft ? `${draft.name} (copy)` : 'New profile');
-    if (!name?.trim()) return;
-    try {
-      // Start from the selected profile's permissions (like cloning in Bigin)
-      const p = await api.users.createProfile({ name: name.trim(), permissions: draft?.permissions || [] });
-      toast.success('Profile created');
-      load(p._id);
-    } catch (err: any) { toast.error(err.message); }
-  };
-
-  const makeDefault = async () => {
-    if (!draft) return;
-    try { await api.users.updateProfile(draft._id, { isDefault: true }); toast.success(`${draft.name} is now the default`); load(draft._id); }
-    catch (err: any) { toast.error(err.message); }
-  };
-
-  const remove = async () => {
-    if (!draft || !confirm(`Delete profile "${draft.name}"?`)) return;
-    try { await api.users.deleteProfile(draft._id); toast.success('Profile deleted'); setSelectedId(null); load(); }
-    catch (err: any) { toast.error(err.message); }
-  };
-
-  return (
-    <div className="grid lg:grid-cols-[260px_1fr] gap-6 items-start">
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-          <span className="text-sm font-semibold text-gray-800">Profiles</span>
-          <button type="button" onClick={create} className="text-purple-600 hover:text-purple-800 flex items-center gap-1 text-sm"><Plus className="w-4 h-4" /> New</button>
-        </div>
-        {profiles.map(p => (
-          <button key={p._id} type="button" onClick={() => select(p)}
-            className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 ${selectedId === p._id ? 'bg-purple-50' : 'hover:bg-gray-50'}`}>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm ${selectedId === p._id ? 'text-purple-700 font-medium' : 'text-gray-800'}`}>{p.name}</span>
-              {p.isSystem && <Lock className="w-3.5 h-3.5 text-gray-400" />}
-              {p.isDefault && <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">Default</span>}
-            </div>
-            <p className="text-xs text-gray-500">{p.isSystem ? 'All admin accounts' : `${p.userCount || 0} counselor(s)`}</p>
-          </button>
-        ))}
-      </div>
-
-      {draft && (
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-4 border-b space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <input value={draft.name} disabled={readOnly} onChange={e => setDraft({ ...draft, name: e.target.value })}
-                className="text-lg font-semibold text-gray-900 border border-transparent hover:border-gray-200 focus:border-purple-400 rounded-lg px-2 py-1 -ml-2 flex-1 min-w-0 disabled:bg-transparent disabled:hover:border-transparent" />
-              {!readOnly && !draft.isDefault && (
-                <button type="button" onClick={makeDefault} className="text-xs flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600">
-                  <Star className="w-3.5 h-3.5" /> Make default
-                </button>
-              )}
-              {!readOnly && !draft.isDefault && (
-                <button type="button" onClick={remove} aria-label="Delete profile" className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-              )}
-            </div>
-            <input value={draft.description || ''} disabled={readOnly} onChange={e => setDraft({ ...draft, description: e.target.value })}
-              placeholder="Description" className={`${inputCls} disabled:bg-gray-50`} />
-            {readOnly && <p className="text-xs text-gray-500 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Admin accounts always have full access. This profile can't be changed.</p>}
-            {draft.isDefault && <p className="text-xs text-amber-700">Counselors without a profile, and new counselors, get this one.</p>}
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {catalogue.map(m => {
-              const all = m.items.every(i => has(i.key));
-              return (
-                <div key={m.module} className="p-4">
-                  <label className="flex items-center gap-2 font-medium text-sm text-gray-900 mb-2">
-                    <input type="checkbox" checked={all} disabled={readOnly} onChange={() => toggleModule(m)} className="accent-purple-600" />
-                    {m.module}
-                  </label>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 pl-6">
-                    {m.items.map(i => (
-                      <label key={i.key} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" checked={has(i.key)} disabled={readOnly} onChange={() => toggle(i.key)} className="accent-purple-600" />
-                        {i.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {!readOnly && (
-            <div className="flex justify-end gap-2 px-4 py-3 border-t bg-gray-50 rounded-b-xl">
-              <button type="button" disabled={!dirty} onClick={() => original && select(original)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-40">Discard</button>
-              <button type="button" disabled={!dirty || saving || !draft.name.trim()} onClick={save}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
-                <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save profile'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {adding && <UserModal user={null} roles={roles} profiles={profiles} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
+      {editing && <UserModal user={editing} roles={roles} profiles={profiles} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
     </div>
   );
 }
 
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 
-type Tab = 'users' | 'profiles' | 'roles';
+type Tab = 'users' | 'roles';
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'users', label: 'Users', icon: UsersIcon },
-  { key: 'profiles', label: 'Profiles', icon: Contact },
   { key: 'roles', label: 'Roles', icon: Network },
 ];
 
@@ -426,7 +374,6 @@ export default function AdminUsersControls() {
         ))}
       </div>
       {tab === 'users' && <UsersTab />}
-      {tab === 'profiles' && <ProfilesTab />}
       {tab === 'roles' && <AdminRoles />}
     </div>
   );
