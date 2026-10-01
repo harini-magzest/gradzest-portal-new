@@ -250,7 +250,7 @@ export default function AppTeamCounselors() {
         <SlidersHorizontal className="w-3.5 h-3.5" />Showing {filtered.length} of {counselors.length} counselors
       </p>
 
-      {/* Counselor cards */}
+      {/* Counselor list — one row per counselor, numbers aligned in columns */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center">
           <UserCog className="w-10 h-10 text-gray-200 mx-auto mb-2" />
@@ -258,60 +258,84 @@ export default function AppTeamCounselors() {
           {filtersOn && <button type="button" onClick={clearFilters} className="mt-2 text-sm text-orange-600 font-medium">Clear filters</button>}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(c => {
-            const st = stats[idOf(c)];
-            return (
-              <div key={idOf(c)} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-orange-200 transition-all flex flex-col">
-                <button type="button" onClick={() => setSelectedId(idOf(c))} className="text-left p-5 flex-1">
-                  <div className="flex items-start gap-3">
-                    <div className="relative w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Column headings (wide screens) */}
+          <div className="hidden lg:grid grid-cols-[minmax(0,2.2fr)_repeat(3,5.5rem)_minmax(0,1.3fr)_auto] items-center gap-4 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+            <span>Counselor</span>
+            <span className="text-center">Students</span>
+            <span className="text-center">Applications</span>
+            <span className="text-center">Offers</span>
+            <span>Application pipeline</span>
+            <span className="w-[13.5rem]" aria-hidden="true" />
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {filtered.map(c => {
+              const st = stats[idOf(c)];
+              const nums: [string, number, string][] = [
+                ['Students', st?.students || 0, 'text-blue-600'],
+                ['Applications', st?.apps || 0, 'text-orange-500'],
+                ['Offers', st?.offers || 0, 'text-purple-600'],
+              ];
+              return (
+                <li key={idOf(c)}
+                  className="grid grid-cols-1 lg:grid-cols-[minmax(0,2.2fr)_repeat(3,5.5rem)_minmax(0,1.3fr)_auto] items-center gap-x-4 gap-y-3 px-5 py-4 hover:bg-orange-50/40 transition-colors">
+                  {/* Who */}
+                  <button type="button" onClick={() => setSelectedId(idOf(c))} className="flex items-center gap-3 min-w-0 text-left group">
+                    <div className="relative w-11 h-11 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold flex-shrink-0">
                       {c.name?.[0]?.toUpperCase()}
                       <PresenceDot userId={idOf(c)} size="md" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 truncate">{c.name}</p>
-                      {c.title && <p className="text-xs text-gray-500 truncate">{c.title}</p>}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 truncate group-hover:text-orange-600">
+                        {c.name}{c.title && <span className="font-normal text-gray-500 text-sm"> · {c.title}</span>}
+                      </p>
                       <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                      {(c.specialization || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {c.specialization.slice(0, 3).map((s: string) => (
+                            <span key={s} className="text-[10px] font-medium bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">{s}</span>
+                          ))}
+                          {c.specialization.length > 3 && <span className="text-[10px] text-gray-400 px-1">+{c.specialization.length - 3}</span>}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  {(c.specialization || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3">
-                      {c.specialization.slice(0, 3).map((s: string) => (
-                        <span key={s} className="text-[10px] font-medium bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">{s}</span>
-                      ))}
-                      {c.specialization.length > 3 && <span className="text-[10px] text-gray-400 px-1">+{c.specialization.length - 3}</span>}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                    {[
-                      ['Students', st?.students || 0, 'text-blue-600'],
-                      ['Applications', st?.apps || 0, 'text-orange-500'],
-                      ['Offers', st?.offers || 0, 'text-purple-600'],
-                    ].map(([label, value, cls]) => (
-                      <div key={label as string} className="bg-gray-50 rounded-xl py-2">
-                        <p className={`text-lg font-bold ${cls}`}>{value}</p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
+                  </button>
+
+                  {/* Numbers: their own columns on wide screens, one row of three on small ones */}
+                  <div className="grid grid-cols-3 gap-2 lg:contents">
+                    {nums.map(([label, value, cls]) => (
+                      <div key={label} className="text-center bg-gray-50 rounded-xl py-1.5 lg:bg-transparent lg:py-0">
+                        <p className={`text-lg font-bold ${value ? cls : 'text-gray-300'}`}>{value}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wide lg:hidden">{label}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4">
+
+                  {/* Pipeline */}
+                  <div className="min-w-0">
                     <PipelineBar counts={st?.byStatus || {}} total={st?.apps || 0} />
+                    <p className="text-[11px] text-gray-400 mt-1 truncate">
+                      {st?.apps
+                        ? STATUS_ORDER.filter(s => st.byStatus[s]).map(s => `${STATUSES[s].label} ${st.byStatus[s]}`).join(' · ')
+                        : 'No applications yet'}
+                    </p>
                   </div>
-                </button>
-                <div className="flex border-t border-gray-100 text-sm">
-                  <Link to={`/appteam/chat?counselorId=${idOf(c)}`}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-bl-2xl">
-                    <MessageSquare className="w-4 h-4" />Message
-                  </Link>
-                  <button type="button" onClick={() => setSelectedId(idOf(c))}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-orange-600 hover:bg-orange-50 border-l border-gray-100 rounded-br-2xl">
-                    <Users className="w-4 h-4" />View students
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 lg:w-[13.5rem] lg:justify-end">
+                    <Link to={`/appteam/chat?counselorId=${idOf(c)}`}
+                      className="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50">
+                      <MessageSquare className="w-4 h-4" />Message
+                    </Link>
+                    <button type="button" onClick={() => setSelectedId(idOf(c))}
+                      className="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 text-white text-sm font-medium hover:bg-orange-600">
+                      <Users className="w-4 h-4" />View
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
