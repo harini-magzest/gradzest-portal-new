@@ -158,7 +158,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-900">
-                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || r.email || 'Unknown'}</button>
+                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || r.email || 'Signed-out visitor'}</button>
                   {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5">{r.email}</span>}
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 capitalize ml-1.5">{r.role}</span>
                   <span className="text-gray-500"> {meta.label.toLowerCase()} </span>

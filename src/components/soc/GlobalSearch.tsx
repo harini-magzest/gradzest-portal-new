@@ -7,11 +7,12 @@ interface Props {
   onOpenUser: (id: string) => void;
   onOpenIp: (ip: string) => void;
   onOpenIncidents: () => void;
+  onOpenIncident: (id: string) => void;
   onOpenUploads: () => void;
 }
 
 // One box in the header that finds people, IP addresses, incidents and uploaded files, and jumps to the right place.
-export default function GlobalSearch({ onOpenUser, onOpenIp, onOpenIncidents, onOpenUploads }: Props) {
+export default function GlobalSearch({ onOpenUser, onOpenIp, onOpenIncident, onOpenUploads }: Props) {
   const [q, setQ] = useState('');
   const [res, setRes] = useState<any>(null);
   const [busy, setBusy] = useState(false);
@@ -77,7 +78,7 @@ export default function GlobalSearch({ onOpenUser, onOpenIp, onOpenIncidents, on
           ))}
           {res?.incidents.length > 0 && <p className="px-3 pt-2 text-[10px] font-semibold text-gray-400 uppercase">Incidents</p>}
           {res?.incidents.map((i: any) => (
-            <Row key={i._id} icon={AlertTriangle} onClick={onOpenIncidents}>
+            <Row key={i._id} icon={AlertTriangle} onClick={() => onOpenIncident(i._id)}>
               <span className="truncate flex-1">{i.title}</span>
               <span className="text-[10px] text-gray-400">{i.severity} · {i.status.replace('_', ' ')}</span>
             </Row>

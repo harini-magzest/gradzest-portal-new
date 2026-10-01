@@ -50,7 +50,8 @@ export default function AuditTab() {
       auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
     });
     socket.on('pii_access', () => load());
-    socket.on('analyst_action', (entry: AnalystAction) => setActions(prev => [entry, ...prev].slice(0, 50)));
+    // The pushed entry only carries ids; refetch so names and targets are resolved like every other row.
+    socket.on('analyst_action', () => { api.soc.auditTrail().then(t => setActions(t.actions || [])).catch(() => {}); });
     return () => { socket.disconnect(); };
   }, [load]);
 

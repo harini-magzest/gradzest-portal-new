@@ -12,6 +12,7 @@ import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';
 import SavedFilters from './SavedFilters';
 import DeviceDetails from './DeviceDetails';
+import { formatBucket } from './ui';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -70,6 +71,7 @@ export default function OverviewTab() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   // Live feed state — mirrors the pattern previously used for useActivityFeed.
   const [events, setEvents] = useState<SecurityEvent[]>([]);
@@ -85,14 +87,19 @@ export default function OverviewTab() {
   const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => { pauseRef.current = isPaused; }, [isPaused]);
 
-  const loadStats = useCallback(async (p: Period) => {
-    setLoading(true); setError('');
-    try { setStats(await api.soc.stats(p)); }
-    catch (err: any) { setError(err.message || 'Failed to load stats.'); }
-    setLoading(false);
+  // silent = background refresh: no spinner, and a failed refresh keeps the numbers already on screen.
+  const loadStats = useCallback(async (p: Period, silent = false) => {
+    if (!silent) { setLoading(true); setError(''); }
+    try { setStats(await api.soc.stats(p)); setUpdatedAt(new Date()); setError(''); }
+    catch (err: any) { if (!silent) setError(err.message || 'Failed to load stats.'); }
+    if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => { loadStats(period); }, [loadStats, period]);
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) loadStats(period, true); }, 60000);
+    return () => clearInterval(t);
+  }, [loadStats, period]);
 
   useEffect(() => {
     setFeedLoading(true);
@@ -167,8 +174,9 @@ export default function OverviewTab() {
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => loadStats(period)} disabled={loading}
-          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50">
+        {updatedAt && <span className="ml-auto mr-2 text-[11px] text-gray-400 self-center" title="Refreshes automatically every minute">Updated {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+        <button type="button" onClick={() => loadStats(period)} disabled={loading} aria-label="Refresh"
+          className={`p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 ${updatedAt ? '' : 'ml-auto'}`}>
           <RefreshCw className={`w-4 h-4 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -202,9 +210,9 @@ export default function OverviewTab() {
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={stats.series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatBucket} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip />
+                    <Tooltip labelFormatter={(l: any) => formatBucket(String(l))} />
                     <Area type="monotone" dataKey="count" name="Events" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.15} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>

@@ -26,6 +26,7 @@ export default function SOCDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
   // Any tab can jump straight to a person's details + response actions.
   const [investigateUserId, setInvestigateUserId] = useState<string | undefined>(undefined);
+  const [openIncidentId, setOpenIncidentId] = useState<string | undefined>(undefined);
   const [investigateIp, setInvestigateIp] = useState<string | undefined>(undefined);
   const openUser = (id: string) => { setInvestigateIp(undefined); setInvestigateUserId(id); setTab('investigate'); };
   const openIp = (ip: string) => { setInvestigateUserId(undefined); setInvestigateIp(ip); setTab('investigate'); };
@@ -43,7 +44,7 @@ export default function SOCDashboard() {
             <h1 className="text-2xl font-bold leading-tight">Security Operations Center</h1>
           </div>
           <div className="ml-auto w-full sm:w-auto sm:flex-1 sm:max-w-sm">
-            <GlobalSearch onOpenUser={openUser} onOpenIp={openIp} onOpenIncidents={() => setTab('incidents')} onOpenUploads={() => setTab('uploads')} />
+            <GlobalSearch onOpenUser={openUser} onOpenIp={openIp} onOpenIncidents={() => setTab('incidents')} onOpenIncident={id => { setOpenIncidentId(id); setTab('incidents'); }} onOpenUploads={() => setTab('uploads')} />
           </div>
         </div>
         <div className="flex gap-1 p-1 bg-white/10 rounded-xl w-fit flex-wrap">
@@ -68,7 +69,7 @@ export default function SOCDashboard() {
           <OverviewTab />
         </>
       )}
-      {tab === 'incidents' && <IncidentsTab />}
+      {tab === 'incidents' && <IncidentsTab openId={openIncidentId} onOpened={() => setOpenIncidentId(undefined)} />}
       {tab === 'investigate' && <InvestigateTab initialUserId={investigateUserId} initialIp={investigateIp} />}
       {tab === 'activity' && <ActivityTab onInvestigateUser={openUser} />}
       {tab === 'uploads' && <UploadsTab onInvestigateUser={openUser} />}

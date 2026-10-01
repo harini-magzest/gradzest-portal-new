@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { errorText } from './ui';
+import NeedsAttention from './NeedsAttention';
 import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X, Lock, Unlock, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
@@ -57,7 +58,7 @@ function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke
         {sessions.map(sess => (
           <div key={sess.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
             <div className="min-w-0 text-sm">
-              <p className="text-gray-800 truncate">{sess.userAgent || 'Unknown device'}</p>
+              <p className="text-gray-800 truncate" title={sess.userAgent}>{shortUa(sess.userAgent)}</p>
               <p className="text-[11px] text-gray-400">
                 <span className="font-mono">{sess.ip || 'unknown IP'}</span> · signed in {new Date(sess.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 {' '}· last used {new Date(sess.lastUsedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -126,13 +127,29 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
 }
 
 function TimelineList({ timeline }: { timeline: any[] }) {
+  const [source, setSource] = useState('all');
   if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-400">No activity found.</div>;
+  const sources = [...new Set(timeline.map(t => String(t.source)))];
+  const shown = source === 'all' ? timeline : timeline.filter(t => t.source === source);
+  const dayOf = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
   return (
+    <div>
+      {sources.length > 1 && (
+        <div className="flex items-center gap-1 flex-wrap px-4 py-2 border-b border-gray-100">
+          {['all', ...sources].map(s => (
+            <button key={s} type="button" onClick={() => setSource(s)}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${source === s ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{s === 'all' ? `All (${timeline.length})` : `${s} (${timeline.filter(t => t.source === s).length})`}</button>
+          ))}
+        </div>
+      )}
     <div className="divide-y divide-gray-50">
-      {timeline.map((item, i) => {
+      {shown.map((item, i) => {
+        const newDay = i === 0 || dayOf(item.createdAt) !== dayOf(shown[i - 1].createdAt);
         const sev = item.severityOrLevel ? SEVERITY_STYLE[item.severityOrLevel] : null;
         return (
-          <div key={i} className="flex items-start justify-between gap-3 px-4 py-3">
+          <div key={i}>
+          {newDay && <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase bg-gray-50">{dayOf(item.createdAt)}</p>}
+          <div className="flex items-start justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">{item.source}</span>
@@ -141,10 +158,12 @@ function TimelineList({ timeline }: { timeline: any[] }) {
               </div>
               {item.detail && <p className="text-xs text-gray-400 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -332,6 +351,13 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
       {loading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-purple-400 animate-spin" /></div>}
       {actionMsg && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">{actionMsg}</p>}
       {actionError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{actionError}</p>}
+
+      {/* Starting point: instead of an empty search box, the accounts and addresses most worth looking at. */}
+      {!loading && !userData && !ipData && !selectedUser && (
+        <NeedsAttention
+          onOpenUser={id => { setMode('user'); void investigateUser({ id, email: '' }); }}
+          onOpenIp={ip => { setMode('ip'); setIpQuery(ip); void investigateIp(ip); }} />
+      )}
 
       {mode === 'user' && userData && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

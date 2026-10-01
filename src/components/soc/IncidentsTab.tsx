@@ -22,7 +22,7 @@ const apiFilters = (f: Filters) => ({
   q: f.q.trim() || undefined,
 });
 
-export default function IncidentsTab() {
+export default function IncidentsTab({ openId, onOpened }: { openId?: string; onOpened?: () => void } = {}) {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -35,6 +35,15 @@ export default function IncidentsTab() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState('');
+  const [analysts, setAnalysts] = useState<{ _id: string; name: string }[]>([]);
+  useEffect(() => { api.soc.analysts().then(d => setAnalysts(d.analysts || [])).catch(() => {}); }, []);
+
+  // Arriving from global search with one incident chosen: open it directly.
+  useEffect(() => {
+    if (!openId) return;
+    api.soc.incidentDetail(openId).then(d => setSelected(d.incident)).catch(e => setError(errorText(e))).finally(() => onOpened?.());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   const patch = (p: Partial<Filters>) => setFilters(f => ({ ...f, ...p }));
 
@@ -57,6 +66,18 @@ export default function IncidentsTab() {
 
   const togglePick = (id: string) => setPicked(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   // Clearing a batch of noise (e.g. one rule's false positives) in one go; the reason is recorded on every incident.
+  const bulkAssign = async (analystId: string) => {
+    const ids = [...picked];
+    if (!ids.length || !analystId) return;
+    setBulkBusy(true); setBulkMsg('');
+    try {
+      const r = await api.soc.bulkUpdateIncidents(ids, { assignedTo: analystId });
+      setBulkMsg(`${r.updated.length} assigned${r.failed.length ? `, ${r.failed.length} failed` : ''}.`);
+      setPicked(new Set());
+      await load();
+    } catch (e) { setBulkMsg(errorText(e)); }
+    setBulkBusy(false);
+  };
   const bulkClose = async (status: 'resolved' | 'false_positive') => {
     const ids = [...picked];
     if (!ids.length) return;
@@ -108,7 +129,7 @@ export default function IncidentsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit max-w-full overflow-x-auto">
           {['all', 'open', 'investigating', 'resolved', 'false_positive'].map(s => (
             <button key={s} type="button" onClick={() => patch({ status: s })}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filters.status === s ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
@@ -143,6 +164,10 @@ export default function IncidentsTab() {
             <>
               <button type="button" disabled={bulkBusy} onClick={() => bulkClose('false_positive')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark false positive</button>
               <button type="button" disabled={bulkBusy} onClick={() => bulkClose('resolved')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark resolved</button>
+              <select value="" disabled={bulkBusy} onChange={e => bulkAssign(e.target.value)} aria-label="Assign selected to" className="px-2 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700">
+                <option value="">Assign to…</option>
+                {analysts.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+              </select>
               <button type="button" onClick={() => setPicked(new Set())} className="text-xs text-gray-500 hover:underline">Clear</button>
             </>
           )}

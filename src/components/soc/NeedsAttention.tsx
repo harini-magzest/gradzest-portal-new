@@ -15,8 +15,8 @@ function ago(iso?: string | null) {
 }
 
 interface Props {
-  onOpenIncidents: () => void;
-  onOpenUploads: () => void;
+  onOpenIncidents?: () => void; // omitted where there is no incidents tab to jump to (e.g. inside Investigate)
+  onOpenUploads?: () => void;
   onOpenUser: (id: string) => void;
   onOpenIp: (ip: string) => void;
 }
@@ -77,7 +77,7 @@ export default function NeedsAttention({ onOpenIncidents, onOpenUploads, onOpenU
               <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Unacknowledged high-severity incidents</p>
               <div className="space-y-1">
                 {data.unacknowledged.map((i: any) => (
-                  <button key={i._id} type="button" onClick={onOpenIncidents} className="w-full flex items-center gap-2 text-left text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50">
+                  <button key={i._id} type="button" onClick={onOpenIncidents} disabled={!onOpenIncidents} className="w-full flex items-center gap-2 text-left text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50 disabled:hover:bg-transparent">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${SEV_DOT[i.severity] || 'bg-gray-400'}`} />
                     <span className="truncate flex-1 text-gray-800">{i.title}</span>
                     {i.ackBreached && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 rounded">SLA</span>}
@@ -88,15 +88,15 @@ export default function NeedsAttention({ onOpenIncidents, onOpenUploads, onOpenU
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {data.accounts.length > 0 && (
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Accounts to look at</p>
                 {data.accounts.map((a: any) => (
                   <button key={a.userId} type="button" onClick={() => onOpenUser(a.userId)} className="w-full flex items-center gap-2 text-left text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50">
                     <UserX className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
                     <span className="truncate flex-1"><span className="font-medium text-gray-800">{a.name}</span> <span className="text-xs text-gray-400">{a.email}</span></span>
-                    <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                    <span className="text-[11px] text-gray-500 text-right flex-shrink-0 max-w-[45%]">
                       {[a.failedLogins24h > 0 ? plural(a.failedLogins24h, 'failed login') : a.events24h > 0 ? plural(a.events24h, 'event') : '', a.openIncidents > 0 ? plural(a.openIncidents, 'open incident') : ''].filter(Boolean).join(' · ')}
                     </span>
                   </button>
@@ -104,7 +104,7 @@ export default function NeedsAttention({ onOpenIncidents, onOpenUploads, onOpenU
               </div>
             )}
             {data.ips.length > 0 && (
-              <div>
+              <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Addresses to look at</p>
                 {data.ips.map((p: any) => (
                   <button key={p.ip} type="button" onClick={() => onOpenIp(p.ip)} className="w-full flex items-center gap-2 text-left text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50">
