@@ -1,22 +1,12 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, Star, Plus, X, Award, Edit3, CheckCircle2, Target, ClipboardList, MessageCircle, Send, UserCog, GraduationCap, MapPin, BookOpen, Phone, Video, PhoneCall } from 'lucide-react';
+import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, Star, Plus, Award, Edit3, CheckCircle2, Target, ClipboardList, MessageCircle, Send, UserCog, GraduationCap, MapPin, BookOpen, Phone, Video, PhoneCall } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import { usePortalName } from '../../hooks/usePortalName';
 import MyCallPerformance from '../../components/MyCallPerformance';
 
-const EDUCATION_LEVELS = ['10th Grade (Completed)', '12th Grade (Completed)', 'Diploma (Completed)', "Bachelor's (In Progress)", "Bachelor's (Completed)", "Master's (In Progress)", "Master's (Completed)", 'PhD (In Progress)', 'PhD (Completed)', 'Other'];
-
-const COUNTRIES = ['Australia', 'Canada', 'Germany', 'Netherlands', 'Singapore', 'United Kingdom', 'United States'];
-
-const DEFAULT_FORM = {
-  name: '', email: '', phone: '', nationality: '',
-  educationLevel: EDUCATION_LEVELS[1], gpa: '',
-  englishType: 'IELTS' as 'IELTS' | 'TOEFL' | 'PTE', englishScore: '',
-  preferredCountries: [] as string[], budget: '', interestedCourses: '',
-};
 
 function fmt12h(time24: string) {
   if (!time24) return '';
@@ -25,145 +15,12 @@ function fmt12h(time24: string) {
   return `${String(h % 12 || 12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-function NewStudentModal({ onClose, onCreated }: { onClose: () => void; onCreated: (s: any) => void }) {
-  const [form, setForm] = useState(DEFAULT_FORM);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const set = (key: keyof typeof DEFAULT_FORM, value: any) => setForm(f => ({ ...f, [key]: value }));
-
-  const toggleCountry = (country: string) =>
-    set('preferredCountries', form.preferredCountries.includes(country)
-      ? form.preferredCountries.filter(c => c !== country)
-      : [...form.preferredCountries, country]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
-    setSaving(true); setError('');
-    try {
-      const newStudent = await (api.students as any).create({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        nationality: form.nationality.trim(),
-        educationLevel: form.educationLevel,
-        gpa: parseFloat(form.gpa) || 0,
-        englishScore: { type: form.englishType, score: parseFloat(form.englishScore) || 0 },
-        preferredCountries: form.preferredCountries,
-        budget: parseInt(form.budget) || 0,
-        interestedCourses: form.interestedCourses.split(',').map(s => s.trim()).filter(Boolean),
-        applications: [], documents: [],
-        role: 'student' as const,
-        joinedDate: new Date().toISOString().slice(0, 10),
-        status: 'active' as const,
-      });
-      onCreated(newStudent);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create student.');
-    }
-    setSaving(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Add New Student</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Rahul Singh"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="student@example.com"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 99999 00000"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-              <input value={form.nationality} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Indian"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-              <select aria-label="Education Level" value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                {EDUCATION_LEVELS.map(l => <option key={l}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">GPA (out of 10)</label>
-              <input type="number" min="0" max="10" step="0.1" value={form.gpa} onChange={e => set('gpa', e.target.value)} placeholder="8.5"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Budget (USD/yr)</label>
-              <input type="number" min="0" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="30000"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">English Test</label>
-              <select aria-label="English Test Type" value={form.englishType} onChange={e => set('englishType', e.target.value as any)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                <option>IELTS</option><option>TOEFL</option><option>PTE</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Score</label>
-              <input type="number" min="0" step="0.5" value={form.englishScore} onChange={e => set('englishScore', e.target.value)} placeholder="7.0"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Countries</label>
-            <div className="flex flex-wrap gap-2">
-              {COUNTRIES.map(c => (
-                <button key={c} type="button" onClick={() => toggleCountry(c)}
-                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${form.preferredCountries.includes(c) ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-500'}`}>
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Interested Courses <span className="text-gray-400 font-normal">(comma-separated)</span></label>
-            <input value={form.interestedCourses} onChange={e => set('interestedCourses', e.target.value)} placeholder="Computer Science, Data Science"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          </div>
-
-          {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 transition-colors disabled:opacity-60">
-              {saving ? 'Adding…' : 'Add Student'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 export default function CounselorDashboard() {
   const { portal } = usePortalName();
   const { user } = useAuth();
   const counselor = user as Counselor;
   const [students, setStudents] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
-  const [showNewStudent, setShowNewStudent] = useState(false);
   const [workNote, setWorkNote] = useState((user as any)?.bio || '');
   const [editingNote, setEditingNote] = useState(false);
   const [noteInput, setNoteInput] = useState((user as any)?.bio || '');
@@ -172,16 +29,26 @@ export default function CounselorDashboard() {
   const [replying, setReplying] = useState<string | null>(null);
   const [scheduledCalls, setScheduledCalls] = useState<any[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
+  const [studentsError, setStudentsError] = useState('');
+  const [universitiesError, setUniversitiesError] = useState('');
+  const [callsError, setCallsError] = useState('');
 
-  const refreshStudents = () =>
-    api.students.list().then(all => {
+  const refreshStudents = () => {
+    setStudentsError('');
+    return api.students.list().then(all => {
       const mine = all.filter((s: any) => counselor.assignedStudents?.includes(s._id || s.id));
       setStudents(mine);
-    }).catch(() => {});
+    }).catch(() => setStudentsError('Failed to load your students.'));
+  };
 
-  useEffect(() => {
-    refreshStudents();
-    api.universities.list().then(setUniversities).catch(() => {});
+  const loadUniversities = () => {
+    setUniversitiesError('');
+    api.universities.list().then(setUniversities).catch(() => setUniversitiesError('Failed to load universities.'));
+  };
+
+  const loadCalls = () => {
+    setCallsError('');
+    setCallsLoading(true);
     api.meetings.list().then((meetings: any[]) => {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const upcoming = meetings
@@ -196,7 +63,13 @@ export default function CounselorDashboard() {
           return da.getTime() - db.getTime();
         });
       setScheduledCalls(upcoming);
-    }).catch(() => {}).finally(() => setCallsLoading(false));
+    }).catch(() => setCallsError('Failed to load scheduled calls.')).finally(() => setCallsLoading(false));
+  };
+
+  useEffect(() => {
+    refreshStudents();
+    loadUniversities();
+    loadCalls();
   }, []);
 
   const submitReply = async (appId: string) => {
@@ -291,15 +164,6 @@ export default function CounselorDashboard() {
 
   return (
     <>
-    {showNewStudent && (
-      <NewStudentModal
-        onClose={() => setShowNewStudent(false)}
-        onCreated={newStudent => {
-          setStudents(prev => [...prev, newStudent]);
-          setShowNewStudent(false);
-        }}
-      />
-    )}
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-5">
@@ -327,6 +191,13 @@ export default function CounselorDashboard() {
           ))}
         </div>
       </div>
+
+      {studentsError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{studentsError} Stats below may be incomplete.</div>
+          <button type="button" onClick={refreshStudents} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-5">
@@ -367,6 +238,11 @@ export default function CounselorDashboard() {
         {callsLoading ? (
           <div className="space-y-3">
             {[1, 2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : callsError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{callsError}</div>
+            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
           </div>
         ) : scheduledCalls.length === 0 ? (
           <div className="text-center py-8">
@@ -605,7 +481,12 @@ export default function CounselorDashboard() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        {universities.length === 0 ? (
+        {universitiesError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{universitiesError}</div>
+            <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          </div>
+        ) : universities.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
             <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No universities loaded yet.</p>

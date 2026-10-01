@@ -281,9 +281,15 @@ export default function CounselorCourses() {
   const [filters, setFilters] = useState<CourseFilters>(EMPTY_FILTERS);
   const [applyModal, setApplyModal] = useState<any | null>(null);
   const [customEdit, setCustomEdit] = useState<any | null>(null);
+  const [loadError, setLoadError] = useState('');
+
+  const loadCourses = () => {
+    setLoadError('');
+    api.universities.list().then(setUniversities).catch(() => setLoadError('Failed to load courses.'));
+  };
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    loadCourses();
     api.students.list().then(setStudents).catch(() => {});
     api.countries.list().then(setCountries).catch(() => {});
   }, []);
@@ -331,6 +337,13 @@ export default function CounselorCourses() {
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <AdvancedCourseSearch courses={allCourses} students={students} value={filters} onSearch={setFilters} accent="green" resultCount={results.length} />
 

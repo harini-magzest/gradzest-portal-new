@@ -97,7 +97,7 @@ function UniversityCard({ uni, student }: { uni: any; student: any }) {
 }
 
 export default function StudentUniversities() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [student, setStudent] = useState<any>(user);
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [query, setQuery] = useState('');
@@ -107,6 +107,10 @@ export default function StudentUniversities() {
   useEffect(() => {
     api.universities.list().then(setAllUniversities).catch(() => {});
     api.students.me().then(setStudent).catch(() => {});
+    if (user?.role === 'student' && !(user as any)?.onboarding?.universityBrowsed) {
+      api.onboarding.markStep('universityBrowsed').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const countries = [...new Set(allUniversities.map(u => u.country))].sort() as string[];

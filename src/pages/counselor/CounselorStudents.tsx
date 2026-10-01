@@ -752,6 +752,7 @@ function StudentDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const [student, setStudent] = useState<any>(null);
+  const [studentLoadError, setStudentLoadError] = useState('');
   // Kept separately: other student updates return the profile without it
   const [counselorName, setCounselorName] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -775,18 +776,21 @@ function StudentDetail() {
   }, []);
 
   // Reload whenever the student changes (incl. via the ‹ › arrows)
-  useEffect(() => {
-    if (!studentId) return;
+  const loadStudent = useCallback(() => {
+    if (!studentId) return () => {};
     let cancelled = false;
     setStudent(null);
+    setStudentLoadError('');
     setCounselorName(null);
     api.students.get(studentId).then(s => {
       if (cancelled) return;
       setStudent(s);
       setCounselorName(s.counselorName || null);
-    }).catch(() => {});
+    }).catch((err: any) => { if (!cancelled) setStudentLoadError(err.message || 'Failed to load this student.'); });
     return () => { cancelled = true; };
   }, [studentId]);
+
+  useEffect(() => loadStudent(), [loadStudent]);
 
   const verifyDoc = async (docId: string, status: 'verified' | 'rejected') => {
     if (!student || !studentId) return;
@@ -808,6 +812,14 @@ function StudentDetail() {
     } catch {}
     setUpdating(false);
   };
+
+  if (!student && studentLoadError) return (
+    <div className="text-center py-12">
+      <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+      <p className="text-sm text-gray-600 mb-3">{studentLoadError}</p>
+      <button type="button" onClick={loadStudent} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Retry</button>
+    </div>
+  );
 
   if (!student) return (
     <div className="text-center py-12">
