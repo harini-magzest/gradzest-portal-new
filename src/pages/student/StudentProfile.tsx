@@ -227,6 +227,13 @@ export default function StudentProfile() {
   const [saving, setSaving] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if ((student?.documents?.length || 0) > 0 && !(student as any)?.onboarding?.documentUploaded) {
+      api.onboarding.markStep('documentUploaded').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.documents?.length]);
   const [academicEntries, setAcademicEntries] = useState<AcademicEntry[]>(
     (student?.academicDetails || []).map((e: any) => ({ status: '', yearOfStudying: '', yearOfPassing: '', backlogs: '', attempts: '', course: '', docs: [], ...e, id: e.id || crypto.randomUUID() }))
   );
@@ -360,6 +367,12 @@ export default function StudentProfile() {
     { label: 'Annual Budget', filled: !!student.budget },
   ];
   const completion = Math.round((profileFields.filter(f => f.filled).length / profileFields.length) * 100);
+  useEffect(() => {
+    if (completion === 100 && !(student as any)?.onboarding?.profileComplete) {
+      api.onboarding.markStep('profileComplete').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completion]);
   const filledCount = profileFields.filter(f => f.filled).length;
   const scoreColor = completion === 100 ? 'text-green-500' : completion >= 67 ? 'text-blue-400' : completion >= 34 ? 'text-amber-300' : 'text-red-300';
   const barColor = completion === 100 ? 'bg-green-400' : completion >= 67 ? 'bg-blue-300' : completion >= 34 ? 'bg-amber-300' : 'bg-red-300';

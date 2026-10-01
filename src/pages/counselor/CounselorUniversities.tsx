@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Star, BookOpen, DollarSign, Calendar, CheckCircle, ExternalLink, Users, Award, X, Plus, GraduationCap, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Star, BookOpen, DollarSign, Calendar, CheckCircle, ExternalLink, Users, Award, X, Plus, GraduationCap, ChevronRight, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { usePortalName } from '../../hooks/usePortalName';
@@ -358,9 +358,15 @@ export default function CounselorUniversities() {
   const [country, setCountry] = useState('');
   const [level, setLevel] = useState('');
   const [applyTarget, setApplyTarget] = useState<{ course: any; universityName: string; universityId: string } | null>(null);
+  const [loadError, setLoadError] = useState('');
+
+  const loadUniversities = () => {
+    setLoadError('');
+    api.universities.list().then(setUniversities).catch(() => setLoadError('Failed to load universities.'));
+  };
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    loadUniversities();
     api.students.list().then(setStudents).catch(() => {});
   }, []);
 
@@ -410,6 +416,13 @@ export default function CounselorUniversities() {
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <div className="flex flex-col md:flex-row gap-3">

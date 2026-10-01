@@ -152,7 +152,13 @@ function MeetingMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
 
 export default function StudentChat() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  useEffect(() => {
+    if (user?.role === 'student' && !(user as any)?.onboarding?.counselorViewed) {
+      api.onboarding.markStep('counselorViewed').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
   const [rooms, setRooms] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
