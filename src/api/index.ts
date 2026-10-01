@@ -278,9 +278,13 @@ export const api = {
       fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
       return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
     },
-    callHistory: (days: number, userId?: string) =>
+    callHistory: (days: number, userId?: string, since?: string) =>
       req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
-        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}${since ? `&since=${encodeURIComponent(since)}` : ''}`, { headers: authHeaders() }),
+    saveCallSummary: (callId: string, summary: string, extra: { otherPartyName?: string; startedAt?: string } = {}) =>
+      req<{ callId: string; summary: string; summaryBy: string; summaryAt: string }>(`/chat/calls/${encodeURIComponent(callId)}/summary`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ summary, ...extra }),
+      }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -294,6 +298,7 @@ export const api = {
   counselors: {
     me: () => req<any>('/counselors/me', { headers: authHeaders() }),
     myStudents: () => req<any[]>('/counselors/me/students', { headers: authHeaders() }),
+    myPerformance: (days: number) => req<any>(`/counselors/me/performance?days=${days}`, { headers: authHeaders() }),
     updateMe: (data: any) => req<any>('/counselors/me', {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),

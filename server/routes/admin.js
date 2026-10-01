@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const University = require('../models/University');
 const Country = require('../models/Country');
 const Subscriber = require('../models/Subscriber');
@@ -67,121 +68,10 @@ router.get('/counselors', authMiddleware, adminOnly, async (req, res) => {
 // Counselor performance: call stats (in-app + Tata Smartflo), workload, and an activity timeline.
 // GET /api/admin/counselors/:id/performance?days=1|7|30|90   (days=1 means "today")
 router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
-  const ChatRoom = require('../models/ChatRoom');
-  const Meeting = require('../models/Meeting');
-  const StaffActivity = require('../models/StaffActivity');
-  const smartflo = require('../lib/smartflo');
   try {
     const counselor = await User.findOne({ _id: req.params.id, role: 'counselor' }).select('name email smartfloAgent');
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
-    const cid = String(counselor._id);
-
-    const days = [1, 7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
-    const to = new Date();
-    const from = new Date(to.getFullYear(), to.getMonth(), to.getDate() - (days - 1));
-    const inRange = (d) => { const t = new Date(d); return t >= from && t <= to; };
-
-    // ── Workload ──
-    const students = await User.find({ role: 'student', counselorId: cid }).select('leadStatus applications.status');
-    const apps = students.flatMap(s => s.applications || []);
-    const OFFER = ['offer_received', 'accepted', 'enrolled'];
-
-    const fromDateStr = from.toISOString().slice(0, 10);
-    const meetings = await Meeting.countDocuments({
-      $or: [{ createdBy: cid }, { 'participants.userId': cid }],
-      scheduledDate: { $gte: fromDateStr },
-      status: { $ne: 'cancelled' },
-    });
-
-    // ── In-app chat + calls ──
-    const rooms = await ChatRoom.find({ participants: cid }).select('participants participantNames messages');
-    let messagesSent = 0;
-    const calls = [];
-    const timeline = [];
-    for (const room of rooms) {
-      const otherIdx = room.participants.findIndex(p => p !== cid);
-      const otherName = room.participantNames?.[otherIdx] || room.participantNames?.find(n => n !== counselor.name) || 'User';
-      for (const m of room.messages) {
-        if (!inRange(m.timestamp)) continue;
-        if (m.type === 'call') {
-          const outbound = m.senderId === cid;
-          const answered = m.callStatus === 'answered';
-          const call = {
-            id: String(m._id), source: 'in_app', channel: 'in_app',
-            direction: outbound ? 'outbound' : 'inbound',
-            status: answered ? 'answered' : 'missed',
-            durationSec: answered ? m.callDuration || 0 : 0,
-            startedAt: m.timestamp, party: otherName,
-          };
-          calls.push(call);
-        } else if (m.senderId === cid) {
-          messagesSent++;
-        }
-      }
-    }
-
-    // ── Smartflo calls ──
-    const sf = { configured: smartflo.isConfigured(), agentSet: Boolean(counselor.smartfloAgent), error: '' };
-    if (sf.configured && sf.agentSet) {
-      try {
-        const records = await smartflo.fetchCallRecords(from, to);
-        records.filter(r => smartflo.matchesAgent(r, counselor.smartfloAgent))
-          .forEach(r => calls.push({ ...r, party: r.clientNumber || 'Unknown number' }));
-      } catch (err) {
-        sf.error = err.response?.status
-          ? `Smartflo API returned ${err.response.status}${err.response.status === 401 ? ' (check SMARTFLO_API_TOKEN)' : ''}`
-          : `Could not reach Smartflo: ${err.message}`;
-      }
-    }
-
-    const CHANNELS = ['incoming', 'click_to_call', 'whatsapp', 'in_app'];
-    const byChannel = Object.fromEntries(CHANNELS.map(c => [c, { total: 0, answered: 0, missed: 0 }]));
-    for (const c of calls) {
-      const b = byChannel[c.channel] || byChannel.in_app;
-      b.total++; b[c.status]++;
-    }
-    const callStats = {
-      total: calls.length,
-      inbound: calls.filter(c => c.direction === 'inbound').length,
-      outbound: calls.filter(c => c.direction === 'outbound').length,
-      answered: calls.filter(c => c.status === 'answered').length,
-      missed: calls.filter(c => c.status === 'missed').length,
-      talkSeconds: calls.reduce((s, c) => s + (c.durationSec || 0), 0),
-      byChannel,
-    };
-
-    // ── Timeline: recorded staff actions + every call ──
-    const actions = await StaffActivity.find({ actorId: cid, createdAt: { $gte: from } }).sort({ createdAt: -1 }).limit(300).lean();
-    actions.forEach(a => timeline.push({
-      // Older note entries stored a snippet of the note, which may be private — never show it
-      id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, detail: a.kind === 'note' ? '' : a.detail, studentName: a.studentName,
-    }));
-    const CHANNEL_LABEL = { incoming: 'Incoming call', click_to_call: 'Click-to-call', whatsapp: 'WhatsApp call', in_app: 'In-app call' };
-    calls.forEach(c => {
-      const mins = c.durationSec ? ` · ${Math.floor(c.durationSec / 60)}m ${c.durationSec % 60}s` : '';
-      timeline.push({
-        id: `call-${c.id}`, at: c.startedAt, kind: 'call', status: c.status,
-        title: `${c.direction === 'outbound' ? 'Outbound' : 'Inbound'} ${CHANNEL_LABEL[c.channel].toLowerCase()} ${c.direction === 'outbound' ? 'to' : 'from'} ${c.party}`,
-        detail: `${c.status === 'answered' ? 'Answered' : 'Missed / not answered'}${mins}${c.source === 'smartflo' ? ' · via Smartflo' : ''}`,
-      });
-    });
-    timeline.sort((a, b) => new Date(b.at) - new Date(a.at));
-
-    res.json({
-      counselor: { id: cid, name: counselor.name, email: counselor.email, smartfloAgent: counselor.smartfloAgent || '' },
-      range: { from, to, days },
-      summary: {
-        students: students.length,
-        newLeads: students.filter(s => s.leadStatus === 'new').length,
-        applications: apps.length,
-        offers: apps.filter(a => OFFER.includes(a.status)).length,
-        meetings,
-        messagesSent,
-      },
-      calls: callStats,
-      smartflo: sf,
-      timeline: timeline.slice(0, 300),
-    });
+    res.json(await buildCounselorPerformance(counselor, req.query.days));
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

@@ -4,6 +4,8 @@ import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, St
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
+import { usePortalName } from '../../hooks/usePortalName';
+import MyCallPerformance from '../../components/MyCallPerformance';
 
 const EDUCATION_LEVELS = ['10th Grade (Completed)', '12th Grade (Completed)', 'Diploma (Completed)', "Bachelor's (In Progress)", "Bachelor's (Completed)", "Master's (In Progress)", "Master's (Completed)", 'PhD (In Progress)', 'PhD (Completed)', 'Other'];
 
@@ -533,6 +535,8 @@ export default function CounselorDashboard() {
           </div>
         </div>
       </div>
+
+      <MyCallPerformance />
 
       {/* Work Status Note */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
