@@ -202,7 +202,10 @@ describe('SOC: uploads, lock, profile, feature usage', () => {
     const admin = await login('admin');
     const target = await login('student');
     await UploadRecord.create({ userId: target.id, email: target.email, originalName: 'transcript.pdf', sha256: sha(`t-${Date.now()}`), size: 5000, vt: { status: 'unknown' } });
-    const res = await request(app).get(`/api/soc/investigate/user/${target.id}`).set(auth(admin.token));
+    // The sign-in event is written in the background, so poll for it instead of assuming it already landed.
+    const fetchCard = () => request(app).get(`/api/soc/investigate/user/${target.id}`).set(auth(admin.token));
+    let res = await fetchCard();
+    await waitUntil(async () => { res = await fetchCard(); return res.body.profile?.lastLogin; });
     expect(res.status).toBe(200);
     expect(res.body.profile).toMatchObject({ phone: '+91 90000 00000', locked: false, uploadsCount: 1 });
     expect(res.body.profile.lastLogin).toBeTruthy();
