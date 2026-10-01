@@ -38,10 +38,17 @@ function applyDetails(user, body) {
 
 // Any logged-in staff member: their own effective permissions (drives which buttons the UI shows)
 router.get('/me/permissions', authMiddleware, async (req, res) => {
-  if (req.user.role === 'student') return res.json({ permissions: [], restricted: false });
+  if (req.user.role === 'student') return res.json({ permissions: [], restricted: false, hasTeam: false });
   try {
     const access = await loadAccess(req);
-    res.json({ permissions: [...access.permissions], restricted: !!access.teamIds });
+    // roleName: their place in the Roles tree (e.g. "Associate Counsellor HO") — names the portal
+    const role = access.me?.hierarchyRole && await Role.findById(access.me.hierarchyRole).select('name').lean();
+    // hasTeam: the role hierarchy gives them other staff's students to see (users in roles
+    // below theirs, or peers when their role has Peer Data Visibility on)
+    res.json({
+      permissions: [...access.permissions], restricted: !!access.teamIds,
+      hasTeam: (access.teamIds?.length || 0) > 1, roleName: role?.name || null,
+    });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }

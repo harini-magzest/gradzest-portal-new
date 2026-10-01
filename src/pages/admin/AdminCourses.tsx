@@ -8,6 +8,7 @@ import { checkCourseEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '..
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const CURRENCIES = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'SGD', 'NZD'];
@@ -691,6 +692,7 @@ function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply, onCusto
 }
 
 export default function AdminCourses() {
+  const { portal } = usePortalName();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -778,7 +780,7 @@ export default function AdminCourses() {
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Courses Management</h1>
               </div>
             </div>

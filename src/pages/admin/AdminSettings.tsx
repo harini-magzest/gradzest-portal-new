@@ -11,6 +11,7 @@ import { api } from '../../api';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import AdminUsersControls from './AdminUsersControls';
 import AdminAutomation from './AdminAutomation';
+import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -509,6 +510,7 @@ function DangerZone() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminSettings() {
+  const { portal } = usePortalName();
   // The open section lives in ?section= so it survives reloads and can be linked to
   const [params, setParams] = useSearchParams();
   const raw = params.get('section');
@@ -547,7 +549,7 @@ export default function AdminSettings() {
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-gray-300 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+            <p className="text-gray-300 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Settings</h1>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, Eli
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -273,6 +274,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
 }
 
 export default function CounselorCourses() {
+  const { portal } = usePortalName();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
@@ -324,7 +326,7 @@ export default function CounselorCourses() {
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Available Courses</h1>
           </div>
         </div>
