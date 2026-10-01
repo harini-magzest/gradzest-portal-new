@@ -1,5 +1,6 @@
 import { api } from '../api';
 import { parseRouteFiles, findRouteFile, type RouteFile } from './routeFiles';
+import { getDeviceHints } from './deviceInfo';
 
 // Records what staff do in the dashboard: which page (and source file), which
 // button/link was clicked, which files were picked or downloaded, which forms
@@ -100,7 +101,7 @@ async function flush() {
     return { ...e, file: route?.file || '', routePattern: route?.pattern || '' };
   });
   try {
-    const res = await api.uiTrail.send(sessionKey, events);
+    const res = await api.uiTrail.send(sessionKey, events, await getDeviceHints());
     if (res.tracking === false) { disabled = true; queue = []; }
   } catch {
     // Network blip: keep the events for the next tick (bounded), but don't loop on hard failures.

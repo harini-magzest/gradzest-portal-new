@@ -7,6 +7,7 @@ import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
 import ReviewBadge from './ReviewBadge';
 import FeatureUsage from './FeatureUsage';
 import { parseUserAgent } from './DeviceDetails';
+import { Mask } from './Mask';
 
 type Mode = 'user' | 'ip';
 
@@ -94,11 +95,11 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
         {p.isAppTeam && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">App team</span>}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" />{data.user.email}</a></Field>
+        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" /><Mask value={data.user.email} /></a></Field>
         <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-400">Not on file</span>}</Field>
         <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-400"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
         <Field label="Joined">{when(p.joined)}</Field>
-        <Field label="Last sign-in">{p.lastLogin ? <>{when(p.lastLogin.at)}<span className="block text-[11px] text-gray-400"><span className="font-mono">{p.lastLogin.ip || '—'}</span> · {shortUa(p.lastLogin.userAgent)}</span></> : <span className="text-gray-400">No sign-in recorded</span>}</Field>
+        <Field label="Last sign-in">{p.lastLogin ? <>{when(p.lastLogin.at)}<span className="block text-[11px] text-gray-400"><span className="font-mono">{p.lastLogin.ip || '—'}</span> · {p.lastLogin.device?.label || shortUa(p.lastLogin.userAgent)}</span></> : <span className="text-gray-400">No sign-in recorded</span>}</Field>
         <Field label="Last active in app">{when(p.lastActive)}</Field>
         <Field label="Active sessions">{data.user.activeSessions}</Field>
         <Field label="Documents uploaded">{p.uploadsCount ?? 0}</Field>
@@ -296,7 +297,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
               {userResults.map(u => (
                 <button key={u.id} onClick={() => investigateUser(u)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-purple-50' : ''}`}>
-                  <span>{u.name} <span className="text-gray-400">· {u.email}</span></span>
+                  <span>{u.name} <span className="text-gray-400">· <Mask value={u.email} /></span></span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{u.role}</span>
                 </button>
               ))}
@@ -324,7 +325,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
               <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
-              <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
+              <p className="text-xs text-gray-400"><Mask value={userData.user.email} /> · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <button onClick={toggleLock}

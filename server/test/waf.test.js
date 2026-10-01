@@ -2,6 +2,7 @@ const request = require('supertest');
 const { app } = require('../app');
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');
+const { waitUntil } = require('./helpers');
 
 describe('WAF signature filter', () => {
   it('lets a normal login request through untouched', async () => {
@@ -54,8 +55,8 @@ describe('WAF signature filter', () => {
     const res = await request(app).get('/api/countries?search=<script>evidence-marker</script>');
     expect(res.status).toBe(403);
 
-    // Detection runs fire-and-forget after the response — give it a moment.
-    await new Promise((r) => setTimeout(r, 300));
+    // Detection runs fire-and-forget after the response — poll for it rather than guess how long it takes under load.
+    await waitUntil(async () => SecurityEvent.findOne({ type: 'waf_block' }));
 
     const event = await SecurityEvent.findOne({ type: 'waf_block' }).sort({ createdAt: -1 });
     expect(event).toBeTruthy();
@@ -66,7 +67,7 @@ describe('WAF signature filter', () => {
     // per IP (see detectIncidents.test.js), so it reuses that open incident rather
     // than creating a duplicate. What matters here is that THIS event is linked to
     // an incident, not whether a brand-new incident document was created.
-    const incident = await SecurityIncident.findOne({ type: 'waf_block', sourceEventIds: event._id });
+    const incident = await waitUntil(async () => SecurityIncident.findOne({ type: 'waf_block', sourceEventIds: event._id }));
     expect(incident).toBeTruthy();
   });
 });

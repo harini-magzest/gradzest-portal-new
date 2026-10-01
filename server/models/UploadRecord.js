@@ -54,4 +54,6 @@ uploadRecordSchema.index({ 'inspection.risk': 1, createdAt: -1 });
 // Audit record of what entered the system — kept a year.
 uploadRecordSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 365 });
 
+uploadRecordSchema.plugin(require('../lib/encryptedFields'), { fields: ['email','name','originalName','ip','userAgent'] });
+
 module.exports = mongoose.model('UploadRecord', uploadRecordSchema);
