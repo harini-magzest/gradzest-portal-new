@@ -6,14 +6,16 @@
 // call must carry it in X-SOC-Token; the live-event socket room is only joined while the token is active.
 //
 // The token is bound to the owner's user id and to a hash of their browser's User-Agent, carries the enrolment
-// version, and is void if issued before `revokedBefore` (sign-out / lockout / reset). SOC_MFA_REQUIRED=false turns the
-// requirement off (the automated test suite and local development only).
+// version, and is void if issued before `revokedBefore` (sign-out / lockout / reset). The requirement is opt-in:
+// set SOC_MFA_REQUIRED=true to enforce it.
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const SocMfa = require('../models/SocMfa');
 
-const required = () => process.env.SOC_MFA_REQUIRED !== 'false';
+// OFF unless SOC_MFA_REQUIRED=true. (It was on by default; switched to opt-in at the owner's request. The whole
+// mechanism — enrolment, token, lockout, live-feed gating — is intact and returns when the setting is "true".)
+const required = () => process.env.SOC_MFA_REQUIRED === 'true';
 const ttlMinutes = () => Math.max(5, parseInt(process.env.SOC_MFA_TTL_MIN || '30', 10) || 30);
 const uaHash = (req) => crypto.createHash('sha256').update(String(req.headers?.['user-agent'] || '')).digest('hex').slice(0, 16);
 

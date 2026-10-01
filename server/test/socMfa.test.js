@@ -234,7 +234,17 @@ describe('the SOC requires two-factor step-up', () => {
     } finally { process.env.SOC_OWNER_EMAILS = '@example.com,owner@soc.test'; }
   });
 
-  it('SOC_MFA_REQUIRED=false disables the requirement (development / automated tests only)', async () => {
+  it('is OFF by default: with no setting at all, the owner opens the SOC with just their login', async () => {
+    const owner = await mk();
+    delete process.env.SOC_MFA_REQUIRED;
+    try {
+      expect((await request(app).get('/api/soc/stats').set(as(owner))).status).toBe(200);
+      const status = await request(app).get('/api/soc-auth/status').set(as(owner));
+      expect(status.body).toMatchObject({ required: false, verified: true });
+    } finally { process.env.SOC_MFA_REQUIRED = 'true'; }
+  });
+
+  it('SOC_MFA_REQUIRED=false also disables the requirement', async () => {
     const owner = await mk();
     process.env.SOC_MFA_REQUIRED = 'false';
     try {
