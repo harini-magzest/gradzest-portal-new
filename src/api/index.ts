@@ -32,8 +32,24 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
+// SOC two-factor step-up token. Kept for the browser tab only (sessionStorage) so a reload doesn't re-prompt within its
+// lifetime; it is useless without the signed-in session and is bound server-side to this browser.
+const SOC_TOKEN_KEY = 'gz_soc_token';
+let _socToken: string | null = null;
+try { _socToken = sessionStorage.getItem(SOC_TOKEN_KEY); } catch { /* storage unavailable */ }
+export function setSocToken(token: string | null) {
+  _socToken = token;
+  try { if (token) sessionStorage.setItem(SOC_TOKEN_KEY, token); else sessionStorage.removeItem(SOC_TOKEN_KEY); } catch { /* ignore */ }
+}
+export function getSocToken(): string | null { return _socToken; }
+// /soc-auth/status also gets the token: the server answers "verified" only when it is present and valid.
+const socHeader = (url: string): Record<string, string> => ((url.startsWith('/soc/') || url === '/soc-auth/status') && _socToken ? { 'X-SOC-Token': _socToken } : {});
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
+  const res = await fetch(`${BASE}${url}`, {
+    credentials: 'include', ...options,
+    headers: { ...(options?.headers as Record<string, string> || {}), ...socHeader(url) },
+  });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -51,6 +67,10 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
+    // The step-up expired or was never done: tell the SOC gate to ask for a code again instead of just failing.
+    if (res.status === 403 && typeof err.code === 'string' && err.code.startsWith('SOC_MFA_')) {
+      window.dispatchEvent(new CustomEvent('soc:mfa', { detail: err.code }));
+    }
     throw new Error(err.message || 'Request failed');
   }
   return res.json();
@@ -77,12 +97,27 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export const api = {
+  // SOC two-factor (authenticator app). Reachable by the SOC owner only; not behind the step-up token itself.
+  socAuth: {
+    status: () => req<{ required: boolean; enrolled: boolean; verified: boolean; lockedUntil: string | null; ttlMinutes: number; recoveryCodesLeft: number }>('/soc-auth/status', { headers: authHeaders() }),
+    setup: (password: string) => req<{ secret: string; otpauthUrl: string }>('/soc-auth/setup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password }) }),
+    confirm: (code: string) => req<{ recoveryCodes: string[]; socToken: string; expiresAt: string }>('/soc-auth/confirm', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code }) }),
+    verify: (body: { code?: string; recoveryCode?: string }) => req<{ socToken: string; expiresAt: string; recoveryCodesLeft: number }>('/soc-auth/verify', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }),
+    logout: () => req<{ ok: boolean }>('/soc-auth/logout', { method: 'POST', headers: authHeaders() }),
+  },
+  // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
+  uiTrail: {
+    send: (sessionKey: string, events: unknown[], device?: unknown) =>
+      req<{ tracking: boolean; accepted: number }>('/ui-trail', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ sessionKey, events, device }), keepalive: true,
+      }),
+  },
   auth: {
-    login: (email: string, password: string) =>
+    login: (email: string, password: string, device?: unknown) =>
       req<{ token: string; user: any }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
     register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
@@ -294,6 +329,9 @@ export const api = {
     deleteStudent: (id: string) => req<any>(`/admin/students/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+    deleteAllStudents: (confirm: string) => req<{ message: string; deletedCount: number }>('/admin/danger/delete-all-students', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm }),
+    }),
     assignCounselor: (studentId: string, counselorId: string | null) => req<any>(`/admin/students/${studentId}/assign`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ counselorId }),
     }),
@@ -376,6 +414,7 @@ export const api = {
   },
 
   soc: {
+    owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
     events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
@@ -406,9 +445,24 @@ export const api = {
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
+    testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
+    uploads: (params: { limit?: number; skip?: number; risk?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
+    quarantineUpload: (id: string, action: 'quarantine' | 'restore' | 'purge', reason?: string) =>
+      req<any>(`/soc/uploads/${id}/quarantine`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ action, reason }) }),
+    // Records the analyst's manual VirusTotal verdict (there is no automatic lookup).
+    reviewUpload: (id: string, status: 'clean' | 'flagged' | 'unreviewed', note?: string) =>
+      req<any>(`/soc/uploads/${id}/review`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ status, note }) }),
+    featureUsage: (period: string, userId?: string) =>
+      req<any>(`/soc/feature-usage?${toQueryString({ period, userId })}`, { headers: authHeaders() }),
+    lockUser: (userId: string, locked: boolean, reason?: string) =>
+      req<{ locked: boolean; message: string }>(`/soc/investigate/user/${userId}/lock`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ locked, reason }) }),
+    uiActivity: (params: { limit?: number; skip?: number; email?: string; kind?: string; page?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/ui-activity?${toQueryString(params)}`, { headers: authHeaders() }),
     // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
     download: async (path: string, filename: string) => {
-      const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
+      const res = await fetch(`${BASE}/soc${path}`, { headers: { ...authHeaders(), ...socHeader('/soc/') } });
       if (!res.ok) throw new Error('Download failed');
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
@@ -457,9 +511,9 @@ export const api = {
 
   roles: {
     list: () => req<{ roles: any[]; staff: any[] }>('/roles', { headers: authHeaders() }),
-    create: (data: { name: string; description?: string; parentRole?: string | null }) =>
+    create: (data: { name: string; description?: string; parentRole?: string | null; peerVisibility?: boolean }) =>
       req<any>('/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
-    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null }) =>
+    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null; peerVisibility?: boolean }) =>
       req<any>(`/roles/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     remove: (id: string) => req<{ message: string }>(`/roles/${id}`, { method: 'DELETE', headers: authHeaders() }),
     assign: (userId: string, roleId: string | null) =>
@@ -467,10 +521,11 @@ export const api = {
   },
 
   users: {
-    myPermissions: () => req<{ permissions: string[]; restricted: boolean }>('/users/me/permissions', { headers: authHeaders() }),
+    myPermissions: () => req<{ permissions: string[]; restricted: boolean; hasTeam?: boolean; roleName?: string | null }>('/users/me/permissions', { headers: authHeaders() }),
     list: () => req<{ users: any[]; roles: any[]; profiles: any[] }>('/users', { headers: authHeaders() }),
     create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
     profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
     createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
       req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),

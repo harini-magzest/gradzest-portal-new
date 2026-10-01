@@ -424,6 +424,24 @@ router.delete('/students/:id', authMiddleware, adminOnly, blockAppTeam, async (r
   }
 });
 
+// Danger Zone (Settings): delete every student account. Applications and document records
+// live on the student's User doc, so they go with it. The typed confirmation is re-checked
+// here so a stray request can't wipe the data.
+router.post('/danger/delete-all-students', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+  if (req.body?.confirm !== 'DELETE') return res.status(400).json({ message: 'Type DELETE to confirm' });
+  try {
+    const { deletedCount } = await User.deleteMany({ role: 'student' });
+    logSecurityEvent('bulk_delete', {
+      severity: 'critical', userId: req.user.id, email: req.user.email || '', role: req.user.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: `Deleted all student data (${deletedCount} students)`,
+    }).catch(() => {});
+    res.json({ message: 'All student data deleted', deletedCount });
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Assign student to counselor (or unassign)
 router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   const { counselorId } = req.body;

@@ -175,7 +175,14 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   firstName: String,
   lastName: String,
-  email: { type: String, required: true, unique: true, lowercase: true },
+  // Required for staff and self-signups; a student lead added from a phone call may not have
+  // one yet. Unique only when present — see the partial index below and lib/migrateEmailIndex.js.
+  email: {
+    type: String, lowercase: true, trim: true,
+    required() { return this.role !== 'student'; },
+    // Never store '' (it would collide in the unique index) — leave the field unset instead
+    set: v => (v == null || String(v).trim() === '' ? undefined : v),
+  },
   password: { type: String, required: false },
   role: { type: String, enum: ['student', 'counselor', 'admin'], required: true },
   isAppTeam: { type: Boolean, default: false },
@@ -221,11 +228,30 @@ const UserSchema = new mongoose.Schema({
   tags: { type: [String], default: undefined },
   summary: String,
 
+  // Bigin-style lead details, filled in by staff (often one by one after a phone enquiry)
+  secondaryEmail: String,
+  universityName: String,
+  altPhone: String,            // "Phone" — `phone` above is the mobile number
+  socialLeadId: String,
+  preferredCourseLevel: String,
+  preferredIntake: String,
+  qualification: String,       // free-text "Qualification and YOP"
+  workSummary: String,         // free-text "Work"
+  branch: String,
+
+  // The student's own words about what they want ("My Preferences" on their profile)
+  preferredUniversities: String,
+  preferredCities: String,
+  needsScholarship: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  needsLoan: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  needsAccommodation: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  preferenceNote: String,
+
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
   source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
-  leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment'] },
+  leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment', 'future_lead', 'other_agent', 'dropped_plans', 'test_prep', 'dnd', 'not_responding', 'other'] },
   // When leadStage last changed — drives the "stale lead" automation field (days since last movement)
   leadStageChangedAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['active', 'inactive', 'counseling', 'shortlisting', 'application', 'test_preparation', 'visa_process', 'loan_process', 'enrolled'], default: 'counseling' },
@@ -268,6 +294,9 @@ const UserSchema = new mongoose.Schema({
   certifications: [String],
   linkedIn: String,
   website: String,
+  // Staff contact details (Settings → Users)
+  mobile: String,
+  fax: String,
   address: {
     street: String,
     city: String,
@@ -281,6 +310,9 @@ const UserSchema = new mongoose.Schema({
     graduationYear: String,
   },
 }, { timestamps: true });
+
+// Unique only among accounts that have an email, so any number of phone-only leads can coexist
+UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } });
 
 UserSchema.set('toJSON', { virtuals: true });
 

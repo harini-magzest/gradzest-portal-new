@@ -11,6 +11,8 @@ import { api, API_ORIGIN, getApiToken } from '../../api';
 import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';
 import SavedFilters from './SavedFilters';
+import DeviceDetails from './DeviceDetails';
+import { Mask } from './Mask';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -19,6 +21,7 @@ interface SecurityEvent {
   type: string;
   severity: string;
   email?: string;
+  role?: string;
   ip?: string;
   userAgent?: string;
   message: string;
@@ -43,7 +46,7 @@ const TYPE_ICON: Record<string, any> = {
 const TYPE_LABEL: Record<string, string> = {
   login_success: 'Login', login_failure: 'Failed login', login_lockout: 'Lockout',
   logout: 'Logout', token_invalid: 'Invalid token', token_expired: 'Expired token', password_reset: 'Password reset',
-  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', malware_upload: 'Malware upload', waf_block: 'WAF block',
+  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', bulk_delete: 'Bulk delete', malware_upload: 'Malware upload', waf_block: 'WAF block',
   skyload_bot_flag: 'Bot flag', skyload_throttle: 'Throttled',
 };
 
@@ -74,6 +77,7 @@ export default function OverviewTab() {
   const [isLive, setIsLive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [feedFilters, setFeedFilters] = useState({ q: '', type: 'all', severity: 'all' });
   const filtersRef = useRef(feedFilters);
   useEffect(() => { filtersRef.current = feedFilters; }, [feedFilters]);
@@ -309,19 +313,26 @@ export default function OverviewTab() {
             const Icon = TYPE_ICON[e.type] ?? ShieldAlert;
             const time = new Date(e.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
             return (
-              <div key={e._id} className="flex items-start gap-3 px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+              <div key={e._id} className="px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+              <div role="button" tabIndex={0} aria-expanded={expandedId === e._id} title="Click for full device details"
+                onClick={() => setExpandedId(id => id === e._id ? null : e._id)}
+                onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setExpandedId(id => id === e._id ? null : e._id); } }}
+                className="flex items-start gap-3 cursor-pointer">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: badge.text }}>
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-sm font-semibold text-gray-900 truncate">{e.email || 'Unknown'}</span>
+                    <span className="text-sm font-semibold text-gray-900 truncate"><Mask value={e.email} fallback="Unknown" /></span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
+                    <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                   </div>
                   <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? ` — ${e.message}` : ''}</p>
-                  {e.ip && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{e.ip}{e.userAgent ? ` · ${e.userAgent}` : ''}</p>}
+                  {e.userAgent && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{e.userAgent}</p>}
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums pt-0.5">{time}</span>
+              </div>
+              {expandedId === e._id && <DeviceDetails event={e} />}
               </div>
             );
           })}

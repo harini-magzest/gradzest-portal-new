@@ -5,6 +5,7 @@ import {
   type Incident, type Analyst, type SlaPolicy, TYPE_LABEL, STATUS_STYLE, RESOLUTION_REASONS, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
 import { BLOCK_DURATIONS } from './BlockedIpsPanel';
+import { Mask } from './Mask';
 
 const CLOSING = ['resolved', 'false_positive'];
 
@@ -126,7 +127,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
             </p>
           )}
           {incident.relatedIp && <p className="text-sm text-gray-600">IP: <span className="font-mono">{incident.relatedIp}</span></p>}
-          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: {incident.relatedEmail}</p>}
+          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: <Mask value={incident.relatedEmail} /></p>}
 
           <div className="flex items-center gap-2">
             <UserCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />

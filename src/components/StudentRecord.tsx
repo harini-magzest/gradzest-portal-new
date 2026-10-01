@@ -4,10 +4,11 @@ import {
   MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, Trash2, UserPlus, Video,
   AlertCircle, Download, Clock, XCircle, Plus, CheckSquare, Square, ChevronLeft,
 } from 'lucide-react';
+import { TaskStatusPill, TASK_STATUS, type TaskStatus } from './TaskProgress';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
-import LeadStageSelect, { LEAD_STAGES, leadStageOf } from './LeadStageSelect';
+import LeadStageSelect, { PIPELINE_STAGES, leadStageOf } from './LeadStageSelect';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export type RecordTab = 'timeline' | 'notes' | 'messages' | 'activities' | 'emails' | 'pipelines' | 'files';
@@ -394,9 +395,9 @@ function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<voi
                 </td>
                 <td className={`px-3 py-3 whitespace-nowrap ${overdue ? 'text-red-600 font-medium' : ''}`}>{t.dueDate ? fmtDate(`${t.dueDate}T00:00`) : '—'}</td>
                 <td className="px-3 py-3 whitespace-nowrap">
-                  <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${done ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {done ? 'Completed' : overdue ? 'Overdue' : 'Open'}
-                  </span>
+                  {overdue
+                    ? <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">Overdue · {TASK_STATUS[t.status as TaskStatus]?.label || 'Pending'}</span>
+                    : <TaskStatusPill status={t.status} />}
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap">{t.assignedToName || '—'}</td>
                 <td className="px-3 py-3 max-w-[16rem]"><p className="truncate" title={t.description}>{t.description || '—'}</p></td>
@@ -585,7 +586,7 @@ function Stepper({ steps, current, failed }: { steps: { key: string; label: stri
 }
 
 function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEdit: boolean; onLeadStage: (stage: string) => Promise<unknown> }) {
-  const stageIdx = LEAD_STAGES.findIndex(s => s.value === leadStageOf(student).value);
+  const stageIdx = PIPELINE_STAGES.findIndex(s => s.value === leadStageOf(student).value);
   const apps = student.applications || [];
   return (
     <div className="space-y-6">
@@ -594,7 +595,7 @@ function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEd
           <h4 className="text-sm font-semibold text-gray-900">Lead pipeline</h4>
           <LeadStageSelect value={student.leadStage} editable={canEdit} onSave={onLeadStage} />
         </div>
-        <Stepper steps={LEAD_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
+        <Stepper steps={PIPELINE_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
       </section>
       <section>
         <h4 className="text-sm font-semibold text-gray-900 mb-3">Applications ({apps.length})</h4>

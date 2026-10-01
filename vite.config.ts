@@ -67,6 +67,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    strictPort: true,
     // Dev-only: the full-screen error overlay on an unhandled exception. Never ships
     // to production — server.hmr config doesn't exist in a `vite build` output at all.
     hmr: {

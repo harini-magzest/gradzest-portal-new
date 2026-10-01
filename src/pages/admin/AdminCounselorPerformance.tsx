@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
@@ -7,6 +7,9 @@ import {
   MessageCircle, Info, AlertCircle, GitBranch, CheckSquare,
 } from 'lucide-react';
 import { api } from '../../api';
+import {
+  CounselorProfileCard, CounselorStatsModal, counselorMetrics, normalId, type StatType,
+} from './AdminCounselors';
 
 // Categorical slots (validated: blue, orange, aqua, yellow) — fixed per entity, never by rank.
 const SLOT = { blue: '#2a78d6', orange: '#eb6834', aqua: '#1baf7a', yellow: '#eda100' };
@@ -137,6 +140,27 @@ export default function AdminCounselorPerformance() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Profile data (same as the Team page profile popup)
+  const [profile, setProfile] = useState<{ counselor: any; students: any[]; applications: any[] } | null>(null);
+  const [statsType, setStatsType] = useState<StatType | null>(null);
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const [c, st, ap] = await Promise.all([api.admin.counselors(), api.admin.students(), api.admin.applications()]);
+      const counselor = c.find((x: any) => normalId(x) === id);
+      setProfile(counselor ? { counselor, students: st, applications: ap } : null);
+    } catch { setProfile(null); }
+  }, [id]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  const metrics = useMemo(
+    () => profile ? counselorMetrics(profile.counselor, profile.students, profile.applications) : null,
+    [profile],
+  );
+
+  const refresh = () => { load(); loadProfile(); };
+
   const calls = data?.calls;
   const sf = data?.smartflo;
   const s = data?.summary;
@@ -176,11 +200,23 @@ export default function AdminCounselorPerformance() {
             </button>
           ))}
         </div>
-        <button type="button" onClick={load} disabled={loading} aria-label="Refresh"
+        <button type="button" onClick={refresh} disabled={loading} aria-label="Refresh"
           className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
           {loading ? <Spinner /> : <RefreshCw className="w-4 h-4" />}
         </button>
       </div>
+
+      {profile && metrics && (
+        <CounselorProfileCard
+          counselor={profile.counselor}
+          metrics={metrics}
+          onChat={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: profile.counselor.name } } })}
+          onStatClick={setStatsType}
+        />
+      )}
+      {profile && metrics && statsType && (
+        <CounselorStatsModal counselor={profile.counselor} metrics={metrics} type={statsType} onClose={() => setStatsType(null)} />
+      )}
 
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">

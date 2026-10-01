@@ -3,6 +3,23 @@ const router  = express.Router();
 const ActivityLog  = require('../models/ActivityLog');
 const authMiddleware = require('../middleware/auth');
 const { logActivity } = require('../middleware/logActivity');
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const { loadAccess, studentFilter } = require('../lib/access');
+
+// What this caller is allowed to read from the platform-wide activity log. Admins (including the
+// Application Team) see everything; a counselor sees events for their own students; a student sees
+// only events about themselves. Previously every signed-in user could read every student's events.
+async function activityScope(req) {
+  if (req.user.role === 'admin') return {};
+  if (req.user.role === 'student') return { studentId: new mongoose.Types.ObjectId(req.user.id) };
+  if (req.user.role === 'counselor') {
+    const teamFilter = studentFilter(await loadAccess(req));
+    const mine = await User.find({ role: 'student', ...(teamFilter || { counselorId: req.user.id }) }).select('_id').lean();
+    return { $or: [{ counsellorId: new mongoose.Types.ObjectId(req.user.id) }, { studentId: { $in: mine.map((u) => u._id) } }] };
+  }
+  return { _id: null }; // any other role: nothing
+}
 
 // ── GET /api/activity ────────────────────────────────────────────────────────
 // Query params:
@@ -14,7 +31,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const { since, type } = req.query;
 
-    const query = {};
+    const scope = await activityScope(req);
+    const query = { ...scope };
     if (since) query.createdAt = { $gt: new Date(since) };
     if (type && type !== 'all') query.type = type;
 
@@ -26,6 +44,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     // Per-type totals for the stats bar
     const rawCounts = await ActivityLog.aggregate([
+      { $match: scope },
       { $group: { _id: '$type', count: { $sum: 1 } } },
     ]);
     const counts = rawCounts.reduce((acc, { _id, count }) => {

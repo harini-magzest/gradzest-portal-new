@@ -312,6 +312,50 @@ async function checkMassExportRule(event, io) {
   );
 }
 
+// Called when an analyst marks an upload as malicious after checking its hash on virustotal.com by hand.
+// ClamAV and the local inspection already passed the file and it is stored, so a human verdict needs a record
+// and a visible incident.
+async function raiseAnalystFlaggedUploadIncident(record, analystEmail, io) {
+  await createIncident(io, {
+    type: 'malware_upload',
+    severity: 'high',
+    title: `Analyst flagged "${record.originalName}" uploaded by ${record.email || 'unknown'} as malicious (${analystEmail || 'analyst'}, manual VirusTotal check)`,
+    relatedIp: record.ip,
+    relatedUserId: record.userId,
+    relatedEmail: record.email,
+  });
+}
+
+// Called by recordUpload when the local content inspection finds something a legitimate document
+// never contains (disguised executable, macro, remote template, PDF launch action, script in an
+// image, deceptive filename). The upload was already blocked and quarantined; this makes sure a
+// human sees who tried it — a student can send a bad file by accident, but a pattern isn't one.
+async function raiseUnsafeUploadIncident(record, io) {
+  const high = (record.inspection?.findings || []).filter((f) => f.severity === 'high');
+  const codes = high.map((f) => f.code).join(', ');
+  await createIncident(io, {
+    type: 'malware_upload',
+    severity: 'high',
+    title: `Unsafe file blocked: "${record.originalName}" from ${record.email || 'unknown'} (${codes})`,
+    relatedIp: record.ip,
+    relatedUserId: record.userId,
+    relatedEmail: record.email,
+  });
+}
+
+// Raised when the SOC owner's two-factor prompt is locked after repeated wrong codes: someone who already has the
+// owner's password is guessing authenticator codes. The lock itself stops them; this makes sure it is seen.
+async function raiseSocMfaLockoutIncident({ email, ip, userId }, io) {
+  await createIncident(io, {
+    type: 'account_lockout',
+    severity: 'high',
+    title: `SOC two-factor locked after repeated wrong codes (${email || 'owner'})`,
+    relatedIp: ip,
+    relatedUserId: userId,
+    relatedEmail: email,
+  });
+}
+
 // Great-circle distance between two lat/lon points, in km. Exported
 // separately so the threshold math can be unit-tested with known city
 // coordinates without depending on a live geolocation lookup.
@@ -427,6 +471,6 @@ async function checkNewDevicePrivilegedRule(event, io) {
 module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
-  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, checkImpossibleTravelRule,
+  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseAnalystFlaggedUploadIncident, raiseUnsafeUploadIncident, raiseSocMfaLockoutIncident, checkImpossibleTravelRule,
   checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
 };

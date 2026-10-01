@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, X, Minus, Network, Users, UserPlus, RefreshCw } f
 import { api } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
-interface Role { _id: string; name: string; description?: string; parentRole: string | null }
+interface Role { _id: string; name: string; description?: string; parentRole: string | null; peerVisibility?: boolean }
 interface Staff { _id: string; name: string; email: string; role: string; isAppTeam?: boolean; title?: string; hierarchyRole?: string | null }
 
 const ORG_NAME = 'Gradzest Educational Technology Private Limited';
@@ -24,6 +24,7 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
   const [name, setName] = useState(role?.name || '');
   const [description, setDescription] = useState(role?.description || '');
   const [parent, setParent] = useState<string>(role ? (role.parentRole || '') : (parentId || ''));
+  const [peerVisibility, setPeerVisibility] = useState(!!role?.peerVisibility);
   const [saving, setSaving] = useState(false);
 
   // A role can't report to itself or to anything below it
@@ -35,7 +36,7 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const data = { name: name.trim(), description, parentRole: parent || null };
+      const data = { name: name.trim(), description, parentRole: parent || null, peerVisibility };
       if (role) await api.roles.update(role._id, data);
       else await api.roles.create(data);
       toast.success(role ? 'Role updated' : 'Role created');
@@ -50,27 +51,39 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500';
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold text-gray-900">{role ? 'Edit role' : 'Create new role'}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{role ? 'Edit Role' : 'Create New Role'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role name *</label>
-            <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Associate Counsellor HO" className={inputCls} />
+        <div className="p-6 space-y-5">
+          <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-center gap-4">
+            <label htmlFor="role-name" className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:text-right">Role Name <span className="text-red-500">*</span></label>
+            <input id="role-name" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Associate Counsellor HO" className={inputCls} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reports to</label>
-            <select value={parent} onChange={e => setParent(e.target.value)} className={inputCls}>
-              <option value="">— Top level (no parent) —</option>
-              {parentOptions.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Users in the parent role are above this role in the hierarchy.</p>
+          <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-start gap-4">
+            <label htmlFor="role-parent" className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:pt-2 sm:text-right">Reports to</label>
+            <div>
+              <select id="role-parent" value={parent} onChange={e => setParent(e.target.value)} className={inputCls}>
+                <option value="">— Top level (no parent) —</option>
+                {parentOptions.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Users in the parent role can see this role's data.</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className={inputCls} placeholder="Optional" />
+          <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-center gap-4">
+            <span className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:text-right">Peer Data Visibility</span>
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg">
+              <button type="button" role="switch" aria-checked={peerVisibility} aria-labelledby="peer-label" onClick={() => setPeerVisibility(v => !v)}
+                className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${peerVisibility ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${peerVisibility ? 'left-5' : 'left-0.5'}`} />
+              </button>
+              <span id="peer-label" className="text-sm text-gray-700 cursor-pointer" onClick={() => setPeerVisibility(v => !v)}>Let users in this role see each other's data</span>
+            </div>
+          </div>
+          <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-start gap-4">
+            <label htmlFor="role-desc" className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:pt-2 sm:text-right">Description</label>
+            <textarea id="role-desc" value={description} onChange={e => setDescription(e.target.value)} rows={4} className={inputCls} placeholder="e.g. Users belonging to this role cannot see data for admin users." />
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">

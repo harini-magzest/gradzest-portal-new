@@ -4,10 +4,27 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
+const { recordUpload } = require('../middleware/recordUpload');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
+
+// A room's messages, files and settings are private to its participants. These helpers are the only way
+// room-by-id routes should look a room up; a non-member gets the same 404 as a room that doesn't exist.
+const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
+const memberFilter = (req) => ({ _id: isObjectId(req.params.roomId) ? req.params.roomId : null, participants: String(req.user.id) });
+async function requireRoomMember(req, res, next) {
+  try { if (await ChatRoom.exists(memberFilter(req))) return next(); } catch { /* fall through to 404 */ }
+  return res.status(404).json({ message: 'Room not found' });
+}
+// For routes that take a participant list in the body: the caller must be one of them.
+function participantListError(req, ids) {
+  if (!Array.isArray(ids) || ids.length < 2 || ids.length > 12 || ids.some((i) => !isObjectId(i))) return 'participantIds must list 2-12 user ids';
+  if (!ids.map(String).includes(String(req.user.id))) return 'You can only open conversations you are part of';
+  return null;
+}
 
 async function resolveDisplayRole(userId, userRole) {
   if (userRole === 'admin') {
@@ -175,7 +192,7 @@ router.get('/rooms', authMiddleware, async (req, res) => {
 // Get single room
 router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
   try {
-    const room = await ChatRoom.findById(req.params.roomId);
+    const room = await ChatRoom.findOne(memberFilter(req));
     if (!room) return res.status(404).json({ message: 'Room not found' });
 
     // Auto-correct room type if participant is admin
@@ -198,7 +215,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
   const { content, senderName, replyToId } = req.body;
   try {
-    const target = await ChatRoom.findById(req.params.roomId).select('type participants messages._id messages.senderName messages.content messages.fileName');
+    const target = await ChatRoom.findOne(memberFilter(req)).select('type participants messages._id messages.senderName messages.content messages.fileName');
     if (!target) return res.status(404).json({ message: 'Room not found' });
     // Only members can post in a group
     if (target.type === 'group' && !target.participants.includes(req.user.id.toString())) {
@@ -220,8 +237,8 @@ router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
         content: String(quoted.content || quoted.fileName || '').slice(0, 200),
       };
     }
-    const room = await ChatRoom.findByIdAndUpdate(
-      req.params.roomId,
+    const room = await ChatRoom.findOneAndUpdate(
+      memberFilter(req),
       { $push: { messages: message } },
       { new: true }
     );
@@ -360,6 +377,8 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, asyn
 // Log a call event into the shared room
 router.post('/rooms/call-log', authMiddleware, async (req, res) => {
   const { participantIds, callStatus, callDuration, callerName } = req.body;
+  const bad = participantListError(req, participantIds);
+  if (bad) return res.status(400).json({ message: bad });
   try {
     const room = await ChatRoom.findOne({
       participants: { $all: participantIds.map(String), $size: participantIds.length },
@@ -401,7 +420,7 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
 });
 
 // Send file in chat (+ auto-handle offer letters)
-router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
+router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('chat_file'), uploadToS3IfConfigured, async (req, res) => {
   const { senderName, isOfferLetter } = req.body;
   try {
     const fileUrl = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : null;
@@ -424,8 +443,8 @@ router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), scanU
       read: false,
     };
 
-    const room = await ChatRoom.findByIdAndUpdate(
-      req.params.roomId,
+    const room = await ChatRoom.findOneAndUpdate(
+      memberFilter(req),
       { $push: { messages: message } },
       { new: true }
     );
@@ -503,8 +522,8 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
       read: false,
     };
 
-    const room = await ChatRoom.findByIdAndUpdate(
-      req.params.roomId,
+    const room = await ChatRoom.findOneAndUpdate(
+      memberFilter(req),
       { $push: { messages: message } },
       { new: true }
     );
@@ -536,8 +555,8 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
 router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
   const { type } = req.body;
   try {
-    const room = await ChatRoom.findByIdAndUpdate(
-      req.params.roomId, { type }, { new: true }
+    const room = await ChatRoom.findOneAndUpdate(
+      memberFilter(req), { type }, { new: true }
     );
     if (!room) return res.status(404).json({ message: 'Room not found' });
     res.json(room.toJSON());
@@ -550,7 +569,7 @@ router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
 router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
   try {
     await ChatRoom.updateOne(
-      { _id: req.params.roomId },
+      memberFilter(req),
       { $set: { 'messages.$[elem].read': true } },
       { arrayFilters: [{ 'elem.senderId': { $ne: req.user.id.toString() } }] }
     );
@@ -563,6 +582,8 @@ router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
 // Create or get existing room
 router.post('/rooms', authMiddleware, async (req, res) => {
   const { participantIds, participantNames, type } = req.body;
+  const bad = participantListError(req, participantIds);
+  if (bad) return res.status(400).json({ message: bad });
   try {
     const existing = await ChatRoom.findOne({ participants: { $all: participantIds, $size: participantIds.length } });
     if (existing) {

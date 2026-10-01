@@ -26,15 +26,72 @@ const { SLA_POLICY, CLOSED, computeSla } = require('../lib/sla');
 const { parseIpEntry, buildIpMatcher } = require('../lib/ipMatch');
 const { refreshSuppressions } = require('../lib/suppression');
 const SuppressionRule = require('../models/SuppressionRule');
+const UiActivity = require('../models/UiActivity');
+const UploadRecord = require('../models/UploadRecord');
+// Manual check only: a link to the file's page on virustotal.com, built from its SHA-256. Nothing is sent automatically.
+const vtLink = (sha256) => `https://www.virustotal.com/gui/file/${sha256}`;
+const quarantine = require('../lib/quarantine');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+
+const mongoose = require('mongoose');
+const LOCKED_BY_ADMIN_UNTIL = new Date('2099-01-01T00:00:00Z');
+// An unreachable or hanging SMTP server must not hang an analyst's request: give up after a bounded wait.
+const sendMailWithTimeout = (mailer, options, ms = 8000) => Promise.race([
+  mailer.sendMail(options),
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Mail server did not respond in time')), ms).unref?.()),
+]);
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
-function adminOnly(req, res, next) {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
-  next();
+// The SOC exposes PII, account locks and IP blocking, so it is limited to the owner account(s) listed in
+// SOC_OWNER_EMAILS (comma separated, default hameed@magzest.in) — being an admin is not enough. Application Team
+// accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
+// in admin.js), and stay blocked here too.
+const { isSocOwnerEmail, ownerEmails } = require('../lib/socOwners');
+const { socMfaOk } = require('../lib/socMfa');
+
+async function adminOnly(req, res, next) {
+  try {
+    if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
+    if (!req.user.email) {
+      const u = await User.findById(req.user.id).select('email name').lean();
+      if (u) { req.user.email = u.email; req.user.name = req.user.name || u.name; }
+    }
+    const email = String(req.user.email || '').toLowerCase();
+    if (!isSocOwnerEmail(email)) {
+      return res.status(403).json({ message: 'Not authorised for the SOC' });
+    }
+    // Being the owner is not enough: the SOC also needs a current two-factor step-up token (lib/socMfa.js).
+    if (!(await socMfaOk(req, res))) return;
+    next();
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Substring search over encrypted fields cannot run in MongoDB, so for the lists where it matters the newest rows
+// matching the structured filters are loaded (decrypted by the model hooks) and filtered here.
+const SEARCH_SCAN_CAP = 5000;
+function matchesText(row, q, fields) {
+  const term = q.trim().slice(0, 100).toLowerCase();
+  return fields.some((f) => String(row[f] ?? '').toLowerCase().includes(term));
+}
+async function searchRows(Model, query, q, fields) {
+  const rows = await Model.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
+  return rows.filter((r) => matchesText(r, q, fields));
+}
+
+// Search clauses for a free-text box. Encrypted fields can only be matched exactly (they are stored as
+// ciphertext), the others keep substring matching.
+function searchClauses(q, plainFields, encryptedFields) {
+  const term = q.trim().slice(0, 100);
+  const rx = new RegExp(escapeRegex(term), 'i');
+  return [
+    ...plainFields.map((f) => ({ [f]: rx })),
+    ...encryptedFields.map((f) => ({ [f]: { $in: [term, term.toLowerCase()] } })),
+  ];
 }
 
 const SECURITY_TYPE_LABEL = {
@@ -52,6 +109,7 @@ const SECURITY_TYPE_LABEL = {
   password_reset_request: 'Password reset requested',
   privilege_change: 'Privilege change',
   data_export: 'Data export',
+  bulk_delete: 'Bulk data deletion',
 };
 
 // Every CSV download from the SOC is itself a security event, so a burst of
@@ -67,6 +125,11 @@ function logExport(req, what, rows) {
 const PERIOD_MS = { '24h': 24 * 60 * 60 * 1000, '7d': 7 * 24 * 60 * 60 * 1000, '30d': 30 * 24 * 60 * 60 * 1000 };
 
 // ── GET /api/soc/stats ───────────────────────────────────────────────────────
+// The SOC maintainers' own emails, so the UI can hide those (and only those) behind ********.
+router.get('/owners', authMiddleware, adminOnly, (req, res) => {
+  res.json({ emails: ownerEmails() });
+});
+
 router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     const period = PERIOD_MS[req.query.period] ? req.query.period : '24h';
@@ -228,8 +291,7 @@ function buildEventQuery({ since, type, severity, q }) {
   if (type && type !== 'all') query.type = type;
   if (severity && severity !== 'all') query.severity = severity;
   if (q && q.trim()) {
-    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-    query.$or = [{ email: rx }, { ip: rx }, { message: rx }];
+    query.$or = searchClauses(q, [], ['email', 'ip', 'message']);
   }
   return query;
 }
@@ -265,15 +327,12 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 
 // ── Incidents ─────────────────────────────────────────────────────────────────
 
+const INCIDENT_SEARCH_FIELDS = ['title', 'relatedIp', 'relatedEmail'];
 function buildIncidentQuery({ status, severity, type, q }) {
   const query = {};
   if (status && status !== 'all') query.status = status;
   if (severity && severity !== 'all') query.severity = severity;
   if (type && type !== 'all') query.type = type;
-  if (q && q.trim()) {
-    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-    query.$or = [{ title: rx }, { relatedIp: rx }, { relatedEmail: rx }];
-  }
   return query;
 }
 
@@ -283,11 +342,18 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildIncidentQuery(req.query);
 
-    const [incidents, total] = await Promise.all([
-      SecurityIncident.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
-        .populate('assignedTo', 'name email').lean(),
-      SecurityIncident.countDocuments(query),
-    ]);
+    let incidents; let total;
+    if (req.query.q && req.query.q.trim()) {
+      const matched = await searchRows(SecurityIncident, query, req.query.q, INCIDENT_SEARCH_FIELDS);
+      total = matched.length;
+      incidents = await SecurityIncident.populate(matched.slice(skip, skip + limit), { path: 'assignedTo', select: 'name email' });
+    } else {
+      [incidents, total] = await Promise.all([
+        SecurityIncident.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
+          .populate('assignedTo', 'name email').lean(),
+        SecurityIncident.countDocuments(query),
+      ]);
+    }
     // The policy travels with the list so the client can mirror computeSla()
     // for incidents that change live over the socket, without duplicating targets.
     res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY });
@@ -298,8 +364,11 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const incidents = await SecurityIncident.find(buildIncidentQuery(req.query)).sort({ createdAt: -1 }).limit(5000)
-      .populate('assignedTo', 'name email').lean();
+    const iq = buildIncidentQuery(req.query);
+    const base = req.query.q && req.query.q.trim()
+      ? await searchRows(SecurityIncident, iq, req.query.q, INCIDENT_SEARCH_FIELDS)
+      : await SecurityIncident.find(iq).sort({ createdAt: -1 }).limit(5000).lean();
+    const incidents = await SecurityIncident.populate(base, { path: 'assignedTo', select: 'name email' });
     logExport(req, 'incidents', incidents.length);
     sendCsv(res, 'soc-incidents.csv', [
       { label: 'Created', key: 'createdAt' }, { label: 'Type', key: 'type' }, { label: 'Severity', key: 'severity' },
@@ -474,6 +543,22 @@ function normalizePii(p, userId) {
 function normalizeAnalystAction(a) {
   return { source: 'analyst', type: a.action, severityOrLevel: null, title: `SOC action: ${a.action.replace(/_/g, ' ')}`, detail: [a.analystEmail, a.reason].filter(Boolean).join(' — '), ip: '', createdAt: a.createdAt };
 }
+function normalizeUi(u) {
+  const where = u.file ? `${u.page} (${u.file})` : u.page;
+  const what = u.kind === 'login' ? `Signed in${u.name ? ' as ' + u.name : ''}`
+    : u.kind === 'logout' ? 'Signed out'
+    : u.kind === 'page_view' ? 'Opened page'
+    : u.kind === 'click' ? `Clicked ${u.element?.label ? '"' + u.element.label + '"' : (u.element?.tag || 'element')}`
+    : u.kind === 'download' ? `Downloaded ${u.element?.label || u.element?.href || 'file'}`
+    : u.kind === 'file_select' ? `Selected ${(u.files || []).map((f) => f.name).join(', ') || 'file'}`
+    : `Submitted form ${u.element?.label || u.element?.id || ''}`.trim();
+  const detail = (u.kind === 'login' || u.kind === 'logout') && u.device?.label ? u.device.label : where;
+  return { source: 'ui', type: u.kind, severityOrLevel: null, title: what, detail, ip: u.ip || '', createdAt: u.createdAt };
+}
+function normalizeUpload(u) {
+  const kb = Math.max(1, Math.round((u.size || 0) / 1024));
+  return { source: 'upload', type: u.source, severityOrLevel: u.review?.status === 'flagged' ? 'high' : null, title: `Uploaded "${u.originalName}"`, detail: `${kb} KB · review: ${u.review?.status || 'unreviewed'}`, ip: u.ip || '', createdAt: u.createdAt };
+}
 function normalizeIncident(i) {
   return { source: 'incident', type: i.type, severityOrLevel: i.severity, title: `Incident opened: ${i.title}`, detail: `status: ${i.status}`, ip: i.relatedIp || '', createdAt: i.createdAt };
 }
@@ -502,17 +587,23 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
     const user = await User.findById(userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const [events, activity, requests, pii, actions, relatedIncidents] = await Promise.all([
+    const [events, activity, requests, pii, actions, relatedIncidents, uiRows, uploads, uploadsCount, lastLoginRow] = await Promise.all([
       SecurityEvent.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       ActivityLog.find({ $or: [{ studentId: userId }, { counsellorId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       RequestLog.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       PiiAccessLog.find({ $or: [{ accessorId: userId }, { applicantId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       AnalystAction.find({ $or: [{ analystId: userId }, { targetType: 'user', targetId: String(userId) }] }).sort({ createdAt: -1 }).limit(50).lean(),
       SecurityIncident.find({ relatedUserId: userId }).sort({ createdAt: -1 }).limit(20).populate('assignedTo', 'name email').lean(),
+      UiActivity.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
+      UploadRecord.find({ userId }).sort({ createdAt: -1 }).limit(20).lean(),
+      UploadRecord.countDocuments({ userId }),
+      UiActivity.findOne({ userId, kind: 'login' }).sort({ createdAt: -1 }).lean(),
     ]);
 
     const timeline = [
       ...events.map(normalizeSecurityEvent),
+      ...uiRows.map(normalizeUi),
+      ...uploads.map(normalizeUpload),
       ...activity.map(normalizeActivity),
       ...requests.map(normalizeRequest),
       ...pii.map((p) => normalizePii(p, userId)),
@@ -527,6 +618,17 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
 
     res.json({
       user: { id: user._id, name: user.name, email: user.email, role: user.role, activeSessions: sessions.length },
+      // Everything needed to contact and act on this person without leaving the page.
+      profile: {
+        phone: user.phone || '', status: user.status || '', isAppTeam: !!user.isAppTeam,
+        joined: user.createdAt || user.joinedDate || null,
+        locked: !!(user.lockedUntil && new Date(user.lockedUntil) > new Date()),
+        lockedUntil: user.lockedUntil || null,
+        lastLogin: (() => { const e = events.find((x) => x.type === 'login_success'); return e ? { at: e.createdAt, ip: e.ip, userAgent: e.userAgent, device: lastLoginRow?.device?.label ? lastLoginRow.device : null } : null; })(),
+        lastActive: uiRows[0]?.createdAt || null,
+        uploadsCount,
+      },
+      recentUploads: uploads.slice(0, 5).map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
       sessions,
       timeline,
       relatedIncidents,
@@ -592,7 +694,7 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
     if (mailer) {
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${rawToken}`;
       try {
-        await mailer.sendMail({
+        await sendMailWithTimeout(mailer, {
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: user.email,
           subject: 'Reset your Gradzest password',
@@ -610,6 +712,28 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
         ? 'Password invalidated, sessions revoked, reset link emailed.'
         : 'Password invalidated and sessions revoked, but the reset email could not be sent. The user can use "Forgot password" to set a new one.',
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Locks an account out immediately: sign-in is refused with a clear message and every
+// session is revoked. Already-issued access tokens stay valid until they expire (15 min).
+router.post('/investigate/user/:id/lock', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+    if (String(req.params.id) === String(req.user.id)) return res.status(400).json({ message: 'You cannot lock your own account.' });
+    const locked = req.body?.locked !== false;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.lockedUntil = locked ? LOCKED_BY_ADMIN_UNTIL : null;
+    user.loginAttempts = 0;
+    if (locked) user.sessions = [];
+    await user.save();
+    require('../lib/accountState').invalidate(user._id);
+    if (locked) req.app.get('io')?.in(`user:${user._id}`).disconnectSockets(true);
+    logAnalystAction({ analyst: req.user, action: locked ? 'lock_account' : 'unlock_account', targetType: 'user', targetId: user._id, reason: String(req.body?.reason || '').slice(0, 300) || (locked ? `Locked ${user.email}` : `Unlocked ${user.email}`), io: req.app.get('io') });
+    res.json({ locked, message: locked ? 'Account locked and all sessions revoked.' : 'Account unlocked.' });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -636,6 +760,212 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
     const blockRows = await BlockedIp.find({ $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] }, 'ip').lean();
     const isBlocked = buildIpMatcher(blockRows.map((r) => r.ip))(ip);
     res.json({ ip, isBlocked, timeline, intel, relatedIncidents });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── Uploaded documents (manual VirusTotal review) ──────────────────────────────────────────
+
+router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+    const { userId, risk, q } = req.query;
+    const query = {};
+    if (userId && isObjectId(userId)) query.userId = userId;
+    if (risk === 'flagged') query['review.status'] = 'flagged';
+    else if (risk === 'clean') query['review.status'] = 'clean';
+    else if (risk === 'unreviewed') query['review.status'] = { $in: [null, 'unreviewed'] }; // null also matches records written before reviews existed
+    else if (risk === 'review') query.$or = [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }];
+    const searching = q && q.trim();
+    const [rows, total, byStatus, needsReview] = await Promise.all([
+      searching
+        ? searchRows(UploadRecord, query, q, ['originalName', 'email', 'sha256']).then((m) => ({ m }))
+        : UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      searching ? null : UploadRecord.countDocuments(query),
+      UploadRecord.aggregate([{ $group: { _id: { $ifNull: ['$review.status', 'unreviewed'] }, count: { $sum: 1 } } }]),
+      UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
+    ]);
+    const list = searching ? rows.m.slice(skip, skip + limit) : rows;
+    res.json({
+      needsReview,
+      uploads: list.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
+      total: searching ? rows.m.length : total, skip, limit,
+      summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Quarantine moves the stored file out of the served /uploads folder (so its link stops working);
+// restore puts it back; purge deletes it for good. Files blocked at upload were never attached to a
+// profile, so they can be purged but not restored.
+router.post('/uploads/:id/quarantine', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
+    const action = req.body?.action;
+    if (!['quarantine', 'restore', 'purge'].includes(action)) return res.status(400).json({ message: 'action must be quarantine, restore or purge' });
+    const rec = await UploadRecord.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Upload not found' });
+
+    let result;
+    if (action === 'quarantine') {
+      if (rec.quarantined) return res.status(409).json({ message: 'Already quarantined.' });
+      result = quarantine.quarantineStored(rec.storedName);
+      if (result.ok) { rec.quarantined = true; rec.quarantinedAt = new Date(); rec.quarantineReason = String(req.body?.reason || 'Quarantined by analyst').slice(0, 300); }
+    } else if (action === 'restore') {
+      if (!rec.quarantined) return res.status(409).json({ message: 'This file is not quarantined.' });
+      if (rec.blocked) return res.status(409).json({ message: 'This file was blocked at upload and never attached to a profile, so it cannot be restored. Ask the user to upload a clean copy.' });
+      result = quarantine.restoreStored(rec.storedName);
+      if (result.ok) { rec.quarantined = false; rec.quarantinedAt = null; rec.quarantineReason = ''; }
+    } else {
+      if (!rec.quarantined) return res.status(409).json({ message: 'Quarantine the file first; only quarantined files can be deleted.' });
+      result = quarantine.purgeQuarantined(rec.storedName);
+      if (result.ok) rec.purgedAt = new Date();
+    }
+    if (!result.ok) return res.status(409).json({ message: result.reason });
+
+    await rec.save();
+    const io = req.app.get('io');
+    io?.to('admin-room').emit('upload_updated', rec.toObject());
+    logAnalystAction({ analyst: req.user, action: `${action}_upload`, targetType: 'upload', targetId: rec._id, reason: `${rec.originalName}${req.body?.reason ? ' — ' + String(req.body.reason).slice(0, 200) : ''}`, io });
+    res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// The analyst opened this file's hash on virustotal.com and records what they found.
+// Flagging opens an incident (once) so the finding is visible and tracked; it does not move the file —
+// use Quarantine for that.
+router.post('/uploads/:id/review', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
+    const status = req.body?.status;
+    if (!['clean', 'flagged', 'unreviewed'].includes(status)) return res.status(400).json({ message: 'status must be clean, flagged or unreviewed' });
+    const rec = await UploadRecord.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Upload not found' });
+
+    const wasFlagged = rec.review?.status === 'flagged';
+    rec.review = {
+      status,
+      by: status === 'unreviewed' ? '' : req.user.email || '',
+      at: status === 'unreviewed' ? null : new Date(),
+      note: status === 'unreviewed' ? '' : String(req.body?.note || '').slice(0, 500),
+    };
+    await rec.save();
+
+    const io = req.app.get('io');
+    io?.to('admin-room').emit('upload_updated', rec.toObject());
+    logAnalystAction({ analyst: req.user, action: 'review_upload', targetType: 'upload', targetId: rec._id, reason: `${rec.originalName} → ${status}${rec.review.note ? ' — ' + rec.review.note : ''}`, io });
+    if (status === 'flagged' && !wasFlagged) {
+      require('../lib/detectIncidents').raiseAnalystFlaggedUploadIncident(rec, req.user.email, io).catch((err) => console.error('[review_upload] incident failed:', err.message));
+    }
+    res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── Feature usage (what people actually use, from the UI activity trail) ──────
+
+router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const period = PERIOD_MS[req.query.period] ? req.query.period : '7d';
+    const since = new Date(Date.now() - PERIOD_MS[period]);
+    const base = { createdAt: { $gte: since } };
+    if (req.query.userId && isObjectId(req.query.userId)) base.userId = new mongoose.Types.ObjectId(req.query.userId);
+    // Feature usage counts what people DO in the app; sign-in/out rows are shown in the trail but aren't a feature.
+    const uiBase = { ...base, kind: { $nin: ['login', 'logout'] } };
+
+    const [pages, features, users, uploads, totals] = await Promise.all([
+      UiActivity.aggregate([
+        { $match: { ...base, kind: 'page_view' } },
+        { $group: { _id: { $cond: [{ $ne: ['$file', ''] }, '$file', '$page'] }, views: { $sum: 1 }, users: { $addToSet: '$userId' }, example: { $first: '$page' } } },
+        { $project: { views: 1, users: { $size: '$users' }, example: 1 } }, { $sort: { views: -1 } }, { $limit: 15 },
+      ]),
+      UiActivity.aggregate([
+        { $match: { ...base, kind: { $in: ['click', 'download', 'form_submit'] }, 'element.label': { $ne: '' } } },
+        { $group: { _id: { file: '$file', label: '$element.label', kind: '$kind' }, uses: { $sum: 1 }, users: { $addToSet: '$userId' } } },
+        { $project: { uses: 1, users: { $size: '$users' } } }, { $sort: { uses: -1 } }, { $limit: 25 },
+      ]),
+      UiActivity.aggregate([
+        { $match: uiBase },
+        { $group: { _id: '$userId', email: { $first: '$email' }, role: { $first: '$role' }, actions: { $sum: 1 }, pages: { $addToSet: '$page' }, lastActive: { $max: '$createdAt' } } },
+        { $project: { email: 1, role: 1, actions: 1, distinctPages: { $size: '$pages' }, lastActive: 1 } }, { $sort: { actions: -1 } }, { $limit: 25 },
+      ]),
+      UploadRecord.countDocuments(base),
+      UiActivity.aggregate([{ $match: uiBase }, { $group: { _id: null, events: { $sum: 1 }, users: { $addToSet: '$userId' } } }]),
+    ]);
+
+    res.json({
+      period,
+      totals: { events: totals[0]?.events || 0, activeUsers: totals[0]?.users?.length || 0, uploads },
+      pages: pages.map((p) => ({ file: p._id, views: p.views, users: p.users, example: p.example })),
+      features: features.map((f) => ({ file: f._id.file, label: f._id.label, kind: f._id.kind, uses: f.uses, users: f.users })),
+      users: users.map((u) => ({ userId: u._id, email: u.email, role: u.role, actions: u.actions, distinctPages: u.distinctPages, lastActive: u.lastActive })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// ── UI activity (page / button / file trail) ─────────────────────────────────
+
+// Free-text search over the UI trail runs in memory (several searched fields are stored encrypted).
+const uiRowText = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)].join(' ');
+async function searchUi(query, q) {
+  const term = q.trim().slice(0, 100).toLowerCase();
+  const rows = await UiActivity.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
+  return rows.filter((r) => uiRowText(r).toLowerCase().includes(term));
+}
+
+function buildUiQuery({ userId, email, kind, q, page, since }) {
+  const query = {};
+  if (userId && isObjectId(userId)) query.userId = userId;
+  if (email && email.trim()) query.email = { $in: [email.trim().slice(0, 100), email.trim().slice(0, 100).toLowerCase()] }; // exact: stored encrypted
+  if (kind && kind !== 'all') query.kind = kind;
+  if (page && page.trim()) query.page = new RegExp(escapeRegex(page.trim().slice(0, 100)), 'i');
+  if (since) { const d = new Date(since); if (!isNaN(d)) query.createdAt = { $gt: d }; }
+  return query;
+}
+
+router.get('/ui-activity/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    const uq = buildUiQuery(req.query);
+    const rows = req.query.q && req.query.q.trim() ? await searchUi(uq, req.query.q) : await UiActivity.find(uq).sort({ createdAt: -1 }).limit(5000).lean();
+    logExport(req, 'ui-activity', rows.length);
+    sendCsv(res, 'soc-ui-activity.csv', [
+      { label: 'Time', key: 'createdAt' }, { label: 'Name', key: 'name' }, { label: 'User', key: 'email' }, { label: 'Role', key: 'role' },
+      { label: 'Device', value: (r) => r.device?.label || '' }, { label: 'Action', key: 'kind' }, { label: 'Page', key: 'page' }, { label: 'Source file', key: 'file' },
+      { label: 'Element', value: (r) => r.element?.label || r.element?.id || r.element?.tag || '' },
+      { label: 'Context', key: 'context' }, { label: 'Link', value: (r) => r.element?.href || '' },
+      { label: 'Files', value: (r) => (r.files || []).map((f) => f.name).join('; ') },
+      { label: 'IP', key: 'ip' },
+    ], rows);
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 300);
+    const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+    const query = buildUiQuery(req.query);
+    let rows; let total;
+    if (req.query.q && req.query.q.trim()) {
+      const matched = await searchUi(query, req.query.q);
+      total = matched.length; rows = matched.slice(skip, skip + limit);
+    } else {
+      [rows, total] = await Promise.all([
+        UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        UiActivity.countDocuments(query),
+      ]);
+    }
+    res.json({ activity: rows, total, skip, limit, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -812,6 +1142,23 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
+});
+
+// ── Alert channels ───────────────────────────────────────────────────────────
+
+// Which out-of-band channels are configured (never the URLs or tokens) so the owner can see what will actually fire.
+router.get('/alerts/status', authMiddleware, adminOnly, async (req, res) => {
+  const { channelStatus } = require('../lib/alertChannels');
+  res.json({ ...channelStatus(), email: !!req.app.get('mailer') && !!(process.env.SMTP_PASS), recipients: ownerEmails().length });
+});
+
+// Sends a harmless test message to every configured channel and reports each result, so setup mistakes show up now
+// and not during a real incident.
+router.post('/alerts/test', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  const { notifyChannels } = require('../lib/alertChannels');
+  const result = await notifyChannels({ severity: 'critical', type: 'test' }, { kind: 'test', force: true });
+  logAnalystAction({ analyst: req.user, action: 'alert_test', targetType: 'user', targetId: req.user.id, reason: 'Sent a test alert', io: req.app.get('io') });
+  res.json(result);
 });
 
 // ── Analyst audit trail ───────────────────────────────────────────────────────

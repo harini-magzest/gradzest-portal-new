@@ -1,9 +1,13 @@
-import { useState } from 'react';
-import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X, Lock, Unlock, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
 import IncidentDetail from './IncidentDetail';
 import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
+import ReviewBadge from './ReviewBadge';
+import FeatureUsage from './FeatureUsage';
+import { parseUserAgent } from './DeviceDetails';
+import { Mask } from './Mask';
 
 type Mode = 'user' | 'ip';
 
@@ -69,6 +73,58 @@ function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke
   );
 }
 
+function shortUa(ua?: string) {
+  if (!ua) return 'unknown device';
+  const { browser, os } = parseUserAgent(ua);
+  return [browser, os].filter(x => x !== 'Unknown').join(' on ') || 'unknown device';
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="min-w-0"><p className="text-[10px] font-semibold text-gray-400 uppercase">{label}</p><div className="text-sm text-gray-800 break-words">{children}</div></div>;
+}
+
+// Everything needed to contact the person and judge the risk, on one card — so a responder doesn't hunt across tabs.
+function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUserFeatures: () => void; showFeatures: boolean }) {
+  const p = data.profile || {};
+  const when = (d?: string | null) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  return (
+    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-gray-500 uppercase">Contact &amp; status</span>
+        {p.locked && <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><Lock className="w-3 h-3" /> Account locked</span>}
+        {p.isAppTeam && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">App team</span>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" /><Mask value={data.user.email} /></a></Field>
+        <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-400">Not on file</span>}</Field>
+        <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-400"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
+        <Field label="Joined">{when(p.joined)}</Field>
+        <Field label="Last sign-in">{p.lastLogin ? <>{when(p.lastLogin.at)}<span className="block text-[11px] text-gray-400"><span className="font-mono">{p.lastLogin.ip || '—'}</span> · {p.lastLogin.device?.label || shortUa(p.lastLogin.userAgent)}</span></> : <span className="text-gray-400">No sign-in recorded</span>}</Field>
+        <Field label="Last active in app">{when(p.lastActive)}</Field>
+        <Field label="Active sessions">{data.user.activeSessions}</Field>
+        <Field label="Documents uploaded">{p.uploadsCount ?? 0}</Field>
+      </div>
+      {(data.recentUploads || []).length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">Recent uploads</p>
+          <div className="space-y-1.5">
+            {data.recentUploads.map((u: any) => (
+              <div key={u._id} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-sm">
+                <span className="truncate text-gray-800">{u.originalName} <span className="text-[11px] text-gray-400">· {new Date(u.createdAt).toLocaleDateString('en-IN')}</span></span>
+                <span className="flex items-center gap-2 flex-shrink-0"><ReviewBadge review={u.review} /><a href={u.vtLink} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-purple-700 hover:underline">VirusTotal ↗</a></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <button type="button" onClick={onUserFeatures} className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline">
+        {showFeatures ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Features this person uses
+      </button>
+      {showFeatures && <FeatureUsage userId={data.user.id} />}
+    </div>
+  );
+}
+
 function TimelineList({ timeline }: { timeline: any[] }) {
   if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-400">No activity found.</div>;
   return (
@@ -93,7 +149,7 @@ function TimelineList({ timeline }: { timeline: any[] }) {
   );
 }
 
-export default function InvestigateTab() {
+export default function InvestigateTab({ initialUserId }: { initialUserId?: string } = {}) {
   const [mode, setMode] = useState<Mode>('user');
   const [query, setQuery] = useState('');
   const [ipQuery, setIpQuery] = useState('');
@@ -106,6 +162,7 @@ export default function InvestigateTab() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [blockHours, setBlockHours] = useState(0);
   const [actionError, setActionError] = useState('');
+  const [showFeatures, setShowFeatures] = useState(false);
 
   const patchRelatedIncident = (updated: Incident) => {
     setUserData((prev: any) => prev && prev.relatedIncidents
@@ -124,7 +181,11 @@ export default function InvestigateTab() {
 
   const investigateUser = async (u: any) => {
     setSelectedUser(u); setLoading(true); setActionMsg(''); setActionError(''); setUserData(null);
-    try { setUserData(await api.soc.investigateUser(u.id)); }
+    try {
+      const d = await api.soc.investigateUser(u.id);
+      setUserData(d);
+      setSelectedUser({ id: u.id, ...d.user }); // so actions know the real email/name even when opened from another tab
+    }
     finally { setLoading(false); }
   };
 
@@ -139,6 +200,30 @@ export default function InvestigateTab() {
     if (!selectedUser) return;
     await api.soc.logoutUserEverywhere(selectedUser.id);
     setActionMsg('All sessions revoked for this user.');
+  };
+
+  // Arriving from another tab (Activity, Uploads) with a person already chosen.
+  useEffect(() => {
+    if (!initialUserId) return;
+    setMode('user'); setShowFeatures(false);
+    void investigateUser({ id: initialUserId, email: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUserId]);
+
+  const toggleLock = async () => {
+    if (!selectedUser || !userData) return;
+    const locking = !userData.profile?.locked;
+    if (locking && !window.confirm(`Lock ${selectedUser.email}? They are signed out everywhere and cannot sign in until you unlock the account.`)) return;
+    setActionError('');
+    try {
+      const res = await api.soc.lockUser(selectedUser.id, locking);
+      setUserData((prev: any) => prev && {
+        ...prev,
+        profile: { ...prev.profile, locked: res.locked },
+        ...(locking ? { sessions: [], user: { ...prev.user, activeSessions: 0 } } : {}),
+      });
+      setActionMsg(res.message);
+    } catch (err: any) { setActionError(err.message || 'Failed to change lock'); }
   };
 
   const revokeSession = async (sessionId: string) => {
@@ -212,7 +297,7 @@ export default function InvestigateTab() {
               {userResults.map(u => (
                 <button key={u.id} onClick={() => investigateUser(u)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-purple-50' : ''}`}>
-                  <span>{u.name} <span className="text-gray-400">· {u.email}</span></span>
+                  <span>{u.name} <span className="text-gray-400">· <Mask value={u.email} /></span></span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{u.role}</span>
                 </button>
               ))}
@@ -240,9 +325,13 @@ export default function InvestigateTab() {
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
               <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
-              <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
+              <p className="text-xs text-gray-400"><Mask value={userData.user.email} /> · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
+              <button onClick={toggleLock}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${userData.profile?.locked ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-900 text-white hover:bg-gray-700'}`}>
+                {userData.profile?.locked ? <><Unlock className="w-4 h-4" /> Unlock account</> : <><Lock className="w-4 h-4" /> Lock account</>}
+              </button>
               <button onClick={forceReset}
                 className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-sm font-semibold transition-colors">
                 <KeyRound className="w-4 h-4" /> Force password reset
@@ -253,6 +342,7 @@ export default function InvestigateTab() {
               </button>
             </div>
           </div>
+          <ResponseCard data={userData} showFeatures={showFeatures} onUserFeatures={() => setShowFeatures(v => !v)} />
           <SessionsList sessions={userData.sessions || []} onRevoke={revokeSession} />
           <RelatedIncidents incidents={userData.relatedIncidents || []} onSelect={setSelectedIncident} />
           <TimelineList timeline={userData.timeline} />

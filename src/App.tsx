@@ -10,6 +10,7 @@ import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import ActivityTracker from './components/ActivityTracker';
 
 // Public pages
 const Home             = lazy(() => import('./pages/Home'));
@@ -132,6 +133,7 @@ export default function App() {
       <AuthModalProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <ActivityTracker />
         <ToastLayer />
         <FlashToast />
         <AuthModal />
@@ -216,7 +218,7 @@ export default function App() {
               <Route index element={<AppTeamDashboard />} />
               <Route path="applications" element={<AppTeamApplications />} />
               <Route path="counselors" element={<AppTeamCounselors />} />
-              <Route path="students" element={<AppTeamStudents />} />
+              <Route path="students/*" element={<AppTeamStudents />} />
               <Route path="activities" element={<Activities />} />
               <Route path="live-feed" element={<AppTeamActivityFeed />} />
               <Route path="chat" element={<AppTeamChat />} />

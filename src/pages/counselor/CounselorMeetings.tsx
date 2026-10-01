@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, CalendarCheck, CalendarX, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { usePortalName } from '../../hooks/usePortalName';
 
 function Spinner() {
   return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
@@ -344,6 +345,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
 }
 
 export default function CounselorMeetings() {
+  const { portal } = usePortalName();
   const [meetings, setMeetings] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -405,7 +407,7 @@ export default function CounselorMeetings() {
               <CalendarDays className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-sky-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+              <p className="text-sky-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
               <h1 className="text-2xl font-bold leading-tight">My Meetings</h1>
             </div>
           </div>
