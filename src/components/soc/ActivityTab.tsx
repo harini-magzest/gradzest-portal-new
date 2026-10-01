@@ -4,7 +4,6 @@ import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, L
 import { api, getApiToken } from '../../api';
 import SavedFilters from './SavedFilters';
 import FeatureUsage from './FeatureUsage';
-import { Mask } from './Mask';
 
 interface UiRow {
   _id: string; userId: string; email: string; name?: string; role: string; kind: string; page: string; routePattern?: string; file?: string;
@@ -155,8 +154,8 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-900">
-                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || <Mask value={r.email} fallback="Unknown" />}</button>
-                  {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5"><Mask value={r.email} /></span>}
+                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || r.email || 'Unknown'}</button>
+                  {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5">{r.email}</span>}
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 capitalize ml-1.5">{r.role}</span>
                   <span className="text-gray-500"> {meta.label.toLowerCase()} </span>
                   <span className="font-medium">{describe(r)}</span>

@@ -3,7 +3,6 @@ import { io, Socket } from 'socket.io-client';
 import { FileText, ExternalLink, Search, Loader2, Info, Copy, ShieldBan, Undo2, Trash2, Check, Flag, RotateCcw, AlertTriangle } from 'lucide-react';
 import { api, getApiToken } from '../../api';
 import ReviewBadge, { type ReviewResult } from './ReviewBadge';
-import { Mask } from './Mask';
 
 interface Upload {
   _id: string; userId: string; email: string; name?: string; role: string; source: string; originalName: string;
@@ -182,7 +181,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
                     </div>
                   )}
                   <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                    <button type="button" onClick={() => onInvestigateUser(u.userId)} className="font-medium text-purple-700 hover:underline" title="Open this user's details and response actions"><Mask value={u.email} /></button>
+                    <button type="button" onClick={() => onInvestigateUser(u.userId)} className="font-medium text-purple-700 hover:underline" title="Open this user's details and response actions">{u.email}</button>
                     <span className="capitalize text-gray-400">({u.role})</span>
                     <span>· {SOURCE_LABEL[u.source] || u.source} · {fmtSize(u.size)}{u.ip ? ` · ${u.ip}` : ''}</span>
                   </p>

@@ -7,7 +7,6 @@ import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
 import ReviewBadge from './ReviewBadge';
 import FeatureUsage from './FeatureUsage';
 import { parseUserAgent } from './DeviceDetails';
-import { Mask } from './Mask';
 
 type Mode = 'user' | 'ip';
 
@@ -29,7 +28,7 @@ function RelatedIncidents({ incidents, onSelect }: { incidents: Incident[]; onSe
           <button key={inc._id} onClick={() => onSelect(inc)}
             className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left text-sm bg-white border border-gray-100 hover:border-purple-200 hover:bg-purple-50/40 transition-colors">
             <div className="min-w-0 flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-gray-800 truncate"><Mask value={inc.title} /></span>
+              <span className="font-medium text-gray-800 truncate">{inc.title}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={INCIDENT_SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
             </div>
@@ -95,7 +94,7 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
         {p.isAppTeam && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">App team</span>}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" /><Mask value={data.user.email} /></a></Field>
+        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" />{data.user.email}</a></Field>
         <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-400">Not on file</span>}</Field>
         <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-400"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
         <Field label="Joined">{when(p.joined)}</Field>
@@ -136,10 +135,10 @@ function TimelineList({ timeline }: { timeline: any[] }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">{item.source}</span>
-                <span className="text-sm font-medium text-gray-800 truncate"><Mask value={item.title} /></span>
+                <span className="text-sm font-medium text-gray-800 truncate">{item.title}</span>
                 {sev && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={sev}>{item.severityOrLevel}</span>}
               </div>
-              {item.detail && <p className="text-xs text-gray-400 truncate"><Mask value={item.detail} />{item.ip ? ` · ${item.ip}` : ''}</p>}
+              {item.detail && <p className="text-xs text-gray-400 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
             </div>
             <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
@@ -297,7 +296,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
               {userResults.map(u => (
                 <button key={u.id} onClick={() => investigateUser(u)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-purple-50' : ''}`}>
-                  <span>{u.name} <span className="text-gray-400">· <Mask value={u.email} /></span></span>
+                  <span>{u.name} <span className="text-gray-400">· {u.email}</span></span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{u.role}</span>
                 </button>
               ))}
@@ -325,7 +324,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
               <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
-              <p className="text-xs text-gray-400"><Mask value={userData.user.email} /> · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
+              <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <button onClick={toggleLock}

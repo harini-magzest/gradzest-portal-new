@@ -5,7 +5,6 @@ import {
   type Incident, type Analyst, type SlaPolicy, TYPE_LABEL, STATUS_STYLE, RESOLUTION_REASONS, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
 import { BLOCK_DURATIONS } from './BlockedIpsPanel';
-import { Mask } from './Mask';
 
 const CLOSING = ['resolved', 'false_positive'];
 
@@ -81,7 +80,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
               {TYPE_LABEL[incident.type] || incident.type}
               {incident.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 normal-case">Stale — 14+ days idle</span>}
             </p>
-            <h3 className="text-base font-bold text-gray-900 mt-0.5"><Mask value={incident.title} /></h3>
+            <h3 className="text-base font-bold text-gray-900 mt-0.5">{incident.title}</h3>
           </div>
           <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
@@ -127,7 +126,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
             </p>
           )}
           {incident.relatedIp && <p className="text-sm text-gray-600">IP: <span className="font-mono">{incident.relatedIp}</span></p>}
-          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: <Mask value={incident.relatedEmail} /></p>}
+          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: {incident.relatedEmail}</p>}
 
           <div className="flex items-center gap-2">
             <UserCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />

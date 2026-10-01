@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { api } from '../../api';
-import { Mask } from './Mask';
 
 export interface DeviceEvent {
   _id: string; type: string; severity: string; email?: string; role?: string; ip?: string;
@@ -98,12 +97,12 @@ export default function DeviceDetails({ event }: { event: DeviceEvent }) {
         <Row label="Device type" value={ua.device} />
         <Row label="User agent" value={event.userAgent || 'Not sent'} mono />
         <p className="text-[10px] font-semibold text-gray-400 uppercase mt-3 mb-1">Event</p>
-        <Row label="Account" value={<Mask value={event.email} fallback="Unknown" />} />
+        <Row label="Account" value={event.email || 'Unknown'} />
         <Row label="Role" value={event.role} />
         <Row label="Type" value={event.type.replace(/_/g, ' ')} />
         <Row label="Severity" value={event.severity} />
         <Row label="Time" value={new Date(event.createdAt).toLocaleString('en-IN')} />
-        <Row label="Message" value={<Mask value={event.message} />} />
+        <Row label="Message" value={event.message} />
         <Row label="Event ID" value={event._id} mono />
       </dl>
       <dl>
