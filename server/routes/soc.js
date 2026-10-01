@@ -43,8 +43,7 @@ const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 // SOC_OWNER_EMAILS (comma separated, default hameed@magzest.in) — being an admin is not enough. Application Team
 // accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
 // in admin.js), and stay blocked here too.
-const socOwnerEmails = () => String(process.env.SOC_OWNER_EMAILS || 'hameed@magzest.in')
-  .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+const { isSocOwnerEmail } = require('../lib/socOwners');
 
 async function adminOnly(req, res, next) {
   try {
@@ -54,8 +53,7 @@ async function adminOnly(req, res, next) {
       if (u) { req.user.email = u.email; req.user.name = req.user.name || u.name; }
     }
     const email = String(req.user.email || '').toLowerCase();
-    // An entry starting with "@" allows a whole domain (used by the test suite; avoid in production).
-    if (!socOwnerEmails().some((o) => (o.startsWith('@') ? email.endsWith(o) : email === o))) {
+    if (!isSocOwnerEmail(email)) {
       return res.status(403).json({ message: 'Not authorised for the SOC' });
     }
     next();

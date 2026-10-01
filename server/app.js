@@ -204,7 +204,7 @@ app.post('/api/subscribe', async (req, res) => {
     const sub = await Subscriber.create({ name, email, phone });
 
     // Notify all connected admin sockets
-    io.to('admin-room').emit('admin:new_subscriber', {
+    io.to('full-admin-room').emit('admin:new_subscriber', {
       name:         sub.name,
       email:        sub.email,
       phone:        sub.phone,
@@ -322,18 +322,29 @@ io.use(async (socket, next) => {
 
 // WebRTC signaling
 io.on('connection', (socket) => {
-  socket.on('register', () => {
+  socket.on('register', async () => {
     const uid = socket.data.userId;
     if (!uid) return;
     const wasOffline = !userSockets.has(uid);
     if (wasOffline) userSockets.set(uid, new Set());
     userSockets.get(uid).add(socket.id);
-    // A personal room lets the server target one user (see logActivity). Admins and the Application Team share the
-    // activity feed; only full admins join admin-room, which carries SOC / security events.
+    // Rooms decide who is pushed what:
+    //   user:<id>        one person (targeted activity)
+    //   activity-room    admins + Application Team (the business activity feed)
+    //   full-admin-room  full admins only (e.g. new-subscriber alerts)
+    //   admin-room       the SOC OWNER(S) ONLY — it carries every security event, incident, PII access, upload and
+    //                    activity row with names and devices. Being an admin is not enough; the REST API applies the
+    //                    same rule (lib/socOwners.js), so the live feed can't be a side door around it.
     socket.join(`user:${uid}`);
     if (socket.data.role === 'admin') {
       socket.join('activity-room');
-      if (!socket.data.isAppTeam) socket.join('admin-room');
+      if (!socket.data.isAppTeam) {
+        socket.join('full-admin-room');
+        try {
+          const me = await require('./models/User').findById(uid).select('email').lean();
+          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
+        } catch { /* no owner room on a lookup failure: fail closed */ }
+      }
     }
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
