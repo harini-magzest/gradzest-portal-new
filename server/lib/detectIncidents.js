@@ -312,17 +312,14 @@ async function checkMassExportRule(event, io) {
   );
 }
 
-// Called by the VirusTotal checker when a recorded upload's hash is known to
-// VirusTotal as malicious or suspicious. ClamAV already passed the file, so this is
-// the "known bad by other engines" signal; the file is already stored, so it needs a human.
-async function raiseUploadRiskIncident(record, io) {
-  const v = record.vt || {};
-  const engines = (v.malicious || 0) + (v.suspicious || 0);
-  const severity = v.status === 'malicious' ? ((v.malicious || 0) >= 5 ? 'critical' : 'high') : 'medium';
+// Called when an analyst marks an upload as malicious after checking its hash on virustotal.com by hand.
+// ClamAV and the local inspection already passed the file and it is stored, so a human verdict needs a record
+// and a visible incident.
+async function raiseAnalystFlaggedUploadIncident(record, analystEmail, io) {
   await createIncident(io, {
     type: 'malware_upload',
-    severity,
-    title: `VirusTotal flagged "${record.originalName}" uploaded by ${record.email || 'unknown'} (${engines} engine${engines === 1 ? '' : 's'}${v.label ? ', ' + v.label : ''})`,
+    severity: 'high',
+    title: `Analyst flagged "${record.originalName}" uploaded by ${record.email || 'unknown'} as malicious (${analystEmail || 'analyst'}, manual VirusTotal check)`,
     relatedIp: record.ip,
     relatedUserId: record.userId,
     relatedEmail: record.email,
@@ -461,6 +458,6 @@ async function checkNewDevicePrivilegedRule(event, io) {
 module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
-  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseUploadRiskIncident, raiseUnsafeUploadIncident, checkImpossibleTravelRule,
+  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseAnalystFlaggedUploadIncident, raiseUnsafeUploadIncident, checkImpossibleTravelRule,
   checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
 };

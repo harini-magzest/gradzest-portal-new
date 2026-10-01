@@ -35,21 +35,13 @@ const uploadRecordSchema = new mongoose.Schema(
     quarantinedAt: { type: Date, default: null },
     quarantineReason: { type: String, default: '' },
     purgedAt: { type: Date, default: null },
-    vt: {
-      status: {
-        type: String,
-        enum: ['not_configured', 'pending', 'clean', 'suspicious', 'malicious', 'unknown', 'rate_limited', 'error'],
-        default: 'pending',
-      },
-      malicious: { type: Number, default: 0 },
-      suspicious: { type: Number, default: 0 },
-      harmless: { type: Number, default: 0 },
-      undetected: { type: Number, default: 0 },
-      label: { type: String, default: '' },
-      lastAnalysisDate: { type: Date, default: null },
-      checkedAt: { type: Date, default: null },
-      attempts: { type: Number, default: 0 },
-      error: { type: String, default: '' },
+    // Manual VirusTotal check: the analyst opens the hash on virustotal.com, then records the verdict here.
+    // (There is deliberately no VirusTotal API integration — nothing is sent anywhere automatically.)
+    review: {
+      status: { type: String, enum: ['unreviewed', 'clean', 'flagged'], default: 'unreviewed' },
+      by: { type: String, default: '' },
+      at: { type: Date, default: null },
+      note: { type: String, default: '' },
     },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
@@ -57,7 +49,7 @@ const uploadRecordSchema = new mongoose.Schema(
 
 uploadRecordSchema.index({ createdAt: -1 });
 uploadRecordSchema.index({ userId: 1, createdAt: -1 });
-uploadRecordSchema.index({ 'vt.status': 1, createdAt: -1 });
+uploadRecordSchema.index({ 'review.status': 1, createdAt: -1 });
 uploadRecordSchema.index({ 'inspection.risk': 1, createdAt: -1 });
 // Audit record of what entered the system — kept a year.
 uploadRecordSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 365 });
