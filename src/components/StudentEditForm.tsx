@@ -321,6 +321,21 @@ export function StudentProfileFields({ student }: { student: any }) {
         <Row label="Work" value={student.workSummary && <span className="whitespace-pre-wrap">{student.workSummary}</span>} />
         <Row label="Branch" value={student.branch} />
       </div>
+      <div className="p-5 border-b border-gray-100">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Student's Preferences</p>
+        <Row label="Universities" value={student.preferredUniversities} />
+        <Row label="Cities" value={student.preferredCities} />
+        <Row label="Scholarship" value={YES_NO_LABEL[student.needsScholarship]} />
+        <Row label="Education Loan" value={YES_NO_LABEL[student.needsLoan]} />
+        <Row label="Accommodation" value={YES_NO_LABEL[student.needsAccommodation]} />
+        {student.preferenceNote && (
+          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap break-words bg-rose-50/60 border border-rose-100 rounded-lg p-2.5">
+            {student.preferenceNote}
+          </p>
+        )}
+      </div>
     </>
   );
 }
+
+const YES_NO_LABEL: Record<string, string> = { yes: 'Yes', no: 'No', not_sure: 'Not sure' };

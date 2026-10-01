@@ -122,6 +122,38 @@ describe('phone-only student leads', () => {
   });
 });
 
+describe('student self-service preferences', () => {
+  it('a student can save their own preferences and extra contact details', async () => {
+    const { token, id } = await login('student');
+    const r = await request(app).put('/api/students/me').set(auth(token)).send({
+      altPhone: ' 040-1234567 ', secondaryEmail: 'me2@example.com', universityName: 'JNTU',
+      preferredCourseLevel: "Master's", preferredIntake: 'September 2027',
+      preferredUniversities: 'Toronto, Monash', preferredCities: 'Toronto',
+      needsScholarship: 'yes', needsLoan: 'not_sure', needsAccommodation: 'no',
+      preferenceNote: 'I want a co-op programme.',
+    });
+    expect(r.status).toBe(200);
+    const doc = await User.findById(id).lean();
+    expect(doc.altPhone).toBe('040-1234567');
+    expect(doc.preferredIntake).toBe('September 2027');
+    expect(doc.needsScholarship).toBe('yes');
+    expect(doc.preferenceNote).toBe('I want a co-op programme.');
+  });
+
+  it('ignores bad yes/no values and staff-only fields', async () => {
+    const { token, id } = await login('student');
+    await request(app).put('/api/students/me').set(auth(token)).send({
+      needsLoan: 'definitely', branch: 'HQ', socialLeadId: 'X', leadStage: 'enrolment', preferredCities: { $gt: '' },
+    });
+    const doc = await User.findById(id).lean();
+    expect(doc.needsLoan).toBeUndefined();
+    expect(doc.branch).toBeUndefined();
+    expect(doc.socialLeadId).toBeUndefined();
+    expect(doc.leadStage).toBeUndefined();
+    expect(typeof doc.preferredCities).toBe('string'); // an object is coerced to text, never stored as-is
+  });
+});
+
 describe('migrateEmailIndex', () => {
   it('replaces a legacy unique email index with the partial one, and is idempotent', async () => {
     await User.init();

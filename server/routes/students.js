@@ -47,7 +47,16 @@ const STUDENT_SELF_EDITABLE = [
   'name', 'firstName', 'lastName', 'phone', 'nationality', 'dateOfBirth', 'gender', 'maritalStatus', 'placeOfBirth',
   'passport', 'address', 'educationLevel', 'gpa', 'englishScore', 'moi', 'englishProficiencyTest', 'budget',
   'preferredCountries', 'interestedCourses', 'academicDetails', 'experienceDetails', 'avatar',
+  'secondaryEmail', 'altPhone', 'universityName', 'preferredCourseLevel', 'preferredIntake',
+  'preferredUniversities', 'preferredCities', 'needsScholarship', 'needsLoan', 'needsAccommodation', 'preferenceNote',
 ];
+// Plain-text fields from the list above: coerced to trimmed strings so a stray object or
+// number can't reach Mongoose, and capped so one field can't bloat the record.
+const SELF_TEXT_FIELDS = new Set([
+  'secondaryEmail', 'altPhone', 'universityName', 'preferredCourseLevel', 'preferredIntake',
+  'preferredUniversities', 'preferredCities', 'preferenceNote',
+]);
+const YES_NO_FIELDS = new Set(['needsScholarship', 'needsLoan', 'needsAccommodation']);
 
 // Update current student profile
 router.put('/me', authMiddleware, async (req, res) => {
@@ -55,6 +64,10 @@ router.put('/me', authMiddleware, async (req, res) => {
   // Allowlist, not a blocklist: everything else on the record (role flags, counselor assignment, lead stage,
   // document/application status, staff notes, lock and session state, reset tokens) is staff- or server-controlled.
   const updates = Object.fromEntries(STUDENT_SELF_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
+  for (const k of Object.keys(updates)) {
+    if (SELF_TEXT_FIELDS.has(k)) updates[k] = String(updates[k] ?? '').trim().slice(0, k === 'preferenceNote' ? 2000 : 300);
+    if (YES_NO_FIELDS.has(k) && !['yes', 'no', 'not_sure', ''].includes(updates[k])) delete updates[k];
+  }
   try {
     const user = await User.findByIdAndUpdate(
       req.user.id,

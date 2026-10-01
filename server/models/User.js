@@ -239,6 +239,14 @@ const UserSchema = new mongoose.Schema({
   workSummary: String,         // free-text "Work"
   branch: String,
 
+  // The student's own words about what they want ("My Preferences" on their profile)
+  preferredUniversities: String,
+  preferredCities: String,
+  needsScholarship: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  needsLoan: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  needsAccommodation: { type: String, enum: ['yes', 'no', 'not_sure', ''] },
+  preferenceNote: String,
+
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
   source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
   leadStatus: { type: String, enum: ['new', 'contacted'] },
