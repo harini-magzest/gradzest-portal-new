@@ -7,6 +7,8 @@ import PostureTab from '../../components/soc/PostureTab';
 import AuditTab from '../../components/soc/AuditTab';
 import ActivityTab from '../../components/soc/ActivityTab';
 import UploadsTab from '../../components/soc/UploadsTab';
+import GlobalSearch from '../../components/soc/GlobalSearch';
+import NeedsAttention from '../../components/soc/NeedsAttention';
 
 type Tab = 'overview' | 'incidents' | 'investigate' | 'activity' | 'uploads' | 'audit' | 'posture';
 
@@ -24,19 +26,24 @@ export default function SOCDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
   // Any tab can jump straight to a person's details + response actions.
   const [investigateUserId, setInvestigateUserId] = useState<string | undefined>(undefined);
-  const openUser = (id: string) => { setInvestigateUserId(id); setTab('investigate'); };
+  const [investigateIp, setInvestigateIp] = useState<string | undefined>(undefined);
+  const openUser = (id: string) => { setInvestigateIp(undefined); setInvestigateUserId(id); setTab('investigate'); };
+  const openIp = (ip: string) => { setInvestigateUserId(undefined); setInvestigateIp(ip); setTab('investigate'); };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-700 to-purple-800 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
             <ShieldAlert className="w-5 h-5 text-white" />
           </div>
           <div>
             <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Security Operations</p>
             <h1 className="text-2xl font-bold leading-tight">Security Operations Center</h1>
+          </div>
+          <div className="ml-auto w-full sm:w-auto sm:flex-1 sm:max-w-sm">
+            <GlobalSearch onOpenUser={openUser} onOpenIp={openIp} onOpenIncidents={() => setTab('incidents')} onOpenUploads={() => setTab('uploads')} />
           </div>
         </div>
         <div className="flex gap-1 p-1 bg-white/10 rounded-xl w-fit flex-wrap">
@@ -55,9 +62,14 @@ export default function SOCDashboard() {
         </div>
       </div>
 
-      {tab === 'overview' && <OverviewTab />}
+      {tab === 'overview' && (
+        <>
+          <NeedsAttention onOpenIncidents={() => setTab('incidents')} onOpenUploads={() => setTab('uploads')} onOpenUser={openUser} onOpenIp={openIp} />
+          <OverviewTab />
+        </>
+      )}
       {tab === 'incidents' && <IncidentsTab />}
-      {tab === 'investigate' && <InvestigateTab initialUserId={investigateUserId} />}
+      {tab === 'investigate' && <InvestigateTab initialUserId={investigateUserId} initialIp={investigateIp} />}
       {tab === 'activity' && <ActivityTab onInvestigateUser={openUser} />}
       {tab === 'uploads' && <UploadsTab onInvestigateUser={openUser} />}
       {tab === 'audit' && <AuditTab />}

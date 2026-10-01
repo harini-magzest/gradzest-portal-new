@@ -1,0 +1,51 @@
+const request = require('supertest');
+const { app } = require('../app');
+const User = require('../models/User');
+const SecurityEvent = require('../models/SecurityEvent');
+const { getScore } = require('../lib/skyload/riskRegistry');
+
+const LOCAL_IPS = ['::ffff:127.0.0.1', '127.0.0.1', '::1'];
+let n = 0;
+async function login(role, extra = {}) {
+  const email = `sky-${role}-${Date.now()}-${n++}@example.com`;
+  await request(app).post('/api/auth/register').send({ name: 'Sky', email, password: 'TestPass123!' });
+  await User.findOneAndUpdate({ email }, { emailVerified: true, role, ...extra });
+  return (await request(app).post('/api/auth/login').send({ email, password: 'TestPass123!' })).body.token;
+}
+const maxScore = () => Math.max(...LOCAL_IPS.map((ip) => getScore(ip) || 0));
+const botFlags = () => SecurityEvent.countDocuments({ type: 'skyload_bot_flag' });
+
+describe('Skyload does not treat the SOC owner\'s own dashboard as a bot', () => {
+  it('a burst of 60 SOC requests with a full-admin token all succeed, raise no bot flags and leave the IP\'s risk score alone', async () => {
+    const admin = await login('admin');
+    const flagsBefore = await botFlags();
+    const scoreBefore = maxScore();
+    const results = await Promise.all(Array.from({ length: 60 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${admin}` })));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(await botFlags()).toBe(flagsBefore);
+    // (the score may only have decayed: the login calls above are headerless supertest requests and carry their own baseline)
+    expect(maxScore()).toBeLessThanOrEqual(scoreBefore + 0.001);
+  });
+
+  it('the same burst is NOT exempt for a non-admin token, an Application Team token, or no token — they are still scored', async () => {
+    const student = await login('student');
+    const appTeam = await login('admin', { isAppTeam: true });
+    const flagsBefore = await botFlags();
+    await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${student}` })));
+    await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${appTeam}` })));
+    await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts')));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(await botFlags()).toBeGreaterThan(flagsBefore);
+    expect(maxScore()).toBeGreaterThanOrEqual(5);
+  });
+
+  it('a forged or expired admin token does not earn the exemption', async () => {
+    const jwt = require('jsonwebtoken');
+    const forged = jwt.sign({ id: 'x', role: 'admin' }, 'not-the-real-secret');
+    const flagsBefore = await botFlags();
+    await Promise.all(Array.from({ length: 45 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${forged}` })));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(await botFlags()).toBeGreaterThan(flagsBefore);
+  });
+});

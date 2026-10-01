@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, Loader2, LogIn, LogOut, Laptop } from 'lucide-react';
 import { api, getApiToken } from '../../api';
+import { ErrorBanner, errorText } from './ui';
 import SavedFilters from './SavedFilters';
 import FeatureUsage from './FeatureUsage';
 
@@ -56,6 +57,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [live, setLive] = useState(false);
+  const [error, setError] = useState('');
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
@@ -66,11 +68,11 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
   });
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const d = await api.soc.uiActivity(params(filters, 0));
       setRows(d.activity || []); setTotal(d.total || 0); setTracked(d.trackedRoles || []);
-    } catch { /* ignore */ }
+    } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, [filters]);
 
@@ -85,7 +87,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
     try {
       const d = await api.soc.uiActivity(params(filters, rows.length));
       setRows(prev => [...prev, ...(d.activity || [])]); setTotal(d.total || 0);
-    } catch { /* ignore */ }
+    } catch (e) { setError(errorText(e)); }
     setLoadingMore(false);
   };
 
@@ -104,7 +106,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
 
   const exportCsv = () => {
     const p = new URLSearchParams(Object.entries(params(filters, 0)).filter(([k, v]) => v && k !== 'limit' && k !== 'skip') as [string, string][]);
-    api.soc.download(`/ui-activity/export.csv?${p}`, 'soc-ui-activity.csv').catch(() => {});
+    api.soc.download(`/ui-activity/export.csv?${p}`, 'soc-ui-activity.csv').catch(e => setError(errorText(e)));
   };
 
   const input = 'px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500';
@@ -138,7 +140,9 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
       <SavedFilters storageKey="soc.activityFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
+        ) : loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">

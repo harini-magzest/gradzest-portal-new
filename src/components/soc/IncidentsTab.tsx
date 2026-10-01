@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { AlertTriangle, UserCircle2, Loader2, Search, Download, Clock } from 'lucide-react';
 import { api, getApiToken } from '../../api';
+import { ErrorBanner, errorText } from './ui';
 import {
   type Incident, type SlaPolicy, DEFAULT_SLA_POLICY, SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
@@ -30,6 +31,10 @@ export default function IncidentsTab() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [error, setError] = useState('');
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState('');
 
   const patch = (p: Partial<Filters>) => setFilters(f => ({ ...f, ...p }));
 
@@ -40,15 +45,31 @@ export default function IncidentsTab() {
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: 0 });
       setIncidents(data.incidents || []);
       setTotal(data.total ?? (data.incidents || []).length);
       if (data.slaPolicy) setSlaPolicy(data.slaPolicy);
-    } catch { /* ignore */ }
+    } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, [filters]);
+
+  const togglePick = (id: string) => setPicked(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  // Clearing a batch of noise (e.g. one rule's false positives) in one go; the reason is recorded on every incident.
+  const bulkClose = async (status: 'resolved' | 'false_positive') => {
+    const ids = [...picked];
+    if (!ids.length) return;
+    if (!window.confirm(`Mark ${ids.length} incident${ids.length === 1 ? '' : 's'} as ${status.replace('_', ' ')}?`)) return;
+    setBulkBusy(true); setBulkMsg('');
+    try {
+      const r = await api.soc.bulkUpdateIncidents(ids, { status, resolutionReason: status === 'false_positive' ? 'benign_activity' : 'fixed', resolutionComment: 'Closed in bulk from the incident list' });
+      setBulkMsg(`${r.updated.length} updated${r.failed.length ? `, ${r.failed.length} failed` : ''}.`);
+      setPicked(new Set());
+      await load();
+    } catch (e) { setBulkMsg(errorText(e)); }
+    setBulkBusy(false);
+  };
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -56,7 +77,7 @@ export default function IncidentsTab() {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: incidents.length });
       setIncidents(prev => [...prev, ...(data.incidents || [])]);
       setTotal(data.total ?? incidents.length);
-    } catch { /* ignore */ }
+    } catch (e) { setError(errorText(e)); }
     setLoadingMore(false);
   };
 
@@ -79,7 +100,7 @@ export default function IncidentsTab() {
 
   const exportCsv = () => {
     const params = new URLSearchParams(Object.entries(apiFilters(filters)).filter(([, v]) => v) as [string, string][]);
-    api.soc.download(`/incidents/export.csv?${params}`, 'soc-incidents.csv').catch(() => {});
+    api.soc.download(`/incidents/export.csv?${params}`, 'soc-incidents.csv').catch(e => setError(errorText(e)));
   };
 
   const selectCls = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500';
@@ -115,8 +136,24 @@ export default function IncidentsTab() {
       </div>
       <SavedFilters storageKey="soc.incidentFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
 
+      {(picked.size > 0 || bulkMsg) && (
+        <div className="flex items-center gap-2 flex-wrap bg-purple-50 border border-purple-100 rounded-xl px-4 py-2 text-sm">
+          {picked.size > 0 && <span className="font-semibold text-purple-800">{picked.size} selected</span>}
+          {picked.size > 0 && (
+            <>
+              <button type="button" disabled={bulkBusy} onClick={() => bulkClose('false_positive')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark false positive</button>
+              <button type="button" disabled={bulkBusy} onClick={() => bulkClose('resolved')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark resolved</button>
+              <button type="button" onClick={() => setPicked(new Set())} className="text-xs text-gray-500 hover:underline">Clear</button>
+            </>
+          )}
+          {bulkMsg && <span className="text-xs text-gray-600 ml-auto">{bulkMsg}</span>}
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
+        ) : loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
         ) : incidents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -128,8 +165,12 @@ export default function IncidentsTab() {
           const sla = slaState(inc, slaPolicy, now);
           const showSla = inc.status === 'open' || inc.status === 'investigating' || sla.breached;
           return (
-            <button key={inc._id} onClick={() => setSelected(inc)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 text-left transition-colors">
+            <div key={inc._id} className="flex items-center border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+              {(inc.status === 'open' || inc.status === 'investigating') ? (
+                <input type="checkbox" checked={picked.has(inc._id)} onChange={() => togglePick(inc._id)} aria-label={`Select ${inc.title}`} className="ml-4 w-4 h-4 accent-purple-600 flex-shrink-0" />
+              ) : <span className="ml-4 w-4 flex-shrink-0" />}
+              <button onClick={() => setSelected(inc)}
+              className="flex-1 min-w-0 flex items-center justify-between gap-3 pl-3 pr-5 py-4 text-left transition-colors">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="text-sm font-semibold text-gray-900 truncate">{inc.title}</span>
@@ -151,6 +192,7 @@ export default function IncidentsTab() {
               </div>
               <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(inc.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             </button>
+            </div>
           );
         })}
         {!loading && incidents.length < total && (

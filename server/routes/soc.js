@@ -440,51 +440,77 @@ router.get('/analysts', authMiddleware, adminOnly, async (req, res) => {
 const INCIDENT_STATUSES = ['open', 'investigating', 'resolved', 'false_positive'];
 const RESOLUTION_REASONS = ['fixed', 'benign_activity', 'expected_behavior', 'testing', 'duplicate', 'other'];
 
+// Applies a status / assignment / resolution change to ONE incident, keeping the SLA clock honest: the first analyst touch
+// acknowledges, closing stamps resolvedAt, reopening clears it and the previous outcome. Shared by PATCH /incidents/:id
+// and PATCH /incidents/bulk so both behave identically. Returns { error: { status, message } } or { incident }.
+async function applyIncidentUpdate(id, body, actor, io) {
+  if (!isObjectId(id)) return { error: { status: 404, message: 'Incident not found' } };
+  const { status, assignedTo, resolutionReason, resolutionComment } = body || {};
+  if (status && !INCIDENT_STATUSES.includes(status)) return { error: { status: 400, message: 'Invalid status' } };
+  if (resolutionReason && !RESOLUTION_REASONS.includes(resolutionReason)) return { error: { status: 400, message: 'Invalid resolution reason' } };
+
+  const before = await SecurityIncident.findById(id).select('status assignedTo acknowledgedAt').lean();
+  if (!before) return { error: { status: 404, message: 'Incident not found' } };
+
+  const update = {};
+  if (status) update.status = status;
+  if (assignedTo !== undefined) update.assignedTo = assignedTo || null;
+
+  const now = new Date();
+  const touched = (status && status !== 'open') || (assignedTo !== undefined && assignedTo);
+  if (touched && !before.acknowledgedAt) update.acknowledgedAt = now;
+  if (status) {
+    if (CLOSED.includes(status)) {
+      update.resolvedAt = CLOSED.includes(before.status) ? undefined : now;
+      if (resolutionReason !== undefined) update.resolutionReason = resolutionReason;
+      if (resolutionComment !== undefined) update.resolutionComment = String(resolutionComment).slice(0, 1000);
+    } else {
+      update.resolvedAt = null;
+      update.resolutionReason = '';
+      update.resolutionComment = '';
+    }
+    if (update.resolvedAt === undefined) delete update.resolvedAt;
+  }
+
+  const incident = await SecurityIncident.findByIdAndUpdate(id, update, { new: true }).populate('assignedTo', 'name email');
+
+  if (status && status !== before.status) {
+    const outcome = CLOSED.includes(status) && resolutionReason ? ` (${resolutionReason})` : '';
+    logAnalystAction({ analyst: actor, action: 'incident_status_change', targetType: 'incident', targetId: incident._id, reason: `${before.status} → ${status}${outcome}`, io });
+  }
+  if (assignedTo !== undefined && String(before.assignedTo || '') !== String(assignedTo || '')) {
+    logAnalystAction({ analyst: actor, action: 'incident_assigned', targetType: 'incident', targetId: incident._id, reason: assignedTo ? `Assigned to ${incident.assignedTo?.name || assignedTo}` : 'Unassigned', io });
+  }
+  io?.to('admin-room').emit('incident_updated', incident.toObject());
+  return { incident };
+}
+
+// PATCH /api/soc/incidents/bulk { ids: [...], status?, assignedTo?, resolutionReason?, resolutionComment? } — up to 100
+// incidents at once (e.g. clearing a noisy rule's false positives). Must be registered BEFORE /incidents/:id.
+router.patch('/incidents/bulk', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    const { ids, ...changes } = req.body || {};
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ message: 'ids must be a non-empty array' });
+    if (ids.length > 100) return res.status(400).json({ message: 'At most 100 incidents per request' });
+    if (changes.status === undefined && changes.assignedTo === undefined) return res.status(400).json({ message: 'Nothing to change: provide status and/or assignedTo' });
+    const io = req.app.get('io');
+    const updated = [];
+    const failed = [];
+    for (const id of [...new Set(ids.map(String))]) {
+      const r = await applyIncidentUpdate(id, changes, req.user, io);
+      if (r.error) failed.push({ id, message: r.error.message }); else updated.push(String(r.incident._id));
+    }
+    res.json({ updated, failed });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
 router.patch('/incidents/:id', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Incident not found' });
-    const { status, assignedTo, resolutionReason, resolutionComment } = req.body || {};
-    if (status && !INCIDENT_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
-    if (resolutionReason && !RESOLUTION_REASONS.includes(resolutionReason)) return res.status(400).json({ message: 'Invalid resolution reason' });
-
-    const before = await SecurityIncident.findById(req.params.id).select('status assignedTo acknowledgedAt').lean();
-    if (!before) return res.status(404).json({ message: 'Incident not found' });
-
-    const update = {};
-    if (status) update.status = status;
-    if (assignedTo !== undefined) update.assignedTo = assignedTo || null;
-
-    // SLA clock: first analyst touch acknowledges; closing stamps resolvedAt,
-    // reopening clears it (and the previous outcome).
-    const now = new Date();
-    const touched = (status && status !== 'open') || (assignedTo !== undefined && assignedTo);
-    if (touched && !before.acknowledgedAt) update.acknowledgedAt = now;
-    if (status) {
-      if (CLOSED.includes(status)) {
-        update.resolvedAt = CLOSED.includes(before.status) ? undefined : now;
-        if (resolutionReason !== undefined) update.resolutionReason = resolutionReason;
-        if (resolutionComment !== undefined) update.resolutionComment = String(resolutionComment).slice(0, 1000);
-      } else {
-        update.resolvedAt = null;
-        update.resolutionReason = '';
-        update.resolutionComment = '';
-      }
-      if (update.resolvedAt === undefined) delete update.resolvedAt;
-    }
-
-    const incident = await SecurityIncident.findByIdAndUpdate(req.params.id, update, { new: true }).populate('assignedTo', 'name email');
-
-    const io = req.app.get('io');
-    if (status && status !== before.status) {
-      const outcome = CLOSED.includes(status) && resolutionReason ? ` (${resolutionReason})` : '';
-      logAnalystAction({ analyst: req.user, action: 'incident_status_change', targetType: 'incident', targetId: incident._id, reason: `${before.status} → ${status}${outcome}`, io });
-    }
-    if (assignedTo !== undefined && String(before.assignedTo || '') !== String(assignedTo || '')) {
-      logAnalystAction({ analyst: req.user, action: 'incident_assigned', targetType: 'incident', targetId: incident._id, reason: assignedTo ? `Assigned to ${incident.assignedTo?.name || assignedTo}` : 'Unassigned', io });
-    }
-
-    io?.to('admin-room').emit('incident_updated', incident.toObject());
-    res.json(incident);
+    const r = await applyIncidentUpdate(req.params.id, req.body, req.user, req.app.get('io'));
+    if (r.error) return res.status(r.error.status).json({ message: r.error.message });
+    res.json(r.incident);
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -1164,13 +1190,39 @@ router.get('/audit-trail/verify', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
+// Adds the analyst's name and a human-readable description of each action's target. The trail stores bare ids (an
+// incident id, a user id…), which tell a reader nothing; this resolves them in a handful of batched lookups.
+async function enrichAudit(actions) {
+  const idsOf = (t) => [...new Set(actions.filter((a) => a.targetType === t && isObjectId(a.targetId)).map((a) => a.targetId))];
+  const analystIds = [...new Set(actions.map((a) => String(a.analystId)).filter(isObjectId))];
+  const [users, incidents, uploads, suppressions, analysts] = await Promise.all([
+    User.find({ _id: { $in: idsOf('user') } }).select('name email').lean(),
+    SecurityIncident.find({ _id: { $in: idsOf('incident') } }).select('title').lean(),
+    UploadRecord.find({ _id: { $in: idsOf('upload') } }).select('originalName').lean(),
+    SuppressionRule.find({ _id: { $in: idsOf('suppression') } }).select('kind value').lean(),
+    User.find({ _id: { $in: analystIds } }).select('name').lean(),
+  ]);
+  const by = (rows) => new Map(rows.map((r) => [String(r._id), r]));
+  const U = by(users); const I = by(incidents); const F = by(uploads); const S = by(suppressions); const A = by(analysts);
+  return actions.map((a) => {
+    const t = String(a.targetId);
+    let targetLabel = t;
+    if (a.targetType === 'user') { const u = U.get(t); targetLabel = u ? `${u.name} (${u.email})` : 'a deleted account'; }
+    else if (a.targetType === 'incident') targetLabel = I.get(t)?.title || 'a deleted incident';
+    else if (a.targetType === 'upload') targetLabel = F.get(t)?.originalName || 'a deleted upload';
+    else if (a.targetType === 'suppression') { const s = S.get(t); targetLabel = s ? `${s.kind} ${s.value}` : 'a removed suppression rule'; }
+    else if (a.targetType === 'session') targetLabel = 'one signed-in device';
+    return { ...a, analystName: A.get(String(a.analystId))?.name || '', targetLabel };
+  });
+}
+
 router.get('/audit-trail/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const actions = await AnalystAction.find().sort({ createdAt: -1 }).limit(5000).lean();
+    const actions = await enrichAudit(await AnalystAction.find().sort({ createdAt: -1 }).limit(5000).lean());
     logExport(req, 'audit-trail', actions.length);
     sendCsv(res, 'soc-audit-trail.csv', [
-      { label: 'Time', key: 'createdAt' }, { label: 'Analyst', key: 'analystEmail' }, { label: 'Action', key: 'action' },
-      { label: 'Target type', key: 'targetType' }, { label: 'Target', key: 'targetId' }, { label: 'Reason', key: 'reason' },
+      { label: 'Time', key: 'createdAt' }, { label: 'Analyst', key: 'analystName' }, { label: 'Analyst email', key: 'analystEmail' }, { label: 'Action', key: 'action' },
+      { label: 'Target type', key: 'targetType' }, { label: 'Target', key: 'targetLabel' }, { label: 'Target id', key: 'targetId' }, { label: 'Reason', key: 'reason' },
       { label: 'Hash', key: 'hash' },
     ], actions);
   } catch (err) {
@@ -1181,7 +1233,7 @@ router.get('/audit-trail/export.csv', authMiddleware, adminOnly, attachUserEmail
 router.get('/audit-trail', authMiddleware, adminOnly, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const actions = await AnalystAction.find().sort({ createdAt: -1 }).limit(limit).lean();
+    const actions = await enrichAudit(await AnalystAction.find().sort({ createdAt: -1 }).limit(limit).lean());
     res.json({ actions });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
@@ -1312,3 +1364,4 @@ router.get('/posture/checklist-pdf', authMiddleware, adminOnly, (req, res) => {
 });
 
 module.exports = router;
+module.exports.adminOnly = adminOnly; // reused by routes/socExtras.js so every SOC route shares one gate

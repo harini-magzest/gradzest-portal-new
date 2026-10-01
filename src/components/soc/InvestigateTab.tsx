@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { errorText } from './ui';
 import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X, Lock, Unlock, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
@@ -148,7 +149,7 @@ function TimelineList({ timeline }: { timeline: any[] }) {
   );
 }
 
-export default function InvestigateTab({ initialUserId }: { initialUserId?: string } = {}) {
+export default function InvestigateTab({ initialUserId, initialIp }: { initialUserId?: string; initialIp?: string } = {}) {
   const [mode, setMode] = useState<Mode>('user');
   const [query, setQuery] = useState('');
   const [ipQuery, setIpQuery] = useState('');
@@ -174,8 +175,10 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
 
   const searchUsers = async () => {
     if (!query.trim()) return;
-    const data = await api.soc.searchUsers(query.trim());
-    setUserResults(data.users || []);
+    try {
+      const data = await api.soc.searchUsers(query.trim());
+      setUserResults(data.users || []); setActionError('');
+    } catch (e) { setActionError(errorText(e)); }
   };
 
   const investigateUser = async (u: any) => {
@@ -185,13 +188,16 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
       setUserData(d);
       setSelectedUser({ id: u.id, ...d.user }); // so actions know the real email/name even when opened from another tab
     }
+    catch (e) { setActionError(errorText(e)); }
     finally { setLoading(false); }
   };
 
-  const investigateIp = async () => {
-    if (!ipQuery.trim()) return;
+  const investigateIp = async (override?: string) => {
+    const target = (override ?? ipQuery).trim();
+    if (!target) return;
     setLoading(true); setActionMsg(''); setActionError(''); setIpData(null);
-    try { setIpData(await api.soc.investigateIp(ipQuery.trim())); }
+    try { setIpData(await api.soc.investigateIp(target)); }
+    catch (e) { setActionError(errorText(e)); }
     finally { setLoading(false); }
   };
 
@@ -208,6 +214,14 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
     void investigateUser({ id: initialUserId, email: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUserId]);
+
+  // Arriving from the global search / attention card with an IP already chosen.
+  useEffect(() => {
+    if (!initialIp) return;
+    setMode('ip'); setShowFeatures(false); setIpQuery(initialIp);
+    void investigateIp(initialIp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialIp]);
 
   const toggleLock = async () => {
     if (!selectedUser || !userData) return;
@@ -310,7 +324,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
               onKeyDown={e => { if (e.key === 'Enter') investigateIp(); }}
               placeholder="Enter an IP address…"
               className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <button onClick={investigateIp} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
+            <button onClick={() => investigateIp()} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
           </div>
         </div>
       )}

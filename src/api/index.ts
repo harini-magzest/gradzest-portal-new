@@ -32,6 +32,13 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
+// An error that remembers the HTTP status, so screens can say "rate-limited" or "not authorised" instead of a bare message.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  constructor(message: string, status: number, code?: string) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; }
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
@@ -51,7 +58,7 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(err.message || 'Request failed');
+    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined);
   }
   return res.json();
 }
@@ -415,6 +422,11 @@ export const api = {
       req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    attention: () => req<any>('/soc/attention', { headers: authHeaders() }),
+    incidentDetail: (id: string) => req<any>(`/soc/incidents/${id}/detail`, { headers: authHeaders() }),
+    search: (q: string) => req<any>(`/soc/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    bulkUpdateIncidents: (ids: string[], data: Record<string, unknown>) =>
+      req<{ updated: string[]; failed: { id: string; message: string }[] }>('/soc/incidents/bulk', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ ids, ...data }) }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
     alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
     testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
