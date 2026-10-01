@@ -580,6 +580,11 @@ export const api = {
       req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
+  onboarding: {
+    markStep: (step: 'profileComplete' | 'documentUploaded' | 'counselorViewed' | 'universityBrowsed') =>
+      req<any>(`/onboarding/${step}`, { method: 'PUT', headers: authHeaders() }),
+  },
+
   subscribe: (data: { name: string; email: string; phone: string }) =>
     req<{ message: string }>('/subscribe', {
       method: 'POST',

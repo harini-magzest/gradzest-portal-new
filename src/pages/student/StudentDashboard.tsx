@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Student } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
+import OnboardingChecklist from '../../components/OnboardingChecklist';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -268,6 +269,7 @@ export default function StudentDashboard() {
         />
       )}
 
+      <OnboardingChecklist />
 
       {/* Welcome header */}
       <div className="bg-gradient-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
