@@ -202,23 +202,31 @@ export default function AppTeamCounselors() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Counselors</h1>
-          <p className="text-sm text-gray-500">Workload, applications and availability across the counselling team</p>
+      {/* Header — same orange banner as the other Application Team pages */}
+      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+              <UserCog className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-orange-100 text-xs font-medium uppercase tracking-wide">Application Team</p>
+              <h1 className="text-2xl font-bold leading-tight">Counselors</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {updatedAt && (
+              <span className="text-xs text-orange-100" aria-live="polite">
+                {loading ? 'Refreshing…' : `Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+              </span>
+            )}
+            <button type="button" onClick={load} disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'Refreshing' : 'Refresh'}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {updatedAt && (
-            <span className="text-xs text-gray-400" aria-live="polite">
-              {loading ? 'Refreshing…' : `Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
-            </span>
-          )}
-          <button type="button" onClick={load} disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'Refreshing' : 'Refresh'}
-          </button>
-        </div>
+        <p className="text-orange-50 mt-3 text-sm">Workload, applications and availability across the counselling team</p>
       </div>
 
       {error && (
