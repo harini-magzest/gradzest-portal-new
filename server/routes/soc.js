@@ -103,9 +103,7 @@ const SECURITY_TYPE_LABEL = {
   password_reset_request: 'Password reset requested',
   privilege_change: 'Privilege change',
   data_export: 'Data export',
-  soc_mfa_success: 'SOC two-factor passed',
-  soc_mfa_failure: 'SOC two-factor failed',
-  soc_mfa_enrolled: 'SOC two-factor enabled',
+  bulk_delete: 'Bulk data deletion',
 };
 
 // Every CSV download from the SOC is itself a security event, so a burst of

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, MapPin, Star, BookOpen, DollarSign, Calendar, CheckCircle, ExternalLink, Users, Award, X, Plus, GraduationCap, ChevronRight } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const LEVEL_COLORS: Record<string, string> = {
   "Bachelor's": 'bg-blue-100 text-blue-700',
@@ -349,6 +350,7 @@ function UniversityCard({ uni }: { uni: any }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CounselorUniversities() {
+  const { portal } = usePortalName();
   const { user } = useAuth();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -403,7 +405,7 @@ export default function CounselorUniversities() {
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Partner Universities</h1>
           </div>
         </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const ALL_STATUSES = [
   { value: 'draft',          label: 'Draft',          color: 'gray' },
@@ -393,6 +394,7 @@ function UpdateStatusModal({
 }
 
 export default function AdminApplications() {
+  const { portal } = usePortalName();
   const [viewMode, setViewMode] = useState<'applications' | 'subscribers'>('applications');
   const [applications, setApplications] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -554,7 +556,7 @@ export default function AdminApplications() {
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Application Reports</h1>
               </div>
             </div>

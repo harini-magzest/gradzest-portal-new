@@ -294,6 +294,9 @@ const UserSchema = new mongoose.Schema({
   certifications: [String],
   linkedIn: String,
   website: String,
+  // Staff contact details (Settings → Users)
+  mobile: String,
+  fax: String,
   address: {
     street: String,
     city: String,
