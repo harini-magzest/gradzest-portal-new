@@ -7,7 +7,7 @@ import {
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
-import LeadStageSelect, { LEAD_STAGES, leadStageOf } from './LeadStageSelect';
+import LeadStageSelect, { PIPELINE_STAGES, leadStageOf } from './LeadStageSelect';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export type RecordTab = 'timeline' | 'notes' | 'messages' | 'activities' | 'emails' | 'pipelines' | 'files';
@@ -585,7 +585,7 @@ function Stepper({ steps, current, failed }: { steps: { key: string; label: stri
 }
 
 function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEdit: boolean; onLeadStage: (stage: string) => Promise<unknown> }) {
-  const stageIdx = LEAD_STAGES.findIndex(s => s.value === leadStageOf(student).value);
+  const stageIdx = PIPELINE_STAGES.findIndex(s => s.value === leadStageOf(student).value);
   const apps = student.applications || [];
   return (
     <div className="space-y-6">
@@ -594,7 +594,7 @@ function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEd
           <h4 className="text-sm font-semibold text-gray-900">Lead pipeline</h4>
           <LeadStageSelect value={student.leadStage} editable={canEdit} onSave={onLeadStage} />
         </div>
-        <Stepper steps={LEAD_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
+        <Stepper steps={PIPELINE_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
       </section>
       <section>
         <h4 className="text-sm font-semibold text-gray-900 mb-3">Applications ({apps.length})</h4>

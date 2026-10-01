@@ -38,6 +38,7 @@ httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${pro
 
 connectDB().then(async () => {
   await autoSeedIfEmpty();
+  await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
   initAutomation({ io, userSockets, mailer });
