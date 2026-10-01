@@ -3,6 +3,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
+const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { logPiiAccess } = require('../lib/logPiiAccess');
 const attachUserEmail = require('../middleware/attachUserEmail');
@@ -16,9 +17,9 @@ const router = express.Router();
 router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   try {
-    // Role hierarchy: a counselor sees their own students plus those of everyone in roles below theirs
+    // Honour the role hierarchy: a role-restricted counselor sees their team's students, not everyone.
     const teamFilter = studentFilter(await loadAccess(req));
-    const students = await User.find({ role: 'student', ...teamFilter }).select('-password');
+    const students = await User.find({ role: 'student', ...(teamFilter || {}) }).select('-password');
     const io = req.app.get('io');
     students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
@@ -40,11 +41,19 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// The fields on the student's own profile page — nothing else is writable through PUT /me.
+const STUDENT_SELF_EDITABLE = [
+  'name', 'firstName', 'lastName', 'phone', 'nationality', 'dateOfBirth', 'gender', 'maritalStatus', 'placeOfBirth',
+  'passport', 'address', 'educationLevel', 'gpa', 'englishScore', 'moi', 'englishProficiencyTest', 'budget',
+  'preferredCountries', 'interestedCourses', 'academicDetails', 'experienceDetails', 'avatar',
+];
+
 // Update current student profile
 router.put('/me', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
-  // leadStatus/source are admin-managed lead-tracking fields, never writable by the student
-  const { password, role, _id, __v, leadStatus, source, ...updates } = req.body;
+  // Allowlist, not a blocklist: everything else on the record (role flags, counselor assignment, lead stage,
+  // document/application status, staff notes, lock and session state, reset tokens) is staff- or server-controlled.
+  const updates = Object.fromEntries(STUDENT_SELF_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
   try {
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -60,7 +69,7 @@ router.put('/me', authMiddleware, async (req, res) => {
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
+router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
   const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);

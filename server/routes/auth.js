@@ -86,6 +86,10 @@ router.post('/login', async (req, res) => {
 
     // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      // A lock set by an administrator from the SOC runs to 2099 — it doesn't expire on its own.
+      if (new Date(user.lockedUntil).getFullYear() >= 2090) {
+        return res.status(423).json({ message: 'This account has been locked by an administrator. Please contact support.' });
+      }
       const minutesLeft = Math.ceil((user.lockedUntil - Date.now()) / 60000);
       return res.status(423).json({
         message: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`,

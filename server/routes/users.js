@@ -213,7 +213,7 @@ router.put('/:id', async (req, res) => {
       }
       target.active = !!req.body.active;
       // Sign a deactivated user out everywhere (their access token expires within 15 min)
-      if (!target.active) { target.refreshTokenHash = null; target.refreshTokenExpires = null; }
+      if (!target.active) target.sessions = [];
     }
     await target.save();
     res.json(await User.findById(target._id).select(STAFF_FIELDS).lean());

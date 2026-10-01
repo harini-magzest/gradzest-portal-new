@@ -10,6 +10,7 @@ import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import ActivityTracker from './components/ActivityTracker';
 
 // Public pages
 const Home             = lazy(() => import('./pages/Home'));
@@ -132,6 +133,7 @@ export default function App() {
       <AuthModalProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <ActivityTracker />
         <ToastLayer />
         <FlashToast />
         <AuthModal />

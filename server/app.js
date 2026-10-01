@@ -265,6 +265,7 @@ app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
+app.use('/api/ui-trail', require('./routes/uiTrail'));
 app.use('/api/soc', require('./routes/soc'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
@@ -302,6 +303,7 @@ io.use((socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.data.userId = String(decoded.id);
     socket.data.role = decoded.role;
+    socket.data.isAppTeam = !!decoded.isAppTeam;
     next();
   } catch {
     next(new Error('Unauthorized'));
@@ -316,7 +318,13 @@ io.on('connection', (socket) => {
     const wasOffline = !userSockets.has(uid);
     if (wasOffline) userSockets.set(uid, new Set());
     userSockets.get(uid).add(socket.id);
-    if (socket.data.role === 'admin') socket.join('admin-room');
+    // A personal room lets the server target one user (see logActivity). Admins and the Application Team share the
+    // activity feed; only full admins join admin-room, which carries SOC / security events.
+    socket.join(`user:${uid}`);
+    if (socket.data.role === 'admin') {
+      socket.join('activity-room');
+      if (!socket.data.isAppTeam) socket.join('admin-room');
+    }
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });

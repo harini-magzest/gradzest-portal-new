@@ -54,9 +54,14 @@ async function logActivity(type, action, detail, studentId = null, options = {})
       university:  university || '',
     });
 
-    // Broadcast to every connected dashboard client
+    // Deliver only to those it concerns: admins/Application Team (activity-room), the student it is about and their
+    // counselor (their personal rooms). It used to be broadcast to every connected socket and filtered in the browser,
+    // which meant any signed-in user could read everyone's events from the network tab.
     if (_io) {
-      _io.emit('new_activity', entry.toObject());
+      let target = _io.to('activity-room');
+      if (entry.studentId) target = target.to(`user:${entry.studentId}`);
+      if (entry.counsellorId) target = target.to(`user:${entry.counsellorId}`);
+      target.emit('new_activity', entry.toObject());
     }
 
     if (type === 'payment') {
