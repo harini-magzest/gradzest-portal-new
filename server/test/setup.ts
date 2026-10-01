@@ -9,6 +9,9 @@ process.env.JWT_SECRET = 'test-jwt-secret-do-not-use-in-production';
 process.env.FRONTEND_URL = 'http://localhost:5173';
 process.env.SOC_OWNER_EMAILS = '@example.com,owner@soc.test';
 process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
+// The two-factor requirement for the SOC is on by default; the existing suites exercise SOC logic with plain admin
+// tokens, so it is switched off here and switched back on explicitly in socMfa.test.js.
+process.env.SOC_MFA_REQUIRED = 'false';
 
 let mongod: MongoMemoryServer;
 

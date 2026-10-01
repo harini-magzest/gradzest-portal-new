@@ -275,6 +275,7 @@ app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/ui-trail', require('./routes/uiTrail'));
+app.use('/api/soc-auth', require('./routes/socAuth'));
 app.use('/api/soc', require('./routes/soc'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
@@ -342,7 +343,9 @@ io.on('connection', (socket) => {
         socket.join('full-admin-room');
         try {
           const me = await require('./models/User').findById(uid).select('email').lean();
-          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
+          // Owner AND (when two-factor is required) currently stepped-up: the live feed follows the same rule as the REST API.
+          const mfa = require('./lib/socMfa');
+          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email) && (!mfa.required() || mfa.liveActive(uid))) socket.join('admin-room');
         } catch { /* no owner room on a lookup failure: fail closed */ }
       }
     }
