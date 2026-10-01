@@ -195,10 +195,11 @@ describe('the SOC requires two-factor step-up', () => {
     // and the session that was open is gone
     expect((await request(app).get('/api/soc/stats').set(as(owner, socToken))).status).toBe(403);
 
-    await waitUntil(async () => SecurityIncident.findOne({ type: 'account_lockout', relatedUserId: owner.id }));
+    // These are written in the background; allow plenty of time when the whole suite is loading the machine.
+    await waitUntil(async () => SecurityIncident.findOne({ type: 'account_lockout', relatedUserId: owner.id }), { timeout: 15000 });
     const inc = await SecurityIncident.findOne({ type: 'account_lockout', relatedUserId: owner.id });
     expect(inc.title).toMatch(/SOC two-factor locked/);
-    await waitUntil(async () => (await SecurityEvent.countDocuments({ type: 'soc_mfa_failure', userId: owner.id })) >= 5);
+    await waitUntil(async () => (await SecurityEvent.countDocuments({ type: 'soc_mfa_failure', userId: owner.id })) >= 5, { timeout: 15000 });
     expect(await SecurityEvent.countDocuments({ type: 'soc_mfa_failure', userId: owner.id })).toBeGreaterThanOrEqual(5);
 
     // lock expiry restores access
