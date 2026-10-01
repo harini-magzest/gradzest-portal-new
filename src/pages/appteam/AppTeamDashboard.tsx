@@ -4,6 +4,7 @@ import { api } from '../../api';
 import { Layers, Users, UserCog, TrendingUp, Clock, CheckCircle, ArrowRight, GraduationCap } from 'lucide-react';
 import ActivityFeed from '../../components/ActivityFeed';
 import MeetingPanel from '../../components/MeetingPanel';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const STATUSES = [
   { key: 'draft',          label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   bar: 'bg-gray-400' },
@@ -22,6 +23,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function AppTeamDashboard() {
+  const { portal } = usePortalName();
   const [apps, setApps] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
@@ -94,7 +96,7 @@ export default function AppTeamDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6">
-        <p className="text-gray-900 text-sm mb-1">Application Team Portal</p>
+        <p className="text-gray-900 text-sm mb-1">{portal}</p>
         <h1 className="text-3xl font-bold text-gray-900">Application Dashboard</h1>
         <p className="text-gray-600 mt-1 text-sm">Overview of all applications, students, and counselor assignments</p>
       </div>

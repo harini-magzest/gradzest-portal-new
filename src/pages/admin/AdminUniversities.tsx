@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const COUNTRIES = [
   'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany',
@@ -949,6 +950,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminUniversities() {
+  const { portal } = usePortalName();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1042,7 +1044,7 @@ export default function AdminUniversities() {
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Universities</h1>
               </div>
             </div>

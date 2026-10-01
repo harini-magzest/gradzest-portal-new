@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const EDUCATION_LEVELS = ['10th Grade (Completed)', '12th Grade (Completed)', 'Diploma (Completed)', "Bachelor's (In Progress)", "Bachelor's (Completed)", "Master's (In Progress)", "Master's (Completed)", 'PhD (In Progress)', 'PhD (Completed)', 'Other'];
 
@@ -157,6 +158,7 @@ function NewStudentModal({ onClose, onCreated }: { onClose: () => void; onCreate
 }
 
 export default function CounselorDashboard() {
+  const { portal } = usePortalName();
   const { user } = useAuth();
   const counselor = user as Counselor;
   const [students, setStudents] = useState<any[]>([]);
@@ -311,7 +313,7 @@ export default function CounselorDashboard() {
             <UserCog className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-semibold uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight text-white">{counselor?.name || 'Counselor'}</h1>
             <p className="text-green-200 text-xs mt-0.5 capitalize">{counselor?.specialization?.join(' • ')}</p>
           </div>

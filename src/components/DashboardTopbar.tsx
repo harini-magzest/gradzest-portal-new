@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import { usePortalName } from '../hooks/usePortalName';
 
 const ICON_BTN = 'w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors flex-shrink-0';
 
@@ -12,6 +13,9 @@ export default function DashboardTopbar({
   workspaceLabel: string;
 }) {
   const { user, logout } = useAuth();
+  // Staff see their role from the Roles tree (e.g. "Associate Counsellor HO workspace")
+  const { workspace } = usePortalName();
+  const label = user?.role === 'counselor' || user?.role === 'admin' ? workspace : workspaceLabel;
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -41,7 +45,7 @@ export default function DashboardTopbar({
           <p className="text-xl font-extrabold tracking-tight truncate">
             <span className="text-[#0d1b4b]">Grad</span><span className="text-blue-500">zest</span>
           </p>
-          <p className="text-[11px] text-gray-400 truncate">{workspaceLabel}</p>
+          <p className="text-[11px] text-gray-400 truncate">{label}</p>
         </div>
       </Link>
 

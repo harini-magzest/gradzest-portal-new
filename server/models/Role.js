@@ -8,6 +8,8 @@ const RoleSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   // null = a top-level role
   parentRole:  { type: mongoose.Schema.Types.ObjectId, ref: 'Role', default: null },
+  // Peer Data Visibility: users in this role can also see each other's students
+  peerVisibility: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Role', RoleSchema);

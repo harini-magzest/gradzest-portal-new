@@ -10,6 +10,8 @@ export interface User {
   isAppTeam?: boolean;
 }
 
+export type YesNo = 'yes' | 'no' | 'not_sure' | '';
+
 export interface Student extends User {
   role: 'student';
   firstName?: string;
@@ -35,6 +37,17 @@ export interface Student extends User {
   counselorId?: string;
   joinedDate: string;
   status: 'active' | 'inactive' | 'enrolled';
+  secondaryEmail?: string;
+  altPhone?: string;
+  universityName?: string;
+  preferredCourseLevel?: string;
+  preferredIntake?: string;
+  preferredUniversities?: string;
+  preferredCities?: string;
+  needsScholarship?: YesNo;
+  needsLoan?: YesNo;
+  needsAccommodation?: YesNo;
+  preferenceNote?: string;
   academicDetails?: { level: string; customLevel?: string; institution: string; board: string; year: string; percentage: string; city: string; comment?: string; status?: string; yearOfStudying?: string; yearOfPassing?: string; backlogs?: string; attempts?: string; }[];
   experienceDetails?: { company: string; role: string; employmentType: string; from: string; to: string; current: boolean; noticePeriod?: string; description?: string; }[];
 }

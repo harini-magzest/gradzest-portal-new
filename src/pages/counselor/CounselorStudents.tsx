@@ -15,6 +15,7 @@ import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../component
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import { usePermissions } from '../../hooks/usePermissions';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -345,16 +346,18 @@ export default function CounselorStudents() {
 }
 
 function StudentsList() {
+  const { portal } = usePortalName();
   const { user } = useAuth();
   const counselor = user as Counselor;
   const navigate = useNavigate();
-  const { can, restricted } = usePermissions();
+  const { can, restricted, hasTeam } = usePermissions();
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
   const [showCreate, setShowCreate] = useState(false);
+  const [showNewLead, setShowNewLead] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -381,7 +384,8 @@ function StudentsList() {
 
   const isMine = (s: any) => counselor.assignedStudents?.includes(s._id || s.id) || String(s.counselorId) === String(counselor.id);
   const myStudents = allStudents.filter(isMine);
-  const source = tab === 'mine' ? myStudents : allStudents;
+  // Only counselors whose role gives them a team (lower roles, or peers) get the Team Students view
+  const source = tab === 'all' && hasTeam ? allStudents : myStudents;
   const countryOptions = Array.from(new Set(allStudents.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
 
   // Throws on failure so the stage picker can show the error
@@ -461,6 +465,10 @@ function StudentsList() {
 
   return (
     <div className="space-y-6">
+      {showNewLead && (
+        <StudentEditForm basePath="/counselor/students" onClose={() => setShowNewLead(false)}
+          onSaved={s => { setShowNewLead(false); navigate(`/counselor/students/${s._id || s.id}`); }} />
+      )}
       {showCreate && (
         <StudentFormModal onClose={() => setShowCreate(false)} onSaved={() => { loadStudents(); setTab('mine'); }} />
       )}
@@ -473,7 +481,7 @@ function StudentsList() {
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
               <h1 className="text-2xl font-bold leading-tight">Students</h1>
             </div>
           </div>
@@ -490,6 +498,12 @@ function StudentsList() {
               className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
               <Plus className="w-4 h-4" />New Application
             </Link>
+            {can('students.create') && (
+              <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+                <Phone className="w-4 h-4" />New Lead
+              </button>
+            )}
             {can('students.create') && (
               <button type="button" onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors shadow-sm">
@@ -510,10 +524,10 @@ function StudentsList() {
       )}
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-4 ${hasTeam ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         {[
-          { label: restricted ? 'Team Students' : 'All Students', value: counts.total, note: 'Visible to you', icon: <Users className="w-5 h-5 text-green-600" /> },
-          { label: 'My Students', value: counts.mine, note: counts.total ? `${Math.round((counts.mine / counts.total) * 100)}% of total` : '0%', icon: <UserCog className="w-5 h-5 text-green-600" /> },
+          ...(hasTeam ? [{ label: 'Team Students', value: counts.total, note: 'Visible to you', icon: <Users className="w-5 h-5 text-green-600" /> }] : []),
+          { label: 'My Students', value: counts.mine, note: hasTeam && counts.total ? `${Math.round((counts.mine / counts.total) * 100)}% of team` : 'Assigned to you', icon: <UserCog className="w-5 h-5 text-green-600" /> },
           { label: 'Active', value: counts.active, note: pct(counts.active), icon: <Activity className="w-5 h-5 text-green-600" /> },
           { label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), icon: <UserX className="w-5 h-5 text-green-500" /> },
           { label: 'Enrolled', value: counts.enrolled, note: pct(counts.enrolled), icon: <GraduationCap className="w-5 h-5 text-green-600" /> },
@@ -529,11 +543,11 @@ function StudentsList() {
         ))}
       </div>
 
-      {/* ── My / All tabs ── */}
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+      {/* ── My / Team tabs (only when the role gives them a team) ── */}
+      {hasTeam && <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
         <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{restricted ? 'Team Students' : 'All Students'} ({allStudents.length})</button>
-      </div>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Team Students ({allStudents.length})</button>
+      </div>}
 
       {/* ── Filter bar ── */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
@@ -891,42 +905,22 @@ function StudentDetail() {
           </div>
 
           {editing ? (
-            <StudentFormModal inline student={student} onClose={() => setEditing(false)}
-              onSaved={async () => {
-                const updated = await api.students.get(studentId!).catch(() => null);
-                if (updated) { setStudent(updated); setCounselorName(updated.counselorName || counselorName); }
-              }} />
+            <StudentEditForm inline student={{ ...student, counselorName }} basePath="/counselor/students" onClose={() => setEditing(false)}
+              onSaved={u => { setStudent((p: any) => ({ ...p, ...u })); setEditing(false); }} />
           ) : (<>
-
-          <div className="p-5 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
-              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
-              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
-            </div>
-          </div>
+          <StudentProfileFields student={student} />
 
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
             <InfoRow label="Education" value={student.educationLevel} />
             <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
-            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
             <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
           </div>
 
           <div className="p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-            {(student.preferredCountries || []).length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {student.preferredCountries.map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
-              </div>
-            ) : <p className="text-xs text-gray-300">—</p>}
-            <div className="mt-4">
-              <InfoRow label="Applications" value={apps.length} />
-              <InfoRow label="Documents" value={docs.length} />
-              <InfoRow label="Joined" value={student.joinedDate} />
-            </div>
+            <InfoRow label="Applications" value={apps.length} />
+            <InfoRow label="Documents" value={docs.length} />
+            <InfoRow label="Joined" value={student.joinedDate} />
           </div>
           </>)}
         </aside>
