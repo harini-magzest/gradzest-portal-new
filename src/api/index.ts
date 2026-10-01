@@ -36,7 +36,15 @@ async function tryRefresh(): Promise<string | null> {
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(message: string, status: number, code?: string) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; }
+  data?: any;
+  constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
+}
+
+export type NoteVisibility = 'public' | 'private';
+export interface StudentNote {
+  id: string; text: string; visibility: NoteVisibility;
+  authorId: string; authorName: string; mine: boolean;
+  createdAt?: string; updatedAt?: string;
 }
 
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
@@ -58,7 +66,8 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined);
+    // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
+    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
   return res.json();
 }
@@ -177,16 +186,19 @@ export const api = {
       req<any>(`/students/${studentId}/meta`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
-    addNote: (studentId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
+    // Staff notes: public (every staff member who can open the student) or private (author only)
+    notes: (studentId: string) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, { headers: authHeaders() }),
+    addNote: (studentId: string, text: string, visibility: NoteVisibility) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text, visibility }),
       }),
-    editNote: (studentId: string, noteId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
-        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ text }),
+    editNote: (studentId: string, noteId: string, data: { text?: string; visibility?: NoteVisibility }) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     deleteNote: (studentId: string, noteId: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
         method: 'DELETE', headers: authHeaders(),
       }),
   },

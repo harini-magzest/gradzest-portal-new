@@ -4,8 +4,6 @@ import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, St
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
-import StatusBadge from '../../components/StatusBadge';
-import { usePortalName } from '../../hooks/usePortalName';
 
 const EDUCATION_LEVELS = ['10th Grade (Completed)', '12th Grade (Completed)', 'Diploma (Completed)', "Bachelor's (In Progress)", "Bachelor's (Completed)", "Master's (In Progress)", "Master's (Completed)", 'PhD (In Progress)', 'PhD (Completed)', 'Other'];
 
@@ -245,12 +243,6 @@ export default function CounselorDashboard() {
     pendingDocs: myStudents.flatMap((s: any) => s.documents || []).filter((d: any) => d.status === 'pending').length,
     offers: allApplications.filter((a: any) => a.status === 'offer_received').length,
   };
-
-  const recentActivity = [...allApplications.map((a: any) => ({
-    type: 'application',
-    title: `${myStudents.find((s: any) => s.applications?.some((ap: any) => (ap._id || ap.id) === (a._id || a.id)))?.name} — ${a.universityName}`,
-    sub: a.courseName, status: a.status, date: a.updatedDate,
-  }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
 
   const appBreakdown = [
     { label: 'Draft', count: allApplications.filter((a: any) => a.status === 'draft').length, color: 'bg-gray-400' },
@@ -590,58 +582,6 @@ export default function CounselorDashboard() {
             {workNote || 'No work update yet. Click "Add Update" to describe what you\'re working on.'}
           </p>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-gray-900">My Students</h2>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowNewStudent(true)}
-                className="flex items-center gap-1.5 bg-teal-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-teal-700 transition-colors">
-                <Plus className="w-4 h-4" /> New Student
-              </button>
-              <Link to="/counselor/students" className="text-teal-600 text-sm font-medium hover:text-teal-700 flex items-center gap-1">Manage <ArrowRight className="w-3.5 h-3.5" /></Link>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {myStudents.map((s: any) => (
-              <div key={s._id || s.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                <Link to={`/counselor/students/${s._id || s.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold flex-shrink-0">{s.name.charAt(0)}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.nationality} • {(s.applications || []).length} application(s)</p>
-                  </div>
-                </Link>
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <StatusBadge status={s.status} />
-                  {(s.documents || []).some((d: any) => d.status === 'pending') && <span className="text-xs text-yellow-600">Docs pending</span>}
-                  <Link to="/counselor/universities"
-                    className="flex items-center gap-1 text-xs text-teal-700 font-medium hover:text-teal-600 border border-teal-200 px-2 py-0.5 rounded-md hover:bg-teal-50 transition-colors">
-                    <Plus className="w-3 h-3" /> Apply
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-5">Recent Activity</h2>
-          <div className="space-y-3">
-            {recentActivity.map((a, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${a.status === 'offer_received' ? 'bg-green-500' : a.status === 'accepted' ? 'bg-emerald-600' : a.status === 'rejected' ? 'bg-red-500' : 'bg-teal-600'}`}></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{a.title}</p>
-                  <p className="text-xs text-gray-500 truncate">{a.sub}</p>
-                </div>
-                <StatusBadge status={a.status} />
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* University Board */}
