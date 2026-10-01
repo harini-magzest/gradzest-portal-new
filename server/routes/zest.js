@@ -105,10 +105,12 @@ router.post('/ask', authMiddleware, async (req, res) => {
     ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
     const matches = filterByRelativeScore(ranked);
 
-    const answer = await askZest(question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role);
+    const { text: answer, toolsUsed } = await askZest(
+      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user,
+    );
     const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
 
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds });
+    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
 
     const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
     res.json({ answer, sources });
@@ -144,8 +146,11 @@ router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploade
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const answer = await askZest(question, [], history, req.user.role, attachedDocText);
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [] });
+    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, req.user);
+    await ZestQueryLog.create({
+      userId: req.user.id, userRole: req.user.role,
+      question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
+    });
     res.json({ answer, sources: [] });
   } catch (err) {
     console.error('[zest/ask-with-file]', err.message);

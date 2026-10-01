@@ -8,6 +8,9 @@ const ZestQueryLogSchema = new mongoose.Schema({
   question: { type: String, required: true },
   answer: { type: String, default: '' },
   sourceDocIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'KnowledgeDocument' }],
+  // Names of any live-data tools Zest called to answer this (see lib/zestTools.js) — lets admin
+  // audit when Zest pulled real student/task/alert data, not just what it said.
+  toolsUsed: [{ type: String }],
 }, { timestamps: true });
 
 ZestQueryLogSchema.index({ createdAt: -1 });
