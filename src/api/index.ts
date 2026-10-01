@@ -428,10 +428,11 @@ export const api = {
     owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
-    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
+    events: (params: { limit?: number; skip?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
       req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
-    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; assignedTo?: string; limit?: number; skip?: number } = {}) =>
       req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    incident: (id: string) => req<any>(`/soc/incidents/${id}`, { headers: authHeaders() }),
     analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
     updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
       req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
