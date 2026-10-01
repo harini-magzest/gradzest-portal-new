@@ -39,7 +39,9 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
 function adminOnly(req, res, next) {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+  // Application Team accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere
+  // (see blockAppTeam in admin.js). The SOC exposes PII, account locks and IP blocking, so the same applies here.
+  if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
   next();
 }
 

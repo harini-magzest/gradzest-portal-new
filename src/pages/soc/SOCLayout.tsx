@@ -19,7 +19,7 @@ export default function SOCLayout() {
     </div>
   );
   if (!isAuthenticated) return <Navigate to="/login?redirect=/soc" />;
-  if (user?.role !== 'admin') return <Navigate to="/login?redirect=/soc" />;
+  if (user?.role !== 'admin' || user?.isAppTeam) return <Navigate to="/login?redirect=/soc" />;
 
   return (
     <div className="min-h-screen bg-gray-950">
