@@ -79,17 +79,17 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
-    send: (sessionKey: string, events: unknown[]) =>
+    send: (sessionKey: string, events: unknown[], device?: unknown) =>
       req<{ tracking: boolean; accepted: number }>('/ui-trail', {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ sessionKey, events }), keepalive: true,
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ sessionKey, events, device }), keepalive: true,
       }),
   },
   auth: {
-    login: (email: string, password: string) =>
+    login: (email: string, password: string, device?: unknown) =>
       req<{ token: string; user: any }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
     register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>

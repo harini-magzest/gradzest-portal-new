@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, Loader2 } from 'lucide-react';
+import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, Loader2, LogIn, LogOut, Laptop } from 'lucide-react';
 import { api, getApiToken } from '../../api';
 import SavedFilters from './SavedFilters';
 import FeatureUsage from './FeatureUsage';
+import { Mask } from './Mask';
 
 interface UiRow {
   _id: string; userId: string; email: string; name?: string; role: string; kind: string; page: string; routePattern?: string; file?: string;
   context?: string; element?: { tag?: string; label?: string; id?: string; href?: string; type?: string };
   files?: { name: string; size: number }[]; ip?: string; createdAt: string;
+  device?: { label?: string; browser?: string; os?: string; deviceType?: string; model?: string; screen?: string; timezone?: string; language?: string; clientReported?: boolean };
 }
 
 interface Filters { email: string; kind: string; page: string; q: string }
@@ -16,6 +18,8 @@ const DEFAULT_FILTERS: Filters = { email: '', kind: 'all', page: '', q: '' };
 const PAGE_SIZE = 100;
 
 const KIND_META: Record<string, { label: string; icon: any; color: string }> = {
+  login: { label: 'Signed in', icon: LogIn, color: '#15803d' },
+  logout: { label: 'Signed out', icon: LogOut, color: '#6b7280' },
   page_view: { label: 'Opened page', icon: Compass, color: '#4B5563' },
   click: { label: 'Clicked', icon: MousePointerClick, color: '#7c3aed' },
   download: { label: 'Downloaded', icon: Download, color: '#0C447C' },
@@ -26,6 +30,8 @@ const KIND_META: Record<string, { label: string; icon: any; color: string }> = {
 function describe(r: UiRow): string {
   const label = r.element?.label || r.element?.id || '';
   switch (r.kind) {
+    case 'login': return r.name ? `as ${r.name}` : '';
+    case 'logout': return '';
     case 'page_view': return label ? `“${label}”` : r.page;
     case 'click': return label ? `“${label}” ${r.element?.tag ? `(${r.element.tag})` : ''}` : `a ${r.element?.tag || 'element'}`;
     case 'download': return label || r.element?.href || 'a file';
@@ -108,7 +114,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-xs text-gray-500 max-w-2xl">
-          Every page, button, link, file and form action by tracked accounts ({tracked.length ? tracked.join(', ') : '…'}).
+          Who signed in (with their name and device), and every page, button, link, file and form action by tracked accounts ({tracked.length ? tracked.join(', ') : '…'}).
           Only metadata is recorded — never what is typed into a field, and never file contents. Kept 90 days.
           Student activity is not recorded unless enabled with <span className="font-mono">SOC_UI_TRACK_ROLES</span>.
         </p>
@@ -125,7 +131,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
           {Object.entries(KIND_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
         </select>
         <input value={filters.page} onChange={e => setFilters(f => ({ ...f, page: e.target.value }))} placeholder="Page contains… (/admin/students)" className={`${input} w-56`} />
-        <input value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} placeholder="Button, file or link text…" className={`${input} w-52`} />
+        <input value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} placeholder="Exact button / link text, or file / page…" className={`${input} w-52`} />
         <button type="button" onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
           <Download className="w-3.5 h-3.5" /> CSV
         </button>
@@ -149,7 +155,8 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-900">
-                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.email || 'Unknown'}</button>
+                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || <Mask value={r.email} fallback="Unknown" />}</button>
+                  {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5"><Mask value={r.email} /></span>}
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 capitalize ml-1.5">{r.role}</span>
                   <span className="text-gray-500"> {meta.label.toLowerCase()} </span>
                   <span className="font-medium">{describe(r)}</span>
@@ -161,6 +168,11 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
                   {r.element?.href && r.kind !== 'page_view' && <span className="text-gray-400">→ <span className="font-mono">{r.element.href}</span></span>}
                   {r.ip && <span className="text-gray-400 font-mono">· {r.ip}</span>}
                 </p>
+                {r.device?.label && (
+                  <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1" title={[r.device.timezone && `Timezone ${r.device.timezone}`, r.device.language && `Language ${r.device.language}`, r.device.clientReported ? 'Includes browser-reported details' : 'From the User-Agent only'].filter(Boolean).join(' · ')}>
+                    <Laptop className="w-3 h-3 text-gray-400" />{r.device.label}
+                  </p>
+                )}
               </div>
               <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap tabular-nums">{new Date(r.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
             </div>

@@ -139,16 +139,25 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(wafBodyCheck);
 app.use(cookieParser());
 
-// Protect uploaded files — only authenticated users can access them
-app.use('/uploads', (req, res, next) => {
+// Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
+// or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.
+app.use('/uploads', async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1]
     || req.query.token; // allow ?token= for direct <img src> links
   if (!token) return res.status(401).json({ message: 'Authentication required' });
+  let decoded;
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
     return res.status(401).json({ message: 'Invalid or expired token' });
+  }
+  try {
+    if (await require('./lib/accountState').isBlocked(decoded.id)) return res.status(401).json({ message: 'This account is no longer active.' });
+    const name = decodeURIComponent(req.path).replace(/^\/+/, '');
+    if (!(await require('./lib/fileAccess').canAccessUpload(decoded, name))) return res.status(404).json({ message: 'File not found' });
+    next();
+  } catch {
+    res.status(404).json({ message: 'File not found' });
   }
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -296,11 +305,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // Verify JWT on every socket connection — rejects unauthenticated clients
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('Unauthorized'));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (await require('./lib/accountState').isBlocked(decoded.id)) return next(new Error('Unauthorized'));
     socket.data.userId = String(decoded.id);
     socket.data.role = decoded.role;
     socket.data.isAppTeam = !!decoded.isAppTeam;
@@ -334,14 +344,44 @@ io.on('connection', (socket) => {
     if (sids) sids.forEach(sid => io.to(sid).emit(event, payload));
   };
 
-  socket.on('call:invite',  ({ to, from, fromName, fromRole, callType }) => relay('call:incoming', to, { from, fromName, fromRole, callType }));
-  socket.on('call:accept',  ({ to, from })           => relay('call:accepted', to, { from }));
-  socket.on('call:reject',  ({ to })                 => relay('call:rejected', to, {}));
-  socket.on('call:end',     ({ to })                 => relay('call:ended',    to, {}));
-  socket.on('call:offer',   ({ to, offer })           => relay('call:offer',   to, { offer, from: socket.data.userId }));
-  socket.on('call:answer',  ({ to, answer })          => relay('call:answer',  to, { answer }));
-  socket.on('call:ice',         ({ to, candidate })   => relay('call:ice',         to, { candidate }));
-  socket.on('chat:call-logged', ({ to })              => relay('chat:call-logged', to, {}));
+  // Call signalling. The caller's identity comes from the verified socket, never from the message: previously a
+  // signed-in user could ring anyone while claiming to be anyone (and the receiving screen showed that claimed name).
+  const identityCache = new Map(); // userId -> { name, role, at }
+  const identityOf = async (uid) => {
+    const hit = identityCache.get(uid);
+    if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit;
+    const u = await require('./models/User').findById(uid).select('name role').lean().catch(() => null);
+    const entry = u ? { name: u.name || '', role: u.role || '', at: Date.now() } : null;
+    if (entry) identityCache.set(uid, entry);
+    return entry;
+  };
+  let inviteWindow = [];
+  const allowInvite = () => {
+    const now = Date.now();
+    inviteWindow = inviteWindow.filter((t) => now - t < 60 * 1000);
+    if (inviteWindow.length >= 10) return false; // ring spam
+    inviteWindow.push(now);
+    return true;
+  };
+  const asId = (v) => (typeof v === 'string' && /^[0-9a-fA-F]{24}$/.test(v) ? v : null);
+
+  socket.on('call:invite', async ({ to, callType } = {}) => {
+    try {
+      const target = asId(to);
+      if (!target || !allowInvite()) return;
+      const [me, them] = await Promise.all([identityOf(socket.data.userId), identityOf(target)]);
+      if (!me || !them) return;
+      if (me.role === 'student' && them.role === 'student') return; // students may only call staff
+      relay('call:incoming', target, { from: socket.data.userId, fromName: me.name, fromRole: me.role, callType: callType === 'audio' ? 'audio' : 'video' });
+    } catch { /* never let a malformed signal crash the socket */ }
+  });
+  socket.on('call:accept', ({ to } = {}) => { const t = asId(to); if (t) relay('call:accepted', t, { from: socket.data.userId }); });
+  socket.on('call:reject', ({ to } = {}) => { const t = asId(to); if (t) relay('call:rejected', t, {}); });
+  socket.on('call:end', ({ to } = {}) => { const t = asId(to); if (t) relay('call:ended', t, {}); });
+  socket.on('call:offer', ({ to, offer } = {}) => { const t = asId(to); if (t) relay('call:offer', t, { offer, from: socket.data.userId }); });
+  socket.on('call:answer', ({ to, answer } = {}) => { const t = asId(to); if (t) relay('call:answer', t, { answer }); });
+  socket.on('call:ice', ({ to, candidate } = {}) => { const t = asId(to); if (t) relay('call:ice', t, { candidate }); });
+  socket.on('chat:call-logged', ({ to } = {}) => { const t = asId(to); if (t) relay('chat:call-logged', t, {}); });
 
   socket.on('disconnect', () => {
     if (socket.data.userId) {

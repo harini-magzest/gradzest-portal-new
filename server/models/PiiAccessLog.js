@@ -22,4 +22,6 @@ piiAccessLogSchema.index({ accessorId: 1, createdAt: -1 });
 piiAccessLogSchema.index({ applicantId: 1, createdAt: -1 });
 piiAccessLogSchema.index({ createdAt: -1 });
 
+piiAccessLogSchema.plugin(require('../lib/encryptedFields'), { fields: ['accessorEmail','applicantEmail','ip'] });
+
 module.exports = mongoose.model('PiiAccessLog', piiAccessLogSchema);

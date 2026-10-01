@@ -39,11 +39,52 @@ const LOCKED_BY_ADMIN_UNTIL = new Date('2099-01-01T00:00:00Z');
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
-function adminOnly(req, res, next) {
-  // Application Team accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere
-  // (see blockAppTeam in admin.js). The SOC exposes PII, account locks and IP blocking, so the same applies here.
-  if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
-  next();
+// The SOC exposes PII, account locks and IP blocking, so it is limited to the owner account(s) listed in
+// SOC_OWNER_EMAILS (comma separated, default hameed@magzest.in) — being an admin is not enough. Application Team
+// accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
+// in admin.js), and stay blocked here too.
+const socOwnerEmails = () => String(process.env.SOC_OWNER_EMAILS || 'hameed@magzest.in')
+  .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+
+async function adminOnly(req, res, next) {
+  try {
+    if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
+    if (!req.user.email) {
+      const u = await User.findById(req.user.id).select('email name').lean();
+      if (u) { req.user.email = u.email; req.user.name = req.user.name || u.name; }
+    }
+    const email = String(req.user.email || '').toLowerCase();
+    // An entry starting with "@" allows a whole domain (used by the test suite; avoid in production).
+    if (!socOwnerEmails().some((o) => (o.startsWith('@') ? email.endsWith(o) : email === o))) {
+      return res.status(403).json({ message: 'Not authorised for the SOC' });
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Substring search over encrypted fields cannot run in MongoDB, so for the lists where it matters the newest rows
+// matching the structured filters are loaded (decrypted by the model hooks) and filtered here.
+const SEARCH_SCAN_CAP = 5000;
+function matchesText(row, q, fields) {
+  const term = q.trim().slice(0, 100).toLowerCase();
+  return fields.some((f) => String(row[f] ?? '').toLowerCase().includes(term));
+}
+async function searchRows(Model, query, q, fields) {
+  const rows = await Model.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
+  return rows.filter((r) => matchesText(r, q, fields));
+}
+
+// Search clauses for a free-text box. Encrypted fields can only be matched exactly (they are stored as
+// ciphertext), the others keep substring matching.
+function searchClauses(q, plainFields, encryptedFields) {
+  const term = q.trim().slice(0, 100);
+  const rx = new RegExp(escapeRegex(term), 'i');
+  return [
+    ...plainFields.map((f) => ({ [f]: rx })),
+    ...encryptedFields.map((f) => ({ [f]: { $in: [term, term.toLowerCase()] } })),
+  ];
 }
 
 const SECURITY_TYPE_LABEL = {
@@ -237,8 +278,7 @@ function buildEventQuery({ since, type, severity, q }) {
   if (type && type !== 'all') query.type = type;
   if (severity && severity !== 'all') query.severity = severity;
   if (q && q.trim()) {
-    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-    query.$or = [{ email: rx }, { ip: rx }, { message: rx }];
+    query.$or = searchClauses(q, [], ['email', 'ip', 'message']);
   }
   return query;
 }
@@ -274,15 +314,12 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 
 // ── Incidents ─────────────────────────────────────────────────────────────────
 
+const INCIDENT_SEARCH_FIELDS = ['title', 'relatedIp', 'relatedEmail'];
 function buildIncidentQuery({ status, severity, type, q }) {
   const query = {};
   if (status && status !== 'all') query.status = status;
   if (severity && severity !== 'all') query.severity = severity;
   if (type && type !== 'all') query.type = type;
-  if (q && q.trim()) {
-    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-    query.$or = [{ title: rx }, { relatedIp: rx }, { relatedEmail: rx }];
-  }
   return query;
 }
 
@@ -292,11 +329,18 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildIncidentQuery(req.query);
 
-    const [incidents, total] = await Promise.all([
-      SecurityIncident.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
-        .populate('assignedTo', 'name email').lean(),
-      SecurityIncident.countDocuments(query),
-    ]);
+    let incidents; let total;
+    if (req.query.q && req.query.q.trim()) {
+      const matched = await searchRows(SecurityIncident, query, req.query.q, INCIDENT_SEARCH_FIELDS);
+      total = matched.length;
+      incidents = await SecurityIncident.populate(matched.slice(skip, skip + limit), { path: 'assignedTo', select: 'name email' });
+    } else {
+      [incidents, total] = await Promise.all([
+        SecurityIncident.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
+          .populate('assignedTo', 'name email').lean(),
+        SecurityIncident.countDocuments(query),
+      ]);
+    }
     // The policy travels with the list so the client can mirror computeSla()
     // for incidents that change live over the socket, without duplicating targets.
     res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY });
@@ -307,8 +351,11 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const incidents = await SecurityIncident.find(buildIncidentQuery(req.query)).sort({ createdAt: -1 }).limit(5000)
-      .populate('assignedTo', 'name email').lean();
+    const iq = buildIncidentQuery(req.query);
+    const base = req.query.q && req.query.q.trim()
+      ? await searchRows(SecurityIncident, iq, req.query.q, INCIDENT_SEARCH_FIELDS)
+      : await SecurityIncident.find(iq).sort({ createdAt: -1 }).limit(5000).lean();
+    const incidents = await SecurityIncident.populate(base, { path: 'assignedTo', select: 'name email' });
     logExport(req, 'incidents', incidents.length);
     sendCsv(res, 'soc-incidents.csv', [
       { label: 'Created', key: 'createdAt' }, { label: 'Type', key: 'type' }, { label: 'Severity', key: 'severity' },
@@ -485,12 +532,15 @@ function normalizeAnalystAction(a) {
 }
 function normalizeUi(u) {
   const where = u.file ? `${u.page} (${u.file})` : u.page;
-  const what = u.kind === 'page_view' ? 'Opened page'
+  const what = u.kind === 'login' ? `Signed in${u.name ? ' as ' + u.name : ''}`
+    : u.kind === 'logout' ? 'Signed out'
+    : u.kind === 'page_view' ? 'Opened page'
     : u.kind === 'click' ? `Clicked ${u.element?.label ? '"' + u.element.label + '"' : (u.element?.tag || 'element')}`
     : u.kind === 'download' ? `Downloaded ${u.element?.label || u.element?.href || 'file'}`
     : u.kind === 'file_select' ? `Selected ${(u.files || []).map((f) => f.name).join(', ') || 'file'}`
     : `Submitted form ${u.element?.label || u.element?.id || ''}`.trim();
-  return { source: 'ui', type: u.kind, severityOrLevel: null, title: what, detail: where, ip: u.ip || '', createdAt: u.createdAt };
+  const detail = (u.kind === 'login' || u.kind === 'logout') && u.device?.label ? u.device.label : where;
+  return { source: 'ui', type: u.kind, severityOrLevel: null, title: what, detail, ip: u.ip || '', createdAt: u.createdAt };
 }
 function normalizeUpload(u) {
   const kb = Math.max(1, Math.round((u.size || 0) / 1024));
@@ -524,7 +574,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
     const user = await User.findById(userId).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const [events, activity, requests, pii, actions, relatedIncidents, uiRows, uploads, uploadsCount] = await Promise.all([
+    const [events, activity, requests, pii, actions, relatedIncidents, uiRows, uploads, uploadsCount, lastLoginRow] = await Promise.all([
       SecurityEvent.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       ActivityLog.find({ $or: [{ studentId: userId }, { counsellorId: userId }] }).sort({ createdAt: -1 }).limit(100).lean(),
       RequestLog.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
@@ -534,6 +584,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
       UiActivity.find({ userId }).sort({ createdAt: -1 }).limit(100).lean(),
       UploadRecord.find({ userId }).sort({ createdAt: -1 }).limit(20).lean(),
       UploadRecord.countDocuments({ userId }),
+      UiActivity.findOne({ userId, kind: 'login' }).sort({ createdAt: -1 }).lean(),
     ]);
 
     const timeline = [
@@ -560,7 +611,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
         joined: user.createdAt || user.joinedDate || null,
         locked: !!(user.lockedUntil && new Date(user.lockedUntil) > new Date()),
         lockedUntil: user.lockedUntil || null,
-        lastLogin: (() => { const e = events.find((x) => x.type === 'login_success'); return e ? { at: e.createdAt, ip: e.ip, userAgent: e.userAgent } : null; })(),
+        lastLogin: (() => { const e = events.find((x) => x.type === 'login_success'); return e ? { at: e.createdAt, ip: e.ip, userAgent: e.userAgent, device: lastLoginRow?.device?.label ? lastLoginRow.device : null } : null; })(),
         lastActive: uiRows[0]?.createdAt || null,
         uploadsCount,
       },
@@ -666,6 +717,8 @@ router.post('/investigate/user/:id/lock', authMiddleware, adminOnly, attachUserE
     user.loginAttempts = 0;
     if (locked) user.sessions = [];
     await user.save();
+    require('../lib/accountState').invalidate(user._id);
+    if (locked) req.app.get('io')?.in(`user:${user._id}`).disconnectSockets(true);
     logAnalystAction({ analyst: req.user, action: locked ? 'lock_account' : 'unlock_account', targetType: 'user', targetId: user._id, reason: String(req.body?.reason || '').slice(0, 300) || (locked ? `Locked ${user.email}` : `Unlocked ${user.email}`), io: req.app.get('io') });
     res.json({ locked, message: locked ? 'Account locked and all sessions revoked.' : 'Account unlocked.' });
   } catch (err) {
@@ -712,21 +765,20 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     else if (risk === 'clean') query['review.status'] = 'clean';
     else if (risk === 'unreviewed') query['review.status'] = { $in: [null, 'unreviewed'] }; // null also matches records written before reviews existed
     else if (risk === 'review') query.$or = [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }];
-    if (q && q.trim()) {
-      const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-      const search = [{ originalName: rx }, { email: rx }, { sha256: rx }];
-      if (query.$or) { query.$and = [{ $or: query.$or }, { $or: search }]; delete query.$or; } else query.$or = search;
-    }
+    const searching = q && q.trim();
     const [rows, total, byStatus, needsReview] = await Promise.all([
-      UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      UploadRecord.countDocuments(query),
+      searching
+        ? searchRows(UploadRecord, query, q, ['originalName', 'email', 'sha256']).then((m) => ({ m }))
+        : UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      searching ? null : UploadRecord.countDocuments(query),
       UploadRecord.aggregate([{ $group: { _id: { $ifNull: ['$review.status', 'unreviewed'] }, count: { $sum: 1 } } }]),
       UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
     ]);
+    const list = searching ? rows.m.slice(skip, skip + limit) : rows;
     res.json({
       needsReview,
-      uploads: rows.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
-      total, skip, limit,
+      uploads: list.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
+      total: searching ? rows.m.length : total, skip, limit,
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
   } catch (err) {
@@ -812,6 +864,8 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
     const since = new Date(Date.now() - PERIOD_MS[period]);
     const base = { createdAt: { $gte: since } };
     if (req.query.userId && isObjectId(req.query.userId)) base.userId = new mongoose.Types.ObjectId(req.query.userId);
+    // Feature usage counts what people DO in the app; sign-in/out rows are shown in the trail but aren't a feature.
+    const uiBase = { ...base, kind: { $nin: ['login', 'logout'] } };
 
     const [pages, features, users, uploads, totals] = await Promise.all([
       UiActivity.aggregate([
@@ -825,12 +879,12 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
         { $project: { uses: 1, users: { $size: '$users' } } }, { $sort: { uses: -1 } }, { $limit: 25 },
       ]),
       UiActivity.aggregate([
-        { $match: base },
+        { $match: uiBase },
         { $group: { _id: '$userId', email: { $first: '$email' }, role: { $first: '$role' }, actions: { $sum: 1 }, pages: { $addToSet: '$page' }, lastActive: { $max: '$createdAt' } } },
         { $project: { email: 1, role: 1, actions: 1, distinctPages: { $size: '$pages' }, lastActive: 1 } }, { $sort: { actions: -1 } }, { $limit: 25 },
       ]),
       UploadRecord.countDocuments(base),
-      UiActivity.aggregate([{ $match: base }, { $group: { _id: null, events: { $sum: 1 }, users: { $addToSet: '$userId' } } }]),
+      UiActivity.aggregate([{ $match: uiBase }, { $group: { _id: null, events: { $sum: 1 }, users: { $addToSet: '$userId' } } }]),
     ]);
 
     res.json({
@@ -847,27 +901,32 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
 
 // ── UI activity (page / button / file trail) ─────────────────────────────────
 
+// Free-text search over the UI trail runs in memory (several searched fields are stored encrypted).
+const uiRowText = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)].join(' ');
+async function searchUi(query, q) {
+  const term = q.trim().slice(0, 100).toLowerCase();
+  const rows = await UiActivity.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
+  return rows.filter((r) => uiRowText(r).toLowerCase().includes(term));
+}
+
 function buildUiQuery({ userId, email, kind, q, page, since }) {
   const query = {};
   if (userId && isObjectId(userId)) query.userId = userId;
-  if (email && email.trim()) query.email = new RegExp('^' + escapeRegex(email.trim().slice(0, 100)), 'i');
+  if (email && email.trim()) query.email = { $in: [email.trim().slice(0, 100), email.trim().slice(0, 100).toLowerCase()] }; // exact: stored encrypted
   if (kind && kind !== 'all') query.kind = kind;
   if (page && page.trim()) query.page = new RegExp(escapeRegex(page.trim().slice(0, 100)), 'i');
   if (since) { const d = new Date(since); if (!isNaN(d)) query.createdAt = { $gt: d }; }
-  if (q && q.trim()) {
-    const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-    query.$or = [{ 'element.label': rx }, { 'element.id': rx }, { 'element.href': rx }, { file: rx }, { page: rx }, { 'files.name': rx }, { context: rx }];
-  }
   return query;
 }
 
 router.get('/ui-activity/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const rows = await UiActivity.find(buildUiQuery(req.query)).sort({ createdAt: -1 }).limit(5000).lean();
+    const uq = buildUiQuery(req.query);
+    const rows = req.query.q && req.query.q.trim() ? await searchUi(uq, req.query.q) : await UiActivity.find(uq).sort({ createdAt: -1 }).limit(5000).lean();
     logExport(req, 'ui-activity', rows.length);
     sendCsv(res, 'soc-ui-activity.csv', [
-      { label: 'Time', key: 'createdAt' }, { label: 'User', key: 'email' }, { label: 'Role', key: 'role' },
-      { label: 'Action', key: 'kind' }, { label: 'Page', key: 'page' }, { label: 'Source file', key: 'file' },
+      { label: 'Time', key: 'createdAt' }, { label: 'Name', key: 'name' }, { label: 'User', key: 'email' }, { label: 'Role', key: 'role' },
+      { label: 'Device', value: (r) => r.device?.label || '' }, { label: 'Action', key: 'kind' }, { label: 'Page', key: 'page' }, { label: 'Source file', key: 'file' },
       { label: 'Element', value: (r) => r.element?.label || r.element?.id || r.element?.tag || '' },
       { label: 'Context', key: 'context' }, { label: 'Link', value: (r) => r.element?.href || '' },
       { label: 'Files', value: (r) => (r.files || []).map((f) => f.name).join('; ') },
@@ -883,10 +942,16 @@ router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 100, 300);
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildUiQuery(req.query);
-    const [rows, total] = await Promise.all([
-      UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      UiActivity.countDocuments(query),
-    ]);
+    let rows; let total;
+    if (req.query.q && req.query.q.trim()) {
+      const matched = await searchUi(query, req.query.q);
+      total = matched.length; rows = matched.slice(skip, skip + limit);
+    } else {
+      [rows, total] = await Promise.all([
+        UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        UiActivity.countDocuments(query),
+      ]);
+    }
     res.json({ activity: rows, total, skip, limit, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
