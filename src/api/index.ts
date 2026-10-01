@@ -441,6 +441,8 @@ export const api = {
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
+    testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
     uploads: (params: { limit?: number; skip?: number; risk?: string; q?: string; userId?: string } = {}) =>
       req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
     quarantineUpload: (id: string, action: 'quarantine' | 'restore' | 'purge', reason?: string) =>

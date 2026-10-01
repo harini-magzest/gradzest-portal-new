@@ -52,6 +52,8 @@ const securityIncidentSchema = new mongoose.Schema(
     // leaves "open", assignment, or a note); resolvedAt = closed as
     // resolved/false_positive (cleared if reopened).
     acknowledgedAt: { type: Date, default: null },
+    // Set once an unacknowledged high/critical incident has triggered the follow-up alert (jobs/incidentEscalation.js).
+    escalatedAt: { type: Date, default: null },
     resolvedAt: { type: Date, default: null },
     resolutionReason: {
       type: String,

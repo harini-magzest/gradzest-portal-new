@@ -56,9 +56,8 @@ describe('WAF signature filter', () => {
     expect(res.status).toBe(403);
 
     // Detection runs fire-and-forget after the response — poll for it rather than guess how long it takes under load.
-    await waitUntil(async () => SecurityEvent.findOne({ type: 'waf_block' }));
-
-    const event = await SecurityEvent.findOne({ type: 'waf_block' }).sort({ createdAt: -1 });
+    // Wait for THIS request's event (an earlier test in the file may already have created other waf_block events).
+    const event = await waitUntil(async () => SecurityEvent.findOne({ type: 'waf_block', 'meta.category': 'xss' }).sort({ createdAt: -1 }));
     expect(event).toBeTruthy();
     expect(event.meta.category).toBe('xss');
 

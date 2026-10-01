@@ -6,7 +6,8 @@ const SecurityIncident = require('../models/SecurityIncident');
 const { waitUntil } = require('./helpers');
 
 describe('Critical incident email alerts', () => {
-  it('emails every admin with the incident details when initialized with a real mailer', async () => {
+  it('emails the SOC owner with the incident details when initialized with a real mailer and SOC_ALERT_DETAIL=full', async () => {
+    process.env.SOC_ALERT_DETAIL = 'full'; // the default is minimal (see socAlerts.test.js)
     const email = `alert-admin-${Date.now()}@example.com`;
     await new User({ name: 'Alert Admin', email, password: 'hashed', role: 'admin', status: 'active' }).save();
 
@@ -25,6 +26,7 @@ describe('Critical incident email alerts', () => {
     expect(call.subject).toContain('Test critical incident');
     expect(call.html).toContain('203.0.113.5');
 
+    delete process.env.SOC_ALERT_DETAIL;
     await SecurityIncident.deleteOne({ _id: incident._id });
     await User.deleteOne({ email });
   });

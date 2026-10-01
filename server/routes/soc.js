@@ -1140,6 +1140,23 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// ── Alert channels ───────────────────────────────────────────────────────────
+
+// Which out-of-band channels are configured (never the URLs or tokens) so the owner can see what will actually fire.
+router.get('/alerts/status', authMiddleware, adminOnly, async (req, res) => {
+  const { channelStatus } = require('../lib/alertChannels');
+  res.json({ ...channelStatus(), email: !!req.app.get('mailer') && !!(process.env.SMTP_PASS), recipients: ownerEmails().length });
+});
+
+// Sends a harmless test message to every configured channel and reports each result, so setup mistakes show up now
+// and not during a real incident.
+router.post('/alerts/test', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  const { notifyChannels } = require('../lib/alertChannels');
+  const result = await notifyChannels({ severity: 'critical', type: 'test' }, { kind: 'test', force: true });
+  logAnalystAction({ analyst: req.user, action: 'alert_test', targetType: 'user', targetId: req.user.id, reason: 'Sent a test alert', io: req.app.get('io') });
+  res.json(result);
+});
+
 // ── Analyst audit trail ───────────────────────────────────────────────────────
 
 // Walks the whole hash chain; { ok: false, brokenAt } means a row was edited or removed.
