@@ -36,6 +36,12 @@ const bcrypt = require('bcryptjs');
 
 const mongoose = require('mongoose');
 const LOCKED_BY_ADMIN_UNTIL = new Date('2099-01-01T00:00:00Z');
+// An unreachable or hanging SMTP server must not hang an analyst's request: give up after a bounded wait.
+const sendMailWithTimeout = (mailer, options, ms = 8000) => Promise.race([
+  mailer.sendMail(options),
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Mail server did not respond in time')), ms).unref?.()),
+]);
+
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
@@ -688,7 +694,7 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
     if (mailer) {
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${rawToken}`;
       try {
-        await mailer.sendMail({
+        await sendMailWithTimeout(mailer, {
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: user.email,
           subject: 'Reset your Gradzest password',
@@ -1136,6 +1142,23 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
+});
+
+// ── Alert channels ───────────────────────────────────────────────────────────
+
+// Which out-of-band channels are configured (never the URLs or tokens) so the owner can see what will actually fire.
+router.get('/alerts/status', authMiddleware, adminOnly, async (req, res) => {
+  const { channelStatus } = require('../lib/alertChannels');
+  res.json({ ...channelStatus(), email: !!req.app.get('mailer') && !!(process.env.SMTP_PASS), recipients: ownerEmails().length });
+});
+
+// Sends a harmless test message to every configured channel and reports each result, so setup mistakes show up now
+// and not during a real incident.
+router.post('/alerts/test', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  const { notifyChannels } = require('../lib/alertChannels');
+  const result = await notifyChannels({ severity: 'critical', type: 'test' }, { kind: 'test', force: true });
+  logAnalystAction({ analyst: req.user, action: 'alert_test', targetType: 'user', targetId: req.user.id, reason: 'Sent a test alert', io: req.app.get('io') });
+  res.json(result);
 });
 
 // ── Analyst audit trail ───────────────────────────────────────────────────────

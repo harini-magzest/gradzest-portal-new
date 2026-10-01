@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Package, Construction, FileDown, Activity, Files, Fingerprint, Bug } from 'lucide-react';
 import { api } from '../../api';
+import AlertChannelsCard from './AlertChannelsCard';
 
 const FLAW_SEV_COLORS: Record<string, { backgroundColor: string; color: string }> = {
   critical: { backgroundColor: '#FCE8E8', color: '#8B1A1A' },
@@ -61,6 +62,7 @@ export default function PostureTab() {
 
   return (
     <div className="space-y-6">
+      <AlertChannelsCard />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
           {data?.cached ? 'Showing cached results' : 'Freshly checked'}{data?.checkedAt ? ` · last checked ${new Date(data.checkedAt).toLocaleString()}` : ''}

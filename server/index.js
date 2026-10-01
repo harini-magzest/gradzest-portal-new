@@ -42,6 +42,7 @@ connectDB().then(async () => {
   await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
+  require('./jobs/incidentEscalation').startIncidentEscalation();
   initAutomation({ io, userSockets, mailer });
   await seedStarterTemplates();
   startAutomationScheduler();
