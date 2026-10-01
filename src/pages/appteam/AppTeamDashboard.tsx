@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
-import { Layers, Users, UserCog, TrendingUp, Clock, CheckCircle, ArrowRight, GraduationCap } from 'lucide-react';
+import { Layers, Users, UserCog, TrendingUp, Clock, CheckCircle, ArrowRight, GraduationCap, LayoutDashboard } from 'lucide-react';
 import ActivityFeed from '../../components/ActivityFeed';
 import MeetingPanel from '../../components/MeetingPanel';
 import { usePortalName } from '../../hooks/usePortalName';
@@ -94,11 +94,18 @@ export default function AppTeamDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6">
-        <p className="text-gray-900 text-sm mb-1">{portal}</p>
-        <h1 className="text-3xl font-bold text-gray-900">Application Dashboard</h1>
-        <p className="text-gray-600 mt-1 text-sm">Overview of all applications, students, and counselor assignments</p>
+      {/* Header — same orange banner as the other Application Team pages */}
+      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+            <LayoutDashboard className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-orange-100 text-xs font-medium uppercase tracking-wide">{portal}</p>
+            <h1 className="text-2xl font-bold leading-tight">Application Dashboard</h1>
+          </div>
+        </div>
+        <p className="text-orange-50 mt-3 text-sm">Overview of all applications, students, and counselor assignments</p>
       </div>
 
       {/* Summary cards */}
