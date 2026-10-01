@@ -36,6 +36,12 @@ const bcrypt = require('bcryptjs');
 
 const mongoose = require('mongoose');
 const LOCKED_BY_ADMIN_UNTIL = new Date('2099-01-01T00:00:00Z');
+// An unreachable or hanging SMTP server must not hang an analyst's request: give up after a bounded wait.
+const sendMailWithTimeout = (mailer, options, ms = 8000) => Promise.race([
+  mailer.sendMail(options),
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Mail server did not respond in time')), ms).unref?.()),
+]);
+
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 
@@ -690,7 +696,7 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
     if (mailer) {
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${rawToken}`;
       try {
-        await mailer.sendMail({
+        await sendMailWithTimeout(mailer, {
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: user.email,
           subject: 'Reset your Gradzest password',
