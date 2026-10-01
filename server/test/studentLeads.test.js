@@ -154,6 +154,33 @@ describe('student self-service preferences', () => {
   });
 });
 
+describe("staff editing a student's preferences", () => {
+  it('admin, Application Team and the owning counselor can edit them; bad yes/no values are ignored', async () => {
+    const c = await login('counselor');
+    const created = await request(app).post('/api/students').set(auth(c.token)).send({ lastName: 'Prefs', phone: newPhone() });
+    const id = created.body._id || created.body.id;
+
+    const byCounselor = await request(app).put(`/api/students/${id}`).set(auth(c.token))
+      .send({ preferredCities: 'Toronto', needsScholarship: 'yes', preferenceNote: 'Told me on the call: wants co-op.' });
+    expect(byCounselor.status).toBe(200);
+    expect(byCounselor.body.preferredCities).toBe('Toronto');
+    expect(byCounselor.body.needsScholarship).toBe('yes');
+
+    const team = await login('admin', { isAppTeam: true });
+    const byTeam = await request(app).put(`/api/students/${id}`).set(auth(team.token))
+      .send({ preferredUniversities: 'UBC', needsLoan: 'not_sure', needsAccommodation: 'maybe' });
+    expect(byTeam.status).toBe(200);
+    expect(byTeam.body.preferredUniversities).toBe('UBC');
+    expect(byTeam.body.needsLoan).toBe('not_sure');
+    expect(byTeam.body.needsAccommodation).toBeUndefined();
+
+    const admin = await login('admin');
+    const byAdmin = await request(app).put(`/api/students/${id}`).set(auth(admin.token)).send({ needsScholarship: 'no' });
+    expect(byAdmin.body.needsScholarship).toBe('no');
+    expect(byAdmin.body.preferenceNote).toBe('Told me on the call: wants co-op.');
+  });
+});
+
 describe('migrateEmailIndex', () => {
   it('replaces a legacy unique email index with the partial one, and is idempotent', async () => {
     await User.init();
