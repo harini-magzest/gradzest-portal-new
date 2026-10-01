@@ -13,6 +13,8 @@ import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../component
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { useToast } from '../../context/ToastContext';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 const APP_STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400' },
@@ -131,21 +133,11 @@ function StudentsList() {
   const pct = (n: number) => counts.total > 0 ? `${Math.round((n / counts.total) * 100)}%` : '0%';
 
   const handleExport = () => {
-    const rows = filtered.map(s => ({
+    exportRowsToCsv('students.csv', filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
       Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[counselorIdOf(s)] || 'Unassigned',
       Applications: String(appsByStudent[normalId(s)]?.length || 0), 'Joined Date': s.joinedDate || '',
-    }));
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [
-      headers.join(','),
-      ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = 'students.csv'; a.click();
-    URL.revokeObjectURL(url);
+    })));
   };
 
   const activeTags: { label: string; clear: () => void }[] = [];
@@ -590,6 +582,10 @@ function StudentDetail() {
             <Link to="/appteam/chat" className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all">
               <MessageSquare className="w-4 h-4" />Chat
             </Link>
+            <button type="button" onClick={() => downloadStudentProfilePdf({ ...student, applications: apps }, { counselorName: student.counselorName || undefined })}
+              className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all">
+              <Download className="w-4 h-4" />Download Profile PDF
+            </button>
           </div>
 
           {editing ? (
