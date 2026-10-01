@@ -21,6 +21,20 @@ const uploadRecordSchema = new mongoose.Schema(
     // Result of the in-process ClamAV scan. Infected files are rejected before this row is
     // written, so everything recorded here passed ClamAV.
     clamav: { type: String, enum: ['clean'], default: 'clean' },
+    // Local content inspection (server/lib/fileInspect.js): disguised executables, macros, remote
+    // templates, PDF launch actions, scripts in images, deceptive names.
+    inspection: {
+      risk: { type: String, enum: ['none', 'low', 'medium', 'high'], default: 'none' },
+      detectedType: { type: String, default: '' },
+      findings: [{ _id: false, code: String, severity: String, detail: String }],
+    },
+    // blocked = rejected at upload (never attached to anyone's profile). quarantined = the file has been
+    // moved out of the served uploads folder (and can be restored, unless it was blocked at upload).
+    blocked: { type: Boolean, default: false },
+    quarantined: { type: Boolean, default: false },
+    quarantinedAt: { type: Date, default: null },
+    quarantineReason: { type: String, default: '' },
+    purgedAt: { type: Date, default: null },
     vt: {
       status: {
         type: String,
@@ -44,6 +58,7 @@ const uploadRecordSchema = new mongoose.Schema(
 uploadRecordSchema.index({ createdAt: -1 });
 uploadRecordSchema.index({ userId: 1, createdAt: -1 });
 uploadRecordSchema.index({ 'vt.status': 1, createdAt: -1 });
+uploadRecordSchema.index({ 'inspection.risk': 1, createdAt: -1 });
 // Audit record of what entered the system — kept a year.
 uploadRecordSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 365 });
 

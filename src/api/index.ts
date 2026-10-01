@@ -415,6 +415,8 @@ export const api = {
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
     uploads: (params: { limit?: number; skip?: number; risk?: string; q?: string; userId?: string } = {}) =>
       req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
+    quarantineUpload: (id: string, action: 'quarantine' | 'restore' | 'purge', reason?: string) =>
+      req<any>(`/soc/uploads/${id}/quarantine`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ action, reason }) }),
     recheckUpload: (id: string) => req<any>(`/soc/uploads/${id}/virustotal`, { method: 'POST', headers: authHeaders() }),
     featureUsage: (period: string, userId?: string) =>
       req<any>(`/soc/feature-usage?${toQueryString({ period, userId })}`, { headers: authHeaders() }),

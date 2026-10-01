@@ -29,6 +29,7 @@ const SuppressionRule = require('../models/SuppressionRule');
 const UiActivity = require('../models/UiActivity');
 const UploadRecord = require('../models/UploadRecord');
 const virusTotal = require('../lib/virusTotal');
+const quarantine = require('../lib/quarantine');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
@@ -705,23 +706,65 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     const query = {};
     if (userId && isObjectId(userId)) query.userId = userId;
     if (risk === 'flagged') query['vt.status'] = { $in: ['malicious', 'suspicious'] };
+    else if (risk === 'review') query.$or = [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }];
     else if (risk === 'attention') query['vt.status'] = { $in: ['pending', 'rate_limited', 'error', 'not_configured'] };
     else if (risk && risk !== 'all') query['vt.status'] = risk;
     if (q && q.trim()) {
       const rx = new RegExp(escapeRegex(q.trim().slice(0, 100)), 'i');
-      query.$or = [{ originalName: rx }, { email: rx }, { sha256: rx }];
+      const search = [{ originalName: rx }, { email: rx }, { sha256: rx }];
+      if (query.$or) { query.$and = [{ $or: query.$or }, { $or: search }]; delete query.$or; } else query.$or = search;
     }
-    const [rows, total, byStatus] = await Promise.all([
+    const [rows, total, byStatus, needsReview] = await Promise.all([
       UploadRecord.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       UploadRecord.countDocuments(query),
       UploadRecord.aggregate([{ $group: { _id: '$vt.status', count: { $sum: 1 } } }]),
+      UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
     ]);
     res.json({
+      needsReview,
       uploads: rows.map((u) => ({ ...u, vtLink: virusTotal.permalink(u.sha256) })),
       total, skip, limit,
       vtConfigured: virusTotal.isConfigured(),
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Quarantine moves the stored file out of the served /uploads folder (so its link stops working);
+// restore puts it back; purge deletes it for good. Files blocked at upload were never attached to a
+// profile, so they can be purged but not restored.
+router.post('/uploads/:id/quarantine', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Upload not found' });
+    const action = req.body?.action;
+    if (!['quarantine', 'restore', 'purge'].includes(action)) return res.status(400).json({ message: 'action must be quarantine, restore or purge' });
+    const rec = await UploadRecord.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Upload not found' });
+
+    let result;
+    if (action === 'quarantine') {
+      if (rec.quarantined) return res.status(409).json({ message: 'Already quarantined.' });
+      result = quarantine.quarantineStored(rec.storedName);
+      if (result.ok) { rec.quarantined = true; rec.quarantinedAt = new Date(); rec.quarantineReason = String(req.body?.reason || 'Quarantined by analyst').slice(0, 300); }
+    } else if (action === 'restore') {
+      if (!rec.quarantined) return res.status(409).json({ message: 'This file is not quarantined.' });
+      if (rec.blocked) return res.status(409).json({ message: 'This file was blocked at upload and never attached to a profile, so it cannot be restored. Ask the user to upload a clean copy.' });
+      result = quarantine.restoreStored(rec.storedName);
+      if (result.ok) { rec.quarantined = false; rec.quarantinedAt = null; rec.quarantineReason = ''; }
+    } else {
+      if (!rec.quarantined) return res.status(409).json({ message: 'Quarantine the file first; only quarantined files can be deleted.' });
+      result = quarantine.purgeQuarantined(rec.storedName);
+      if (result.ok) rec.purgedAt = new Date();
+    }
+    if (!result.ok) return res.status(409).json({ message: result.reason });
+
+    await rec.save();
+    const io = req.app.get('io');
+    io?.to('admin-room').emit('upload_updated', rec.toObject());
+    logAnalystAction({ analyst: req.user, action: `${action}_upload`, targetType: 'upload', targetId: rec._id, reason: `${rec.originalName}${req.body?.reason ? ' — ' + String(req.body.reason).slice(0, 200) : ''}`, io });
+    res.json({ ...rec.toObject(), vtLink: virusTotal.permalink(rec.sha256) });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

@@ -329,6 +329,23 @@ async function raiseUploadRiskIncident(record, io) {
   });
 }
 
+// Called by recordUpload when the local content inspection finds something a legitimate document
+// never contains (disguised executable, macro, remote template, PDF launch action, script in an
+// image, deceptive filename). The upload was already blocked and quarantined; this makes sure a
+// human sees who tried it — a student can send a bad file by accident, but a pattern isn't one.
+async function raiseUnsafeUploadIncident(record, io) {
+  const high = (record.inspection?.findings || []).filter((f) => f.severity === 'high');
+  const codes = high.map((f) => f.code).join(', ');
+  await createIncident(io, {
+    type: 'malware_upload',
+    severity: 'high',
+    title: `Unsafe file blocked: "${record.originalName}" from ${record.email || 'unknown'} (${codes})`,
+    relatedIp: record.ip,
+    relatedUserId: record.userId,
+    relatedEmail: record.email,
+  });
+}
+
 // Great-circle distance between two lat/lon points, in km. Exported
 // separately so the threshold math can be unit-tested with known city
 // coordinates without depending on a live geolocation lookup.
@@ -444,6 +461,6 @@ async function checkNewDevicePrivilegedRule(event, io) {
 module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
-  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseUploadRiskIncident, checkImpossibleTravelRule,
+  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseUploadRiskIncident, raiseUnsafeUploadIncident, checkImpossibleTravelRule,
   checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
 };
