@@ -51,7 +51,8 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(err.message || 'Request failed');
+    // status + body ride along for callers that react to specific errors (e.g. duplicate mobile)
+    throw Object.assign(new Error(err.message || 'Request failed'), { status: res.status, data: err });
   }
   return res.json();
 }

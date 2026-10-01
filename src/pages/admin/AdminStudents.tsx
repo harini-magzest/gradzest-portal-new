@@ -16,6 +16,7 @@ import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/Lead
 import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -312,108 +313,6 @@ function StudentStatusSelect({ value, onSave }: { value?: string; onSave: (statu
   );
 }
 
-// ── Inline edit form (profile sidebar) ───────────────────────────────────────
-function EditStudentPanel({ student, onClose, onSaved }: {
-  student: any; onClose: () => void; onSaved: (s: any) => void;
-}) {
-  const [form, setForm] = useState({
-    name: student.name || '', phone: student.phone || '', nationality: student.nationality || '',
-    educationLevel: student.educationLevel || '',
-    gpa: student.gpa != null ? String(student.gpa) : '',
-    englishType: student.englishScore?.type || '',
-    englishScore: student.englishScore?.score != null ? String(student.englishScore.score) : '',
-    budget: student.budget != null ? String(student.budget) : '',
-    status: student.status === 'inactive' ? 'inactive' : 'active',
-    preferredCountries: (student.preferredCountries || []) as string[],
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const set = (key: keyof typeof form, value: any) => setForm(f => ({ ...f, [key]: value }));
-  const toggleCountry = (c: string) => set('preferredCountries',
-    form.preferredCountries.includes(c) ? form.preferredCountries.filter(x => x !== c) : [...form.preferredCountries, c]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) { setError('Name is required.'); return; }
-    setSaving(true); setError('');
-    try {
-      const updated = await api.students.update(normalId(student), {
-        name: form.name.trim(), phone: form.phone.trim(), nationality: form.nationality.trim(),
-        educationLevel: form.educationLevel,
-        gpa: form.gpa ? parseFloat(form.gpa) : null,
-        englishScore: (form.englishType && form.englishScore) ? { type: form.englishType, score: parseFloat(form.englishScore) } : null,
-        budget: form.budget ? parseInt(form.budget) : null,
-        status: form.status,
-        preferredCountries: form.preferredCountries,
-      });
-      onSaved(updated);
-    } catch (err: any) { setError(err.message || 'Failed to update student.'); }
-    setSaving(false);
-  };
-
-  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400';
-  const lbl = 'block text-xs font-semibold text-gray-700 mb-1.5';
-  const countries = Array.from(new Set([...COUNTRIES, ...form.preferredCountries]));
-  return (
-    <div className="bg-white">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center"><Pencil className="w-4 h-4 text-blue-600" /></div>
-          <h2 className="text-base font-bold text-gray-900">Edit Student</h2>
-        </div>
-        <BtnClose onClick={onClose} />
-      </div>
-      <form onSubmit={handleSubmit} className="p-5 space-y-3">
-        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</div>}
-        <div><label className={lbl}>Full Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} title="Full Name" className={inp} /></div>
-        <div><label className={lbl}>Email</label><input value={student.email || ''} disabled title="Email is the login ID and cannot be changed here" className={`${inp} bg-gray-50 text-gray-500`} /></div>
-        <div>
-          <label className={lbl}>Status</label>
-          <select value={form.status} onChange={e => set('status', e.target.value)} title="Status" className={`${inp} bg-white`}>
-            {STUDENT_STATUSES.map(st => <option key={st} value={st}>{st === 'active' ? 'Active' : 'Inactive'}</option>)}
-          </select>
-        </div>
-        <div><label className={lbl}>Phone</label><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 9999999999" className={inp} /></div>
-        <div><label className={lbl}>Nationality</label><input value={form.nationality} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Indian" className={inp} /></div>
-        <div>
-          <label className={lbl}>Education Level</label>
-          <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)} title="Education Level" className={`${inp} bg-white`}>
-            <option value="">Select level…</option>
-            {Array.from(new Set([...EDUCATION_LEVELS, form.educationLevel].filter(Boolean))).map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-        <div><label className={lbl}>GPA</label><input type="number" step="0.01" min="0" max="10" value={form.gpa} onChange={e => set('gpa', e.target.value)} placeholder="e.g. 8.5" className={inp} /></div>
-        <div><label className={lbl}>Budget (USD)</label><input type="number" min="0" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="e.g. 50000" className={inp} /></div>
-        <div>
-          <label className={lbl}>English Test</label>
-          <select value={form.englishType} onChange={e => set('englishType', e.target.value)} title="English Test" className={`${inp} bg-white`}>
-            <option value="">Select…</option>
-            {Array.from(new Set([...ENGLISH_TYPES, form.englishType].filter(Boolean))).map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div><label className={lbl}>Score</label><input type="number" step="0.5" value={form.englishScore} onChange={e => set('englishScore', e.target.value)} placeholder="e.g. 7.5" className={inp} /></div>
-        <div>
-          <label className={lbl}>Preferred Countries</label>
-          <div className="flex flex-wrap gap-1.5">
-            {countries.map(c => { const sel = form.preferredCountries.includes(c); return (
-              <button key={c} type="button" onClick={() => toggleCountry(c)}
-                className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'}`}>
-                {sel && <Check className="w-3 h-3" />}{c}
-              </button>
-            ); })}
-          </div>
-        </div>
-        <div className="flex gap-2 pt-1">
-          <BtnGhost onClick={onClose} className="flex-1">Cancel</BtnGhost>
-          <BtnPrimary type="submit" disabled={saving} className="flex-1" variant="blue">
-            {saving ? <><Spinner size={4} white />Saving…</> : <><Check className="w-4 h-4" />Save</>}
-          </BtnPrimary>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLeadStage, onStatusChange, onEdit, editPanel, onStudentChange, asPage = false, initialTab }: {
   onStatusChange?: (status: string) => Promise<unknown>;
   onEdit?: () => void;
@@ -646,32 +545,16 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
           {onEdit && !editPanel && <button type="button" onClick={onEdit} className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"><Pencil className="w-4 h-4" />Edit Profile</button>}
         </div>
         {editPanel ?? (<>
-        <div className="p-5 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
-          <div className="space-y-2 text-sm">
-            <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
-            <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
-            <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
-          </div>
-          <div className="mt-3">
-            <DetailRow label="Date of Birth" value={student.dateOfBirth} />
-            <DetailRow label="Gender" value={student.gender} />
-            <DetailRow label="Joined" value={student.joinedDate} />
-          </div>
-        </div>
+        <StudentProfileFields student={student} />
         <div className="p-5 border-b border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
           <DetailRow label="Education Level" value={student.educationLevel} />
           <DetailRow label="GPA" value={student.gpa} />
-          {student.englishScore?.score && <DetailRow label="English Score" value={`${student.englishScore.type} — ${student.englishScore.score}`} />}
           <DetailRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}` : undefined} />
         </div>
         <div className="p-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-          {student.preferredCountries?.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">{student.preferredCountries.map((c: string) => <span key={c} className="text-xs bg-sky-50 text-blue-700 px-2.5 py-1 rounded-full font-medium border border-blue-100">{c}</span>)}</div>
-          ) : <p className="text-xs text-gray-300">—</p>}
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <DetailRow label="Joined" value={student.joinedDate} />
+          <div className="grid grid-cols-2 gap-2 mt-3">
             <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{student.applications?.length ?? 0}</p><p className="text-[11px] text-gray-500">Applications</p></div>
             <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{student.documents?.length ?? 0}</p><p className="text-[11px] text-gray-500">Documents</p></div>
           </div>
@@ -758,7 +641,7 @@ function AdminStudentPage({ studentId, listStudent, onChat, onNewApplication, on
           onStatusChange={async status => { const u = await api.admin.updateStudentStatus(studentId, status); update({ status: u.status }); }}
           onEdit={() => setEditing(true)}
           editPanel={editing ? (
-            <EditStudentPanel student={student} onClose={() => setEditing(false)}
+            <StudentEditForm inline student={student} basePath="/admin/students" onClose={() => setEditing(false)}
               onSaved={u => { update(u); setEditing(false); }} />
           ) : undefined}
           onStudentChange={update} />
@@ -1206,6 +1089,7 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showNewStudent, setShowNewStudent] = useState(false);
+  const [showNewLead, setShowNewLead] = useState(false);
   const [showNewApp, setShowNewApp] = useState(false);
   const [newAppStudent, setNewAppStudent] = useState<any>(null);
   const [meetingStudent, setMeetingStudent] = useState<any>(null);
@@ -1373,6 +1257,10 @@ export default function AdminStudents() {
 
   return (
     <>
+      {showNewLead && (
+        <StudentEditForm basePath="/admin/students" onClose={() => setShowNewLead(false)}
+          onSaved={s => { setStudents(prev => [s, ...prev]); setShowNewLead(false); navigate(`/admin/students/${normalId(s)}`); }} />
+      )}
       {showNewStudent && <NewStudentModal counselors={counselors} onClose={() => setShowNewStudent(false)} onCreated={s => { setStudents(prev => [s, ...prev]); setShowNewStudent(false); }} />}
       {openStudentId && (
         <AdminStudentPage studentId={openStudentId}
@@ -1414,6 +1302,10 @@ export default function AdminStudents() {
               <button type="button" onClick={() => { setNewAppStudent(null); setShowNewApp(true); }}
                 className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
                 <Plus className="w-4 h-4" />New Application
+              </button>
+              <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+                <Phone className="w-4 h-4" />New Lead
               </button>
               <button type="button" onClick={() => setShowNewStudent(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
