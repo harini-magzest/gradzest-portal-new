@@ -4,6 +4,7 @@ import {
   MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, Trash2, UserPlus, Video,
   AlertCircle, Download, Clock, XCircle, Plus, CheckSquare, Square, ChevronLeft,
 } from 'lucide-react';
+import { TaskStatusPill, TASK_STATUS, type TaskStatus } from './TaskProgress';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
@@ -394,9 +395,9 @@ function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<voi
                 </td>
                 <td className={`px-3 py-3 whitespace-nowrap ${overdue ? 'text-red-600 font-medium' : ''}`}>{t.dueDate ? fmtDate(`${t.dueDate}T00:00`) : '—'}</td>
                 <td className="px-3 py-3 whitespace-nowrap">
-                  <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${done ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {done ? 'Completed' : overdue ? 'Overdue' : 'Open'}
-                  </span>
+                  {overdue
+                    ? <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">Overdue · {TASK_STATUS[t.status as TaskStatus]?.label || 'Pending'}</span>
+                    : <TaskStatusPill status={t.status} />}
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap">{t.assignedToName || '—'}</td>
                 <td className="px-3 py-3 max-w-[16rem]"><p className="truncate" title={t.description}>{t.description || '—'}</p></td>
