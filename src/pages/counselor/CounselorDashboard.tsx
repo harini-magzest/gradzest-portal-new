@@ -4,6 +4,7 @@ import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, St
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const EDUCATION_LEVELS = ['10th Grade (Completed)', '12th Grade (Completed)', 'Diploma (Completed)', "Bachelor's (In Progress)", "Bachelor's (Completed)", "Master's (In Progress)", "Master's (Completed)", 'PhD (In Progress)', 'PhD (Completed)', 'Other'];
 
@@ -170,16 +171,26 @@ export default function CounselorDashboard() {
   const [replying, setReplying] = useState<string | null>(null);
   const [scheduledCalls, setScheduledCalls] = useState<any[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
+  const [studentsError, setStudentsError] = useState('');
+  const [universitiesError, setUniversitiesError] = useState('');
+  const [callsError, setCallsError] = useState('');
 
-  const refreshStudents = () =>
-    api.students.list().then(all => {
+  const refreshStudents = () => {
+    setStudentsError('');
+    return api.students.list().then(all => {
       const mine = all.filter((s: any) => counselor.assignedStudents?.includes(s._id || s.id));
       setStudents(mine);
-    }).catch(() => {});
+    }).catch(() => setStudentsError('Failed to load your students.'));
+  };
 
-  useEffect(() => {
-    refreshStudents();
-    api.universities.list().then(setUniversities).catch(() => {});
+  const loadUniversities = () => {
+    setUniversitiesError('');
+    api.universities.list().then(setUniversities).catch(() => setUniversitiesError('Failed to load universities.'));
+  };
+
+  const loadCalls = () => {
+    setCallsError('');
+    setCallsLoading(true);
     api.meetings.list().then((meetings: any[]) => {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const upcoming = meetings
@@ -194,7 +205,13 @@ export default function CounselorDashboard() {
           return da.getTime() - db.getTime();
         });
       setScheduledCalls(upcoming);
-    }).catch(() => {}).finally(() => setCallsLoading(false));
+    }).catch(() => setCallsError('Failed to load scheduled calls.')).finally(() => setCallsLoading(false));
+  };
+
+  useEffect(() => {
+    refreshStudents();
+    loadUniversities();
+    loadCalls();
   }, []);
 
   const submitReply = async (appId: string) => {
@@ -326,6 +343,13 @@ export default function CounselorDashboard() {
         </div>
       </div>
 
+      {studentsError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{studentsError} Stats below may be incomplete.</div>
+          <button type="button" onClick={refreshStudents} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900">Application Pipeline</h2>
@@ -365,6 +389,11 @@ export default function CounselorDashboard() {
         {callsLoading ? (
           <div className="space-y-3">
             {[1, 2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : callsError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{callsError}</div>
+            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
           </div>
         ) : scheduledCalls.length === 0 ? (
           <div className="text-center py-8">
@@ -601,7 +630,12 @@ export default function CounselorDashboard() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        {universities.length === 0 ? (
+        {universitiesError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{universitiesError}</div>
+            <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          </div>
+        ) : universities.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
             <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No universities loaded yet.</p>
