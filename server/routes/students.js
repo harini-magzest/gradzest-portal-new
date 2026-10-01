@@ -117,7 +117,11 @@ const TEXT_FIELDS = [
   'name', 'firstName', 'lastName', 'title', 'secondaryEmail', 'universityName', 'phone', 'altPhone',
   'dateOfBirth', 'gender', 'nationality', 'socialLeadId', 'educationLevel', 'status',
   'preferredCourseLevel', 'preferredIntake', 'qualification', 'workSummary', 'branch',
+  'preferredUniversities', 'preferredCities', 'preferenceNote',
 ];
+const LONG_TEXT_FIELDS = new Set(['workSummary', 'preferenceNote']);
+const YES_NO_VALUES = ['yes', 'no', 'not_sure', ''];
+const STAFF_YES_NO_FIELDS = ['needsScholarship', 'needsLoan', 'needsAccommodation'];
 const LIST_FIELDS = ['preferredCountries', 'interestedCourses'];
 const NUMBER_FIELDS = ['gpa', 'budget'];
 const ADDRESS_KEYS = ['street', 'city', 'state', 'country', 'postalCode'];
@@ -127,7 +131,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function cleanProfile(body) {
   const out = {};
   for (const f of TEXT_FIELDS) {
-    if (body[f] !== undefined) out[f] = String(body[f] ?? '').trim().slice(0, f === 'workSummary' ? 2000 : 300);
+    if (body[f] !== undefined) out[f] = String(body[f] ?? '').trim().slice(0, LONG_TEXT_FIELDS.has(f) ? 2000 : 300);
   }
   for (const f of LIST_FIELDS) {
     if (Array.isArray(body[f])) out[f] = body[f].map(v => String(v).trim()).filter(Boolean).slice(0, 30);
@@ -146,6 +150,9 @@ function cleanProfile(body) {
     for (const k of ADDRESS_KEYS) {
       if (body.address[k] !== undefined) out[`address.${k}`] = String(body.address[k] ?? '').trim().slice(0, 200);
     }
+  }
+  for (const f of STAFF_YES_NO_FIELDS) {
+    if (body[f] !== undefined && YES_NO_VALUES.includes(body[f])) out[f] = body[f];
   }
   if (out.status === '') delete out.status; // enum field — blank means "leave as is"
   return out;
@@ -288,6 +295,9 @@ const FIELD_LABELS = {
   interestedCourses: 'Preferred Courses', preferredCourseLevel: 'Preferred Course Level',
   preferredIntake: 'Preferred Intake', qualification: 'Qualification and YOP', workSummary: 'Work',
   branch: 'Branch', educationLevel: 'Education Level', gpa: 'GPA', budget: 'Budget', status: 'Status',
+  preferredUniversities: 'Preferred Universities', preferredCities: 'Preferred Cities',
+  needsScholarship: 'Scholarship', needsLoan: 'Education Loan', needsAccommodation: 'Accommodation',
+  preferenceNote: "Student's notes",
 };
 
 // Update a student's profile (admin, Application Team, or the student's counselor / team lead)
