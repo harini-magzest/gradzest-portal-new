@@ -16,6 +16,7 @@ import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibili
 import RecordNavArrows from '../../components/RecordNavArrows';
 import { usePermissions } from '../../hooks/usePermissions';
 import { usePortalName } from '../../hooks/usePortalName';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 

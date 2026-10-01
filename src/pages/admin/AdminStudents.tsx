@@ -17,6 +17,7 @@ import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '..
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import { usePortalName } from '../../hooks/usePortalName';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
