@@ -1,3 +1,4 @@
+import StudentDeadlines from '../../components/dashboards/StudentDeadlines';
 import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -120,6 +121,7 @@ export default function StudentDashboard() {
   const [upcomingIntakes, setUpcomingIntakes] = useState<Array<{ uniName: string; uniId: string; intake: string; deadline: string; daysLeft: number }>>([]);
   const [scheduledCalls, setScheduledCalls] = useState<any[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
+  const [callsError, setCallsError] = useState('');
 
   useEffect(() => {
     const levelMap: Record<string, string> = {
@@ -209,9 +211,10 @@ export default function StudentDashboard() {
   }, []);
 
   // Fetch meetings from API and filter for call-type upcoming ones
-  useEffect(() => {
+  const loadCalls = () => {
+    setCallsLoading(true);
+    setCallsError('');
     api.meetings.list().then((meetings: any[]) => {
-      const now = new Date();
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const upcoming = meetings
         .filter(m => {
@@ -225,8 +228,10 @@ export default function StudentDashboard() {
           return da.getTime() - db.getTime();
         });
       setScheduledCalls(upcoming);
-    }).catch(() => {}).finally(() => setCallsLoading(false));
-  }, []);
+    }).catch(() => setCallsError('Failed to load scheduled calls.')).finally(() => setCallsLoading(false));
+  };
+
+  useEffect(() => { loadCalls(); }, []);
 
   if (!student) return null;
 
@@ -269,8 +274,6 @@ export default function StudentDashboard() {
         />
       )}
 
-      <OnboardingChecklist />
-
       {/* Welcome header */}
       <div className="bg-gradient-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
         <div className="flex items-start justify-between">
@@ -312,6 +315,8 @@ export default function StudentDashboard() {
           <Link to="/student/applications" className="text-green-700 font-medium text-sm hover:underline whitespace-nowrap">View offers</Link>
         </div>
       )}
+
+      <StudentDeadlines />
 
       {/* Profile Completion + Upload Documents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -468,6 +473,11 @@ export default function StudentDashboard() {
             {[1, 2].map(i => (
               <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
             ))}
+          </div>
+        ) : callsError ? (
+          <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{callsError}</div>
+            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
           </div>
         ) : scheduledCalls.length === 0 ? (
           <div className="text-center py-8">
@@ -701,6 +711,9 @@ export default function StudentDashboard() {
           </div>
         )}
       </div>
+
+      {/* Getting-started checklist — last, collapsed to its progress line; the cards above cover the first steps */}
+      <OnboardingChecklist defaultCollapsed />
     </div>
   );
 }

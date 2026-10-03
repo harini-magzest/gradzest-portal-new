@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -187,7 +188,7 @@ router.post('/', async (req, res) => {
     await user.save();
     res.status(201).json(await User.findById(user._id).select(STAFF_FIELDS).lean());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -231,7 +232,7 @@ router.put('/:id', async (req, res) => {
     if (req.body.active === false) req.app.get('io')?.in(`user:${target._id}`).disconnectSockets(true);
     res.json(await User.findById(target._id).select(STAFF_FIELDS).lean());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

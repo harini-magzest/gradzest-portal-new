@@ -2,11 +2,13 @@
 import { Link } from 'react-router-dom';
 import {
   Plus, Trash2, X, Search, GraduationCap, Edit2, ChevronDown, ChevronUp,
-  Globe, MapPin, BookOpen, DollarSign, Check, AlertTriangle, RefreshCw, CheckCircle, Sparkles,
+  Globe, MapPin, BookOpen, DollarSign, Check, AlertTriangle, RefreshCw, CheckCircle, Sparkles, Download,
 } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import { usePortalName } from '../../hooks/usePortalName';
+import { useToast } from '../../context/ToastContext';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 
 const COUNTRIES = [
   'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany',
@@ -951,6 +953,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
 
 export default function AdminUniversities() {
   const { portal } = usePortalName();
+  const { toast } = useToast();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -970,7 +973,7 @@ export default function AdminUniversities() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.admin.students().then(setStudents).catch(() => {}); }, []);
+  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this university and all its courses? This cannot be undone.')) return;
@@ -1020,6 +1023,14 @@ export default function AdminUniversities() {
     new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
   );
 
+  const handleExport = () => {
+    exportRowsToCsv('universities.csv', filtered.map(u => ({
+      Name: u.name || '', City: u.city || '', Country: u.country || '',
+      Ranking: u.ranking ?? '', Rating: u.rating ?? '', Courses: u.courses?.length ?? 0,
+      Website: u.website || '',
+    })));
+  };
+
   return (
     <>
       {(showAdd || editingUni) && (
@@ -1052,6 +1063,10 @@ export default function AdminUniversities() {
               <button type="button" onClick={load} disabled={loading}
                 className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+              </button>
+              <button type="button" onClick={handleExport} disabled={filtered.length === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+                <Download className="w-4 h-4" />Export CSV
               </button>
               <button type="button" onClick={handleEnrichAll} disabled={enrichingAll}
                 title="Fetch logos & cover images from Wikipedia/Google for all universities missing them"

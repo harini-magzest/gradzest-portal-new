@@ -32,24 +32,23 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
-// SOC two-factor step-up token. Kept for the browser tab only (sessionStorage) so a reload doesn't re-prompt within its
-// lifetime; it is useless without the signed-in session and is bound server-side to this browser.
-const SOC_TOKEN_KEY = 'gz_soc_token';
-let _socToken: string | null = null;
-try { _socToken = sessionStorage.getItem(SOC_TOKEN_KEY); } catch { /* storage unavailable */ }
-export function setSocToken(token: string | null) {
-  _socToken = token;
-  try { if (token) sessionStorage.setItem(SOC_TOKEN_KEY, token); else sessionStorage.removeItem(SOC_TOKEN_KEY); } catch { /* ignore */ }
+// An error that remembers the HTTP status, so screens can say "rate-limited" or "not authorised" instead of a bare message.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  data?: any;
+  constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
 }
-export function getSocToken(): string | null { return _socToken; }
-// /soc-auth/status also gets the token: the server answers "verified" only when it is present and valid.
-const socHeader = (url: string): Record<string, string> => ((url.startsWith('/soc/') || url === '/soc-auth/status') && _socToken ? { 'X-SOC-Token': _socToken } : {});
+
+export type NoteVisibility = 'public' | 'private';
+export interface StudentNote {
+  id: string; text: string; visibility: NoteVisibility;
+  authorId: string; authorName: string; mine: boolean;
+  createdAt?: string; updatedAt?: string;
+}
 
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    credentials: 'include', ...options,
-    headers: { ...(options?.headers as Record<string, string> || {}), ...socHeader(url) },
-  });
+  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -67,11 +66,8 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    // The step-up expired or was never done: tell the SOC gate to ask for a code again instead of just failing.
-    if (res.status === 403 && typeof err.code === 'string' && err.code.startsWith('SOC_MFA_')) {
-      window.dispatchEvent(new CustomEvent('soc:mfa', { detail: err.code }));
-    }
-    throw new Error(err.message || 'Request failed');
+    // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
+    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
   return res.json();
 }
@@ -97,14 +93,6 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export const api = {
-  // SOC two-factor (authenticator app). Reachable by the SOC owner only; not behind the step-up token itself.
-  socAuth: {
-    status: () => req<{ required: boolean; enrolled: boolean; verified: boolean; lockedUntil: string | null; ttlMinutes: number; recoveryCodesLeft: number }>('/soc-auth/status', { headers: authHeaders() }),
-    setup: (password: string) => req<{ secret: string; otpauthUrl: string }>('/soc-auth/setup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password }) }),
-    confirm: (code: string) => req<{ recoveryCodes: string[]; socToken: string; expiresAt: string }>('/soc-auth/confirm', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code }) }),
-    verify: (body: { code?: string; recoveryCode?: string }) => req<{ socToken: string; expiresAt: string; recoveryCodesLeft: number }>('/soc-auth/verify', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }),
-    logout: () => req<{ ok: boolean }>('/soc-auth/logout', { method: 'POST', headers: authHeaders() }),
-  },
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
     send: (sessionKey: string, events: unknown[], device?: unknown) =>
@@ -198,16 +186,19 @@ export const api = {
       req<any>(`/students/${studentId}/meta`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
-    addNote: (studentId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
+    // Staff notes: public (every staff member who can open the student) or private (author only)
+    notes: (studentId: string) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, { headers: authHeaders() }),
+    addNote: (studentId: string, text: string, visibility: NoteVisibility) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text, visibility }),
       }),
-    editNote: (studentId: string, noteId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
-        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ text }),
+    editNote: (studentId: string, noteId: string, data: { text?: string; visibility?: NoteVisibility }) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     deleteNote: (studentId: string, noteId: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
         method: 'DELETE', headers: authHeaders(),
       }),
   },
@@ -267,9 +258,13 @@ export const api = {
       fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
       return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
     },
-    callHistory: (days: number, userId?: string) =>
+    callHistory: (days: number, userId?: string, since?: string) =>
       req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
-        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}${since ? `&since=${encodeURIComponent(since)}` : ''}`, { headers: authHeaders() }),
+    saveCallSummary: (callId: string, summary: string, extra: { otherPartyName?: string; startedAt?: string } = {}) =>
+      req<{ callId: string; summary: string; summaryBy: string; summaryAt: string }>(`/chat/calls/${encodeURIComponent(callId)}/summary`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ summary, ...extra }),
+      }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -283,6 +278,7 @@ export const api = {
   counselors: {
     me: () => req<any>('/counselors/me', { headers: authHeaders() }),
     myStudents: () => req<any[]>('/counselors/me/students', { headers: authHeaders() }),
+    myPerformance: (days: number) => req<any>(`/counselors/me/performance?days=${days}`, { headers: authHeaders() }),
     updateMe: (data: any) => req<any>('/counselors/me', {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -414,13 +410,13 @@ export const api = {
   },
 
   soc: {
-    owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
-    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
+    events: (params: { limit?: number; skip?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
       req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
-    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; assignedTo?: string; limit?: number; skip?: number } = {}) =>
       req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    incident: (id: string) => req<any>(`/soc/incidents/${id}`, { headers: authHeaders() }),
     analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
     updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
       req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -444,6 +440,11 @@ export const api = {
       req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    attention: () => req<any>('/soc/attention', { headers: authHeaders() }),
+    incidentDetail: (id: string) => req<any>(`/soc/incidents/${id}/detail`, { headers: authHeaders() }),
+    search: (q: string) => req<any>(`/soc/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    bulkUpdateIncidents: (ids: string[], data: Record<string, unknown>) =>
+      req<{ updated: string[]; failed: { id: string; message: string }[] }>('/soc/incidents/bulk', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ ids, ...data }) }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
     alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
     testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
@@ -462,7 +463,7 @@ export const api = {
       req<any>(`/soc/ui-activity?${toQueryString(params)}`, { headers: authHeaders() }),
     // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
     download: async (path: string, filename: string) => {
-      const res = await fetch(`${BASE}/soc${path}`, { headers: { ...authHeaders(), ...socHeader('/soc/') } });
+      const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Download failed');
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
@@ -569,9 +570,95 @@ export const api = {
       req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
+  dashboards: {
+    counselorFollowups: () => req<{ stale: { studentId: string; name: string; days: number }[]; stuck: { studentId: string; name: string; universityName: string; status: string; days: number }[]; overdueTasks: { id: string; title: string; dueDate: string; studentId: string; studentName: string }[]; staleDays: number }>('/dashboards/counselor/followups', { headers: authHeaders() }),
+    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
+    funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
+    trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
+    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+  },
+
   onboarding: {
     markStep: (step: 'profileComplete' | 'documentUploaded' | 'counselorViewed' | 'universityBrowsed') =>
       req<any>(`/onboarding/${step}`, { method: 'PUT', headers: authHeaders() }),
+  },
+
+  zest: {
+    ask: (question: string, history?: { role: 'user' | 'assistant'; text: string }[]) =>
+      req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
+      }),
+    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    askStream: async (
+      question: string,
+      history: { role: 'user' | 'assistant'; text: string }[] | undefined,
+      onDelta: (text: string) => void,
+    ): Promise<{ answer: string; sources: { documentId: string; title: string }[] }> => {
+      const res = await fetch(`${BASE}/zest/ask-stream`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ question, history }),
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Zest couldn't answer that right now. Please try again.");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let final: { answer: string; sources: { documentId: string; title: string }[] } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let end: number;
+        while ((end = buffer.indexOf('\n\n')) !== -1) {
+          const line = buffer.slice(0, end).trim();
+          buffer = buffer.slice(end + 2);
+          if (!line.startsWith('data:')) continue;
+          const event = JSON.parse(line.slice(5));
+          if (event.type === 'delta') onDelta(event.text);
+          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources };
+          else if (event.type === 'error') throw new Error(event.message);
+        }
+      }
+      if (!final) throw new Error('Zest stopped before finishing. Please try again.');
+      return final;
+    },
+    // One-off document Q&A: file is analyzed for this question only, never added to the KB.
+    askWithFile: (question: string, file: File, history?: { role: 'user' | 'assistant'; text: string }[]) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('question', question);
+      if (history) fd.append('history', JSON.stringify(history));
+      return upload<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask-with-file', fd);
+    },
+    documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
+    uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
+    renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ title }),
+    }),
+    deleteDocument: (id: string) => req<{ message: string }>(`/zest/documents/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    alerts: () => req<any[]>('/zest/alerts', { headers: authHeaders() }),
+    resolveAlert: (id: string) => req<any>(`/zest/alerts/${id}/resolve`, {
+      method: 'PUT', headers: authHeaders(),
+    }),
+    // Authenticated file download (xlsx): a plain <a href> can't send the bearer token.
+    downloadAlerts: async () => {
+      const res = await fetch(`${BASE}/zest/alerts/export`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zest-lead-alerts-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

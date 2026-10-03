@@ -5,7 +5,8 @@ import {
   type Incident, type Analyst, type SlaPolicy, TYPE_LABEL, STATUS_STYLE, RESOLUTION_REASONS, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
 import { BLOCK_DURATIONS } from './BlockedIpsPanel';
-import { Mask } from './Mask';
+import IncidentContext from './IncidentContext';
+import { errorText } from './ui';
 
 const CLOSING = ['resolved', 'false_positive'];
 
@@ -42,7 +43,8 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
       return;
     }
     setClosing(null);
-    onUpdate(await api.soc.updateIncident(incident._id, { status }));
+    try { onUpdate(await api.soc.updateIncident(incident._id, { status })); setActionMsg(null); }
+    catch (err) { setActionMsg({ text: errorText(err), ok: false }); }
   };
 
   const confirmClose = async () => {
@@ -50,15 +52,17 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
     setSaving(true);
     try {
       onUpdate(await api.soc.updateIncident(incident._id, { status: closing, resolutionReason: reason, resolutionComment: comment.trim() }));
-      setClosing(null); setComment('');
-    } finally { setSaving(false); }
+      setClosing(null); setComment(''); setActionMsg(null);
+    } catch (err) { setActionMsg({ text: errorText(err), ok: false }); }
+    finally { setSaving(false); }
   };
 
   const setAssignee = async (analystId: string) => {
     setAssigning(true);
     try {
-      onUpdate(await api.soc.updateIncident(incident._id, { assignedTo: analystId || null }));
-    } finally { setAssigning(false); }
+      onUpdate(await api.soc.updateIncident(incident._id, { assignedTo: analystId || null })); setActionMsg(null);
+    } catch (err) { setActionMsg({ text: errorText(err), ok: false }); }
+    finally { setAssigning(false); }
   };
 
   const addNote = async () => {
@@ -127,7 +131,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
             </p>
           )}
           {incident.relatedIp && <p className="text-sm text-gray-600">IP: <span className="font-mono">{incident.relatedIp}</span></p>}
-          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: <Mask value={incident.relatedEmail} /></p>}
+          {incident.relatedEmail && <p className="text-sm text-gray-600">Related: {incident.relatedEmail}</p>}
 
           <div className="flex items-center gap-2">
             <UserCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -171,6 +175,8 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
             </div>
             {actionMsg && <p className={`text-xs ${actionMsg.ok ? 'text-green-700' : 'text-red-600'}`}>{actionMsg.text}</p>}
           </div>
+
+          <IncidentContext incidentId={incident._id} refreshKey={`${incident.status}|${incident.notes.length}|${incident.assignedTo?._id || ''}`} />
 
           <div className="pt-2">
             <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Notes</p>

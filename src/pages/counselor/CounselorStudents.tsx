@@ -15,8 +15,11 @@ import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../component
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import StudentNotes from '../../components/StudentNotes';
 import { usePermissions } from '../../hooks/usePermissions';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -425,21 +428,11 @@ function StudentsList() {
   const pct = (n: number) => source.length > 0 ? `${Math.round((n / source.length) * 100)}%` : '0%';
 
   const handleExport = () => {
-    const rows = filtered.map(s => ({
+    exportRowsToCsv('students.csv', filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
       Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: staffNames[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
-    }));
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [
-      headers.join(','),
-      ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = 'students.csv'; a.click();
-    URL.revokeObjectURL(url);
+    })));
   };
 
   const activeTags: { label: string; clear: () => void }[] = [];
@@ -763,9 +756,6 @@ function StudentDetail() {
   const [showRequestDoc, setShowRequestDoc] = useState(false);
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
-  const [noteText, setNoteText] = useState('');
-  const [editingNote, setEditingNote] = useState<{ id: string; text: string } | null>(null);
-  const [notesSaving, setNotesSaving] = useState(false);
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
@@ -784,8 +774,6 @@ function StudentDetail() {
     setStudent(null);
     setStudentLoadError('');
     setCounselorName(null);
-    setNoteText('');
-    setEditingNote(null);
     api.students.get(studentId).then(s => {
       if (cancelled) return;
       setStudent(s);
@@ -909,6 +897,10 @@ function StudentDetail() {
               <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
                 <Plus className="w-4 h-4" /> Application
               </Link>
+              <button type="button" onClick={() => downloadStudentProfilePdf(student, { counselorName: counselorName || undefined })}
+                className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                <Download className="w-4 h-4" /> Download Profile PDF
+              </button>
               {canEditStudent && !editing && (
                 <button type="button" onClick={() => setEditing(true)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
                   <Edit2 className="w-4 h-4" /> Edit Profile
@@ -1150,124 +1142,12 @@ function StudentDetail() {
         </div>
       )}
 
-      {activeTab === 'notes' && (() => {
-        const myNotes = (student.counselorNotes || []).filter((n: any) => n.counselorId === ((counselor as any)?._id || counselor?.id));
-
-        const handleAddNote = async () => {
-          if (!noteText.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.addNote(studentId, noteText.trim());
-            setStudent(updated);
-            setNoteText('');
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleSaveEdit = async () => {
-          if (!editingNote || !editingNote.text.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.editNote(studentId, editingNote.id, editingNote.text.trim());
-            setStudent(updated);
-            setEditingNote(null);
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleDelete = async (noteId: string) => {
-          if (!studentId) return;
-          try {
-            const updated = await api.students.deleteNote(studentId, noteId);
-            setStudent(updated);
-          } catch {}
-        };
-
-        return (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <StickyNote className="w-4 h-4 text-yellow-500" />
-                <h3 className="font-bold text-gray-900">My Notes</h3>
-                <span className="text-xs text-gray-400 ml-auto">Only visible to you</span>
-              </div>
-
-              <div className="flex gap-2 mb-5">
-                <textarea
-                  value={noteText}
-                  onChange={e => setNoteText(e.target.value)}
-                  placeholder="Add a private note about this student…"
-                  rows={3}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
-                />
-                <button
-                  type="button"
-                  disabled={!noteText.trim() || notesSaving}
-                  onClick={handleAddNote}
-                  className="self-end px-4 py-2.5 bg-yellow-500 text-white rounded-xl text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50 whitespace-nowrap"
-                >
-                  {notesSaving ? 'Saving…' : 'Add Note'}
-                </button>
-              </div>
-
-              {myNotes.length === 0 ? (
-                <div className="text-center py-8">
-                  <StickyNote className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No notes yet. Add your first note above.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[...myNotes].reverse().map((note: any) => {
-                    const noteId = note._id || note.id;
-                    const isEditing = editingNote?.id === noteId;
-                    return (
-                      <div key={noteId} className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={editingNote!.text}
-                              onChange={e => setEditingNote({ id: editingNote!.id, text: e.target.value })}
-                              rows={3}
-                              className="w-full px-3 py-2 border border-yellow-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none bg-white"
-                            />
-                            <div className="flex gap-2 justify-end">
-                              <button type="button" onClick={() => setEditingNote(null)}
-                                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                                Cancel
-                              </button>
-                              <button type="button" disabled={!editingNote!.text.trim() || notesSaving} onClick={handleSaveEdit}
-                                className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50">
-                                {notesSaving ? 'Saving…' : 'Save'}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-3">
-                            <p className="flex-1 text-sm text-gray-800 whitespace-pre-wrap">{note.text}</p>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                              <button type="button" onClick={() => setEditingNote({ id: noteId, text: note.text })}
-                                className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors" title="Edit note">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button type="button" onClick={() => handleDelete(noteId)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete note">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {activeTab === 'notes' && studentId && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-4">Notes</h3>
+          <StudentNotes studentId={studentId} />
+        </div>
+      )}
         </div>
       </div>
     </div>

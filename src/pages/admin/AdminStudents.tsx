@@ -18,6 +18,9 @@ import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { usePortalName } from '../../hooks/usePortalName';
+import { useToast } from '../../context/ToastContext';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -100,6 +103,7 @@ function localDateTime(d = new Date()) {
 
 function GroupMeetingModal({ student, counselors, onClose }: { student: any; counselors: any[]; onClose: () => void }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(student.counselorId ? [String(student.counselorId)] : []),
@@ -114,7 +118,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
   const [created, setCreated] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => {}); }, []);
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, []);
 
   const selfId = String(user?.id ?? '');
   const groups = [
@@ -331,11 +335,13 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
   );
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
   const recordTab = RECORD_TABS.find(t => t.key === tab)?.key;
+  const { toast } = useToast();
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    api.universities.list().then(setUniversities).catch(() => toast.error('Failed to load universities for eligibility checks.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initials = student.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
@@ -544,6 +550,8 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
           {onChat && <button type="button" onClick={onChat} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all"><MessageSquare className="w-4 h-4" />Chat</button>}
           {onNewApplication && <button type="button" onClick={onNewApplication} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 shadow-sm transition-all"><Plus className="w-4 h-4" />Application</button>}
           {onEdit && !editPanel && <button type="button" onClick={onEdit} className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"><Pencil className="w-4 h-4" />Edit Profile</button>}
+          <button type="button" onClick={() => downloadStudentProfilePdf(student, { counselorName: student.counselorName || undefined })}
+            className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"><Download className="w-4 h-4" />Download Profile PDF</button>
         </div>
         {editPanel ?? (<>
         <StudentProfileFields student={student} />
@@ -1206,22 +1214,11 @@ export default function AdminStudents() {
   };
 
   const handleExport = () => {
-    const rows = filtered.map(s => ({
+    exportRowsToCsv('students.csv', filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Nationality: s.nationality || '',
       Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
-    }));
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [
-      headers.join(','),
-      ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-    ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'students.csv'; a.click();
-    URL.revokeObjectURL(url);
+    })));
   };
 
   const activeTags: { label: string; clear: () => void }[] = [];
