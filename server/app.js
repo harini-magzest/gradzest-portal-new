@@ -287,6 +287,7 @@ app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
+ app.use('/api/dashboards',    require('./routes/dashboards'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');
