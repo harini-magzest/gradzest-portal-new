@@ -11,7 +11,7 @@ const { scanUploadedFile } = require('../middleware/scanUpload');
 const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { extractText, chunkText } = require('../lib/pdfText');
-const { askZest, isZestConfigured } = require('../lib/anthropicClient');
+const { askZest, isZestConfigured } = require('../lib/zestModel');
 const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { filterByRelativeScore } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
@@ -85,38 +85,65 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
 
 /* ── Chat (any authenticated role) ───────────────────────────────────────── */
 
+async function answerQuestion(req, question, history, onText) {
+  // A short follow-up reply ("UK", "the second one") won't $text-match anything on its own —
+  // fold in the previous user turn so retrieval still has real keywords to work with.
+  const priorUserText = [...history].reverse().find(h => h.role === 'user')?.text;
+  const searchQuery = priorUserText ? `${priorUserText} ${question}` : question;
+
+  const TOP_K = 5;
+  const ranked = await KnowledgeChunk.find(
+    { $text: { $search: searchQuery } },
+    { score: { $meta: 'textScore' } },
+  ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
+  const matches = filterByRelativeScore(ranked);
+
+  const { text: answer, toolsUsed } = await askZest(
+    question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user, onText,
+  );
+  const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+
+  await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
+
+  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+  return { answer, sources };
+}
+
 router.post('/ask', authMiddleware, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' });
 
-  const history = sanitizeHistory(req.body.history);
-
   try {
-    // A short follow-up reply ("UK", "the second one") won't $text-match anything on its own —
-    // fold in the previous user turn so retrieval still has real keywords to work with.
-    const priorUserText = [...history].reverse().find(h => h.role === 'user')?.text;
-    const searchQuery = priorUserText ? `${priorUserText} ${question}` : question;
-
-    const TOP_K = 5;
-    const ranked = await KnowledgeChunk.find(
-      { $text: { $search: searchQuery } },
-      { score: { $meta: 'textScore' } },
-    ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
-    const matches = filterByRelativeScore(ranked);
-
-    const { text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user,
-    );
-    const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
-
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
-    res.json({ answer, sources });
+    res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
   } catch (err) {
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
+  }
+});
+
+// Same answer as /ask, delivered as server-sent events so the first words appear while the rest
+// is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
+// or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
+router.post('/ask-stream', authMiddleware, async (req, res) => {
+  const question = (req.body.question || '').trim().slice(0, 1000);
+  if (!question) return res.status(400).json({ message: 'question is required' });
+  if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+
+  try {
+    const { answer, sources } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    send({ type: 'done', answer, sources });
+  } catch (err) {
+    console.error('[zest/ask-stream]', err.message);
+    send({ type: 'error', message: 'Zest could not answer right now. Please try again.' });
+  } finally {
+    res.end();
   }
 });
 
