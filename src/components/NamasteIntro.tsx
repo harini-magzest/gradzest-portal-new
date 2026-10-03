@@ -44,14 +44,14 @@ function Hand() {
 }
 
 const PARTICLES = [
-  { left: '18%', top: '30%', delay: 1.0, size: 6 },
-  { left: '82%', top: '28%', delay: 1.1, size: 5 },
-  { left: '26%', top: '62%', delay: 1.2, size: 4 },
-  { left: '74%', top: '64%', delay: 1.3, size: 7 },
-  { left: '34%', top: '20%', delay: 1.4, size: 4 },
-  { left: '66%', top: '18%', delay: 1.5, size: 5 },
-  { left: '12%', top: '50%', delay: 1.6, size: 3 },
-  { left: '88%', top: '48%', delay: 1.7, size: 3 },
+  { left: '18%', top: '30%', delay: 1.0, size: 10 },
+  { left: '82%', top: '28%', delay: 1.1, size: 9 },
+  { left: '26%', top: '62%', delay: 1.2, size: 8 },
+  { left: '74%', top: '64%', delay: 1.3, size: 11 },
+  { left: '34%', top: '20%', delay: 1.4, size: 7 },
+  { left: '66%', top: '18%', delay: 1.5, size: 9 },
+  { left: '12%', top: '50%', delay: 1.6, size: 6 },
+  { left: '88%', top: '48%', delay: 1.7, size: 6 },
 ];
 
 const CSS = `
@@ -98,7 +98,7 @@ const CSS = `
   font-family: Georgia, "Times New Roman", serif;
 }
 .gz-lantern { animation: gz-lantern 2.4s ease-in-out infinite; }
-.gz-particle { animation: gz-particle 1.6s ease-out both; }
+.gz-particle { animation: gz-particle 1.6s ease-out both; box-shadow: 0 0 10px 3px rgba(245, 190, 80, 0.85); }
 `;
 
 export default function NamasteIntro() {
@@ -139,13 +139,13 @@ export default function NamasteIntro() {
       <div className="gz-lantern absolute -left-16 top-10 h-64 w-64 rounded-full bg-orange-300/40 blur-3xl" aria-hidden="true" />
       <div className="gz-lantern absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-amber-300/40 blur-3xl" aria-hidden="true" style={{ animationDelay: '1.2s' }} />
 
-      <svg viewBox="0 0 400 400" className="absolute w-[min(90vw,520px)] h-auto opacity-40" aria-hidden="true">
+      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 w-[min(90vw,520px)] h-[85vh] opacity-40" aria-hidden="true">
         <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#B8862B" strokeWidth="2.5" />
         <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#D4A03C" strokeWidth="1" />
       </svg>
 
       <div className="relative flex flex-col items-center">
-        <svg viewBox="0 0 200 150" className="w-[min(70vw,320px)] h-auto overflow-visible" aria-hidden="true">
+        <svg viewBox="0 0 200 150" className="w-[min(70vw,320px)] h-auto overflow-visible drop-shadow-[0_8px_12px_rgba(120,70,20,0.28)]" aria-hidden="true">
           <defs>
             <clipPath id="gz-namaste-half">
               <rect x="0" y="0" width="100" height="150" />
@@ -162,7 +162,7 @@ export default function NamasteIntro() {
         {PARTICLES.map((p, i) => (
           <span
             key={i}
-            className="gz-particle absolute rounded-full bg-amber-400"
+            className="gz-particle absolute rounded-full bg-amber-500"
             style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDelay: `${p.delay}s` }}
             aria-hidden="true"
           />
