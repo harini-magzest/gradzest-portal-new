@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const router  = express.Router();
 const ActivityLog  = require('../models/ActivityLog');
 const authMiddleware = require('../middleware/auth');
@@ -35,7 +36,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ events, counts });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -65,7 +66,7 @@ router.post('/seed', authMiddleware, async (req, res) => {
     }
     res.json({ seeded: created.length });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 

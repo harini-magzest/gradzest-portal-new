@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
@@ -79,7 +80,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.status(201).json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -131,7 +132,7 @@ router.put('/groups/:id/members', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -262,7 +263,7 @@ router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, asyn
     await room.save();
     res.json({ recordingUrl: msg.recordingUrl });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -324,7 +325,7 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     calls.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
     res.json({ calls: calls.slice(0, 500), smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -353,7 +354,7 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, asyn
     });
     res.json(msg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -481,7 +482,7 @@ router.post('/rooms/:roomId/files', authMiddleware, upload.single('file'), scanU
 
     res.json(newMsg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
