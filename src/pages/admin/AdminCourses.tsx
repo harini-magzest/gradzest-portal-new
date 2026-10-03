@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, X, Search, BookOpen, Edit2, DollarSign, Check, Award,
-  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag, AlertCircle,
+  Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag, AlertCircle, Download,
 } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
@@ -10,6 +10,7 @@ import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
 import { useToast } from '../../context/ToastContext';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const CURRENCIES = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'SGD', 'NZD'];
@@ -726,6 +727,14 @@ export default function AdminCourses() {
   const results = useMemo(() => searchCourses(allCourses, filters, students), [allCourses, filters, students]);
   const opts = useMemo(() => filterOptions(allCourses), [allCourses]);
 
+  const handleExport = () => {
+    exportRowsToCsv('courses.csv', results.map((c: any) => ({
+      Course: c.name || '', Level: c.level || '', University: c.uniName || '',
+      City: c.city || '', Country: c.country || '', Duration: c.duration || '',
+      'Tuition Fee': c.tuitionFee || '', Currency: c.currency || '', Intake: (c.intake || []).join('; '),
+    })));
+  };
+
   const applyCustom = (course: any, data: { tags: string[]; customFields: { key: string; value: string }[] }) => {
     const cid = normalId(course);
     setUniversities(prev => prev.map(u => normalId(u) !== course._uniId ? u : {
@@ -789,10 +798,16 @@ export default function AdminCourses() {
                 <h1 className="text-2xl font-bold leading-tight">Courses Management</h1>
               </div>
             </div>
-            <button type="button" onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
-              <Plus className="w-4 h-4" /> Add Course
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleExport} disabled={results.length === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 text-white">
+                <Download className="w-4 h-4" /> Export CSV
+              </button>
+              <button type="button" onClick={() => setShowAdd(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
+                <Plus className="w-4 h-4" /> Add Course
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[

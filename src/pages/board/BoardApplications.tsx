@@ -2,8 +2,10 @@ import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadApplicationReportPdf } from '../../utils/applicationReportPdf';
 import {
-  Search, X, LayoutGrid, List, Download, ChevronRight,
+  Search, X, LayoutGrid, List, Download, FileDown, ChevronRight,
   Edit2, Send, Clock, Award, CheckCircle, XCircle, BookOpen,
   GraduationCap, Calendar, FileText, User, UserCog, Globe, Save,
 } from 'lucide-react';
@@ -79,6 +81,14 @@ export default function BoardApplications() {
         return tb - ta;
       });
   }, [applications, search, statusFilter]);
+
+  const handleExport = () => {
+    exportRowsToCsv(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, filtered.map(a => ({
+      'Student Name': a.studentName || '', 'Student Email': a.studentEmail || '',
+      University: a.universityName || '', Course: a.courseName || '', Intake: a.intake || '',
+      Status: a.status || '', 'Submitted Date': a.submittedDate || '', 'Updated Date': a.updatedDate || '',
+    })));
+  };
 
   const selectApp = useCallback(async (app: any) => {
     setSelectedApp(app);
@@ -156,6 +166,10 @@ export default function BoardApplications() {
           ))}
         </div>
         <span className="text-xs text-gray-400">{filtered.length} app{filtered.length !== 1 ? 's' : ''}</span>
+        <button type="button" onClick={handleExport} disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 transition-colors">
+          <FileDown className="w-3.5 h-3.5" /> CSV
+        </button>
       </div>
 
       <div className="flex flex-1 min-h-0">
@@ -255,7 +269,11 @@ function DetailPanel({
     <div className="w-full lg:w-[22rem] flex-shrink-0 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
         <span className="text-sm font-semibold text-gray-900">Application Detail</span>
-        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => downloadApplicationReportPdf(selectedApp, { student: studentDetail, counselor: assignedCounselor })}
+            title="Download application report PDF" className="p-1 hover:bg-gray-100 rounded-lg"><Download className="w-4 h-4 text-gray-500" /></button>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

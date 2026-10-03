@@ -15,7 +15,6 @@
     "test:ui:watch": "vitest --config vitest.config.frontend.ts"
   },
   "dependencies": {
-    "date-fns": "^2.30.0",
     "dompurify": "^3.4.7",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.294.0",

@@ -7,6 +7,7 @@ const { scanUploadedFile } = require('../middleware/scanUpload');
 const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { logPiiAccess } = require('../lib/logPiiAccess');
+const { deleteStoredFile } = require('../lib/storedFile');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
@@ -106,7 +107,13 @@ router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('fil
 router.delete('/me/documents/:docId', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   try {
-    await User.findByIdAndUpdate(req.user.id, { $pull: { documents: { _id: req.params.docId } } });
+    const owner = await User.findOneAndUpdate(
+      { _id: req.user.id, 'documents._id': req.params.docId },
+      { $pull: { documents: { _id: req.params.docId } } },
+      { projection: { 'documents': { $elemMatch: { _id: req.params.docId } } } },
+    );
+    const removed = owner?.documents?.[0];
+    if (removed) deleteStoredFile(removed.url);
     res.json({ message: 'Document deleted' });
   } catch {
     res.status(500).json({ message: 'Server error' });
