@@ -570,6 +570,14 @@ export const api = {
       req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
+  dashboards: {
+    counselorFollowups: () => req<{ stale: { studentId: string; name: string; days: number }[]; stuck: { studentId: string; name: string; universityName: string; status: string; days: number }[]; overdueTasks: { id: string; title: string; dueDate: string; studentId: string; studentName: string }[]; staleDays: number }>('/dashboards/counselor/followups', { headers: authHeaders() }),
+    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
+    funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
+    trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
+    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+  },
+
   onboarding: {
     markStep: (step: 'profileComplete' | 'documentUploaded' | 'counselorViewed' | 'universityBrowsed') =>
       req<any>(`/onboarding/${step}`, { method: 'PUT', headers: authHeaders() }),

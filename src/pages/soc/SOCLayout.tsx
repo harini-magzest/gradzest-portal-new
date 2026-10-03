@@ -1,6 +1,7 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 
 // Deliberately separate from AdminLayout — its own route tree at /soc, not
 // nested under /admin and not listed in the admin sidebar. Also does NOT
@@ -12,14 +13,15 @@ import { useAuth } from '../../context/AuthContext';
 // presented as part of that portal.
 export default function SOCLayout() {
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const location = useLocation();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to="/login?redirect=/soc" />;
-  if (user?.role !== 'admin' || user?.isAppTeam) return <Navigate to="/login?redirect=/soc" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin' || user?.isAppTeam) return <Navigate to={loginRedirect(location)} />;
 
   return (
     <div className="min-h-screen bg-gray-950">

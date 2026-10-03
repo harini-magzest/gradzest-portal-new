@@ -1,3 +1,4 @@
+import StudentDeadlines from '../../components/dashboards/StudentDeadlines';
 import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -314,6 +315,8 @@ export default function StudentDashboard() {
           <Link to="/student/applications" className="text-green-700 font-medium text-sm hover:underline whitespace-nowrap">View offers</Link>
         </div>
       )}
+
+      <StudentDeadlines />
 
       {/* Profile Completion + Upload Documents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

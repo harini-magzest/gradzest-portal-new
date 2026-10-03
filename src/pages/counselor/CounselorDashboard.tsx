@@ -1,3 +1,4 @@
+import FollowupQueue from '../../components/dashboards/FollowupQueue';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, Star, Plus, Award, Edit3, CheckCircle2, Target, ClipboardList, MessageCircle, Send, UserCog, GraduationCap, MapPin, BookOpen, Phone, Video, PhoneCall } from 'lucide-react';
@@ -165,6 +166,7 @@ export default function CounselorDashboard() {
   return (
     <>
     <div className="space-y-6">
+      <FollowupQueue />
       <div className="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center">
