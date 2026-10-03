@@ -10,6 +10,12 @@ process.env.FRONTEND_URL = 'http://localhost:5173';
 process.env.SOC_OWNER_RECHECK_MS = '300'; // so the live-feed owner re-check can be observed in a test
 process.env.SOC_OWNER_EMAILS = '@example.com,owner@soc.test';
 process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
+// A developer's real model keys live in server/.env, and dotenv does not override variables that are already set —
+// blanking them here guarantees no test can reach a real model API (slow, flaky, and it spends the key's quota).
+// Tests that exercise a model backend inject a fake client or set a dummy key themselves.
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
+process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
 
 let mongod: MongoMemoryServer;
 

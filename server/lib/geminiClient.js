@@ -12,7 +12,8 @@ try {
 }
 
 const { getToolsForRole, executeTool } = require('./zestTools');
-const { buildSystemPrompt } = require('./anthropicClient');
+const { buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS } = require('./anthropicClient');
+const { withRetry, isTransient } = require('./zestRetry');
 
 let client = null;
 function getClient() {
@@ -47,7 +48,7 @@ const MAX_TOOL_ROUNDS = 4;
  * Same signature and return shape as anthropicClient.js's askZest — see that file for param docs.
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
-async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null) {
+async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, ctx = {}) {
   if (!isZestConfigured()) throw new Error('Zest is not configured (missing GEMINI_API_KEY)');
 
   const context = chunks.length
@@ -64,17 +65,31 @@ async function askZest(question, chunks, history = [], role = 'student', attache
 
   const tools = toGeminiTools(role);
   const toolsUsed = [];
-  const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const primaryModel = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  // When the main model stays overloaded after retries, a lighter model almost always still answers.
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-lite-latest';
+  let model = primaryModel;
   const config = {
-    systemInstruction: buildSystemPrompt(role),
-    maxOutputTokens: 800,
+    systemInstruction: buildSystemPrompt(role, { today: todayIST(), name: user?.name }),
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     // We run our own manual tool loop (scoping lives in executeTool) — never let the SDK
     // auto-invoke anything on our behalf.
     automaticFunctionCalling: { disable: true },
   };
   if (tools) config.tools = tools;
 
-  let response = await getClient().models.generateContent({ model, contents, config });
+  const generate = async () => {
+    try {
+      return await withRetry(() => getClient().models.generateContent({ model, contents, config }));
+    } catch (err) {
+      if (model === primaryModel && fallbackModel && fallbackModel !== primaryModel && isTransient(err)) {
+        model = fallbackModel;
+        return withRetry(() => getClient().models.generateContent({ model, contents, config }));
+      }
+      throw err;
+    }
+  };
+  let response = await generate();
 
   // Tool-use loop, mirroring anthropicClient.js's: Gemini asks for live data via functionCalls,
   // we fetch it (scoped to `user`) and hand it back as functionResponse parts, capped so a
@@ -86,12 +101,12 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     const responseParts = [];
     for (const call of response.functionCalls) {
       toolsUsed.push(call.name);
-      const result = await executeTool(call.name, call.args, user);
+      const result = await executeTool(call.name, call.args, user, ctx);
       responseParts.push(createPartFromFunctionResponse(call.id || call.name, call.name, result));
     }
     contents.push({ role: 'user', parts: responseParts });
 
-    response = await getClient().models.generateContent({ model, contents, config });
+    response = await generate();
   }
 
   return { text: response.text || '', toolsUsed };
