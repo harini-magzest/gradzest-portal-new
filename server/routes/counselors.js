@@ -1,9 +1,12 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
 const User = require('../models/User');
+const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
+const { recordUpload } = require('../middleware/recordUpload');
+const attachUserEmail = require('../middleware/attachUserEmail');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 
 const router = express.Router();
@@ -20,12 +23,16 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+const COUNSELOR_SELF_EDITABLE = ['name', 'phone', 'avatar', 'bio', 'title', 'specialization', 'experience', 'languages', 'certifications', 'linkedIn', 'website'];
+
 // Update own profile (counselor)
 router.put('/me', authMiddleware, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
-  const { password, role, _id, ...updates } = req.body;
+  // Allowlist: profileId (permissions), hierarchyRole (whose students they can see), assignedStudents,
+  // isAppTeam, active, smartfloAgent etc. are admin-controlled and must never be self-editable.
+  const updates = Object.fromEntries(COUNSELOR_SELF_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
   try {
-    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user.toJSON());
   } catch (err) {
@@ -48,7 +55,7 @@ router.get('/me/documents', authMiddleware, async (req, res) => {
 });
 
 // Upload own document (counselor) — multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, upload.single('file'), scanUploadedFile, uploadToS3IfConfigured, async (req, res) => {
+router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('counselor_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { name, type } = req.body;
   const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : undefined;
@@ -61,6 +68,19 @@ router.post('/me/documents', authMiddleware, upload.single('file'), scanUploaded
   } catch (err) {
     logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// The signed-in counselor's own call stats, workload and activity timeline (same data admins see)
+// GET /api/counselors/me/performance?days=1|7|30|90
+router.get('/me/performance', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Counselors only' });
+  try {
+    const counselor = await User.findById(req.user.id).select('name email smartfloAgent');
+    if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
+    res.json(await buildCounselorPerformance(counselor, req.query.days));
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 

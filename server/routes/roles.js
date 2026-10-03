@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
     if (await Role.exists({ name: new RegExp('^' + escaped + '$', 'i') })) {
       return res.status(409).json({ message: 'A role with this name already exists' });
     }
-    const role = await Role.create({ name, description, parentRole: parentRole || null });
+    const role = await Role.create({ name, description, parentRole: parentRole || null, peerVisibility: req.body.peerVisibility === true });
     res.status(201).json(role);
   } catch (err) {
     logError('roles', err);
@@ -86,6 +86,7 @@ router.put('/:id', async (req, res) => {
     if (!update.name) return res.status(400).json({ message: 'Role name is required' });
   }
   if (req.body.description !== undefined) update.description = req.body.description;
+  if (req.body.peerVisibility !== undefined) update.peerVisibility = req.body.peerVisibility === true;
   try {
     if (req.body.parentRole !== undefined) {
       const parent = req.body.parentRole || null;

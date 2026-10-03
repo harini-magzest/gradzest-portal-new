@@ -5,6 +5,7 @@ import {
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
+import { CallSummaryBox, callNeedsSummary, canSummarizeCall } from './CallSummary';
 
 const CHANNEL_LABEL: Record<string, string> = {
   incoming: 'Incoming', click_to_call: 'Click to Call', whatsapp: 'WhatsApp',
@@ -42,6 +43,10 @@ export default function CallHistory() {
     finally { setLoading(false); }
   }, [days, userId]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    window.addEventListener('call:summary-saved', load);
+    return () => window.removeEventListener('call:summary-saved', load);
+  }, [load]);
 
   // Admins who can see everyone get a person filter
   const canSeeAll = data?.canSeeAll;
@@ -59,6 +64,8 @@ export default function CallHistory() {
   const calls = data?.calls || [];
   const answered = calls.filter(c => c.status === 'answered').length;
   const withRec = calls.filter(c => c.recordingUrl).length;
+  const needSummary = calls.filter(c => callNeedsSummary(c) && canSummarizeCall(c, me, user?.role)).length;
+  const replaceCall = (updated: any) => setData(d => d && { ...d, calls: d.calls.map(c => c.id === updated.id ? updated : c) });
   const groups = Array.from(new Set(people.map(p => p.group)));
 
   return (
@@ -68,6 +75,7 @@ export default function CallHistory() {
           <h3 className="text-sm font-semibold text-gray-900">Call history</h3>
           <p className="text-xs text-gray-500">
             {calls.length} calls · {answered} answered · {calls.length - answered} missed · {withRec} recorded
+            {needSummary > 0 && <span className="text-amber-700 font-medium"> · {needSummary} need a summary</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -152,6 +160,7 @@ export default function CallHistory() {
                 {playing === c.id && src && (
                   <audio controls autoPlay src={src} className="w-full mt-3 h-9" onEnded={() => setPlaying(null)} />
                 )}
+                <CallSummaryBox call={c} me={me} role={user?.role} onSaved={replaceCall} />
               </li>
             );
           })}

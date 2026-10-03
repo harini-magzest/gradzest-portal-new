@@ -1,14 +1,22 @@
 import { uploadUrl } from '../../utils/uploadUrl';
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { api } from '../../api';
-import StudentRecord from '../../components/StudentRecord';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  Search, X, ChevronRight, Download, FileText,
-  BookOpen, Globe, DollarSign, Phone, Mail, CheckCircle, Layers,
-  Filter,
+  Search, X, Download, FileText, BookOpen, Phone, Mail, MapPin, UserCog, Users, MessageSquare,
+  CheckCircle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Activity, UserX, Layers, AlertTriangle, Eye, Pencil,
 } from 'lucide-react';
+import { api } from '../../api';
+import StatusBadge from '../../components/StatusBadge';
+import DocPreviewModal from '../../components/DocPreviewModal';
+import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
+import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import { useToast } from '../../context/ToastContext';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
-const STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+const APP_STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400' },
   submitted:      { label: 'Submitted',      color: 'text-blue-700',   bg: 'bg-blue-100',   dot: 'bg-blue-500' },
   under_review:   { label: 'Under Review',   color: 'text-amber-700',  bg: 'bg-amber-100',  dot: 'bg-amber-500' },
@@ -18,28 +26,16 @@ const STATUSES: Record<string, { label: string; color: string; bg: string; dot: 
   enrolled:       { label: 'Enrolled',       color: 'text-indigo-700', bg: 'bg-indigo-100', dot: 'bg-indigo-500' },
 };
 
-const DOC_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending:  { label: 'Pending',  color: 'text-amber-700', bg: 'bg-amber-100' },
-  verified: { label: 'Verified', color: 'text-green-700', bg: 'bg-green-100' },
-  rejected: { label: 'Rejected', color: 'text-red-700',   bg: 'bg-red-100' },
-  approved: { label: 'Approved', color: 'text-green-700', bg: 'bg-green-100' },
-  uploaded: { label: 'Uploaded', color: 'text-blue-700',  bg: 'bg-blue-100' },
-};
+const STUDENT_STATUSES = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
 
-const STUDENT_STATUSES = ['all', 'active', 'inactive', 'enrolled'] as const;
-
-const SEARCH_FIELDS = [
-  { value: 'all',         label: 'All Fields' },
-  { value: 'name',        label: 'Name' },
-  { value: 'email',       label: 'Email' },
-  { value: 'phone',       label: 'Phone' },
-  { value: 'nationality', label: 'Nationality' },
-] as const;
-
-type SearchField = typeof SEARCH_FIELDS[number]['value'];
+const normalId = (obj: any): string => String(obj?._id || obj?.id || '');
+const counselorIdOf = (s: any): string => String(s?.counselorId?._id || s?.counselorId || '');
 
 function AppBadge({ status }: { status: string }) {
-  const s = STATUSES[status] || { label: status, color: 'text-gray-600', bg: 'bg-gray-100', dot: 'bg-gray-400' };
+  const s = APP_STATUSES[status] || { label: status, color: 'text-gray-600', bg: 'bg-gray-100', dot: 'bg-gray-400' };
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${s.bg} ${s.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
@@ -48,434 +44,656 @@ function AppBadge({ status }: { status: string }) {
   );
 }
 
-function InfoItem({ icon: Icon, label, value }: { icon: any; label: string; value?: string | number }) {
-  if (!value && value !== 0) return null;
+export default function AppTeamStudents() {
   return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
-      <div>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{label}</p>
-        <p className="text-sm text-gray-800 font-medium">{value}</p>
-      </div>
-    </div>
+    <Routes>
+      <Route index element={<StudentsList />} />
+      <Route path=":studentId" element={<StudentDetail />} />
+    </Routes>
   );
 }
 
-
-export default function AppTeamStudents() {
+// ── Students list ────────────────────────────────────────────────────────────
+function StudentsList() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
+  const [showNewLead, setShowNewLead] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [selected, setSelected] = useState<any>(null);
-  const [selectedDetail, setSelectedDetail] = useState<any>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-
+  const [loadError, setLoadError] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [searchField, setSearchField] = useState<SearchField>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterCountry, setFilterCountry] = useState('');
+  const [filterCounselorId, setFilterCounselorId] = useState('');
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
+  const [filterApps, setFilterApps] = useState(false);
+  const [page, setPage] = useState(1);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const [pageSize, setPageSize] = useState(25);
 
-  useEffect(() => {
-    Promise.all([api.admin.students(), api.admin.counselors(), api.admin.applications()])
-      .then(([s, c, a]) => { setStudents(s); setCounselors(c); setApplications(a); })
-      .finally(() => setLoading(false));
+  const loadData = useCallback(async () => {
+    setLoading(true); setLoadError('');
+    try {
+      const [s, c, a] = await Promise.all([api.admin.students(), api.admin.counselors(), api.admin.applications()]);
+      setStudents(s); setCounselors(c); setApplications(a);
+    } catch (err: any) { setLoadError(err.message || 'Failed to load students.'); }
+    finally { setLoading(false); }
   }, []);
 
-  const counselorMap = useMemo(() => {
-    const m: Record<string, any> = {};
-    counselors.forEach(c => { m[c._id] = c; });
-    return m;
-  }, [counselors]);
+  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterDateStart, filterDateEnd, filterApps]);
 
+  const counselorNameById = useMemo(() => Object.fromEntries(counselors.map(c => [normalId(c), c.name])), [counselors]);
   const appsByStudent = useMemo(() => {
     const m: Record<string, any[]> = {};
-    applications.forEach(a => {
-      if (!m[a.studentId]) m[a.studentId] = [];
-      m[a.studentId].push(a);
-    });
+    applications.forEach(a => { (m[String(a.studentId)] ||= []).push(a); });
     return m;
   }, [applications]);
+  const countryOptions = Array.from(new Set(students.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
 
-  const filtered = useMemo(() => {
-    let list = students;
+  // Throws on failure so the stage picker can show the error
+  const saveStage = async (id: string, leadStage: string) => {
+    const updated = await api.students.setLeadStage(id, leadStage);
+    setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, leadStage: updated.leadStage } : s));
+  };
 
-    if (statusFilter !== 'all') {
-      list = list.filter(s => s.status === statusFilter);
+  const filtered = students.filter(s => {
+    if (filterStatus && (s.status === 'inactive' ? 'inactive' : 'active') !== filterStatus) return false;
+    if (filterStage && leadStageOf(s).value !== filterStage) return false;
+    if (filterApps && !appsByStudent[normalId(s)]?.length) return false;
+    if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
+    if (filterCounselorId) {
+      if (filterCounselorId === '__unassigned__') { if (counselorIdOf(s)) return false; }
+      else if (counselorIdOf(s) !== filterCounselorId) return false;
     }
-
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(s => {
-        if (searchField === 'name')        return s.name?.toLowerCase().includes(q);
-        if (searchField === 'email')       return s.email?.toLowerCase().includes(q);
-        if (searchField === 'phone')       return s.phone?.toLowerCase().includes(q);
-        if (searchField === 'nationality') return s.nationality?.toLowerCase().includes(q);
-        return [s.name, s.email, s.phone, s.nationality].some(v => v?.toLowerCase().includes(q));
-      });
+    const jd = (s.joinedDate || '').slice(0, 10);
+    if (filterDateStart && jd < filterDateStart) return false;
+    if (filterDateEnd && jd > filterDateEnd) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (![s.name, s.email, s.phone, s.nationality].some(v => v?.toLowerCase().includes(q))) return false;
     }
+    return true;
+  }).sort((a, b) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
 
-    return [...list].sort((a, b) =>
-      new Date(b.createdAt || b.joinedDate || 0).getTime() - new Date(a.createdAt || a.joinedDate || 0).getTime()
-    );
-  }, [students, search, searchField, statusFilter]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  const handleSelect = useCallback(async (s: any) => {
-    setSelected(s);
-    setSelectedDetail(null);
-    setLoadingDetail(true);
-    try {
-      const full = await api.students.get(s._id);
-      setSelectedDetail(full);
-    } catch { /* no-op */ }
-    finally { setLoadingDetail(false); }
-  }, []);
+  // Open the full student page; pass the filtered order so ‹ › can step through it
+  const openStudent = (id: string, tab?: string) =>
+    navigate(`/appteam/students/${id}${tab ? `?tab=${tab}` : ''}`, { state: { ids: filtered.map(normalId) } });
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (searchField !== 'all' ? 1 : 0);
+  const counts = {
+    total: students.length,
+    active: students.filter(s => s.status !== 'inactive').length,
+    inactive: students.filter(s => s.status === 'inactive').length,
+    withApps: students.filter(s => appsByStudent[normalId(s)]?.length).length,
+    unassigned: students.filter(s => !counselorIdOf(s)).length,
+  };
+  const pct = (n: number) => counts.total > 0 ? `${Math.round((n / counts.total) * 100)}%` : '0%';
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  const handleExport = () => {
+    exportRowsToCsv('students.csv', filtered.map(s => ({
+      Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
+      Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[counselorIdOf(s)] || 'Unassigned',
+      Applications: String(appsByStudent[normalId(s)]?.length || 0), 'Joined Date': s.joinedDate || '',
+    })));
+  };
+
+  const activeTags: { label: string; clear: () => void }[] = [];
+  if (filterStatus) activeTags.push({ label: STUDENT_STATUSES.find(s => s.value === filterStatus)?.label || filterStatus, clear: () => setFilterStatus('') });
+  if (filterStage) activeTags.push({ label: `Stage: ${leadStageOf({ leadStage: filterStage }).label}`, clear: () => setFilterStage('') });
+  if (filterCountry) activeTags.push({ label: filterCountry, clear: () => setFilterCountry('') });
+  if (filterCounselorId) activeTags.push({ label: `Counselor: ${filterCounselorId === '__unassigned__' ? 'Unassigned' : counselorNameById[filterCounselorId] || ''}`, clear: () => setFilterCounselorId('') });
+  if (filterDateStart || filterDateEnd) activeTags.push({ label: `Joined ${filterDateStart || '…'} – ${filterDateEnd || '…'}`, clear: () => { setFilterDateStart(''); setFilterDateEnd(''); } });
+  if (filterApps) activeTags.push({ label: 'With applications', clear: () => setFilterApps(false) });
+  if (search) activeTags.push({ label: `"${search}"`, clear: () => { setSearch(''); setSearchInput(''); } });
+  const clearAll = () => { setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterCounselorId(''); setFilterDateStart(''); setFilterDateEnd(''); setFilterApps(false); setSearch(''); setSearchInput(''); };
+
+  // Stat cards filter the table below; clicking the active card again clears it
+  type Card = 'total' | 'active' | 'inactive' | 'withApps' | 'unassigned';
+  const activeCard: Card | null =
+    !activeTags.length ? 'total'
+    : activeTags.length === 1 && filterStatus === 'active' ? 'active'
+    : activeTags.length === 1 && filterStatus === 'inactive' ? 'inactive'
+    : activeTags.length === 1 && filterApps ? 'withApps'
+    : activeTags.length === 1 && filterCounselorId === '__unassigned__' ? 'unassigned'
+    : null;
+  const pickCard = (card: Card) => {
+    const turningOff = activeCard === card;
+    clearAll();
+    if (!turningOff) {
+      if (card === 'active' || card === 'inactive') setFilterStatus(card);
+      if (card === 'withApps') setFilterApps(true);
+      if (card === 'unassigned') setFilterCounselorId('__unassigned__');
+    }
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  // Paginator: 1 2 3 … last
+  const pageNums: (number | '...')[] = (() => {
+    if (totalPages <= 6) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const nums: (number | '...')[] = [1, 2, 3];
+    if (page > 4) nums.push('...');
+    if (page > 3 && page < totalPages - 1) nums.push(page);
+    nums.push('...', totalPages);
+    return nums;
+  })();
+
+  const avatarPalette = ['from-orange-500 to-amber-600', 'from-blue-500 to-indigo-600', 'from-green-500 to-emerald-600', 'from-purple-500 to-pink-600', 'from-cyan-500 to-blue-600', 'from-rose-500 to-red-600'];
+  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer';
+  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent';
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] -m-6">
-
-      {/* Left: student list */}
-      <div className={`flex flex-col border-r border-gray-200 bg-white ${selected ? 'hidden lg:flex w-72' : 'flex-1'}`}>
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-base font-bold text-gray-900">Students</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{filtered.length}</span>
+    <div className="space-y-6">
+      {/* ── Header ── */}
+      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-orange-100 text-xs font-medium uppercase tracking-wide">Application Team</p>
+              <h1 className="text-2xl font-bold leading-tight">Students</h1>
             </div>
           </div>
-
-          {/* Search bar */}
-          <div className="flex gap-1.5">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={`Search by ${SEARCH_FIELDS.find(f => f.value === searchField)?.label.toLowerCase()}…`}
-                className="w-full pl-8 pr-7 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-              {search && (
-                <button type="button" onClick={() => setSearch('')} title="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <X className="w-3.5 h-3.5 text-gray-400" />
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowFilters(v => !v)}
-              className={`relative flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
-                showFilters || activeFilterCount > 0
-                  ? 'border-orange-400 bg-orange-50 text-orange-700'
-                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+              <Download className="w-4 h-4" />Export CSV
             </button>
+            <button type="button" onClick={loadData} disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+            </button>
+            <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+              className="flex items-center gap-2 px-3 py-2 bg-white text-orange-700 rounded-xl text-sm font-bold hover:bg-orange-50 transition-colors shadow-sm">
+              <Phone className="w-4 h-4" />New Lead
+            </button>
+            {showNewLead && (
+              <StudentEditForm basePath="/appteam/students" onClose={() => setShowNewLead(false)}
+                onSaved={s => { setStudents(prev => [s, ...prev]); setShowNewLead(false); navigate(`/appteam/students/${normalId(s)}`); }} />
+            )}
           </div>
-
-          {/* Expanded filters */}
-          {showFilters && (
-            <div className="space-y-2 pt-1 border-t border-gray-100">
-              {/* Search field selector */}
-              <div>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Search in</p>
-                <div className="flex flex-wrap gap-1">
-                  {SEARCH_FIELDS.map(f => (
-                    <button
-                      type="button"
-                      key={f.value}
-                      onClick={() => setSearchField(f.value)}
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                        searchField === f.value
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status filter */}
-              <div>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Status</p>
-                <div className="flex flex-wrap gap-1">
-                  {STUDENT_STATUSES.map(st => (
-                    <button
-                      type="button"
-                      key={st}
-                      onClick={() => setStatusFilter(st)}
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize transition-colors ${
-                        statusFilter === st
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {st === 'all' ? 'All' : st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {activeFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchField('all'); setStatusFilter('all'); setSearch(''); }}
-                  className="text-xs text-orange-600 font-medium hover:text-orange-800"
-                >
-                  Clear all filters
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Student list */}
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-          {filtered.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-12">No students found</p>
-          ) : filtered.map(s => {
-            const cid = s.counselorId?._id || s.counselorId;
-            const counselor = cid ? counselorMap[cid] : null;
-            const appCount = appsByStudent[s._id]?.length || 0;
-            return (
-              <button type="button" key={s._id} onClick={() => handleSelect(s)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                  selected?._id === s._id ? 'bg-orange-50 border-l-[3px] border-orange-500' : ''
-                }`}>
-                <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-                  {s.name?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
-                  <p className="text-xs text-gray-400 truncate">{s.email}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {s.phone && <span className="text-[10px] text-gray-400">{s.phone}</span>}
-                    {s.nationality && <span className="text-[10px] text-gray-400">{s.nationality}</span>}
-                    {counselor && <span className="text-[10px] text-teal-600 font-medium truncate">· {counselor.name}</span>}
-                  </div>
-                </div>
-                <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                  <span className="text-xs font-bold text-orange-500">{appCount} apps</span>
-                  {s.status && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize ${
-                      s.status === 'active' ? 'bg-green-100 text-green-700' :
-                      s.status === 'enrolled' ? 'bg-indigo-100 text-indigo-700' :
-                      'bg-gray-100 text-gray-500'
-                    }`}>{s.status}</span>
-                  )}
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-              </button>
-            );
-          })}
         </div>
       </div>
 
-      {/* Right: detail panel */}
-      {selected ? (
-        <div className="flex-1 bg-white overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <button type="button" title="Back to list" onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
-              <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
+      {/* ── Error ── */}
+      {loadError && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
+          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1"><p className="text-sm font-semibold text-red-800">Failed to load students</p><p className="text-xs text-red-600 mt-0.5">{loadError}</p></div>
+          <button type="button" onClick={loadData} className="text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Retry</button>
+        </div>
+      )}
+
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {([
+          { key: 'total', label: 'Total', value: counts.total, note: 'All students', hint: 'Show all students', icon: <Users className="w-5 h-5 text-orange-600" /> },
+          { key: 'active', label: 'Active', value: counts.active, note: pct(counts.active), hint: 'Show active students', icon: <Activity className="w-5 h-5 text-orange-600" /> },
+          { key: 'inactive', label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), hint: 'Show inactive students', icon: <UserX className="w-5 h-5 text-orange-500" /> },
+          { key: 'withApps', label: 'With Applications', value: counts.withApps, note: pct(counts.withApps), hint: 'Show students who have applications', icon: <Layers className="w-5 h-5 text-orange-600" /> },
+          { key: 'unassigned', label: 'Unassigned', value: counts.unassigned, note: counts.unassigned > 0 ? 'No counselor yet' : 'All assigned', hint: 'Show students without a counselor', icon: <UserCog className="w-5 h-5 text-orange-600" /> },
+        ] as const).map(card => {
+          const on = activeCard === card.key;
+          return (
+            <button type="button" key={card.key} onClick={() => pickCard(card.key)} aria-pressed={on} title={on && card.key !== 'total' ? 'Click again to show all students' : card.hint}
+              className={`text-left bg-white rounded-2xl p-4 border shadow-sm flex items-start gap-3 hover:border-orange-300 hover:shadow-md transition-all ${
+                on ? 'border-orange-500 ring-2 ring-orange-100' : 'border-orange-100'}`}>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${on ? 'bg-orange-500 [&>svg]:text-white' : 'bg-orange-100'}`}>{card.icon}</div>
+              <div className="min-w-0">
+                <p className="text-gray-500 text-xs mb-1">{card.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
+                <p className="text-xs mt-1 text-orange-600">{loading ? '' : card.note}</p>
+              </div>
             </button>
-            <div className="w-11 h-11 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-              {selected.name?.[0]?.toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base font-bold text-gray-900">{selected.name}</h2>
-              <p className="text-xs text-gray-500">{selected.email}</p>
-            </div>
-            <div className="flex gap-2 flex-wrap justify-end">
-              <span className="text-xs font-semibold bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full">
-                {appsByStudent[selected._id]?.length || 0} apps
-              </span>
-              {selected.status && (
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
-                  selected.status === 'active' ? 'bg-green-100 text-green-700' :
-                  selected.status === 'enrolled' ? 'bg-indigo-100 text-indigo-700' :
-                  'bg-gray-100 text-gray-600'
-                }`}>{selected.status}</span>
-              )}
-            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Filter bar ── */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-2">
+            <input type="date" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} title="Joined from" className={dInput} />
+            <span className="text-gray-400 text-sm font-medium">–</span>
+            <input type="date" value={filterDateEnd} onChange={e => setFilterDateEnd(e.target.value)} title="Joined to" className={dInput} />
           </div>
-
-          <div className="p-6 space-y-5 max-w-4xl">
-            {/* Timeline / Notes / Messages / Activities / Emails / Pipelines / Files */}
-            {selectedDetail && (
-              <StudentRecord key={selected._id} student={selectedDetail} canEdit canReply={false}
-                onStudentChange={u => setSelectedDetail((p: any) => ({ ...p, ...u }))} />
-            )}
-
-            {/* Profile details */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-orange-500" /> Student Details
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <InfoItem icon={Mail} label="Email" value={selected.email} />
-                <InfoItem icon={Phone} label="Phone" value={selected.phone} />
-                <InfoItem icon={Globe} label="Nationality" value={selected.nationality} />
-                <InfoItem icon={BookOpen} label="Education" value={selected.educationLevel || selectedDetail?.educationLevel} />
-                <InfoItem icon={CheckCircle} label="GPA"
-                  value={selected.gpa ? `${selected.gpa} / 4.0` : selectedDetail?.gpa ? `${selectedDetail.gpa} / 4.0` : undefined} />
-                <InfoItem icon={Globe} label="English Score"
-                  value={(selected.englishScore || selectedDetail?.englishScore)
-                    ? `${(selected.englishScore || selectedDetail?.englishScore).type} ${(selected.englishScore || selectedDetail?.englishScore).score}`
-                    : undefined} />
-                <InfoItem icon={DollarSign} label="Budget"
-                  value={(selected.budget || selectedDetail?.budget)
-                    ? `$${Number(selected.budget || selectedDetail?.budget).toLocaleString()}`
-                    : undefined} />
-              </div>
-              {((selected.preferredCountries || selectedDetail?.preferredCountries) || []).length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-semibold text-gray-500 mb-2">Preferred Countries</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(selected.preferredCountries || selectedDetail?.preferredCountries || []).map((c: string) => (
-                      <span key={c} className="text-xs bg-orange-50 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-full font-medium">{c}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <div className="relative">
+            <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} title="Country" className={dSel}>
+              <option value="">Country</option>
+              {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterStage} onChange={e => setFilterStage(e.target.value)} title="Lead stage" className={dSel}>
+              <option value="">Lead Stage</option>
+              {LEAD_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} title="Status" className={dSel}>
+              <option value="">Status</option>
+              {STUDENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterCounselorId} onChange={e => setFilterCounselorId(e.target.value)} title="Counselor" className={dSel}>
+              <option value="">Counselor</option>
+              <option value="__unassigned__">Unassigned</option>
+              {counselors.map(c => <option key={normalId(c)} value={normalId(c)}>{c.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') setSearch(searchInput); }}
+              placeholder="Search by name, email, phone..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
+          </div>
+          <button type="button" onClick={() => setSearch(searchInput)}
+            className="px-5 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            Search
+          </button>
+          {activeTags.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-gray-500 text-xs">Active filters:</span>
+              {activeTags.map(tag => (
+                <span key={tag.label} className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-xs font-medium">
+                  {tag.label}
+                  <button type="button" onClick={tag.clear} aria-label={`Clear ${tag.label}`} className="hover:text-orange-900 leading-none"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+              <button type="button" onClick={clearAll} className="text-xs text-orange-700 hover:text-orange-900 underline">Clear all</button>
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Counselor */}
-            {(() => {
-              const cid = selected.counselorId?._id || selected.counselorId;
-              const counselor = cid ? counselorMap[cid] : null;
-              return counselor ? (
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-orange-500" /> Assigned Counselor
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-                      {counselor.name?.[0]?.toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900">{counselor.name}</p>
-                      <p className="text-xs text-gray-400">{counselor.email}</p>
-                      {counselor.specialty && <p className="text-xs text-teal-600 font-medium mt-0.5">{counselor.specialty}</p>}
-                    </div>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            {/* Applications */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-orange-500" />
-                Applications ({appsByStudent[selected._id]?.length || 0})
-              </h3>
-              {!appsByStudent[selected._id]?.length ? (
-                <p className="text-sm text-gray-400">No applications found</p>
-              ) : (
-                <div className="space-y-2">
-                  {[...(appsByStudent[selected._id] || [])].sort((a: any, b: any) => new Date(b.updatedDate || b.updatedAt || b.submittedDate || b.createdAt || 0).getTime() - new Date(a.updatedDate || a.updatedAt || a.submittedDate || a.createdAt || 0).getTime()).map((app: any) => (
-                    <div key={app._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{app.universityName}</p>
-                        <p className="text-xs text-gray-400 truncate">{app.courseName} · {app.intake}</p>
-                      </div>
-                      <AppBadge status={app.status} />
-                    </div>
+      {/* ── Table ── */}
+      <div ref={tableRef} className="scroll-mt-4" />
+      {loading && students.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
+          <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading students…</span>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'APPS', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
+                    <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
                   ))}
-                </div>
-              )}
-            </div>
-
-            {/* Documents */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-orange-500" />
-                  Documents {selectedDetail?.documents?.length ? `(${selectedDetail.documents.length})` : ''}
-                </h3>
-                {selectedDetail?.documents?.filter((d: any) => d.url).length > 0 && (
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <Download className="w-3 h-3" />
-                    Click a document to download
-                  </span>
-                )}
-              </div>
-
-              {loadingDetail ? (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <div className="w-4 h-4 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin" /> Loading documents…
-                </div>
-              ) : !selectedDetail?.documents?.length ? (
-                <p className="text-sm text-gray-400">No documents uploaded</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {selectedDetail.documents.map((doc: any) => {
-                    const ds = DOC_STATUS[doc.status] || { label: doc.status, color: 'text-gray-600', bg: 'bg-gray-100' };
-                    return (
-                      <div key={doc._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-orange-200 transition-colors">
-                        <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-4 h-4 text-orange-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-800 truncate">{doc.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {doc.type && <span className="text-[10px] text-gray-400">{doc.type}</span>}
-                            {doc.status && (
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${ds.bg} ${ds.color}`}>
-                                {ds.label}
-                              </span>
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr><td colSpan={9} className="text-center py-16">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm text-gray-500">{activeTags.length ? 'No students match your filters.' : 'No students yet.'}</p>
+                  </td></tr>
+                ) : paginated.map((s: any, idx: number) => {
+                  const id = normalId(s);
+                  const words = (s.name || '').trim().split(' ');
+                  const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : (s.name?.slice(0, 2) || '??').toUpperCase();
+                  const apps = appsByStudent[id] || [];
+                  const counselorName = counselorNameById[counselorIdOf(s)];
+                  return (
+                    <tr key={id} className="border-b border-gray-50 hover:bg-orange-50/30 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <button type="button" onClick={() => openStudent(id)} aria-label={`Open ${s.name}'s profile`}
+                            className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</button>
+                          <div className="min-w-0">
+                            <button type="button" onClick={() => openStudent(id)} title="Open profile"
+                              className="text-sm font-semibold text-gray-900 truncate hover:text-orange-700 hover:underline text-left">{s.name}</button>
+                            <p className="text-xs text-orange-600 truncate">{s.email}</p>
+                            {apps.some(a => a.status === 'offer_received') && (
+                              <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-sky-50 px-2 py-0.5 rounded-md mt-1">
+                                <CheckCircle className="w-3 h-3" /> Offer received
+                              </p>
                             )}
                           </div>
                         </div>
-                        {doc.url ? (
-                          <a
-                            href={uploadUrl(doc.url)}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold flex-shrink-0 transition-colors"
-                          >
-                            <Download className="w-3 h-3" /> Download
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-300 italic flex-shrink-0">No file</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{s.joinedDate || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm text-orange-600 whitespace-nowrap max-w-[160px] truncate">{s.email || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{s.phone || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm whitespace-nowrap">
+                        {counselorName ? <span className="text-gray-700">{counselorName}</span> : <span className="text-gray-400">Unassigned</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-sm font-semibold text-gray-900">{apps.length}</td>
+                      <td className="px-4 py-3.5"><LeadStageSelect value={s.leadStage} onSave={stage => saveStage(id, stage)} /></td>
+                      <td className="px-4 py-3.5"><StatusBadge status={s.status === 'inactive' ? 'inactive' : 'active'} /></td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <button type="button" onClick={() => openStudent(id, 'messages')} title={`Messages with ${s.name}`} aria-label={`Messages with ${s.name}`}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+                          {s.phone ? (
+                            <a href={`tel:${s.phone.replace(/\s/g, '')}`} title={`Call ${s.phone}`}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 transition-colors">
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span title="No phone number" aria-label="No phone number"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
+                              <Phone className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      ) : (
-        <div className="hidden lg:flex flex-1 items-center justify-center text-center">
-          <div>
-            <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <BookOpen className="w-8 h-8 text-orange-400" />
+
+          {/* ── Pagination ── */}
+          <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50/40 flex-wrap gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>Show</span>
+              <div className="relative">
+                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} title="Entries per page"
+                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer">
+                  {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+              <span>entries</span>
+              <span className="hidden sm:inline text-gray-300 mx-1">·</span>
+              <span className="hidden sm:inline text-gray-400 text-xs">
+                Showing {filtered.length === 0 ? '0' : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)}`} of {filtered.length.toLocaleString()}
+              </span>
             </div>
-            <p className="text-sm text-gray-400">Select a student to view their profile,<br />applications, and documents</p>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {pageNums.map((p, i) =>
+                p === '...' ? (
+                  <span key={`d${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none">…</span>
+                ) : (
+                  <button key={p} type="button" onClick={() => setPage(p)} aria-current={page === p ? 'page' : undefined}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-orange-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                    {p}
+                  </button>
+                )
+              )}
+              <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// ── Student page (/appteam/students/:studentId) ──────────────────────────────
+function InfoRow({ label, value }: { label: string; value?: any }) {
+  const empty = value === null || value === undefined || value === '';
+  return (
+    <div className="flex gap-3 py-1.5">
+      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
+      <span className={`text-xs flex-1 min-w-0 break-words ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
+    </div>
+  );
+}
+
+type DetailTab = 'overview' | 'applications' | RecordTab;
+const DETAIL_TABS: { key: DetailTab; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'notes', label: 'Notes' },
+  { key: 'messages', label: 'Messages' },
+  { key: 'activities', label: 'Activities' },
+  { key: 'emails', label: 'Emails' },
+  { key: 'pipelines', label: 'Pipelines' },
+  { key: 'files', label: 'Files' },
+  { key: 'applications', label: 'Applications' },
+];
+
+function StudentDetail() {
+  const { studentId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') as DetailTab | null;
+  const [tab, setTab] = useState<DetailTab>(initialTab && DETAIL_TABS.some(t => t.key === initialTab) ? initialTab : 'overview');
+  useEffect(() => { if (initialTab && DETAIL_TABS.some(t => t.key === initialTab)) setTab(initialTab); }, [initialTab]);
+  const [student, setStudent] = useState<any>(null);
+  const [error, setError] = useState('');
+  const [apps, setApps] = useState<any[]>([]);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(studentId);
+
+  // Reload whenever the student changes (incl. via the ‹ › arrows)
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    setStudent(null); setError(''); setApps([]); setEditing(false);
+    api.students.get(studentId)
+      .then(s => { if (!cancelled) setStudent(s); })
+      .catch(err => { if (!cancelled) setError(err.message || 'Could not load this student.'); });
+    api.admin.applications()
+      .then(all => { if (!cancelled) setApps(all.filter((a: any) => String(a.studentId) === studentId)); })
+      .catch(() => { if (!cancelled) toast.error('Failed to load applications.'); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+
+  const goBack = () => { if (location.key !== 'default') navigate(-1); else navigate('/appteam/students'); };
+
+  const header = (
+    <div className="flex items-center justify-between gap-3">
+      <button type="button" onClick={goBack} className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+      {studentId && <RecordNavArrows currentId={studentId} basePath="/appteam/students" />}
+    </div>
+  );
+
+  if (error) return (
+    <div className="space-y-5">
+      {header}
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+        <p className="text-sm font-semibold text-red-800">Failed to load student</p>
+        <p className="text-xs text-red-600 mt-1">{error}</p>
+      </div>
+    </div>
+  );
+  if (!student) return (
+    <div className="space-y-5">
+      {header}
+      <div className="text-center py-12"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+    </div>
+  );
+
+  const sortedApps = [...apps].sort((a: any, b: any) =>
+    new Date(b.updatedDate || b.updatedAt || b.submittedDate || b.createdAt || 0).getTime() - new Date(a.updatedDate || a.updatedAt || a.submittedDate || a.createdAt || 0).getTime());
+  const docs = student.documents || [];
+  const nameWords = (student.name || '').trim().split(' ');
+  const initials = nameWords.length >= 2 ? (nameWords[0][0] + nameWords[nameWords.length - 1][0]).toUpperCase() : (student.name?.slice(0, 2) || '??').toUpperCase();
+
+  const docList = (
+    docs.length === 0 ? <p className="text-sm text-gray-400">No documents uploaded</p> : (
+      <div className="space-y-2">
+        {docs.map((doc: any) => (
+          <div key={doc._id || doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0"><FileText className="w-4 h-4 text-orange-500" /></div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+              <p className="text-xs text-gray-400">{doc.type}{doc.uploadedDate ? ` · ${doc.uploadedDate}` : ''}</p>
+            </div>
+            <StatusBadge status={doc.status} />
+            {doc.url ? (
+              <>
+                <button type="button" onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                  className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium transition-colors">
+                  <Eye className="w-3 h-3" /> Preview
+                </button>
+                <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition-colors">
+                  <Download className="w-3 h-3" /> Download
+                </a>
+              </>
+            ) : <span className="text-xs text-gray-300 italic">No file</span>}
+          </div>
+        ))}
+      </div>
+    )
+  );
+
+  const appList = (
+    sortedApps.length === 0 ? <p className="text-sm text-gray-400">No applications yet</p> : (
+      <div className="space-y-2">
+        {sortedApps.map((app: any) => (
+          <div key={app._id || app.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{app.universityName}</p>
+              <p className="text-xs text-gray-500 truncate">{app.courseName}{app.intake ? ` · ${app.intake}` : ''}</p>
+            </div>
+            <AppBadge status={app.status} />
+          </div>
+        ))}
+      </div>
+    )
+  );
+
+  return (
+    <>
+    <div className="space-y-5">
+      {header}
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        {/* ── Left: student details ── */}
+        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">{initials}</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-white truncate" title={student.name}>{student.name}</h2>
+                <p className="flex items-center gap-1 text-xs text-orange-100 mt-0.5 min-w-0" title="Assigned counselor">
+                  <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{student.counselorName || 'Unassigned'}</span>
+                </p>
+                <div className="mt-1"><StatusBadge status={student.status === 'inactive' ? 'inactive' : 'active'} /></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+              <span className="text-xs font-medium text-orange-100">Lead Stage</span>
+              <LeadStageSelect value={student.leadStage}
+                onSave={async stage => { const u = await api.students.setLeadStage(studentId!, stage); setStudent((p: any) => ({ ...p, leadStage: u.leadStage })); }} />
+            </div>
+          </div>
+          <div className="p-4 border-b border-gray-100 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setEditing(true)} disabled={editing}
+              className="disabled:opacity-50 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all">
+              <Pencil className="w-4 h-4" />Edit
+            </button>
+            <Link to="/appteam/chat" className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all">
+              <MessageSquare className="w-4 h-4" />Chat
+            </Link>
+            <button type="button" onClick={() => downloadStudentProfilePdf({ ...student, applications: apps }, { counselorName: student.counselorName || undefined })}
+              className="col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all">
+              <Download className="w-4 h-4" />Download Profile PDF
+            </button>
+          </div>
+
+          {editing ? (
+            <StudentEditForm inline student={student} basePath="/appteam/students" onClose={() => setEditing(false)}
+              onSaved={u => { setStudent((p: any) => ({ ...p, ...u })); setEditing(false); }} />
+          ) : (<>
+          <StudentProfileFields student={student} />
+
+          <div className="p-5 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
+            <InfoRow label="Education" value={student.educationLevel} />
+            <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
+            <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
+          </div>
+
+          <div className="p-5">
+            <InfoRow label="Joined" value={student.joinedDate} />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{sortedApps.length}</p><p className="text-[11px] text-gray-500">Applications</p></div>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl py-2 text-center"><p className="text-lg font-bold text-gray-900">{docs.length}</p><p className="text-[11px] text-gray-500">Documents</p></div>
+            </div>
+          </div>
+          </>)}
+        </aside>
+
+        {/* ── Right: tabs ── */}
+        <div className="flex-1 min-w-0 w-full space-y-5">
+          <div className="flex bg-white rounded-2xl border border-gray-100 shadow-sm px-4 overflow-x-auto">
+            {DETAIL_TABS.map(t => (
+              <button type="button" key={t.key} onClick={() => setTab(t.key)}
+                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${tab === t.key ? 'border-orange-500 text-orange-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'overview' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Layers className="w-4 h-4 text-orange-500" />Application Summary</h3>
+                {appList}
+              </div>
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-orange-500" />Documents</h3>
+                {docList}
+              </div>
+            </div>
+          )}
+
+          {tab === 'applications' && (
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Layers className="w-4 h-4 text-orange-500" />Applications ({sortedApps.length})</h3>
+              {appList}
+            </div>
+          )}
+
+          {tab !== 'overview' && tab !== 'applications' && (
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              {tab === 'files' ? (
+                <>
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4 text-orange-500" />Files ({docs.length})</h3>
+                  {docList}
+                </>
+              ) : (
+                <StudentRecordPanel tab={tab} student={student} record={record} reload={reloadRecord}
+                  loading={recordLoading} error={recordError} canEdit canReply={false}
+                  onStudentChange={u => setStudent((p: any) => ({ ...p, ...u }))} />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+    {previewDoc && (
+      <DocPreviewModal url={previewDoc.url} fileName={previewDoc.name} onClose={() => setPreviewDoc(null)} />
+    )}
+    </>
   );
 }

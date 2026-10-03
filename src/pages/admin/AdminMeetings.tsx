@@ -4,6 +4,7 @@ import {
   Users, Search, Check, RefreshCw, CalendarCheck, CalendarX,
 } from 'lucide-react';
 import { api } from '../../api';
+import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -350,6 +351,7 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminMeetings() {
+  const { portal } = usePortalName();
   const [meetings, setMeetings] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
@@ -416,7 +418,7 @@ export default function AdminMeetings() {
                 <CalendarDays className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold leading-tight">Meeting Schedule</h1>
               </div>
             </div>

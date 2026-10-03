@@ -11,10 +11,10 @@ const analystActionSchema = new mongoose.Schema(
     action: {
       type: String,
       enum: ['block_ip', 'unblock_ip', 'revoke_user_sessions', 'incident_status_change', 'incident_assigned',
-        'bulk_block_ip', 'revoke_session', 'force_password_reset', 'add_suppression', 'remove_suppression'],
+        'bulk_block_ip', 'revoke_session', 'force_password_reset', 'add_suppression', 'remove_suppression', 'lock_account', 'unlock_account', 'review_upload', 'alert_test', 'quarantine_upload', 'restore_upload', 'purge_upload'],
       required: true,
     },
-    targetType: { type: String, enum: ['ip', 'user', 'incident', 'session', 'suppression'], required: true },
+    targetType: { type: String, enum: ['ip', 'user', 'incident', 'session', 'suppression', 'upload'], required: true },
     targetId: { type: String, required: true },
     reason: { type: String, default: '' },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -30,5 +30,7 @@ const analystActionSchema = new mongoose.Schema(
 analystActionSchema.index({ analystId: 1, createdAt: -1 });
 analystActionSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 analystActionSchema.index({ createdAt: -1 });
+
+analystActionSchema.plugin(require('../lib/encryptedFields'), { fields: ['analystEmail','targetId','reason'] });
 
 module.exports = mongoose.model('AnalystAction', analystActionSchema);

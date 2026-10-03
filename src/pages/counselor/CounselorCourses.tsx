@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag } from 'lucide-react';
+import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag, Download } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
+import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -273,15 +275,22 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
 }
 
 export default function CounselorCourses() {
+  const { portal } = usePortalName();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [filters, setFilters] = useState<CourseFilters>(EMPTY_FILTERS);
   const [applyModal, setApplyModal] = useState<any | null>(null);
   const [customEdit, setCustomEdit] = useState<any | null>(null);
+  const [loadError, setLoadError] = useState('');
+
+  const loadCourses = () => {
+    setLoadError('');
+    api.universities.list().then(setUniversities).catch(() => setLoadError('Failed to load courses.'));
+  };
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    loadCourses();
     api.students.list().then(setStudents).catch(() => {});
     api.countries.list().then(setCountries).catch(() => {});
   }, []);
@@ -289,6 +298,14 @@ export default function CounselorCourses() {
   const allCourses = useMemo(() => flattenCourses(universities), [universities]);
   const results = useMemo(() => searchCourses(allCourses, filters, students), [allCourses, filters, students]);
   const opts = useMemo(() => filterOptions(allCourses), [allCourses]);
+
+  const handleExport = () => {
+    exportRowsToCsv('courses.csv', results.map((c: any) => ({
+      Course: c.name || '', Level: c.level || '', University: c.uniName || '',
+      City: c.city || '', Country: c.country || '', Duration: c.duration || '',
+      'Tuition Fee': c.tuitionFee || '', Currency: c.currency || '', Intake: (c.intake || []).join('; '),
+    })));
+  };
 
   const applyCustom = (course: any, data: { tags: string[]; customFields: { key: string; value: string }[] }) => {
     const cid = String(course._id || course.id);
@@ -319,16 +336,29 @@ export default function CounselorCourses() {
       )}
 
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <BookOpen className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
+              <h1 className="text-2xl font-bold leading-tight">Available Courses</h1>
+            </div>
           </div>
-          <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
-            <h1 className="text-2xl font-bold leading-tight">Available Courses</h1>
-          </div>
+          <button type="button" onClick={handleExport} disabled={results.length === 0}
+            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0">
+            <Download className="w-4 h-4" />Export CSV
+          </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <AdvancedCourseSearch courses={allCourses} students={students} value={filters} onSearch={setFilters} accent="green" resultCount={results.length} />
 

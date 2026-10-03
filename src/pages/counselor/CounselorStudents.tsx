@@ -1,17 +1,25 @@
 import { uploadUrl } from '../../utils/uploadUrl';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, MapPin, UserCog } from 'lucide-react';
+import {
+  Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, MapPin, UserCog,
+  ChevronDown, ChevronLeft, ChevronRight, Download, RefreshCw, Activity, GraduationCap, AlertTriangle, UserX,
+} from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
-import LeadStageSelect from '../../components/LeadStageSelect';
+import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
+import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import StudentNotes from '../../components/StudentNotes';
 import { usePermissions } from '../../hooks/usePermissions';
+import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -78,9 +86,7 @@ const STUDENT_STAGES = [
   { value: 'inactive', label: 'Inactive' },
 ];
 
-const STUDENTS_PER_PAGE = 8;
-
-const ROW_BTN = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1';
+const normalId = (obj: any): string => String(obj?._id || obj?.id || '');
 
 /** Inline Active/Inactive picker; saves as soon as the value changes. */
 function StudentStatusSelect({ studentId, value, editable, onSaved }: { studentId: string; value?: string; editable: boolean; onSaved: (status: string) => void }) {
@@ -344,177 +350,380 @@ export default function CounselorStudents() {
 }
 
 function StudentsList() {
+  const { portal } = usePortalName();
   const { user } = useAuth();
   const counselor = user as Counselor;
-  const { can, restricted } = usePermissions();
+  const navigate = useNavigate();
+  const { can, restricted, hasTeam } = usePermissions();
   const [allStudents, setAllStudents] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<'mine' | 'all'>('mine');
   const [showCreate, setShowCreate] = useState(false);
+  const [showNewLead, setShowNewLead] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterCountry, setFilterCountry] = useState('');
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  function loadStudents() {
-    api.students.list().then(setAllStudents).catch(() => {});
-  }
+  const loadStudents = useCallback(async () => {
+    setLoading(true); setLoadError('');
+    try { setAllStudents(await api.students.list()); }
+    catch (err: any) { setLoadError(err.message || 'Failed to load students.'); }
+    finally { setLoading(false); }
+  }, []);
 
-  useEffect(() => { loadStudents(); }, []);
-  useEffect(() => { setPage(1); }, [query, statusFilter, tab]);
+  useEffect(() => { loadStudents(); }, [loadStudents]);
+  // Names for the "Assigned To" column
+  useEffect(() => {
+    api.tasks.assignees().then(list => setStaffNames(Object.fromEntries(list.map(u => [u._id, u.name])))).catch(() => {});
+  }, []);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterDateStart, filterDateEnd, tab]);
 
   const isMine = (s: any) => counselor.assignedStudents?.includes(s._id || s.id) || String(s.counselorId) === String(counselor.id);
   const myStudents = allStudents.filter(isMine);
+  // Only counselors whose role gives them a team (lower roles, or peers) get the Team Students view
+  const source = tab === 'all' && hasTeam ? allStudents : myStudents;
+  const countryOptions = Array.from(new Set(allStudents.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
 
+  // Throws on failure so the stage picker can show the error
   const saveStage = async (sid: string, leadStage: string) => {
     const updated = await api.students.setLeadStage(sid, leadStage);
-    setAllStudents(prev => prev.map((s: any) => (s._id || s.id) === sid ? { ...s, leadStage: updated.leadStage } : s));
+    setAllStudents(prev => prev.map((s: any) => normalId(s) === sid ? { ...s, leadStage: updated.leadStage } : s));
   };
-  const source = tab === 'mine' ? myStudents : allStudents;
 
   const filtered = source.filter((s: any) => {
-    const matchQuery = !query || s.name.toLowerCase().includes(query.toLowerCase()) || s.email.toLowerCase().includes(query.toLowerCase()) || s.nationality?.toLowerCase().includes(query.toLowerCase());
-    const matchStatus = !statusFilter || s.status === statusFilter;
-    return matchQuery && matchStatus;
+    if (filterStatus && s.status !== filterStatus) return false;
+    if (filterStage && leadStageOf(s).value !== filterStage) return false;
+    if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
+    const jd = (s.joinedDate || '').slice(0, 10);
+    if (filterDateStart && jd < filterDateStart) return false;
+    if (filterDateEnd && jd > filterDateEnd) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!s.name?.toLowerCase().includes(q) && !s.email?.toLowerCase().includes(q) && !s.phone?.toLowerCase().includes(q) && !s.nationality?.toLowerCase().includes(q)) return false;
+    }
+    return true;
   }).sort((a: any, b: any) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / STUDENTS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * STUDENTS_PER_PAGE;
-  const pageStudents = filtered.slice(pageStart, pageStart + STUDENTS_PER_PAGE);
-  // Full filtered order (all pages) so the ‹ › arrows on the profile step through it
-  const filteredIds = filtered.map((s: any) => String(s._id || s.id));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  // Open the full student page; pass the filtered order so ‹ › can step through it
+  const openStudent = (id: string) => navigate(`/counselor/students/${id}`, { state: { ids: filtered.map(normalId) } });
+
+  const counts = {
+    total: allStudents.length,
+    mine: myStudents.length,
+    active: source.filter(s => s.status !== 'inactive').length,
+    inactive: source.filter(s => s.status === 'inactive').length,
+    enrolled: source.filter(s => s.status === 'enrolled' || s.leadStage === 'enrolment').length,
+  };
+  const pct = (n: number) => source.length > 0 ? `${Math.round((n / source.length) * 100)}%` : '0%';
+
+  const handleExport = () => {
+    exportRowsToCsv('students.csv', filtered.map(s => ({
+      Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
+      Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: staffNames[s.counselorId] || 'Unassigned',
+      'Joined Date': s.joinedDate || '',
+    })));
+  };
+
+  const activeTags: { label: string; clear: () => void }[] = [];
+  if (filterStatus) activeTags.push({ label: STUDENT_STAGES.find(s => s.value === filterStatus)?.label || filterStatus, clear: () => setFilterStatus('') });
+  if (filterStage) activeTags.push({ label: `Stage: ${leadStageOf({ leadStage: filterStage }).label}`, clear: () => setFilterStage('') });
+  if (filterCountry) activeTags.push({ label: filterCountry, clear: () => setFilterCountry('') });
+  if (filterDateStart || filterDateEnd) activeTags.push({ label: `Joined ${filterDateStart || '…'} – ${filterDateEnd || '…'}`, clear: () => { setFilterDateStart(''); setFilterDateEnd(''); } });
+  if (search) activeTags.push({ label: `"${search}"`, clear: () => { setSearch(''); setSearchInput(''); } });
+  const clearAll = () => { setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterDateStart(''); setFilterDateEnd(''); setSearch(''); setSearchInput(''); };
+
+  // Paginator: 1 2 3 … last
+  const pageNums: (number | '...')[] = (() => {
+    if (totalPages <= 6) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const nums: (number | '...')[] = [1, 2, 3];
+    if (page > 4) nums.push('...');
+    if (page > 3 && page < totalPages - 1) nums.push(page);
+    nums.push('...', totalPages);
+    return nums;
+  })();
+
+  const avatarPalette = ['from-blue-500 to-indigo-600', 'from-green-500 to-emerald-600', 'from-purple-500 to-pink-600', 'from-amber-500 to-orange-600', 'from-cyan-500 to-blue-600', 'from-rose-500 to-red-600'];
+  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer';
+  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent';
 
   return (
     <div className="space-y-6">
-      {showCreate && (
-        <StudentFormModal
-          onClose={() => setShowCreate(false)}
-          onSaved={() => { loadStudents(); setTab('mine'); }}
-        />
+      {showNewLead && (
+        <StudentEditForm basePath="/counselor/students" onClose={() => setShowNewLead(false)}
+          onSaved={s => { setShowNewLead(false); navigate(`/counselor/students/${s._id || s.id}`); }} />
       )}
+      {showCreate && (
+        <StudentFormModal onClose={() => setShowCreate(false)} onSaved={() => { loadStudents(); setTab('mine'); }} />
+      )}
+
+      {/* ── Header ── */}
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
               <h1 className="text-2xl font-bold leading-tight">Students</h1>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
-        <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{restricted ? 'Team Students' : 'All Students'} ({allStudents.length})</button>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 gap-3 flex-wrap bg-gray-50/60">
-          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search students…"
-                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
-            </div>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status"
-              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-              <option value="">All statuses</option>
-              {STUDENT_STAGES.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-          {can('students.create') && (
-            <button type="button" onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold shadow-sm active:scale-[0.97] transition-all">
-              <UserPlus className="w-4 h-4" />Add Student
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+              <Download className="w-4 h-4" />Export CSV
             </button>
-          )}
-        </div>
-
-        <div className="divide-y divide-gray-50">
-          {pageStudents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-gray-400">
-              <Users className="w-8 h-8 mb-2 opacity-40" />
-              <p className="text-sm">{query || statusFilter ? 'No students match your search.' : 'No students yet. Add one above.'}</p>
-            </div>
-          ) : pageStudents.map((student: any) => {
-            const sid = student._id || student.id;
-            const navState = { ids: filteredIds };
-            const apps = student.applications || [];
-            const subtitle = [student.nationality, student.educationLevel, student.phone].filter(Boolean).join(' · ');
-            return (
-              <div key={sid} className="flex items-center gap-4 px-5 py-4 hover:bg-green-50/40 transition-colors">
-                <Link to={`/counselor/students/${sid}`} state={navState} aria-label={`Open ${student.name}'s profile`}
-                  className="w-11 h-11 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
-                  {student.name.charAt(0)}
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <Link to={`/counselor/students/${sid}`} state={navState}
-                    className="font-bold text-gray-900 text-sm hover:text-green-700 hover:underline transition-colors">
-                    {student.name}
-                  </Link>
-                  <p className="text-xs text-gray-500 truncate">{student.email}</p>
-                  {subtitle && <p className="text-xs text-green-700 mt-0.5 truncate">{subtitle}</p>}
-                  {apps.some((a: any) => a.status === 'offer_received') && (
-                    <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-sky-50 px-2 py-0.5 rounded-md mt-1">
-                      <CheckCircle className="w-3 h-3" /> Offer received — action needed
-                    </p>
-                  )}
-                </div>
-                <div className="hidden lg:flex items-center flex-shrink-0">
-                  <StudentStatusSelect studentId={sid} value={student.status} editable={isMine(student)}
-                    onSaved={status => setAllStudents((prev: any[]) => prev.map((x: any) => (x._id || x.id) === sid ? { ...x, status } : x))} />
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-                  <Link to="/counselor/chat" title={`Chat with ${student.name}`} className={ROW_BTN}>
-                    <MessageSquare className="w-3.5 h-3.5" />Chat
-                  </Link>
-                  {student.phone ? (
-                    <a href={`tel:${student.phone.replace(/\s/g, '')}`} title={`Call ${student.phone}`}
-                      className="w-8 h-8 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-sm transition-all">
-                      <Phone className="w-3.5 h-3.5" />
-                    </a>
-                  ) : (
-                    <span title="No phone number — add one from the profile" aria-label="No phone number"
-                      className="w-8 h-8 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center cursor-not-allowed">
-                      <Phone className="w-3.5 h-3.5" />
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {filtered.length > 0 && (
-          <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-3 border-t border-gray-100 bg-gray-50/60">
-            <p className="text-xs text-gray-500">
-              Showing <span className="font-semibold text-gray-700">{pageStart + 1}–{pageStart + pageStudents.length}</span> of <span className="font-semibold text-gray-700">{filtered.length}</span> students
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                  Previous
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                  <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === currentPage ? 'page' : undefined}
-                    className={`w-8 h-8 rounded-lg text-xs font-semibold border transition-colors ${n === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
-                    {n}
-                  </button>
-                ))}
-                <button type="button" onClick={() => setPage(currentPage + 1)} disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                  Next
-                </button>
-              </div>
+            <button type="button" onClick={loadStudents} disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+            </button>
+            <Link to="/counselor/universities"
+              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+              <Plus className="w-4 h-4" />New Application
+            </Link>
+            {can('students.create') && (
+              <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors">
+                <Phone className="w-4 h-4" />New Lead
+              </button>
+            )}
+            {can('students.create') && (
+              <button type="button" onClick={() => setShowCreate(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors shadow-sm">
+                <GraduationCap className="w-4 h-4" />Add Student
+              </button>
             )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* ── Error ── */}
+      {loadError && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
+          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1"><p className="text-sm font-semibold text-red-800">Failed to load students</p><p className="text-xs text-red-600 mt-0.5">{loadError}</p></div>
+          <button type="button" onClick={loadStudents} className="text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Retry</button>
+        </div>
+      )}
+
+      {/* ── Stat cards ── */}
+      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-4 ${hasTeam ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+        {[
+          ...(hasTeam ? [{ label: 'Team Students', value: counts.total, note: 'Visible to you', icon: <Users className="w-5 h-5 text-green-600" /> }] : []),
+          { label: 'My Students', value: counts.mine, note: hasTeam && counts.total ? `${Math.round((counts.mine / counts.total) * 100)}% of team` : 'Assigned to you', icon: <UserCog className="w-5 h-5 text-green-600" /> },
+          { label: 'Active', value: counts.active, note: pct(counts.active), icon: <Activity className="w-5 h-5 text-green-600" /> },
+          { label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), icon: <UserX className="w-5 h-5 text-green-500" /> },
+          { label: 'Enrolled', value: counts.enrolled, note: pct(counts.enrolled), icon: <GraduationCap className="w-5 h-5 text-green-600" /> },
+        ].map(card => (
+          <div key={card.label} className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm flex items-start gap-3 hover:border-green-300 hover:shadow-md transition-all">
+            <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">{card.icon}</div>
+            <div>
+              <p className="text-gray-500 text-xs mb-1">{card.label}</p>
+              <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
+              <p className="text-xs mt-1 text-green-600">{loading ? '' : card.note}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── My / Team tabs (only when the role gives them a team) ── */}
+      {hasTeam && <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+        <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Team Students ({allStudents.length})</button>
+      </div>}
+
+      {/* ── Filter bar ── */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-2">
+            <input type="date" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} title="Joined from" className={dInput} />
+            <span className="text-gray-400 text-sm font-medium">–</span>
+            <input type="date" value={filterDateEnd} onChange={e => setFilterDateEnd(e.target.value)} title="Joined to" className={dInput} />
+          </div>
+          <div className="relative">
+            <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} title="Country" className={dSel}>
+              <option value="">Country</option>
+              {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterStage} onChange={e => setFilterStage(e.target.value)} title="Lead stage" className={dSel}>
+              <option value="">Lead Stage</option>
+              {LEAD_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} title="Status" className={dSel}>
+              <option value="">Status</option>
+              {STUDENT_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') setSearch(searchInput); }}
+              placeholder="Search by name, email, phone..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+          </div>
+          <button type="button" onClick={() => setSearch(searchInput)}
+            className="px-5 py-2 bg-green-600 text-white hover:bg-green-700 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            Search
+          </button>
+          {activeTags.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-gray-500 text-xs">Active filters:</span>
+              {activeTags.map(tag => (
+                <span key={tag.label} className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-medium">
+                  {tag.label}
+                  <button type="button" onClick={tag.clear} aria-label={`Clear ${tag.label}`} className="hover:text-green-900 leading-none"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+              <button type="button" onClick={clearAll} className="text-xs text-green-700 hover:text-green-900 underline">Clear all</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Table ── */}
+      {loading && allStudents.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
+          <span className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading students…</span>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
+                    <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr><td colSpan={8} className="text-center py-16">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm text-gray-500">{activeTags.length ? 'No students match your filters.' : 'No students yet.'}</p>
+                  </td></tr>
+                ) : paginated.map((s: any, idx: number) => {
+                  const id = normalId(s);
+                  const words = (s.name || '').trim().split(' ');
+                  const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : (s.name?.slice(0, 2) || '??').toUpperCase();
+                  const mine = isMine(s);
+                  const offer = (s.applications || []).some((a: any) => a.status === 'offer_received');
+                  return (
+                    <tr key={id} className="border-b border-gray-50 hover:bg-green-50/30 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</div>
+                          <div className="min-w-0">
+                            <button type="button" onClick={() => openStudent(id)} title="Open profile"
+                              className="text-sm font-semibold text-gray-900 truncate hover:text-green-700 hover:underline text-left">{s.name}</button>
+                            <p className="text-xs text-green-600 truncate">{s.email}</p>
+                            {offer && (
+                              <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-sky-50 px-2 py-0.5 rounded-md mt-1">
+                                <CheckCircle className="w-3 h-3" /> Offer received
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{s.joinedDate || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm text-green-600 whitespace-nowrap max-w-[160px] truncate">{s.email || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{s.phone || '—'}</td>
+                      <td className="px-4 py-3.5 text-sm whitespace-nowrap">
+                        {mine ? <span className="font-medium text-green-700">You</span>
+                          : s.counselorId ? <span className="text-gray-700">{staffNames[String(s.counselorId)] || '—'}</span>
+                          : <span className="text-gray-400">Unassigned</span>}
+                      </td>
+                      <td className="px-4 py-3.5"><LeadStageSelect value={s.leadStage} editable={mine || restricted} onSave={stage => saveStage(id, stage)} /></td>
+                      <td className="px-4 py-3.5">
+                        <StudentStatusSelect studentId={id} value={s.status} editable={mine}
+                          onSaved={status => setAllStudents(prev => prev.map((x: any) => normalId(x) === id ? { ...x, status } : x))} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <Link to="/counselor/chat" title={`Chat with ${s.name}`}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </Link>
+                          {s.phone ? (
+                            <a href={`tel:${s.phone.replace(/\s/g, '')}`} title={`Call ${s.phone}`}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 transition-colors">
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span title="No phone number" aria-label="No phone number"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
+                              <Phone className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Pagination ── */}
+          <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50/40 flex-wrap gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>Show</span>
+              <div className="relative">
+                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} title="Entries per page"
+                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer">
+                  {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+              <span>entries</span>
+              <span className="hidden sm:inline text-gray-300 mx-1">·</span>
+              <span className="hidden sm:inline text-gray-400 text-xs">
+                Showing {filtered.length === 0 ? '0' : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)}`} of {filtered.length.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {pageNums.map((p, i) =>
+                p === '...' ? (
+                  <span key={`d${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none">…</span>
+                ) : (
+                  <button key={p} type="button" onClick={() => setPage(p)} aria-current={page === p ? 'page' : undefined}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-green-600 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                    {p}
+                  </button>
+                )
+              )}
+              <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -535,6 +744,7 @@ function StudentDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const [student, setStudent] = useState<any>(null);
+  const [studentLoadError, setStudentLoadError] = useState('');
   // Kept separately: other student updates return the profile without it
   const [counselorName, setCounselorName] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -546,9 +756,6 @@ function StudentDetail() {
   const [showRequestDoc, setShowRequestDoc] = useState(false);
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
-  const [noteText, setNoteText] = useState('');
-  const [editingNote, setEditingNote] = useState<{ id: string; text: string } | null>(null);
-  const [notesSaving, setNotesSaving] = useState(false);
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
@@ -561,20 +768,21 @@ function StudentDetail() {
   }, []);
 
   // Reload whenever the student changes (incl. via the ‹ › arrows)
-  useEffect(() => {
-    if (!studentId) return;
+  const loadStudent = useCallback(() => {
+    if (!studentId) return () => {};
     let cancelled = false;
     setStudent(null);
+    setStudentLoadError('');
     setCounselorName(null);
-    setNoteText('');
-    setEditingNote(null);
     api.students.get(studentId).then(s => {
       if (cancelled) return;
       setStudent(s);
       setCounselorName(s.counselorName || null);
-    }).catch(() => {});
+    }).catch((err: any) => { if (!cancelled) setStudentLoadError(err.message || 'Failed to load this student.'); });
     return () => { cancelled = true; };
   }, [studentId]);
+
+  useEffect(() => loadStudent(), [loadStudent]);
 
   const verifyDoc = async (docId: string, status: 'verified' | 'rejected') => {
     if (!student || !studentId) return;
@@ -596,6 +804,14 @@ function StudentDetail() {
     } catch {}
     setUpdating(false);
   };
+
+  if (!student && studentLoadError) return (
+    <div className="text-center py-12">
+      <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+      <p className="text-sm text-gray-600 mb-3">{studentLoadError}</p>
+      <button type="button" onClick={loadStudent} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Retry</button>
+    </div>
+  );
 
   if (!student) return (
     <div className="text-center py-12">
@@ -681,6 +897,10 @@ function StudentDetail() {
               <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
                 <Plus className="w-4 h-4" /> Application
               </Link>
+              <button type="button" onClick={() => downloadStudentProfilePdf(student, { counselorName: counselorName || undefined })}
+                className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                <Download className="w-4 h-4" /> Download Profile PDF
+              </button>
               {canEditStudent && !editing && (
                 <button type="button" onClick={() => setEditing(true)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
                   <Edit2 className="w-4 h-4" /> Edit Profile
@@ -690,42 +910,22 @@ function StudentDetail() {
           </div>
 
           {editing ? (
-            <StudentFormModal inline student={student} onClose={() => setEditing(false)}
-              onSaved={async () => {
-                const updated = await api.students.get(studentId!).catch(() => null);
-                if (updated) { setStudent(updated); setCounselorName(updated.counselorName || counselorName); }
-              }} />
+            <StudentEditForm inline student={{ ...student, counselorName }} basePath="/counselor/students" onClose={() => setEditing(false)}
+              onSaved={u => { setStudent((p: any) => ({ ...p, ...u })); setEditing(false); }} />
           ) : (<>
-
-          <div className="p-5 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Basic Info</p>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2 text-gray-700 min-w-0"><Mail className="w-4 h-4 text-gray-400 flex-shrink-0" /><span className="truncate" title={student.email}>{student.email || '—'}</span></p>
-              <p className="flex items-center gap-2 text-gray-700"><Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.phone || '—'}</p>
-              <p className="flex items-center gap-2 text-gray-700"><MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{student.nationality || '—'}</p>
-            </div>
-          </div>
+          <StudentProfileFields student={student} />
 
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Academic Profile</p>
             <InfoRow label="Education" value={student.educationLevel} />
             <InfoRow label="GPA" value={student.gpa !== undefined && student.gpa !== null && student.gpa !== '' ? `${student.gpa}/10` : ''} />
-            <InfoRow label="English Test" value={student.englishScore?.score ? `${student.englishScore.type}: ${student.englishScore.score}` : ''} />
             <InfoRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}/yr` : ''} />
           </div>
 
           <div className="p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-            {(student.preferredCountries || []).length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {student.preferredCountries.map((c: string) => <span key={c} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{c}</span>)}
-              </div>
-            ) : <p className="text-xs text-gray-300">—</p>}
-            <div className="mt-4">
-              <InfoRow label="Applications" value={apps.length} />
-              <InfoRow label="Documents" value={docs.length} />
-              <InfoRow label="Joined" value={student.joinedDate} />
-            </div>
+            <InfoRow label="Applications" value={apps.length} />
+            <InfoRow label="Documents" value={docs.length} />
+            <InfoRow label="Joined" value={student.joinedDate} />
           </div>
           </>)}
         </aside>
@@ -942,124 +1142,12 @@ function StudentDetail() {
         </div>
       )}
 
-      {activeTab === 'notes' && (() => {
-        const myNotes = (student.counselorNotes || []).filter((n: any) => n.counselorId === ((counselor as any)?._id || counselor?.id));
-
-        const handleAddNote = async () => {
-          if (!noteText.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.addNote(studentId, noteText.trim());
-            setStudent(updated);
-            setNoteText('');
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleSaveEdit = async () => {
-          if (!editingNote || !editingNote.text.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.editNote(studentId, editingNote.id, editingNote.text.trim());
-            setStudent(updated);
-            setEditingNote(null);
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleDelete = async (noteId: string) => {
-          if (!studentId) return;
-          try {
-            const updated = await api.students.deleteNote(studentId, noteId);
-            setStudent(updated);
-          } catch {}
-        };
-
-        return (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <StickyNote className="w-4 h-4 text-yellow-500" />
-                <h3 className="font-bold text-gray-900">My Notes</h3>
-                <span className="text-xs text-gray-400 ml-auto">Only visible to you</span>
-              </div>
-
-              <div className="flex gap-2 mb-5">
-                <textarea
-                  value={noteText}
-                  onChange={e => setNoteText(e.target.value)}
-                  placeholder="Add a private note about this student…"
-                  rows={3}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
-                />
-                <button
-                  type="button"
-                  disabled={!noteText.trim() || notesSaving}
-                  onClick={handleAddNote}
-                  className="self-end px-4 py-2.5 bg-yellow-500 text-white rounded-xl text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50 whitespace-nowrap"
-                >
-                  {notesSaving ? 'Saving…' : 'Add Note'}
-                </button>
-              </div>
-
-              {myNotes.length === 0 ? (
-                <div className="text-center py-8">
-                  <StickyNote className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No notes yet. Add your first note above.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[...myNotes].reverse().map((note: any) => {
-                    const noteId = note._id || note.id;
-                    const isEditing = editingNote?.id === noteId;
-                    return (
-                      <div key={noteId} className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={editingNote!.text}
-                              onChange={e => setEditingNote({ id: editingNote!.id, text: e.target.value })}
-                              rows={3}
-                              className="w-full px-3 py-2 border border-yellow-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none bg-white"
-                            />
-                            <div className="flex gap-2 justify-end">
-                              <button type="button" onClick={() => setEditingNote(null)}
-                                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                                Cancel
-                              </button>
-                              <button type="button" disabled={!editingNote!.text.trim() || notesSaving} onClick={handleSaveEdit}
-                                className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50">
-                                {notesSaving ? 'Saving…' : 'Save'}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-3">
-                            <p className="flex-1 text-sm text-gray-800 whitespace-pre-wrap">{note.text}</p>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                              <button type="button" onClick={() => setEditingNote({ id: noteId, text: note.text })}
-                                className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors" title="Edit note">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button type="button" onClick={() => handleDelete(noteId)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete note">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {activeTab === 'notes' && studentId && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-4">Notes</h3>
+          <StudentNotes studentId={studentId} />
+        </div>
+      )}
         </div>
       </div>
     </div>

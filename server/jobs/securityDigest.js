@@ -42,7 +42,7 @@ async function runSecurityDigest(mailer) {
       SecurityIncident.countDocuments({ status: { $in: ['open', 'investigating'] }, stale: true }),
       SecurityEvent.countDocuments({ type: 'login_failure', createdAt: { $gte: since } }),
       SecurityEvent.countDocuments({ type: 'login_lockout', createdAt: { $gte: since } }),
-      User.find({ role: 'admin' }).select('email').lean(),
+      require('../lib/socRecipients').socOwnerUsers(), // SOC owner(s) only, not every admin
     ]);
     if (admins.length === 0) return;
 

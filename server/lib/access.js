@@ -6,7 +6,8 @@ const Profile = require('../models/Profile');
 /*
  * Access control for staff, modelled on Bigin's Users and Controls:
  *   Profile → WHAT a counselor can do   (permission keys below)
- *   Role    → WHOSE students they can see (their own + everyone in roles below theirs)
+ *   Role    → WHOSE students they can see (their own + everyone in roles below theirs, plus
+ *             others in the same role when that role has Peer Data Visibility on)
  * Admin accounts always have full access and see everything. A counselor with no role keeps
  * the portal's original visibility, so nothing changes until an admin assigns roles.
  */
@@ -89,10 +90,13 @@ async function loadAccess(req) {
     const permissions = new Set(profile ? profile.permissions : ALL_KEYS);
     let teamIds = null;
     const teamStudentIds = new Set((me.assignedStudents || []).map(String));
-    if (me.hierarchyRole && await Role.exists({ _id: me.hierarchyRole })) {
+    const myRole = me.hierarchyRole && await Role.findById(me.hierarchyRole).select('peerVisibility').lean();
+    if (myRole) {
       const below = await descendantRoleIds(me.hierarchyRole);
-      const team = below.length
-        ? await User.find({ hierarchyRole: { $in: below } }).select('_id assignedStudents').lean()
+      // Peer Data Visibility on → colleagues in the same role are part of the team too
+      const teamRoles = myRole.peerVisibility ? [String(me.hierarchyRole), ...below] : below;
+      const team = teamRoles.length
+        ? await User.find({ hierarchyRole: { $in: teamRoles }, _id: { $ne: me._id } }).select('_id assignedStudents').lean()
         : [];
       teamIds = [String(me._id), ...team.map(u => String(u._id))];
       team.forEach(u => (u.assignedStudents || []).forEach(id => teamStudentIds.add(String(id))));

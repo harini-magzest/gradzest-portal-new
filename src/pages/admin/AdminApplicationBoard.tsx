@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
+import { usePortalName } from '../../hooks/usePortalName';
 
 /* ─── Constants ─────────────────────────────────────────────────────────────── */
 
@@ -403,6 +404,7 @@ function DetailPanel({
 /* ─── Main page ─────────────────────────────────────────────────────────────── */
 
 export default function AdminApplicationBoard() {
+  const { portal } = usePortalName();
   const [applications, setApplications]   = useState<any[]>([]);
   const [counselors, setCounselors]       = useState<any[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -539,7 +541,7 @@ export default function AdminApplicationBoard() {
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-purple-200 text-xs font-medium uppercase tracking-wider">Admin Portal</p>
+              <p className="text-purple-200 text-xs font-medium uppercase tracking-wider">{portal}</p>
               <h1 className="text-2xl font-bold leading-tight">Application Board</h1>
             </div>
           </div>

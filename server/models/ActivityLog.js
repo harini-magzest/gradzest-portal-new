@@ -40,4 +40,6 @@ activityLogSchema.index({ createdAt: -1 });
 activityLogSchema.index({ type: 1, createdAt: -1 });
 activityLogSchema.index({ studentId: 1, createdAt: -1 });
 
+activityLogSchema.plugin(require('../lib/encryptedFields'), { fields: ['studentName','detail'] });
+
 module.exports = mongoose.model("ActivityLog", activityLogSchema);

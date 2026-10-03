@@ -4,6 +4,7 @@ import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { api, getApiToken } from '../api';
 import { createCallRingtone } from '../utils/pirateTone';
+import { CallSummaryPrompt } from '../components/CallSummary';
 import './call.css';
 
 export type CallState = 'idle' | 'calling' | 'incoming' | 'active';
@@ -54,6 +55,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const setCT = (t: CallType) => { callTypeRef.current = t; setCallType(t); };
 
   const [remoteName, setRemoteName] = useState('');
+  // Answered call a staff member should summarise now that it has ended
+  const [summaryPrompt, setSummaryPrompt] = useState<{ callId: string; otherName: string } | null>(null);
   const [remoteRole, setRemoteRole] = useState('');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -134,13 +137,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const logCall = async (status: string, duration: number, remoteId: string) => {
     // Must run before any await: callers tear the call down right after invoking logCall
     const recording = finishRecording();
+    const otherName = remoteName;
     if (!user?.id || !remoteId) return;
     try {
       const msg = await api.chat.logCall([user.id, remoteId], status, duration, user.name || '');
       setLastMessageTime(Date.now());
       socketRef.current?.emit('chat:call-logged', { to: remoteId });
-      const blob = await recording;
       const msgId = msg?.id || msg?._id;
+      if (status === 'answered' && msgId && user.role !== 'student') setSummaryPrompt({ callId: String(msgId), otherName });
+      const blob = await recording;
       if (status === 'answered' && blob && msgId) {
         await api.chat.uploadRecording(String(msgId), blob);
         setLastMessageTime(Date.now());
@@ -386,6 +391,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('chat:call-logged', () => { setLastMessageTime(Date.now()); });
+    // The other side placed the call and logged it; staff on this side summarise it too
+    socket.on('call:logged', ({ callId, otherName, status }: { callId: string; otherName: string; status: string }) => {
+      if (status === 'answered' && callId && user?.role !== 'student') setSummaryPrompt({ callId, otherName: otherName || '' });
+    });
     socket.on('chat:new-message', () => { setLastMessageTime(Date.now()); });
 
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -464,6 +473,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }}>
       {children}
       <audio ref={audioRef} autoPlay playsInline />
+
+      {summaryPrompt && callState === 'idle' && (
+        <CallSummaryPrompt callId={summaryPrompt.callId} otherName={summaryPrompt.otherName} onClose={() => setSummaryPrompt(null)} />
+      )}
 
       {/* ── Toast notification ── */}
       {toast && (

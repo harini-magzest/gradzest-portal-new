@@ -37,7 +37,8 @@ export default function Login() {
     } else if (result.code === 'EMAIL_NOT_VERIFIED') {
       toast.error('Please verify your email before logging in. Check your inbox or request a new verification link.');
     } else {
-      toast.error('Invalid email or password.');
+      // Show the server's reason (wrong password, account locked, too many attempts…)
+      toast.error(result.message || 'Invalid email or password.');
     }
   };
 
@@ -51,7 +52,7 @@ export default function Login() {
       if (redirectTo) navigate(redirectTo);
       else redirectAfterLogin(result.role!, result.isAppTeam);
     } else {
-      toast.error('Login failed. Please make sure the server is running and the database is seeded.');
+      toast.error(result.message || 'Login failed. Please make sure the server is running and the database is seeded.');
     }
   };
 

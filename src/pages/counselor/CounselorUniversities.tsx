@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Star, BookOpen, DollarSign, Calendar, CheckCircle, ExternalLink, Users, Award, X, Plus, GraduationCap, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Star, BookOpen, DollarSign, Calendar, CheckCircle, ExternalLink, Users, Award, X, Plus, GraduationCap, ChevronRight, AlertCircle, Download } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 
 const LEVEL_COLORS: Record<string, string> = {
   "Bachelor's": 'bg-blue-100 text-blue-700',
@@ -349,6 +351,7 @@ function UniversityCard({ uni }: { uni: any }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CounselorUniversities() {
+  const { portal } = usePortalName();
   const { user } = useAuth();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -356,9 +359,15 @@ export default function CounselorUniversities() {
   const [country, setCountry] = useState('');
   const [level, setLevel] = useState('');
   const [applyTarget, setApplyTarget] = useState<{ course: any; universityName: string; universityId: string } | null>(null);
+  const [loadError, setLoadError] = useState('');
+
+  const loadUniversities = () => {
+    setLoadError('');
+    api.universities.list().then(setUniversities).catch(() => setLoadError('Failed to load universities.'));
+  };
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    loadUniversities();
     api.students.list().then(setStudents).catch(() => {});
   }, []);
 
@@ -380,6 +389,14 @@ export default function CounselorUniversities() {
 
   const hasFilters = query || country || level;
 
+  const handleExport = () => {
+    exportRowsToCsv('universities.csv', filtered.map((u: any) => ({
+      Name: u.name || '', City: u.city || '', Country: u.country || '',
+      Ranking: u.ranking ?? '', Rating: u.rating ?? '', Courses: u.courses?.length ?? 0,
+      Website: u.website || '',
+    })));
+  };
+
   const handleApply = (course: any, universityName: string, universityId: string) => {
     setApplyTarget({ course, universityName, universityId });
   };
@@ -398,16 +415,29 @@ export default function CounselorUniversities() {
       )}
 
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Partner Universities</h1>
           </div>
         </div>
+        <button type="button" onClick={handleExport} disabled={filtered.length === 0}
+          className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0">
+          <Download className="w-4 h-4" />Export CSV
+        </button>
+        </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <div className="flex flex-col md:flex-row gap-3">

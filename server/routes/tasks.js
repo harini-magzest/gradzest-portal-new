@@ -7,6 +7,22 @@ const authMiddleware = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
+const { TASK_STATUSES } = Task;
+const STATUS_LABEL = { pending: 'Pending', in_progress: 'In progress', on_hold: 'On hold', completed: 'Completed' };
+
+// Real-time nudge to the other side of the task (creator ↔ assignee) when someone posts progress
+function notifyTaskUpdate(req, task, actorName, message) {
+  const io = req.app.get('io');
+  const userSockets = req.app.get('userSockets');
+  if (!io || !userSockets) return;
+  const targets = [task.assignedBy, task.assignedTo]
+    .filter(Boolean).map(String).filter(id => id !== String(req.user.id));
+  new Set(targets).forEach(uid => {
+    (userSockets.get(uid) || []).forEach(sid => io.to(sid).emit('task:updated', {
+      taskId: String(task._id), title: task.title, status: task.status, byName: actorName, message,
+    }));
+  });
+}
 
 // GET /api/tasks
 router.get('/', authMiddleware, async (req, res) => {
@@ -118,9 +134,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!isAssignee && !isCreator && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const completedNow = req.body.status === 'completed' && task.status !== 'completed';
-    if (req.body.status) task.status = req.body.status;
+    const { status } = req.body;
+    if (status && !TASK_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
+    const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 2000) : '';
+    const changed = !!status && status !== task.status;
+    const completedNow = status === 'completed' && task.status !== 'completed';
+    let poster = null;
+    if (changed) {
+      poster = await User.findById(req.user.id).select('name role');
+      task.history.push({ from: task.status, to: status, note, by: poster?.name || '', byRole: poster?.role || '' });
+      task.status = status;
+    }
     await task.save();
+    if (changed) {
+      notifyTaskUpdate(req, task, poster?.name || 'Someone',
+        `moved "${task.title}" to ${STATUS_LABEL[status]}${note ? `: ${note}` : ''}`);
+    }
     if (completedNow && task.subscriberId) {
       // Completing a lead follow-up moves an untouched subscriber to "contacted"
       await Subscriber.updateOne(
@@ -176,6 +205,7 @@ router.post('/:id/comments', authMiddleware, async (req, res) => {
     const poster = await User.findById(req.user.id).select('name role');
     task.comments.push({ author: poster.name, authorRole: poster.role, text: text.trim() });
     await task.save();
+    notifyTaskUpdate(req, task, poster.name, `commented on "${task.title}": ${text.trim()}`);
     res.json(task);
   } catch (err) {
     logError('tasks', err);

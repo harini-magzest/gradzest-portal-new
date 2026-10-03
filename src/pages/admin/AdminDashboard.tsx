@@ -1,3 +1,6 @@
+import TeamWorkload from '../../components/dashboards/TeamWorkload';
+import Funnel from '../../components/dashboards/Funnel';
+import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -11,6 +14,7 @@ import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import ActivityFeed from '../../components/ActivityFeed';
 import MeetingPanel from '../../components/MeetingPanel';
+import { usePortalName } from '../../hooks/usePortalName';
 
 const SPECIALIZATIONS = [
   'UK Universities', 'Canada Universities', 'Australia Universities',
@@ -1387,6 +1391,7 @@ function NewApplicationModal({ student, onClose, onCreated }: {
 // ── Main dashboard ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const { portal } = usePortalName();
   const location = useLocation();
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
@@ -1582,7 +1587,7 @@ export default function AdminDashboard() {
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
                 <h1 className="text-2xl font-bold text-white leading-tight">Dashboard</h1>
               </div>
             </div>
@@ -1630,6 +1635,12 @@ export default function AdminDashboard() {
             <span className="text-sm">Loading data…</span>
           </div>
         )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TeamWorkload />
+          <Funnel />
+        </div>
+        <WeeklyTrends />
 
         {/* Tab bar */}
         {!loading && (
