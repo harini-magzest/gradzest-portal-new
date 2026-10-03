@@ -18,6 +18,7 @@ import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
 import { usePortalName } from '../../hooks/usePortalName';
+import { useToast } from '../../context/ToastContext';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -100,6 +101,7 @@ function localDateTime(d = new Date()) {
 
 function GroupMeetingModal({ student, counselors, onClose }: { student: any; counselors: any[]; onClose: () => void }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(student.counselorId ? [String(student.counselorId)] : []),
@@ -114,7 +116,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
   const [created, setCreated] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => {}); }, []);
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, []);
 
   const selfId = String(user?.id ?? '');
   const groups = [
@@ -331,11 +333,13 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
   );
   const { record, loading: recordLoading, error: recordError, reload: reloadRecord } = useStudentRecord(normalId(student));
   const recordTab = RECORD_TABS.find(t => t.key === tab)?.key;
+  const { toast } = useToast();
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
 
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
+    api.universities.list().then(setUniversities).catch(() => toast.error('Failed to load universities for eligibility checks.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initials = student.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();

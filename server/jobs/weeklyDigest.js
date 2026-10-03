@@ -1,13 +1,10 @@
 const cron = require('node-cron');
 const User = require('../models/User');
 const Meeting = require('../models/Meeting');
+const { daysSinceStageChange } = require('../lib/leadRisk');
 
 const STALE_DAYS = 7;
 const OFFER_STATUSES = ['offer_received', 'accepted', 'enrolled'];
-
-function daysSince(date) {
-  return Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-}
 
 function summarizeStudents(students) {
   const weekAgo = Date.now() - 7 * 86400000;
@@ -15,8 +12,8 @@ function summarizeStudents(students) {
   for (const s of students) {
     if (new Date(s.createdAt || s.joinedDate).getTime() >= weekAgo) newLeads++;
     pendingDocs += (s.documents || []).filter(d => d.status === 'pending').length;
-    const changed = s.leadStageChangedAt || s.createdAt || s.joinedDate;
-    if (changed && daysSince(changed) >= STALE_DAYS && !['enrolled'].includes(s.status)) staleLeads++;
+    const stale = daysSinceStageChange(s);
+    if (stale !== null && stale >= STALE_DAYS && !['enrolled'].includes(s.status)) staleLeads++;
     applications += (s.applications || []).length;
     offers += (s.applications || []).filter(a => OFFER_STATUSES.includes(a.status)).length;
   }

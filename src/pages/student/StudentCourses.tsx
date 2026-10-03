@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from 'react';
-import { Search, BookOpen, Calendar, Award, CheckCircle, X, ShieldCheck } from 'lucide-react';
+import { Search, BookOpen, Calendar, Award, CheckCircle, X, ShieldCheck, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import ApplicationModal from '../../components/ApplicationModal';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 
@@ -34,8 +35,10 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
 
 export default function StudentCourses() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [student, setStudent] = useState<any>(user);
   const [universities, setUniversities] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState('');
   const [uniFilter, setUniFilter] = useState('');
@@ -43,9 +46,15 @@ export default function StudentCourses() {
   const [eligibleOnly, setEligibleOnly] = useState(false);
   const [applyModal, setApplyModal] = useState<{ course: any; uni: any } | null>(null);
 
+  const loadCourses = () => {
+    setLoadError('');
+    api.universities.list().then(setUniversities).catch(() => setLoadError('Failed to load courses.'));
+  };
+
   useEffect(() => {
-    api.universities.list().then(setUniversities).catch(() => {});
-    api.students.me().then(setStudent).catch(() => {});
+    loadCourses();
+    api.students.me().then(setStudent).catch(() => toast.error('Failed to load your eligibility info.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allCourses = universities.flatMap(uni =>
@@ -210,7 +219,14 @@ export default function StudentCourses() {
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {loadError && (
+          <div className="col-span-2 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+            <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          </div>
+        )}
+
+        {!loadError && filtered.length === 0 && (
           <div className="col-span-2 text-center py-14 text-gray-400">
             <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p className="text-sm">{allCourses.length === 0 ? 'Loading courses…' : 'No courses match your filters.'}</p>

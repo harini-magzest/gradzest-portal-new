@@ -7,6 +7,7 @@ import {
 import { api } from '../../api';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import { usePortalName } from '../../hooks/usePortalName';
+import { useToast } from '../../context/ToastContext';
 
 const COUNTRIES = [
   'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany',
@@ -951,6 +952,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
 
 export default function AdminUniversities() {
   const { portal } = usePortalName();
+  const { toast } = useToast();
   const [universities, setUniversities] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -970,7 +972,7 @@ export default function AdminUniversities() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.admin.students().then(setStudents).catch(() => {}); }, []);
+  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this university and all its courses? This cannot be undone.')) return;

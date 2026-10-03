@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../api';
+import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -160,6 +162,7 @@ export default function StudentChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
+  const { toast } = useToast();
   const [rooms, setRooms] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [search, setSearch] = useState('');
@@ -181,7 +184,7 @@ export default function StudentChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const loadRooms = async () => {
+  const loadRooms = async (opts?: { silent?: boolean }) => {
     try {
       const list = await api.chat.rooms();
       setRooms(list);
@@ -190,7 +193,9 @@ export default function StudentChat() {
         if (prev) return list.find((r: any) => r.id === prev.id) ?? prev;
         return prev;
       });
-    } catch {}
+    } catch {
+      if (!opts?.silent) toast.error('Failed to load conversations.');
+    }
   };
 
   useEffect(() => {
@@ -200,18 +205,16 @@ export default function StudentChat() {
 
   useEffect(() => {
     if (!lastMessageTime) return;
-    loadRooms();
+    loadRooms({ silent: true });
   }, [lastMessageTime]);
 
   useEffect(() => {
     if (!user) return;
-    const id = setInterval(loadRooms, 15000);
+    const id = setInterval(() => loadRooms({ silent: true }), 15000);
     return () => clearInterval(id);
   }, [user]);
 
-  useEffect(() => {
-    if (selectedRoom?.id) api.chat.markRead(selectedRoom.id).catch(() => {});
-  }, [selectedRoom?.id]);
+  useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -316,7 +319,7 @@ export default function StudentChat() {
               {filteredRooms.map((r: any) => {
                 const other = roomTitle(r);
                 const isActive = selectedRoom?.id === r.id;
-                const unread = r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0;
+                const unread = unreadCount(r, String(user?.id));
                 const lastMsg = r.messages?.[r.messages.length - 1];
                 const preview = lastMsg?.type === 'call' ? '📞 Voice call'
                   : lastMsg?.type === 'file' ? `📎 ${lastMsg.fileName || 'Document'}`
@@ -339,7 +342,7 @@ export default function StudentChat() {
                         </div>
                       </div>
                       {preview
-                        ? <p className="text-xs text-gray-400 truncate mt-0.5">{preview}</p>
+                        ? <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{preview}</p>
                         : <p className="text-xs text-gray-300 mt-0.5">No messages yet</p>
                       }
                     </div>

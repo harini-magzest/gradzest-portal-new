@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import { usePortalName } from '../../hooks/usePortalName';
+import MyCallPerformance from '../../components/MyCallPerformance';
+
 
 function fmt12h(time24: string) {
   if (!time24) return '';
@@ -409,6 +411,8 @@ export default function CounselorDashboard() {
           </div>
         </div>
       </div>
+
+      <MyCallPerformance />
 
       {/* Work Status Note */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">

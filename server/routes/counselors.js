@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
@@ -62,6 +63,19 @@ router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('fil
     res.json(newDoc.toJSON());
   } catch {
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// The signed-in counselor's own call stats, workload and activity timeline (same data admins see)
+// GET /api/counselors/me/performance?days=1|7|30|90
+router.get('/me/performance', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Counselors only' });
+  try {
+    const counselor = await User.findById(req.user.id).select('name email smartfloAgent');
+    if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
+    res.json(await buildCounselorPerformance(counselor, req.query.days));
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
