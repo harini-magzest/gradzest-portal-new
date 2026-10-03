@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require("../lib/logError");
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Role = require('../models/Role');
@@ -30,7 +31,8 @@ router.get('/meta', async (req, res) => {
       actionTypes: A.ACTION_TYPES, recipients: A.RECIPIENTS, leadStages: A.LEAD_STAGES,
       roles, staff,
     });
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -56,7 +58,8 @@ router.get('/templates', async (req, res) => {
     ]);
     const usedBy = new Map(usage.map(u => [String(u._id), u.rules]));
     res.json(templates.map(t => ({ ...t, usedBy: usedBy.get(String(t._id)) || [] })));
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -67,7 +70,8 @@ router.post('/templates', async (req, res) => {
   if (!data.body.trim()) return res.status(400).json({ message: 'Message body is required' });
   try {
     res.status(201).json(await AutomationTemplate.create({ ...data, createdBy: req.user.id }));
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -80,7 +84,8 @@ router.put('/templates/:id', async (req, res) => {
     const t = await AutomationTemplate.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!t) return res.status(404).json({ message: 'Template not found' });
     res.json(t);
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -94,7 +99,8 @@ router.delete('/templates/:id', async (req, res) => {
     const t = await AutomationTemplate.findByIdAndDelete(req.params.id);
     if (!t) return res.status(404).json({ message: 'Template not found' });
     res.json({ message: 'Template deleted' });
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -195,7 +201,8 @@ async function ruleInput(body) {
 router.get('/rules', async (req, res) => {
   try {
     res.json(await AutomationRule.find().sort({ createdAt: -1 }).lean());
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -205,7 +212,8 @@ router.post('/rules', async (req, res) => {
     const { data, error } = await ruleInput(req.body);
     if (error) return res.status(400).json({ message: error });
     res.status(201).json(await AutomationRule.create({ ...data, createdBy: req.user.id }));
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -217,7 +225,8 @@ router.put('/rules/:id', async (req, res) => {
     const rule = await AutomationRule.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!rule) return res.status(404).json({ message: 'Rule not found' });
     res.json(rule);
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -227,7 +236,8 @@ router.put('/rules/:id/active', async (req, res) => {
     const rule = await AutomationRule.findByIdAndUpdate(req.params.id, { active: !!req.body.active }, { new: true });
     if (!rule) return res.status(404).json({ message: 'Rule not found' });
     res.json(rule);
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -237,7 +247,8 @@ router.delete('/rules/:id', async (req, res) => {
     const rule = await AutomationRule.findByIdAndDelete(req.params.id);
     if (!rule) return res.status(404).json({ message: 'Rule not found' });
     res.json({ message: 'Rule deleted' });
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -267,7 +278,8 @@ router.get('/logs', async (req, res) => {
   try {
     const limit = Math.min(500, Number(req.query.limit) || 200);
     res.json(await AutomationLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean());
-  } catch {
+  } catch (err) {
+    logError("automation", err);
     res.status(500).json({ message: 'Server error' });
   }
 });

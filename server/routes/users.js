@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require("../lib/logError");
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -19,7 +20,8 @@ router.get('/me/permissions', authMiddleware, async (req, res) => {
   try {
     const access = await loadAccess(req);
     res.json({ permissions: [...access.permissions], restricted: !!access.teamIds });
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -53,7 +55,8 @@ router.get('/profiles', async (req, res) => {
       })),
       defaultId: def?._id || null,
     });
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -67,7 +70,8 @@ router.post('/profiles', async (req, res) => {
       permissions: cleanPermissions(req.body.permissions),
     });
     res.status(201).json(profile);
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -90,7 +94,8 @@ router.put('/profiles/:id', async (req, res) => {
     }
     await profile.save();
     res.json(profile);
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -105,7 +110,8 @@ router.delete('/profiles/:id', async (req, res) => {
     if (users) return res.status(400).json({ message: `Move the ${users} user(s) with this profile to another profile first` });
     await profile.deleteOne();
     res.json({ message: 'Profile deleted' });
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -120,7 +126,8 @@ router.get('/', async (req, res) => {
       Profile.find().select('name isSystem isDefault').sort({ isSystem: -1, name: 1 }).lean(),
     ]);
     res.json({ users, roles, profiles });
-  } catch {
+  } catch (err) {
+    logError("users", err);
     res.status(500).json({ message: 'Server error' });
   }
 });

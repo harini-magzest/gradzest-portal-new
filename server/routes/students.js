@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require("../lib/logError");
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -402,7 +403,7 @@ router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req,
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/meta — tags and short summary (admin, or the assigned counselor)
@@ -429,7 +430,7 @@ router.put('/:id/meta', authMiddleware, async (req, res) => {
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // POST /api/students/:id/notes — add a note
@@ -448,7 +449,7 @@ router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) 
     if (!user) return res.status(404).json({ message: 'Student not found' });
     recordStaffActivity(req, { kind: 'note', title: 'Note added', detail: text.trim().slice(0, 140), studentId: user._id, studentName: user.name });
     res.json(user.toJSON());
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/notes/:noteId — edit a note
@@ -465,7 +466,7 @@ router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'Not found' });
     res.json(user.toJSON());
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // DELETE /api/students/:id/notes/:noteId — delete a note
@@ -480,7 +481,7 @@ router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'Not found' });
     res.json(user.toJSON());
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;
