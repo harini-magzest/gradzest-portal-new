@@ -49,3 +49,44 @@ describe('Skyload does not treat the SOC owner\'s own dashboard as a bot', () =>
     expect(await botFlags()).toBeGreaterThan(flagsBefore);
   });
 });
+
+describe('isTrustedSocAdmin (shared by Skyload and the general rate limiter)', () => {
+  const jwt = require('jsonwebtoken');
+  const { isTrustedSocAdmin } = require('../middleware/skyload');
+  const reqFor = (url, token) => ({ originalUrl: url, url, path: url.split('?')[0], headers: token ? { authorization: `Bearer ${token}` } : {} });
+  const sign = (p) => jwt.sign(p, process.env.JWT_SECRET);
+
+  it('trusts a full admin on /api/soc paths, including relative paths seen by a limiter mounted under /api', () => {
+    const t = sign({ id: 'a', role: 'admin' });
+    expect(isTrustedSocAdmin(reqFor('/api/soc/stats?period=24h', t))).toBe(true);
+    expect(isTrustedSocAdmin(reqFor('/api/soc', t))).toBe(true);
+    // a limiter mounted at /api sees req.path === '/soc/stats' but originalUrl is still the full URL
+    expect(isTrustedSocAdmin({ path: '/soc/stats', originalUrl: '/api/soc/stats', headers: { authorization: `Bearer ${t}` } })).toBe(true);
+  });
+
+  it('does not trust lookalike paths, other roles, app-team admins, bad tokens or no token', () => {
+    const admin = sign({ id: 'a', role: 'admin' });
+    expect(isTrustedSocAdmin(reqFor('/api/socks', admin))).toBe(false);
+    expect(isTrustedSocAdmin(reqFor('/api/students', admin))).toBe(false);
+    expect(isTrustedSocAdmin(reqFor('/api/soc/stats', sign({ id: 'c', role: 'counselor' })))).toBe(false);
+    expect(isTrustedSocAdmin(reqFor('/api/soc/stats', sign({ id: 'x', role: 'admin', isAppTeam: true })))).toBe(false);
+    expect(isTrustedSocAdmin(reqFor('/api/soc/stats', jwt.sign({ id: 'a', role: 'admin' }, 'wrong-secret')))).toBe(false);
+    expect(isTrustedSocAdmin(reqFor('/api/soc/stats'))).toBe(false);
+  });
+
+  it('as a rate-limiter skip: owner is never limited, everyone else still is', async () => {
+    const express = require('express');
+    const rateLimit = require('express-rate-limit');
+    const probe = express();
+    probe.use('/api', rateLimit({ windowMs: 60000, max: 3, skip: isTrustedSocAdmin, standardHeaders: true, legacyHeaders: false }));
+    probe.get('/api/soc/ping', (_q, r) => r.json({ ok: true }));
+    probe.get('/api/other/ping', (_q, r) => r.json({ ok: true }));
+    const admin = sign({ id: 'a', role: 'admin' });
+    for (let i = 0; i < 20; i++) {
+      expect((await request(probe).get('/api/soc/ping').set('Authorization', `Bearer ${admin}`)).status).toBe(200);
+    }
+    const anon = [];
+    for (let i = 0; i < 6; i++) anon.push((await request(probe).get('/api/other/ping')).status);
+    expect(anon.filter((s) => s === 429).length).toBeGreaterThanOrEqual(3);
+  });
+});

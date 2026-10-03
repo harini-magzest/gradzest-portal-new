@@ -29,7 +29,7 @@ const { initSecurityLogger } = require('./middleware/logSecurityEvent');
 const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
-const { skyload } = require('./middleware/skyload');
+const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -110,9 +110,12 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many attempts. Please try again in 15 minutes.' },
 });
+// The owner's own SOC traffic is exempt (same rule as Skyload): a dashboard load plus tab-hopping, search and the
+// background refresh can legitimately approach 120 calls a minute, and a 429 there shows up as a section that won't load.
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 120,
+  skip: isTrustedSocAdmin,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },

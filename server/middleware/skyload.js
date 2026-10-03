@@ -28,8 +28,11 @@ const BOT_FLAG_THRESHOLD = 4;
 // /api/soc carrying a valid full-admin token are therefore neither scored nor throttled (they are still authenticated,
 // authorised as owner and audited by the SOC routes themselves). Everything else, including every unauthenticated
 // request and every non-admin token, is treated exactly as before.
+// Uses originalUrl so it also works when called from a limiter mounted under /api (where req.path is relative), and
+// matches /api/soc exactly or /api/soc/… — never a lookalike such as /api/socks.
 function isTrustedSocAdmin(req) {
-  if (!req.path.startsWith('/api/soc')) return false;
+  const path = String(req.originalUrl || req.url || req.path || '').split('?')[0];
+  if (path !== '/api/soc' && !path.startsWith('/api/soc/')) return false;
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return false;
   try {
@@ -70,4 +73,4 @@ function skyload(req, res, next) {
   next();
 }
 
-module.exports = { skyload };
+module.exports = { skyload, isTrustedSocAdmin };
