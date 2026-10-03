@@ -8,6 +8,7 @@ import { ToastProvider } from './context/ToastContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
+import NamasteIntro from './components/NamasteIntro';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
@@ -136,6 +137,7 @@ export default function App() {
         <ActivityTracker />
         <ToastLayer />
         <FlashToast />
+        <NamasteIntro />
         <AuthModal />
         <Suspense fallback={<PageSpinner />}>
           <Routes>
