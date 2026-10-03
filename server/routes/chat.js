@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const CallSummary = require('../models/CallSummary');
@@ -97,7 +98,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.status(201).json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -149,7 +150,7 @@ router.put('/groups/:id/members', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -280,7 +281,7 @@ router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, asyn
     await room.save();
     res.json({ recordingUrl: msg.recordingUrl });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -396,7 +397,7 @@ router.put('/calls/:callId/summary', authMiddleware, async (req, res) => {
     }
     res.json({ callId, summary: doc.summary, summaryBy: doc.authorName, summaryAt: doc.updatedAt });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -425,7 +426,7 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, asyn
     });
     res.json(msg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -560,7 +561,7 @@ router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUse
 
     res.json(newMsg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

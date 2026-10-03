@@ -1,9 +1,15 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const University = require('../models/University');
 const Country = require('../models/Country');
+
+const WRITABLE = (paths, extra = []) => [...new Set(Object.keys(paths).map(p => p.split('.')[0]))].filter(p => !['_id', '__v', 'createdAt', 'updatedAt', ...extra].includes(p));
+const COURSE_FIELDS = WRITABLE(University.schema.path('courses').schema.paths, ['id']);
+const COUNTRY_FIELDS = WRITABLE(Country.schema.paths, ['id']);
+const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {}).filter(([k]) => fields.includes(k)));
 const Subscriber = require('../models/Subscriber');
 const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
@@ -73,7 +79,7 @@ router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTea
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
     res.json(await buildCounselorPerformance(counselor, req.query.days));
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -95,7 +101,7 @@ router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, async (req, 
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -184,7 +190,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -201,7 +207,7 @@ router.put('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (req, 
     if (!member) return res.status(404).json({ message: 'Application Team member not found' });
     res.json(member.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -247,7 +253,7 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -400,7 +406,7 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
 
     res.json(updated.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -591,7 +597,7 @@ router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req
     });
     await uni.save();
     res.status(201).json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 // Bulk enrich all universities missing logo or cover image
@@ -631,7 +637,7 @@ router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam,
       console.log(`[enrich-all] Done. Processed ${unis.length} universities.`);
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -674,7 +680,7 @@ router.put('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (
     const uni = await University.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!uni) return res.status(404).json({ message: 'University not found' });
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -690,10 +696,10 @@ router.post('/universities/:id/courses', authMiddleware, adminOnly, blockAppTeam
     const uni = await University.findById(req.params.id);
     if (!uni) return res.status(404).json({ message: 'University not found' });
     const courseId = 'course-' + Date.now();
-    uni.courses.push({ ...req.body, id: courseId });
+    uni.courses.push({ ...pickFields(req.body, COURSE_FIELDS), id: courseId });
     await uni.save();
     res.status(201).json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -702,10 +708,10 @@ router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blo
     if (!uni) return res.status(404).json({ message: 'University not found' });
     const course = uni.courses.id(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
-    Object.assign(course, req.body);
+    Object.assign(course, pickFields(req.body, COURSE_FIELDS));
     await uni.save();
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -715,7 +721,7 @@ router.delete('/universities/:id/courses/:courseId', authMiddleware, adminOnly, 
     uni.courses.pull({ _id: req.params.courseId });
     await uni.save();
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 // ── Countries CRUD ───────────────────────────────────────────────────────────
@@ -731,10 +737,10 @@ router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, r
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Country name is required' });
-    const country = new Country(req.body);
+    const country = new Country(pickFields(req.body, COUNTRY_FIELDS));
     await country.save();
     res.status(201).json(country);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -743,7 +749,7 @@ router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req
     const country = await Country.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!country) return res.status(404).json({ message: 'Country not found' });
     res.json(country);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -851,7 +857,7 @@ router.get('/analytics', authMiddleware, adminOnly, blockAppTeam, async (req, re
 
     res.json({ newStudents, visaApprovalRate, conversionRate, revenue, monthlyRegistrations, applicationsByCountry, conversionFunnel, counselorPerformance, topUniversities, applicationsByStatus });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -941,7 +947,7 @@ router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, 
     }
 
     res.json(sub);
-  } catch (err) { res.status(500).json({ message: err.message || 'Failed to assign subscriber' }); }
+  } catch (err) { sendServerError(res, err, 'Failed to assign subscriber'); }
 });
 
 router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {

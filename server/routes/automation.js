@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Role = require('../models/Role');
@@ -116,7 +117,7 @@ router.post('/templates/:id/test', async (req, res) => {
     });
     res.json({ message: `Test email sent to ${me.email}` });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Could not send test email' });
+    sendServerError(res, err, 'Could not send test email');
   }
 });
 
@@ -254,7 +255,7 @@ router.post('/rules/:id/run', async (req, res) => {
     const log = await A.executeRule(rule, ctx);
     res.json({ matched: true, log });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

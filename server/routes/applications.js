@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const University = require('../models/University');
@@ -224,7 +225,7 @@ router.post('/check-eligibility-bulk', authMiddleware, async (req, res) => {
     }
     res.json(results);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -255,7 +256,7 @@ router.post('/check-eligibility', authMiddleware, async (req, res) => {
 
     res.json(checkEligibility(student, course.requirements || []));
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

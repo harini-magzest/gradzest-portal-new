@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -79,7 +80,7 @@ router.put('/me', authMiddleware, async (req, res) => {
     res.json(user.toJSON());
   } catch (err) {
     console.error('[PUT /students/me]', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -266,7 +267,7 @@ router.post('/', authMiddleware, can('students.create'), async (req, res) => {
     // Return tempPassword so staff can share it manually if the email doesn't arrive
     res.status(201).json(tempPassword ? { ...obj, tempPassword } : obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -346,7 +347,7 @@ router.put('/:id', authMiddleware, can('students.edit'), async (req, res) => {
     delete obj.password;
     res.json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -511,7 +512,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
       })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
