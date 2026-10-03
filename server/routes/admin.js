@@ -1,5 +1,5 @@
 const express = require('express');
-const { sendServerError } = require('../lib/httpError');
+const { logError } = require('../lib/logError');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');
@@ -56,7 +56,8 @@ router.get('/stats', authMiddleware, adminOnly, blockAppTeam, async (req, res) =
     const totalApplications = students.reduce((sum, s) => sum + (s.applications?.length || 0), 0);
     const activeStudents = students.filter(s => s.status === 'active').length;
     res.json({ totalStudents: students.length, totalCounselors: counselors.length, totalApplications, activeStudents });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -66,7 +67,8 @@ router.get('/counselors', authMiddleware, adminOnly, async (req, res) => {
   try {
     const counselors = await User.find({ role: 'counselor' }).select('-password');
     res.json(counselors.map(c => c.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -115,7 +117,8 @@ router.put('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async (re
     ).select('-password');
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
     res.json(counselor.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -125,7 +128,8 @@ router.delete('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async 
   try {
     await User.findOneAndDelete({ _id: req.params.id, role: 'counselor' });
     res.json({ message: 'Counselor deleted' });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -135,7 +139,8 @@ router.get('/appteam-users', authMiddleware, adminOnly, blockAppTeam, async (req
   try {
     const users = await User.find({ role: 'admin' }).select('-password');
     res.json(users.map(u => u.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -166,7 +171,8 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attach
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -217,7 +223,8 @@ router.delete('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (re
     const deleted = await User.findOneAndDelete({ _id: req.params.id, role: 'admin', isAppTeam: true });
     if (!deleted) return res.status(404).json({ message: 'Application Team member not found' });
     res.json({ message: 'Application Team member deleted' });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -262,7 +269,8 @@ router.get('/students', authMiddleware, adminOnly, async (req, res) => {
   try {
     const students = await User.find({ role: 'student' }).select('-password');
     res.json(students.map(s => s.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -272,7 +280,8 @@ router.get('/leads/count', authMiddleware, adminOnly, blockAppTeam, async (req, 
   try {
     const count = await User.countDocuments({ role: 'student', leadStatus: 'new' });
     res.json({ count });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -291,7 +300,8 @@ router.put('/students/:id/lead-status', authMiddleware, adminOnly, blockAppTeam,
     ).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     res.json(student.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -306,7 +316,8 @@ router.put('/students/:id/status', authMiddleware, adminOnly, blockAppTeam, asyn
     ).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     res.json(student.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -316,7 +327,8 @@ router.delete('/students/:id', authMiddleware, adminOnly, blockAppTeam, async (r
   try {
     await User.findOneAndDelete({ _id: req.params.id, role: 'student' });
     res.json({ message: 'Student deleted' });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -452,7 +464,8 @@ router.post('/applications', authMiddleware, can('applications.create'), async (
     });
     fireEvent('application.created', { studentId: student._id, application: newApp });
     res.json(newApp.toJSON ? newApp.toJSON() : newApp);
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -475,7 +488,8 @@ router.get('/applications', authMiddleware, adminOnly, async (req, res) => {
       }
     }
     res.json(applications);
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -530,7 +544,8 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
       studentName: student.name,
       studentEmail: student.email,
     });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -541,7 +556,7 @@ router.get('/universities', authMiddleware, adminOnly, blockAppTeam, async (req,
   try {
     const unis = await University.find({});
     res.json(unis);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -687,7 +702,7 @@ router.delete('/universities/:id', authMiddleware, adminOnly, blockAppTeam, asyn
   try {
     await University.findByIdAndDelete(req.params.id);
     res.json({ message: 'University deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Course CRUD within a university
@@ -730,7 +745,7 @@ router.get('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, re
   try {
     const countries = await Country.find({}).sort({ name: 1 });
     res.json(countries);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -756,7 +771,7 @@ router.delete('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (
   try {
     await Country.findByIdAndDelete(req.params.id);
     res.json({ message: 'Country deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Analytics overview
@@ -866,7 +881,7 @@ router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, 
   try {
     const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
     res.json(subscribers);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -888,7 +903,7 @@ router.get('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (
   try {
     const me = await User.findById(req.user.id).select('subscribersSeenAt');
     res.json({ seenAt: me?.subscribersSeenAt || null });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -896,7 +911,7 @@ router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async 
     const seenAt = new Date();
     await User.updateOne({ _id: req.user.id }, { subscribersSeenAt: seenAt });
     res.json({ seenAt });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Assign a subscriber to a counselor as a follow-up task
@@ -955,7 +970,7 @@ router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async
     const sub = await Subscriber.findByIdAndDelete(req.params.id);
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json({ message: 'Subscriber deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

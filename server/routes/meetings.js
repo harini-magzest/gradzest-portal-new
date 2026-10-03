@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { sendServerError } = require('../lib/httpError');
 const express = require('express');
+const { logError } = require('../lib/logError');
 const router = express.Router();
 const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
@@ -164,7 +165,9 @@ router.post('/', auth, can('meetings.create'), async (req, res) => {
             }));
           });
         }
-      } catch {}
+      } catch (err) {
+        logError('meetings', err);
+      }
 
       if (mailer) {
         const staffUsers = await require('../models/User')
