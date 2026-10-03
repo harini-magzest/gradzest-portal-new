@@ -4,8 +4,8 @@ import { useLocation } from 'react-router-dom';
 const SEEN_KEY = 'gz_namaste_seen';
 const DURATION_MS = 5000;
 const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
-// The site's heading colour, so the greeting matches the rest of the page.
-const GREETING_COLOUR = '#0d1b4b';
+// Light gold reads clearly on the navy background and keeps the site's accent.
+const GREETING_COLOUR = '#F6D27A';
 
 // The public site and each dashboard get their own intro, so entering a dashboard after the
 // homepage in the same session still plays it once.
@@ -24,24 +24,43 @@ function shouldPlay(area: string): boolean {
 }
 
 // One hand of the joined-palms pose, drawn on the left of x=100 and clipped there so the
-// mirrored right hand meets it exactly on the centre line.
-const SKIN = '#E8B48A';
-const LINE = '#8A5A3B';
-const FINGERS: { x: number; top: number }[] = [
-  { x: 60, top: 40 },
-  { x: 71, top: 26 },
-  { x: 82, top: 18 },
-  { x: 91, top: 14 },
+// mirrored right hand meets it exactly on the centre line. Tapered fingers with slight
+// outward tilt, soft skin shading, and knuckle creases make it read as a real hand.
+const FINGERS: { x: number; top: number; tilt: number }[] = [
+  { x: 56, top: 50, tilt: -4 },
+  { x: 68, top: 34, tilt: -2 },
+  { x: 80, top: 24, tilt: -1 },
+  { x: 89, top: 18, tilt: 0 },
 ];
 
-function Hand() {
+function Hand({ id }: { id: string }) {
   return (
-    <g clipPath="url(#gz-namaste-half)" fill={SKIN} stroke={LINE} strokeWidth="1.4" strokeLinejoin="round">
-      <path d="M58 76 L100 76 L100 146 L68 146 C60 134 56 108 58 76 Z" />
+    <g clipPath="url(#gz-namaste-half)">
+      <path
+        d="M50 92 C47 112 50 132 60 144 C70 152 86 152 100 150 L100 76 C88 78 60 80 50 92 Z"
+        fill={`url(#gz-skin-${id})`}
+        stroke="#9C6A45"
+        strokeWidth="1"
+      />
       {FINGERS.map(f => (
-        <rect key={f.x} x={f.x} y={f.top} width="10" height={150 - f.top} rx="5" />
+        <g key={f.x} transform={`rotate(${f.tilt} ${f.x + 5} 150)`}>
+          <rect x={f.x} y={f.top} width="14" height={150 - f.top} rx="7" fill={`url(#gz-skin-${id})`} stroke="#9C6A45" strokeWidth="1" />
+          <path d={`M${f.x + 7} ${f.top + 24} Q${f.x + 8} ${f.top + 30} ${f.x + 7} ${f.top + 36}`} stroke="#A8724B" strokeWidth="0.8" strokeLinecap="round" opacity="0.55" />
+          <path d={`M${f.x + 3} ${f.top + 4} Q${f.x + 7} ${f.top + 2} ${f.x + 11} ${f.top + 4}`} fill="none" stroke="#FFE8CC" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+        </g>
       ))}
+      <path d="M96 70 Q100 100 100 150" fill="none" stroke="#7A4B2C" strokeWidth="1.4" opacity="0.4" />
     </g>
+  );
+}
+
+function HandDefs({ id }: { id: string }) {
+  return (
+    <linearGradient id={`gz-skin-${id}`} x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stopColor="#F3C9A0" />
+      <stop offset="60%" stopColor="#E3A876" />
+      <stop offset="100%" stopColor="#C98555" />
+    </linearGradient>
   );
 }
 
@@ -61,7 +80,7 @@ const PARTICLES = [
 const CSS = `
 .gz-namaste { font-family: Georgia, 'Times New Roman', serif; }
 .gz-namaste-bg {
-  background: radial-gradient(ellipse at 50% 45%, #fff8ec 0%, #fbe6c2 48%, #eab976 100%);
+  background: radial-gradient(ellipse at 50% 42%, #1f3a7d 0%, #0d1b4b 58%, #060d28 100%);
 }
 @keyframes gz-namaste-fade-out {
   0%, 80% { opacity: 1; }
@@ -80,9 +99,9 @@ const CSS = `
   100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.04em; }
 }
 @keyframes gz-glow-pulse {
-  0% { text-shadow: 0 0 0 rgba(13, 27, 75, 0); }
-  50% { text-shadow: 0 0 22px rgba(13, 27, 75, 0.35); }
-  100% { text-shadow: 0 0 8px rgba(13, 27, 75, 0.15); }
+  0% { text-shadow: 0 0 0 rgba(246, 210, 122, 0); }
+  50% { text-shadow: 0 0 22px rgba(246, 210, 122, 0.7); }
+  100% { text-shadow: 0 0 10px rgba(246, 210, 122, 0.35); }
 }
 @keyframes gz-lantern {
   0%, 100% { opacity: 0.55; transform: scale(1); }
@@ -134,17 +153,17 @@ export default function NamasteIntro() {
       <button
         type="button"
         onClick={e => { e.stopPropagation(); setShow(false); }}
-        className="absolute top-4 right-4 z-10 rounded-full border border-amber-700/40 bg-white/60 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm hover:bg-white/90"
+        className="absolute top-4 right-4 z-10 rounded-full border border-amber-200/40 bg-white/10 px-4 py-1.5 text-sm font-medium text-amber-100 backdrop-blur-sm hover:bg-white/20"
       >
         Skip intro
       </button>
 
-      <div className="gz-lantern absolute -left-16 top-10 h-48 w-48 rounded-full bg-orange-300/40 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" />
-      <div className="gz-lantern absolute -right-16 bottom-10 h-48 w-48 rounded-full bg-amber-300/40 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" style={{ animationDelay: '1.5s' }} />
+      <div className="gz-lantern absolute -left-16 top-10 h-48 w-48 rounded-full bg-amber-400/25 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" />
+      <div className="gz-lantern absolute -right-16 bottom-10 h-48 w-48 rounded-full bg-amber-400/25 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" style={{ animationDelay: '1.5s' }} />
 
       <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 h-[70dvh] w-[min(80vw,400px)] opacity-40" aria-hidden="true">
-        <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#B8862B" strokeWidth="2.5" />
-        <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#D4A03C" strokeWidth="1" />
+        <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#D9A94A" strokeWidth="2.5" />
+        <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#E8BE62" strokeWidth="1" />
       </svg>
 
       <div className="relative flex flex-col items-center">
@@ -153,10 +172,12 @@ export default function NamasteIntro() {
             <clipPath id="gz-namaste-half">
               <rect x="0" y="0" width="100" height="150" />
             </clipPath>
+            <HandDefs id="l" />
+            <HandDefs id="r" />
           </defs>
-          <g className="gz-hand-left"><Hand /></g>
+          <g className="gz-hand-left"><Hand id="l" /></g>
           <g className="gz-hand-right">
-            <g transform="translate(200 0) scale(-1 1)"><Hand /></g>
+            <g transform="translate(200 0) scale(-1 1)"><Hand id="r" /></g>
           </g>
         </svg>
 
