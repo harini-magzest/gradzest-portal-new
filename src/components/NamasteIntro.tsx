@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const SEEN_KEY = 'gz_namaste_seen';
 const DURATION_MS = 2800;
+const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
+
+// The public site and each dashboard get their own intro, so entering a dashboard after the
+// homepage in the same session still plays it once.
+function areaOf(pathname: string): string {
+  const first = pathname.split('/')[1] || '';
+  return DASHBOARDS.includes(first) ? first : 'public';
+}
 
 // One hand of the joined-palms pose, drawn on the left of x=100 and clipped there so the
 // mirrored right hand meets it exactly on the centre line. Four fingers, the innermost
@@ -48,9 +57,9 @@ const CSS = `
 .gz-hand-right { animation: gz-hand-right 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 `;
 
-function shouldPlay(): boolean {
+function shouldPlay(area: string): boolean {
   try {
-    if (sessionStorage.getItem(SEEN_KEY)) return false;
+    if (sessionStorage.getItem(`${SEEN_KEY}:${area}`)) return false;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   } catch {
     return false;
@@ -58,14 +67,20 @@ function shouldPlay(): boolean {
 }
 
 export default function NamasteIntro() {
-  const [show, setShow] = useState(shouldPlay);
+  const { pathname } = useLocation();
+  const area = areaOf(pathname);
+  const [show, setShow] = useState(() => shouldPlay(area));
+
+  useEffect(() => {
+    if (shouldPlay(area)) setShow(true);
+  }, [area]);
 
   useEffect(() => {
     if (!show) return;
-    try { sessionStorage.setItem(SEEN_KEY, '1'); } catch { /* storage unavailable: replays next load */ }
+    try { sessionStorage.setItem(`${SEEN_KEY}:${area}`, '1'); } catch { /* storage unavailable: replays next load */ }
     const t = setTimeout(() => setShow(false), DURATION_MS);
     return () => clearTimeout(t);
-  }, [show]);
+  }, [show, area]);
 
   if (!show) return null;
 
