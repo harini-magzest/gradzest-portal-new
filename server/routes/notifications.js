@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const Notification = require('../models/Notification');
 const authMiddleware = require('../middleware/auth');
 
@@ -11,7 +12,8 @@ router.get('/', authMiddleware, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50);
     res.json(notifs);
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -31,7 +33,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const notif = await Notification.create({ userId: req.user.id, type, priority, title, message, link });
     res.status(201).json(notif);
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -41,7 +44,8 @@ router.put('/read-all', authMiddleware, async (req, res) => {
   try {
     await Notification.updateMany({ userId: req.user.id, read: false }, { read: true });
     res.json({ message: 'All marked as read' });
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -56,7 +60,8 @@ router.put('/:id/read', authMiddleware, async (req, res) => {
     );
     if (!notif) return res.status(404).json({ message: 'Not found' });
     res.json(notif);
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -66,7 +71,8 @@ router.delete('/', authMiddleware, async (req, res) => {
   try {
     await Notification.deleteMany({ userId: req.user.id });
     res.json({ message: 'Cleared' });
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -76,7 +82,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     await Notification.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     res.json({ message: 'Deleted' });
-  } catch {
+  } catch (err) {
+    logError('notifications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

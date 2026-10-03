@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
@@ -17,7 +18,8 @@ router.put('/:step', auth, async (req, res) => {
       { new: true }
     ).select('onboarding');
     res.json(user.onboarding);
-  } catch {
+  } catch (err) {
+    logError('onboarding', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
 const mongoose = require('mongoose');
 const Role = require('../models/Role');
 const User = require('../models/User');
@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
     ]);
     res.json({ roles, staff });
   } catch (err) {
-    logError("roles", err);
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     const role = await Role.create({ name, description, parentRole: parentRole || null });
     res.status(201).json(role);
   } catch (err) {
-    logError("roles", err);
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -74,7 +74,7 @@ router.put('/assign/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'Staff member not found' });
     res.json(user);
   } catch (err) {
-    logError("roles", err);
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -101,7 +101,7 @@ router.put('/:id', async (req, res) => {
     if (!role) return res.status(404).json({ message: 'Role not found' });
     res.json(role);
   } catch (err) {
-    logError("roles", err);
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -118,7 +118,7 @@ router.delete('/:id', async (req, res) => {
     if (!deleted) return res.status(404).json({ message: 'Role not found' });
     res.json({ message: 'Role deleted' });
   } catch (err) {
-    logError("roles", err);
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const Subscriber = require('../models/Subscriber');
@@ -21,7 +21,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const tasks = await Task.find(query).sort({ createdAt: -1 });
     res.json(tasks);
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -36,7 +36,7 @@ router.get('/assignees', authMiddleware, async (req, res) => {
       dept: u.role === 'admin' ? (u.isAppTeam ? 'appteam' : 'admin') : 'counselor',
     })));
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -102,7 +102,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     res.status(201).json(task);
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -137,7 +137,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
     res.json(task);
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -155,7 +155,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await task.deleteOne();
     res.json({ message: 'Deleted' });
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -178,7 +178,7 @@ router.post('/:id/comments', authMiddleware, async (req, res) => {
     await task.save();
     res.json(task);
   } catch (err) {
-    logError("tasks", err);
+    logError('tasks', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

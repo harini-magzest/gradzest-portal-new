@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -13,7 +14,8 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -26,7 +28,8 @@ router.put('/me', authMiddleware, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -38,7 +41,8 @@ router.get('/me/documents', authMiddleware, async (req, res) => {
     const user = await User.findById(req.user.id).select('documents');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json((user.documents || []).map(d => d.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -54,7 +58,8 @@ router.post('/me/documents', authMiddleware, upload.single('file'), scanUploaded
     const user = await User.findByIdAndUpdate(req.user.id, { $push: { documents: doc } }, { new: true }).select('-password');
     const newDoc = user.documents[user.documents.length - 1];
     res.json(newDoc.toJSON());
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -67,7 +72,8 @@ router.get('/me/students', authMiddleware, async (req, res) => {
     if (!counselor) return res.status(404).json({ message: 'Not found' });
     const students = await User.find({ _id: { $in: counselor.assignedStudents || [] } }).select('-password');
     res.json(students.map(s => s.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -78,7 +84,8 @@ router.delete('/me/documents/:docId', authMiddleware, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user.id, { $pull: { documents: { _id: req.params.docId } } });
     res.json({ message: 'Document deleted' });
-  } catch {
+  } catch (err) {
+    logError('counselors', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -21,7 +21,7 @@ router.get('/me/permissions', authMiddleware, async (req, res) => {
     const access = await loadAccess(req);
     res.json({ permissions: [...access.permissions], restricted: !!access.teamIds });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -56,7 +56,7 @@ router.get('/profiles', async (req, res) => {
       defaultId: def?._id || null,
     });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -71,7 +71,7 @@ router.post('/profiles', async (req, res) => {
     });
     res.status(201).json(profile);
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -95,7 +95,7 @@ router.put('/profiles/:id', async (req, res) => {
     await profile.save();
     res.json(profile);
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -111,7 +111,7 @@ router.delete('/profiles/:id', async (req, res) => {
     await profile.deleteOne();
     res.json({ message: 'Profile deleted' });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -127,7 +127,7 @@ router.get('/', async (req, res) => {
     ]);
     res.json({ users, roles, profiles });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

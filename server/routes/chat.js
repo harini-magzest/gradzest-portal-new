@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
@@ -26,7 +27,8 @@ router.get('/staff', authMiddleware, async (req, res) => {
   try {
     const staff = await User.find({ role: 'admin' }).select('name email isAppTeam');
     res.json(staff.map(u => ({ _id: String(u._id), id: String(u._id), name: u.name, email: u.email, isAppTeam: !!u.isAppTeam })));
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -167,7 +169,8 @@ router.get('/rooms', authMiddleware, async (req, res) => {
     if (saves.length > 0) await Promise.all(saves);
 
     res.json(rooms.map(r => r.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -189,7 +192,8 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
     }
 
     res.json(room.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -239,7 +243,8 @@ router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
       });
 
     res.json(newMsg.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -395,7 +400,8 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
       });
 
     res.json(newMsg.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -527,7 +533,8 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
       });
 
     res.json(newMsg.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -541,7 +548,8 @@ router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
     );
     if (!room) return res.status(404).json({ message: 'Room not found' });
     res.json(room.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -555,7 +563,8 @@ router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
       { arrayFilters: [{ 'elem.senderId': { $ne: req.user.id.toString() } }] }
     );
     res.json({ ok: true });
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -576,7 +585,8 @@ router.post('/rooms', authMiddleware, async (req, res) => {
     }
     const room = await ChatRoom.create({ participants: participantIds, participantNames, type: type || 'student-counselor', messages: [] });
     res.json(room.toJSON());
-  } catch {
+  } catch (err) {
+    logError('chat', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

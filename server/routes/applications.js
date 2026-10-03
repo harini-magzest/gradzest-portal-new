@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const University = require('../models/University');
@@ -29,7 +30,8 @@ router.get('/', authMiddleware, can('applications.view'), async (req, res) => {
       return res.json(apps);
     }
     res.json([]);
-  } catch {
+  } catch (err) {
+    logError('applications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -59,7 +61,8 @@ router.post('/', authMiddleware, async (req, res) => {
     const newApp = user.applications[user.applications.length - 1];
     fireEvent('application.created', { studentId: user._id, application: newApp });
     res.json(newApp.toJSON());
-  } catch {
+  } catch (err) {
+    logError('applications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -94,7 +97,8 @@ router.post('/:appId/comments', authMiddleware, async (req, res) => {
     }
 
     res.json(app.toJSON());
-  } catch {
+  } catch (err) {
+    logError('applications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -178,7 +182,8 @@ router.put('/:appId', authMiddleware, can('applications.edit'), async (req, res)
     }
 
     res.json(app.toJSON());
-  } catch {
+  } catch (err) {
+    logError('applications', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
