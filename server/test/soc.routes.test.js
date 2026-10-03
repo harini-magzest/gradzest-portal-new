@@ -91,9 +91,8 @@ describe('PII access logging — real endpoint, real log entries', () => {
       .set('Authorization', `Bearer ${login.body.token}`);
     expect(res.status).toBe(200);
 
-    await new Promise((r) => setTimeout(r, 200)); // logPiiAccess is fire-and-forget
-
-    const logEntry = await PiiAccessLog.findOne({ applicantId: student.userId, accessorEmail: counselorEmail });
+    // logPiiAccess is fire-and-forget: poll for the row rather than sleeping a fixed time.
+    const logEntry = await waitUntil(() => PiiAccessLog.findOne({ applicantId: student.userId, accessorEmail: counselorEmail }));
     expect(logEntry).toBeTruthy();
     expect(logEntry.fieldsAccessed).toEqual(expect.arrayContaining(['passport', 'address']));
     expect(logEntry.accessType).toBe('view');
@@ -159,8 +158,8 @@ describe('Incident assignment — the assignee picker in the UI needs a real, po
     expect(res.body.assignedTo).toBeTruthy();
     expect(res.body.assignedTo.email).toBe(targetEmail);
 
-    await new Promise((r) => setTimeout(r, 200)); // logAnalystAction is fire-and-forget
-    const after = await AnalystAction.findOne({ action: 'incident_assigned', targetId: incident._id }).sort({ createdAt: -1 });
+    // logAnalystAction is fire-and-forget: poll for the audit row rather than sleeping.
+    const after = await waitUntil(() => AnalystAction.findOne({ action: 'incident_assigned', targetId: incident._id }).sort({ createdAt: -1 }));
     expect(after).toBeTruthy();
 
     await SecurityIncident.deleteOne({ _id: incident._id });
