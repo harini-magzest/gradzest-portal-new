@@ -9,17 +9,22 @@
 //
 // Aggregation $match stages are not cast by Mongoose: to match a specific value there, wrap it in
 // encrypt() from fieldCrypto. Substring/regex matching on an encrypted path cannot work.
+//
+// Do not put lowercase/uppercase/trim (or any setter) on an encrypted path: Mongoose runs the last-added setter
+// first, so those would run on the ciphertext and corrupt it. Normalise the value before assigning it instead.
 
 const { encrypt, decrypt, decryptDeep } = require('./fieldCrypto');
 
 function decryptResult(res) {
   if (!res) return;
-  if (Array.isArray(res)) { for (let i = 0; i < res.length; i++) { if (typeof res[i] === 'string') res[i] = decrypt(res[i]); else decryptResult(res[i]); } return; }
+  if (Array.isArray(res)) { for (let i = 0; i < res.length; i++) { if (typeof res[i] === 'string') { const d = decrypt(res[i]); if (d !== res[i]) res[i] = d; } else decryptResult(res[i]); } return; }
   if (res._doc) decryptDeep(res._doc);
   else decryptDeep(res);
 }
 
 module.exports = function encryptedFields(schema, { fields }) {
+  // Exposed so tooling (scripts/encryptSocData.js) reads the field list from the model instead of copying it.
+  schema.socEncryptedPaths = [...(schema.socEncryptedPaths || []), ...fields];
   for (const p of fields) {
     const type = schema.path(p);
     if (!type) throw new Error(`encryptedFields: unknown path "${p}"`);

@@ -370,7 +370,7 @@ async function checkImpossibleTravelRule(event, io, intelFn = getIpIntel) {
   const prior = await SecurityEvent.findOne({
     type: 'login_success',
     userId: event.userId,
-    ip: { $ne: event.ip, $ne: '' },
+    ip: { $nin: [event.ip, ''] },
     createdAt: { $gte: since, $lt: event.createdAt },
   }).sort({ createdAt: -1 });
   if (!prior) return;

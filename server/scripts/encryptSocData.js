@@ -9,26 +9,31 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const mongoose = require('mongoose');
 const { encrypt, isEncrypted } = require('../lib/fieldCrypto');
 
-const TARGETS = {
-  SecurityEvent: ['email', 'ip', 'userAgent', 'message'],
-  RequestLog: ['ip', 'userAgent'],
-  ActivityLog: ['studentName', 'detail'],
-  SecurityIncident: ['title', 'relatedIp', 'relatedEmail'],
-  BlockedIp: ['ip', 'reason'],
-  PiiAccessLog: ['accessorEmail', 'applicantEmail', 'ip'],
-  AnalystAction: ['analystEmail', 'targetId', 'reason'],
-  UiActivity: ['email', 'name', 'ip', 'userAgent', 'element.label', 'element.href', 'context', 'device.label', 'device.model'],
-  UploadRecord: ['email', 'name', 'originalName', 'ip', 'userAgent'],
-};
+// Which fields each model encrypts is declared on the model itself (lib/encryptedFields.js).
+const MODELS = ['SecurityEvent', 'RequestLog', 'ActivityLog', 'SecurityIncident', 'BlockedIp', 'PiiAccessLog', 'AnalystAction', 'UiActivity', 'UploadRecord'];
 
 const get = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
 
 (async () => {
+  // Never fall back to a derived dev key here: data encrypted with it would be unreadable by the real server.
+  if (!process.env.DATA_ENCRYPTION_KEY) throw new Error('DATA_ENCRYPTION_KEY is not set (check server/.env); refusing to encrypt with a fallback key');
   const apply = process.argv.includes('--apply');
   await mongoose.connect(process.env.MONGODB_URI);
-  for (const [name, fields] of Object.entries(TARGETS)) {
-    const col = require(`../models/${name}`).collection;
-    let scanned = 0; let changed = 0; let ops = [];
+  for (const name of MODELS) {
+    const { collection: col, schema } = require(`../models/${name}`);
+    const fields = schema.socEncryptedPaths;
+    let scanned = 0; let changed = 0; let conflicts = 0; let ops = [];
+    // Unordered, so one row that collides with an already-encrypted duplicate (e.g. a BlockedIp the live server
+    // re-created after deploy, now hitting the unique index) does not stop the rest of the batch.
+    const flush = async () => {
+      if (!ops.length) return;
+      try { await col.bulkWrite(ops, { ordered: false }); } catch (e) {
+        const errs = e.writeErrors || [];
+        if (!errs.length || errs.some((w) => (w.code ?? w.err?.code) !== 11000)) throw e;
+        conflicts += errs.length;
+      }
+      ops = [];
+    };
     for await (const doc of col.find({})) {
       scanned++;
       const $set = {};
@@ -37,10 +42,10 @@ const get = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
         if (typeof v === 'string' && v !== '' && !isEncrypted(v)) $set[f] = encrypt(v);
       }
       if (Object.keys($set).length) { changed++; if (apply) ops.push({ updateOne: { filter: { _id: doc._id }, update: { $set } } }); }
-      if (ops.length >= 500) { await col.bulkWrite(ops); ops = []; }
+      if (ops.length >= 500) await flush();
     }
-    if (ops.length) await col.bulkWrite(ops);
-    console.log(`${name}: ${scanned} rows, ${changed} ${apply ? 'encrypted' : 'need encrypting'}`);
+    await flush();
+    console.log(`${name}: ${scanned} rows, ${changed} ${apply ? 'encrypted' : 'need encrypting'}${conflicts ? `, ${conflicts} skipped on duplicate keys (resolve by hand)` : ''}`);
   }
   await mongoose.disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

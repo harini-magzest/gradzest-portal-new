@@ -66,3 +66,43 @@ describe('SOC data is encrypted at rest', () => {
     expect((await BlockedIp.findOne({ ip: '198.51.100.9' }).lean()).reason).toBe('updated');
   });
 });
+
+describe('hardening regressions', () => {
+  it('a user-supplied string that starts with the ciphertext prefix is still encrypted and reads back intact', async () => {
+    const spoof = 'enc:v1:not-really-ciphertext';
+    const created = await SecurityEvent.create({ type: 'login_failure', email: spoof, ip: '203.0.113.88', userAgent: spoof, message: 'spoof' });
+    const raw = await SecurityEvent.collection.findOne({ _id: created._id });
+    expect(raw.userAgent).not.toBe(spoof); // stored encrypted, not in the clear
+    expect(decrypt(raw.userAgent)).toBe(spoof);
+    expect((await SecurityEvent.findById(created._id).lean()).userAgent).toBe(spoof); // not blanked
+  });
+
+  it('reading a document does not mark its arrays modified (a later save() must not rewrite them)', async () => {
+    const PiiAccessLog = require('../models/PiiAccessLog');
+    const doc = await PiiAccessLog.create({
+      accessorId: new (require('mongoose').Types.ObjectId)(), accessorEmail: 'a@x.test', applicantId: new (require('mongoose').Types.ObjectId)(),
+      applicantEmail: 'b@x.test', fieldsAccessed: ['passportNumber', 'phone'], ip: '203.0.113.5',
+    });
+    const loaded = await PiiAccessLog.findById(doc._id);
+    expect(loaded.modifiedPaths()).toEqual([]);
+  });
+
+  it('refuses to encrypt without a key outside development/test', () => {
+    const { spawnSync } = require('child_process');
+    const r = spawnSync(process.execPath, ['-e', "require('./lib/fieldCrypto').encrypt('x')"], {
+      cwd: require('path').join(__dirname, '..'), env: { PATH: process.env.PATH, NODE_ENV: 'staging', JWT_SECRET: 'x' }, encoding: 'utf8',
+    });
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/DATA_ENCRYPTION_KEY is required/);
+  });
+
+  it('ignores @domain owner entries in production', () => {
+    const { spawnSync } = require('child_process');
+    const code = "process.stdout.write(String(require('./lib/socOwners').isSocOwnerEmail('anyone@example.com')))";
+    const run = (nodeEnv) => spawnSync(process.execPath, ['-e', code], {
+      cwd: require('path').join(__dirname, '..'), env: { PATH: process.env.PATH, NODE_ENV: nodeEnv, SOC_OWNER_EMAILS: '@example.com' }, encoding: 'utf8',
+    }).stdout;
+    expect(run('test')).toBe('true');
+    expect(run('production')).toBe('false');
+  });
+});

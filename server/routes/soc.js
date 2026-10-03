@@ -71,24 +71,15 @@ async function adminOnly(req, res, next) {
 // Substring search over encrypted fields cannot run in MongoDB, so for the lists where it matters the newest rows
 // matching the structured filters are loaded (decrypted by the model hooks) and filtered here.
 const SEARCH_SCAN_CAP = 5000;
-function matchesText(row, q, fields) {
+// `pick` is a list of row keys, or a function returning the values of a row to search.
+function matchesText(row, q, pick) {
   const term = q.trim().slice(0, 100).toLowerCase();
-  return fields.some((f) => String(row[f] ?? '').toLowerCase().includes(term));
+  const values = typeof pick === 'function' ? pick(row) : pick.map((f) => row[f]);
+  return values.some((v) => String(v ?? '').toLowerCase().includes(term));
 }
-async function searchRows(Model, query, q, fields) {
+async function searchRows(Model, query, q, pick) {
   const rows = await Model.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
-  return rows.filter((r) => matchesText(r, q, fields));
-}
-
-// Search clauses for a free-text box. Encrypted fields can only be matched exactly (they are stored as
-// ciphertext), the others keep substring matching.
-function searchClauses(q, plainFields, encryptedFields) {
-  const term = q.trim().slice(0, 100);
-  const rx = new RegExp(escapeRegex(term), 'i');
-  return [
-    ...plainFields.map((f) => ({ [f]: rx })),
-    ...encryptedFields.map((f) => ({ [f]: { $in: [term, term.toLowerCase()] } })),
-  ];
+  return rows.filter((r) => matchesText(r, q, pick));
 }
 
 const SECURITY_TYPE_LABEL = {
@@ -277,20 +268,22 @@ router.get('/stats/geo', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // ── GET /api/soc/events ──────────────────────────────────────────────────────
-function buildEventQuery({ since, type, severity, q }) {
+const EVENT_SEARCH_FIELDS = ['email', 'ip', 'message'];
+// Free-text `q` is not part of the query: email/ip/message are stored encrypted, so it is applied in memory (searchRows).
+function buildEventQuery({ since, type, severity }) {
   const query = {};
   if (since) query.createdAt = { $gt: new Date(since) };
   if (type && type !== 'all') query.type = type;
   if (severity && severity !== 'all') query.severity = severity;
-  if (q && q.trim()) {
-    query.$or = searchClauses(q, [], ['email', 'ip', 'message']);
-  }
   return query;
 }
 
 router.get('/events/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const events = await SecurityEvent.find(buildEventQuery(req.query)).sort({ createdAt: -1 }).limit(5000).lean();
+    const eq = buildEventQuery(req.query);
+    const events = req.query.q && req.query.q.trim()
+      ? await searchRows(SecurityEvent, eq, req.query.q, EVENT_SEARCH_FIELDS)
+      : await SecurityEvent.find(eq).sort({ createdAt: -1 }).limit(5000).lean();
     logExport(req, 'events', events.length);
     sendCsv(res, 'soc-events.csv', [
       { label: 'Time', key: 'createdAt' }, { label: 'Type', key: 'type' }, { label: 'Severity', key: 'severity' },
@@ -308,14 +301,17 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildEventQuery(req.query);
 
+    const searching = req.query.q && req.query.q.trim();
     const [events, total, rawCounts] = await Promise.all([
-      SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      SecurityEvent.countDocuments(query),
+      searching
+        ? searchRows(SecurityEvent, query, req.query.q, EVENT_SEARCH_FIELDS).then((m) => ({ m }))
+        : SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      searching ? null : SecurityEvent.countDocuments(query),
       SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
     ]);
     const counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
 
-    res.json({ events, total, skip, limit, counts });
+    res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -962,12 +958,8 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
 // ── UI activity (page / button / file trail) ─────────────────────────────────
 
 // Free-text search over the UI trail runs in memory (several searched fields are stored encrypted).
-const uiRowText = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)].join(' ');
-async function searchUi(query, q) {
-  const term = q.trim().slice(0, 100).toLowerCase();
-  const rows = await UiActivity.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
-  return rows.filter((r) => uiRowText(r).toLowerCase().includes(term));
-}
+const uiRowValues = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)];
+const searchUi = (query, q) => searchRows(UiActivity, query, q, uiRowValues);
 
 function buildUiQuery({ userId, email, kind, q, page, since }) {
   const query = {};
