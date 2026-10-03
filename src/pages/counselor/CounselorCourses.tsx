@@ -8,7 +8,6 @@ import CourseCustomDataModal, { CourseCustomChips } from '../../components/Cours
 import { usePortalName } from '../../hooks/usePortalName';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 
-const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
   'Bachelor': 'bg-blue-100 text-blue-700',
   'Master': 'bg-purple-100 text-purple-700',

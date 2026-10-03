@@ -146,7 +146,6 @@ function ScheduleModal({ onClose, onCreated, students }: {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const { user } = useAuth();
 
   function set(field: string, value: any) {
     setForm(f => ({ ...f, [field]: value }));

@@ -13,7 +13,6 @@ function renderMarkdown(content: string): string {
     .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => `<ul class="space-y-1.5 my-3">${match}</ul>`)
     .replace(/^\| (.+) \|$/gm, (line) => {
       const cells = line.slice(2, -2).split(' | ');
-      const isHeader = false;
       return `<tr>${cells.map(c => `<td class="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">${c}</td>`).join('')}</tr>`;
     })
     .replace(/^\|[-| ]+\|$/gm, '')

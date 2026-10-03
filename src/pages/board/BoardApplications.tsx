@@ -20,15 +20,6 @@ const STATUSES = [
   { value: 'enrolled',       label: 'Enrolled',       icon: BookOpen,     color: 'text-indigo-700', bg: 'bg-indigo-100', border: 'border-indigo-300', col: 'bg-indigo-50/40' },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-  const s = STATUSES.find(x => x.value === status) || STATUSES[0];
-  const Icon = s.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${s.bg} ${s.color}`}>
-      <Icon className="w-3 h-3" /> {s.label}
-    </span>
-  );
-}
 
 function Avi({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
   const sz = size === 'md' ? 'w-10 h-10 text-base' : 'w-7 h-7 text-xs';
