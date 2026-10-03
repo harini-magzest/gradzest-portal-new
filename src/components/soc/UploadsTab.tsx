@@ -45,6 +45,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
   const { socket } = useSocSocket();
   const [rows, setRows] = useState<Upload[]>([]);
   const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
   const [summary, setSummary] = useState<Record<string, number>>({});
   const [needsReview, setNeedsReview] = useState(0);
   const [filter, setFilter] = useState('all');
@@ -68,7 +69,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
     setLoading(true); setError('');
     try {
       const d = await fetchPage(0);
-      setRows(d.uploads || []); setTotal(d.total || 0); setSummary(d.summary || {}); setNeedsReview(d.needsReview || 0);
+      setRows(d.uploads || []); setTotal(d.total || 0); setTruncated(!!d.truncated); setSummary(d.summary || {}); setNeedsReview(d.needsReview || 0);
     } catch (e: any) { setError(e.message || 'Failed to load uploads'); }
     setLoading(false);
   }, [fetchPage]);
@@ -252,6 +253,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
               </div>
             );
           })}
+        {truncated && <p className="p-3 text-center text-xs text-amber-700 bg-amber-50 border-t border-amber-100">Search looked at the newest 5,000 records only. Narrow the filters or date range to find older matches.</p>}
         {!loading && rows.length < total && (
           <div className="p-3 text-center border-t border-gray-50">
             <button onClick={loadMore} disabled={loadingMore} className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50 rounded-lg disabled:opacity-50">

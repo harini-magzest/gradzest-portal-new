@@ -38,11 +38,15 @@ function getKeys() {
 
 const isEncrypted = (v) => typeof v === 'string' && v.startsWith(PREFIX);
 
-// Returns the plaintext, or null if `value` is not a ciphertext that authenticates under the current key.
-function decryptStrict(value) {
+// The AES key derived from a 64-hex master key, as getKeys() does. Exposed so the migration can read values written
+// under a different (legacy) key.
+const deriveEncKey = (masterHex) => crypto.createHmac('sha256', Buffer.from(masterHex, 'hex')).update('enc').digest();
+
+// Returns the plaintext, or null if `value` is not a ciphertext that authenticates under `encKey` (default: the current key).
+function decryptStrict(value, encKey) {
   try {
     const buf = Buffer.from(value.slice(PREFIX.length), 'base64url');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', getKeys().enc, buf.subarray(0, 12));
+    const decipher = crypto.createDecipheriv('aes-256-gcm', encKey || getKeys().enc, buf.subarray(0, 12));
     decipher.setAuthTag(buf.subarray(12, 28));
     return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
   } catch {
@@ -87,6 +91,8 @@ function decryptDeep(value) {
     for (let i = 0; i < value.length; i++) { const d = decryptDeep(value[i]); if (d !== value[i]) value[i] = d; }
     return value;
   }
+  // A Mongoose subdocument (an element of a document array): its raw data lives in _doc.
+  if (value && typeof value === 'object' && isPlainObject(value._doc)) { decryptDeep(value._doc); return value; }
   if (isPlainObject(value)) {
     for (const k of Object.keys(value)) { const d = decryptDeep(value[k]); if (d !== value[k]) value[k] = d; }
     return value;
@@ -94,4 +100,4 @@ function decryptDeep(value) {
   return value;
 }
 
-module.exports = { encrypt, decrypt, decryptDeep, isEncrypted, PREFIX };
+module.exports = { encrypt, decrypt, decryptDeep, decryptStrict, deriveEncKey, isEncrypted, PREFIX };

@@ -22,11 +22,23 @@ function decryptResult(res) {
   else decryptDeep(res);
 }
 
+// 'title' -> schema.path('title'); 'notes.text' -> the 'text' path of the sub-schema of the 'notes' document array.
+function resolvePath(schema, p) {
+  const direct = schema.path(p);
+  if (direct) return direct;
+  const parts = p.split('.');
+  for (let i = 1; i < parts.length; i++) {
+    const head = schema.path(parts.slice(0, i).join('.'));
+    if (head && head.schema) return resolvePath(head.schema, parts.slice(i).join('.'));
+  }
+  return undefined;
+}
+
 module.exports = function encryptedFields(schema, { fields }) {
   // Exposed so tooling (scripts/encryptSocData.js) reads the field list from the model instead of copying it.
   schema.socEncryptedPaths = [...(schema.socEncryptedPaths || []), ...fields];
   for (const p of fields) {
-    const type = schema.path(p);
+    const type = resolvePath(schema, p);
     if (!type) throw new Error(`encryptedFields: unknown path "${p}"`);
     // ObjectIds and numbers are cast to strings later by Mongoose; stringify them first so they encrypt too.
     type.set((v) => (typeof v === 'string' ? encrypt(v) : (v && v._bsontype === 'ObjectId' ? encrypt(String(v)) : v)));

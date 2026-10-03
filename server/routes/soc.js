@@ -79,7 +79,10 @@ function matchesText(row, q, pick) {
 }
 async function searchRows(Model, query, q, pick) {
   const rows = await Model.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
-  return rows.filter((r) => matchesText(r, q, pick));
+  const matched = rows.filter((r) => matchesText(r, q, pick));
+  // Hitting the cap means older rows were never looked at: callers pass this on so the UI can say so.
+  matched.truncated = rows.length >= SEARCH_SCAN_CAP;
+  return matched;
 }
 
 const SECURITY_TYPE_LABEL = {
@@ -311,7 +314,7 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
     ]);
     const counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
 
-    res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts });
+    res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts, truncated: !!(searching && events.m.truncated) });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -345,10 +348,10 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildIncidentQuery({ ...req.query, assignedTo: resolveAssignedTo(req.query.assignedTo, req) });
 
-    let incidents; let total;
+    let incidents; let total; let truncated = false;
     if (req.query.q && req.query.q.trim()) {
       const matched = await searchRows(SecurityIncident, query, req.query.q, INCIDENT_SEARCH_FIELDS);
-      total = matched.length;
+      total = matched.length; truncated = matched.truncated;
       incidents = await SecurityIncident.populate(matched.slice(skip, skip + limit), { path: 'assignedTo', select: 'name email' });
     } else {
       [incidents, total] = await Promise.all([
@@ -359,7 +362,7 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     }
     // The policy travels with the list so the client can mirror computeSla()
     // for incidents that change live over the socket, without duplicating targets.
-    res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY });
+    res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY, truncated });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
@@ -834,7 +837,7 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     res.json({
       needsReview,
       uploads: list.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
-      total: searching ? rows.m.length : total, skip, limit,
+      total: searching ? rows.m.length : total, skip, limit, truncated: !!(searching && rows.m.truncated),
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
   } catch (err) {
@@ -994,17 +997,17 @@ router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 100, 300);
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildUiQuery(req.query);
-    let rows; let total;
+    let rows; let total; let truncated = false;
     if (req.query.q && req.query.q.trim()) {
       const matched = await searchUi(query, req.query.q);
-      total = matched.length; rows = matched.slice(skip, skip + limit);
+      total = matched.length; rows = matched.slice(skip, skip + limit); truncated = matched.truncated;
     } else {
       [rows, total] = await Promise.all([
         UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         UiActivity.countDocuments(query),
       ]);
     }
-    res.json({ activity: rows, total, skip, limit, trackedRoles: require('./uiTrail').trackedRoles() });
+    res.json({ activity: rows, total, skip, limit, truncated, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
