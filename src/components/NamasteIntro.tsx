@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const SEEN_KEY = 'gz_namaste_seen';
-const DURATION_MS = 3200;
+const DURATION_MS = 5000;
 const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
+// The site's heading colour, so the greeting matches the rest of the page.
+const GREETING_COLOUR = '#0d1b4b';
 
 // The public site and each dashboard get their own intro, so entering a dashboard after the
 // homepage in the same session still plays it once.
@@ -44,23 +46,25 @@ function Hand() {
 }
 
 const PARTICLES = [
-  { left: '18%', top: '30%', delay: 1.0, size: 10 },
-  { left: '82%', top: '28%', delay: 1.1, size: 9 },
-  { left: '26%', top: '62%', delay: 1.2, size: 8 },
-  { left: '74%', top: '64%', delay: 1.3, size: 11 },
-  { left: '34%', top: '20%', delay: 1.4, size: 7 },
-  { left: '66%', top: '18%', delay: 1.5, size: 9 },
-  { left: '12%', top: '50%', delay: 1.6, size: 6 },
-  { left: '88%', top: '48%', delay: 1.7, size: 6 },
+  { left: '18%', top: '30%', delay: 1.8, size: 10 },
+  { left: '82%', top: '28%', delay: 2.0, size: 9 },
+  { left: '26%', top: '62%', delay: 2.2, size: 8 },
+  { left: '74%', top: '64%', delay: 2.4, size: 11 },
+  { left: '34%', top: '20%', delay: 2.6, size: 7 },
+  { left: '66%', top: '18%', delay: 2.8, size: 9 },
+  { left: '12%', top: '50%', delay: 3.0, size: 6 },
+  { left: '88%', top: '48%', delay: 3.2, size: 6 },
 ];
 
+// Timeline: hands arrive 0–2.6s, greeting fades in 1.8–2.8s, glow pulses 3.0–3.9s,
+// the whole overlay fades 4.0–5.0s.
 const CSS = `
-.gz-namaste { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.gz-namaste { font-family: Georgia, 'Times New Roman', serif; }
 .gz-namaste-bg {
   background: radial-gradient(ellipse at 50% 45%, #fff8ec 0%, #fbe6c2 48%, #eab976 100%);
 }
 @keyframes gz-namaste-fade-out {
-  0%, 78% { opacity: 1; }
+  0%, 80% { opacity: 1; }
   100% { opacity: 0; }
 }
 @keyframes gz-hand-left {
@@ -72,13 +76,13 @@ const CSS = `
   100% { transform: translateX(0) rotate(0deg); }
 }
 @keyframes gz-text-in {
-  0% { opacity: 0; transform: translateY(12px) scale(0.96); letter-spacing: 0.3em; }
+  0% { opacity: 0; transform: translateY(14px) scale(0.96); letter-spacing: 0.3em; }
   100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.04em; }
 }
 @keyframes gz-glow-pulse {
-  0% { text-shadow: 0 0 0 rgba(212, 160, 60, 0); }
-  50% { text-shadow: 0 0 28px rgba(212, 160, 60, 0.85), 0 0 60px rgba(255, 200, 100, 0.5); }
-  100% { text-shadow: 0 0 14px rgba(212, 160, 60, 0.45); }
+  0% { text-shadow: 0 0 0 rgba(13, 27, 75, 0); }
+  50% { text-shadow: 0 0 22px rgba(13, 27, 75, 0.35); }
+  100% { text-shadow: 0 0 8px rgba(13, 27, 75, 0.15); }
 }
 @keyframes gz-lantern {
   0%, 100% { opacity: 0.55; transform: scale(1); }
@@ -89,16 +93,15 @@ const CSS = `
   40% { opacity: 1; }
   100% { opacity: 0; transform: translate(0, -40px) scale(1); }
 }
-.gz-hand-left { animation: gz-hand-left 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.gz-hand-right { animation: gz-hand-right 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.gz-hand-left { animation: gz-hand-left 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.gz-hand-right { animation: gz-hand-right 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .gz-greeting {
-  animation: gz-text-in 0.8s ease-out 1.0s both, gz-glow-pulse 0.8s ease-in-out 1.8s both;
-  color: #9a6b16;
+  animation: gz-text-in 1s ease-out 1.8s both, gz-glow-pulse 0.9s ease-in-out 3.0s both;
+  color: ${GREETING_COLOUR};
   font-weight: 700;
-  font-family: Georgia, "Times New Roman", serif;
 }
-.gz-lantern { animation: gz-lantern 2.4s ease-in-out infinite; }
-.gz-particle { animation: gz-particle 1.6s ease-out both; box-shadow: 0 0 10px 3px rgba(245, 190, 80, 0.85); }
+.gz-lantern { animation: gz-lantern 3s ease-in-out infinite; }
+.gz-particle { animation: gz-particle 2.2s ease-out both; box-shadow: 0 0 10px 3px rgba(245, 190, 80, 0.85); }
 `;
 
 export default function NamasteIntro() {
@@ -124,28 +127,28 @@ export default function NamasteIntro() {
       role="presentation"
       onClick={() => setShow(false)}
       className="gz-namaste gz-namaste-bg fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden cursor-pointer"
-      style={{ animation: `gz-namaste-fade-out ${DURATION_MS}ms ease-in both` }}
+      style={{ animation: `gz-namaste-fade-out ${DURATION_MS}ms ease-in both`, height: '100dvh' }}
     >
       <style>{CSS}</style>
 
       <button
         type="button"
         onClick={e => { e.stopPropagation(); setShow(false); }}
-        className="absolute top-5 right-5 z-10 rounded-full border border-amber-700/40 bg-white/60 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm hover:bg-white/90"
+        className="absolute top-4 right-4 z-10 rounded-full border border-amber-700/40 bg-white/60 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm hover:bg-white/90"
       >
         Skip intro
       </button>
 
-      <div className="gz-lantern absolute -left-16 top-10 h-64 w-64 rounded-full bg-orange-300/40 blur-3xl" aria-hidden="true" />
-      <div className="gz-lantern absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-amber-300/40 blur-3xl" aria-hidden="true" style={{ animationDelay: '1.2s' }} />
+      <div className="gz-lantern absolute -left-16 top-10 h-48 w-48 rounded-full bg-orange-300/40 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" />
+      <div className="gz-lantern absolute -right-16 bottom-10 h-48 w-48 rounded-full bg-amber-300/40 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" style={{ animationDelay: '1.5s' }} />
 
-      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 w-[min(90vw,520px)] h-[85vh] opacity-40" aria-hidden="true">
+      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 h-[70dvh] w-[min(80vw,400px)] opacity-40" aria-hidden="true">
         <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#B8862B" strokeWidth="2.5" />
         <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#D4A03C" strokeWidth="1" />
       </svg>
 
       <div className="relative flex flex-col items-center">
-        <svg viewBox="0 0 200 150" className="w-[min(70vw,320px)] h-auto overflow-visible drop-shadow-[0_8px_12px_rgba(120,70,20,0.28)]" aria-hidden="true">
+        <svg viewBox="0 0 200 150" className="w-[min(55vw,240px)] h-auto overflow-visible drop-shadow-[0_8px_12px_rgba(120,70,20,0.28)]" aria-hidden="true">
           <defs>
             <clipPath id="gz-namaste-half">
               <rect x="0" y="0" width="100" height="150" />
@@ -157,7 +160,7 @@ export default function NamasteIntro() {
           </g>
         </svg>
 
-        <p className="gz-greeting mt-4 text-4xl sm:text-5xl">Namaste</p>
+        <p className="gz-greeting mt-4 text-3xl sm:text-5xl">Namaste</p>
 
         {PARTICLES.map((p, i) => (
           <span
