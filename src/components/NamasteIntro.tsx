@@ -55,7 +55,7 @@ const PARTICLES = [
 ];
 
 const CSS = `
-.gz-namaste { font-family: 'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', system-ui, sans-serif; }
+.gz-namaste { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .gz-namaste-bg {
   background: radial-gradient(ellipse at 50% 45%, #fff8ec 0%, #fbe6c2 48%, #eab976 100%);
 }
@@ -95,6 +95,7 @@ const CSS = `
   animation: gz-text-in 0.8s ease-out 1.0s both, gz-glow-pulse 0.8s ease-in-out 1.8s both;
   color: #9a6b16;
   font-weight: 700;
+  font-family: Georgia, "Times New Roman", serif;
 }
 .gz-lantern { animation: gz-lantern 2.4s ease-in-out infinite; }
 .gz-particle { animation: gz-particle 1.6s ease-out both; }
@@ -156,7 +157,7 @@ export default function NamasteIntro() {
           </g>
         </svg>
 
-        <p className="gz-greeting mt-4 text-4xl sm:text-5xl">नमस्ते</p>
+        <p className="gz-greeting mt-4 text-4xl sm:text-5xl">Namaste</p>
 
         {PARTICLES.map((p, i) => (
           <span
