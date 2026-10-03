@@ -29,7 +29,7 @@ const { initSecurityLogger } = require('./middleware/logSecurityEvent');
 const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
-const { skyload } = require('./middleware/skyload');
+const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -110,9 +110,12 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many attempts. Please try again in 15 minutes.' },
 });
+// The owner's own SOC traffic is exempt (same rule as Skyload): a dashboard load plus tab-hopping, search and the
+// background refresh can legitimately approach 120 calls a minute, and a 429 there shows up as a section that won't load.
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 120,
+  skip: isTrustedSocAdmin,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
@@ -275,14 +278,16 @@ app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/ui-trail', require('./routes/uiTrail'));
-app.use('/api/soc-auth', require('./routes/socAuth'));
 app.use('/api/soc', require('./routes/soc'));
+app.use('/api/soc', require('./routes/socExtras'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
 app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
+app.use('/api/zest',          require('./routes/zest'));
+ app.use('/api/dashboards',    require('./routes/dashboards'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');
@@ -323,12 +328,11 @@ io.use(async (socket, next) => {
 
 // WebRTC signaling
 io.on('connection', (socket) => {
-  socket.on('register', async () => {
+  // Rooms are joined on connection, not only on 'register': the SOC tabs open their own socket and never send
+  // 'register', so without this their live feeds would say "Live" but never receive an event.
+  const joinRooms = async () => {
     const uid = socket.data.userId;
     if (!uid) return;
-    const wasOffline = !userSockets.has(uid);
-    if (wasOffline) userSockets.set(uid, new Set());
-    userSockets.get(uid).add(socket.id);
     // Rooms decide who is pushed what:
     //   user:<id>        one person (targeted activity)
     //   activity-room    admins + Application Team (the business activity feed)
@@ -343,12 +347,20 @@ io.on('connection', (socket) => {
         socket.join('full-admin-room');
         try {
           const me = await require('./models/User').findById(uid).select('email').lean();
-          // Owner AND (when two-factor is required) currently stepped-up: the live feed follows the same rule as the REST API.
-          const mfa = require('./lib/socMfa');
-          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email) && (!mfa.required() || mfa.liveActive(uid))) socket.join('admin-room');
+          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
         } catch { /* no owner room on a lookup failure: fail closed */ }
       }
     }
+  };
+  void joinRooms();
+
+  socket.on('register', async () => {
+    const uid = socket.data.userId;
+    if (!uid) return;
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
+    userSockets.get(uid).add(socket.id);
+    await joinRooms();
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });

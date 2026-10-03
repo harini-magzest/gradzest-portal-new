@@ -1,3 +1,4 @@
+import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -18,6 +19,7 @@ export default function BoardOverview() {
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([api.admin.applications(), api.admin.students(), api.admin.counselors()])
@@ -26,6 +28,7 @@ export default function BoardOverview() {
         setStudents(studs);
         setCounselors(couns);
       })
+      .catch(err => setError(err.message || 'Could not load board data. Refresh to try again.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -67,10 +70,15 @@ export default function BoardOverview() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Board Overview</h1>
         <p className="text-sm text-gray-500 mt-0.5">All applications, students, counselors, and documents at a glance</p>
       </div>
+
+      <WeeklyTrends />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

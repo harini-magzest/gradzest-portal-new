@@ -1,6 +1,6 @@
 import { uploadUrl } from '../../utils/uploadUrl';
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Search, X, Download, FileText, BookOpen, Phone, Mail, MapPin, UserCog, Users, MessageSquare,
   CheckCircle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Activity, UserX, Layers, AlertTriangle, Eye, Pencil,
@@ -70,7 +70,9 @@ function StudentsList() {
   const [filterCounselorId, setFilterCounselorId] = useState('');
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
+  const [filterApps, setFilterApps] = useState(false);
   const [page, setPage] = useState(1);
+  const tableRef = useRef<HTMLDivElement>(null);
   const [pageSize, setPageSize] = useState(25);
 
   const loadData = useCallback(async () => {
@@ -83,7 +85,7 @@ function StudentsList() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterDateStart, filterDateEnd]);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterDateStart, filterDateEnd, filterApps]);
 
   const counselorNameById = useMemo(() => Object.fromEntries(counselors.map(c => [normalId(c), c.name])), [counselors]);
   const appsByStudent = useMemo(() => {
@@ -102,6 +104,7 @@ function StudentsList() {
   const filtered = students.filter(s => {
     if (filterStatus && (s.status === 'inactive' ? 'inactive' : 'active') !== filterStatus) return false;
     if (filterStage && leadStageOf(s).value !== filterStage) return false;
+    if (filterApps && !appsByStudent[normalId(s)]?.length) return false;
     if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
     if (filterCounselorId) {
       if (filterCounselorId === '__unassigned__') { if (counselorIdOf(s)) return false; }
@@ -121,7 +124,8 @@ function StudentsList() {
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   // Open the full student page; pass the filtered order so ‹ › can step through it
-  const openStudent = (id: string) => navigate(`/appteam/students/${id}`, { state: { ids: filtered.map(normalId) } });
+  const openStudent = (id: string, tab?: string) =>
+    navigate(`/appteam/students/${id}${tab ? `?tab=${tab}` : ''}`, { state: { ids: filtered.map(normalId) } });
 
   const counts = {
     total: students.length,
@@ -146,8 +150,29 @@ function StudentsList() {
   if (filterCountry) activeTags.push({ label: filterCountry, clear: () => setFilterCountry('') });
   if (filterCounselorId) activeTags.push({ label: `Counselor: ${filterCounselorId === '__unassigned__' ? 'Unassigned' : counselorNameById[filterCounselorId] || ''}`, clear: () => setFilterCounselorId('') });
   if (filterDateStart || filterDateEnd) activeTags.push({ label: `Joined ${filterDateStart || '…'} – ${filterDateEnd || '…'}`, clear: () => { setFilterDateStart(''); setFilterDateEnd(''); } });
+  if (filterApps) activeTags.push({ label: 'With applications', clear: () => setFilterApps(false) });
   if (search) activeTags.push({ label: `"${search}"`, clear: () => { setSearch(''); setSearchInput(''); } });
-  const clearAll = () => { setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterCounselorId(''); setFilterDateStart(''); setFilterDateEnd(''); setSearch(''); setSearchInput(''); };
+  const clearAll = () => { setFilterStatus(''); setFilterStage(''); setFilterCountry(''); setFilterCounselorId(''); setFilterDateStart(''); setFilterDateEnd(''); setFilterApps(false); setSearch(''); setSearchInput(''); };
+
+  // Stat cards filter the table below; clicking the active card again clears it
+  type Card = 'total' | 'active' | 'inactive' | 'withApps' | 'unassigned';
+  const activeCard: Card | null =
+    !activeTags.length ? 'total'
+    : activeTags.length === 1 && filterStatus === 'active' ? 'active'
+    : activeTags.length === 1 && filterStatus === 'inactive' ? 'inactive'
+    : activeTags.length === 1 && filterApps ? 'withApps'
+    : activeTags.length === 1 && filterCounselorId === '__unassigned__' ? 'unassigned'
+    : null;
+  const pickCard = (card: Card) => {
+    const turningOff = activeCard === card;
+    clearAll();
+    if (!turningOff) {
+      if (card === 'active' || card === 'inactive') setFilterStatus(card);
+      if (card === 'withApps') setFilterApps(true);
+      if (card === 'unassigned') setFilterCounselorId('__unassigned__');
+    }
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
 
   // Paginator: 1 2 3 … last
   const pageNums: (number | '...')[] = (() => {
@@ -209,22 +234,27 @@ function StudentsList() {
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {[
-          { label: 'Total', value: counts.total, note: 'All students', icon: <Users className="w-5 h-5 text-orange-600" /> },
-          { label: 'Active', value: counts.active, note: pct(counts.active), icon: <Activity className="w-5 h-5 text-orange-600" /> },
-          { label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), icon: <UserX className="w-5 h-5 text-orange-500" /> },
-          { label: 'With Applications', value: counts.withApps, note: pct(counts.withApps), icon: <Layers className="w-5 h-5 text-orange-600" /> },
-          { label: 'Unassigned', value: counts.unassigned, note: counts.unassigned > 0 ? 'No counselor yet' : 'All assigned', icon: <UserCog className="w-5 h-5 text-orange-600" /> },
-        ].map(card => (
-          <div key={card.label} className="bg-white rounded-2xl p-4 border border-orange-100 shadow-sm flex items-start gap-3 hover:border-orange-300 hover:shadow-md transition-all">
-            <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">{card.icon}</div>
-            <div>
-              <p className="text-gray-500 text-xs mb-1">{card.label}</p>
-              <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
-              <p className="text-xs mt-1 text-orange-600">{loading ? '' : card.note}</p>
-            </div>
-          </div>
-        ))}
+        {([
+          { key: 'total', label: 'Total', value: counts.total, note: 'All students', hint: 'Show all students', icon: <Users className="w-5 h-5 text-orange-600" /> },
+          { key: 'active', label: 'Active', value: counts.active, note: pct(counts.active), hint: 'Show active students', icon: <Activity className="w-5 h-5 text-orange-600" /> },
+          { key: 'inactive', label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), hint: 'Show inactive students', icon: <UserX className="w-5 h-5 text-orange-500" /> },
+          { key: 'withApps', label: 'With Applications', value: counts.withApps, note: pct(counts.withApps), hint: 'Show students who have applications', icon: <Layers className="w-5 h-5 text-orange-600" /> },
+          { key: 'unassigned', label: 'Unassigned', value: counts.unassigned, note: counts.unassigned > 0 ? 'No counselor yet' : 'All assigned', hint: 'Show students without a counselor', icon: <UserCog className="w-5 h-5 text-orange-600" /> },
+        ] as const).map(card => {
+          const on = activeCard === card.key;
+          return (
+            <button type="button" key={card.key} onClick={() => pickCard(card.key)} aria-pressed={on} title={on && card.key !== 'total' ? 'Click again to show all students' : card.hint}
+              className={`text-left bg-white rounded-2xl p-4 border shadow-sm flex items-start gap-3 hover:border-orange-300 hover:shadow-md transition-all ${
+                on ? 'border-orange-500 ring-2 ring-orange-100' : 'border-orange-100'}`}>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${on ? 'bg-orange-500 [&>svg]:text-white' : 'bg-orange-100'}`}>{card.icon}</div>
+              <div className="min-w-0">
+                <p className="text-gray-500 text-xs mb-1">{card.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
+                <p className="text-xs mt-1 text-orange-600">{loading ? '' : card.note}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Filter bar ── */}
@@ -293,6 +323,7 @@ function StudentsList() {
       </div>
 
       {/* ── Table ── */}
+      <div ref={tableRef} className="scroll-mt-4" />
       {loading && students.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
           <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading students…</span>
@@ -349,10 +380,10 @@ function StudentsList() {
                       <td className="px-4 py-3.5"><StatusBadge status={s.status === 'inactive' ? 'inactive' : 'active'} /></td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5 justify-end">
-                          <Link to="/appteam/chat" title={`Chat with ${s.name}`}
+                          <button type="button" onClick={() => openStudent(id, 'messages')} title={`Messages with ${s.name}`} aria-label={`Messages with ${s.name}`}
                             className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-50 border border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors">
                             <MessageSquare className="w-3.5 h-3.5" />
-                          </Link>
+                          </button>
                           {s.phone ? (
                             <a href={`tel:${s.phone.replace(/\s/g, '')}`} title={`Call ${s.phone}`}
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 transition-colors">
@@ -449,6 +480,7 @@ function StudentDetail() {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') as DetailTab | null;
   const [tab, setTab] = useState<DetailTab>(initialTab && DETAIL_TABS.some(t => t.key === initialTab) ? initialTab : 'overview');
+  useEffect(() => { if (initialTab && DETAIL_TABS.some(t => t.key === initialTab)) setTab(initialTab); }, [initialTab]);
   const [student, setStudent] = useState<any>(null);
   const [error, setError] = useState('');
   const [apps, setApps] = useState<any[]>([]);

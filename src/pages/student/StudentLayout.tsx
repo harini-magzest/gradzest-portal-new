@@ -1,6 +1,7 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, User, MessageSquare, BookOpen, CalendarDays, FileText, Zap, Globe } from 'lucide-react';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, GraduationCap, User, MessageSquare, BookOpen, CalendarDays, FileText, Zap, Globe, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
@@ -15,6 +16,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/student/universities', label: 'Universities', icon: GraduationCap },
   { to: '/student/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
   { to: '/student/activities', label: 'Activities', icon: CalendarDays },
+  { to: '/student/meetings', label: 'Meetings', icon: Video },
   { to: '/student/learning', label: 'Learning Hub', icon: Zap, mobileHide: true },
   { to: '/student/chat', label: 'Chat', icon: MessageSquare },
   { to: '/student/profile', label: 'My Profile', icon: User },
@@ -30,10 +32,11 @@ function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
 
 export default function StudentLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
   const unreadCount = useUnreadMessages();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (user?.role !== 'student') return <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'student') return <Navigate to={loginRedirect(location)} />;
 
   const sidebarItems = navItems.map(item => ({
     to: item.to, label: item.label, end: item.end,

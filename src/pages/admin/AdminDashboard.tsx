@@ -1,3 +1,6 @@
+import TeamWorkload from '../../components/dashboards/TeamWorkload';
+import Funnel from '../../components/dashboards/Funnel';
+import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -1632,6 +1635,12 @@ export default function AdminDashboard() {
             <span className="text-sm">Loading data…</span>
           </div>
         )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TeamWorkload />
+          <Funnel />
+        </div>
+        <WeeklyTrends />
 
         {/* Tab bar */}
         {!loading && (

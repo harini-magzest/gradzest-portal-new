@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { sendServerError } = require('../lib/httpError');
 const express = require('express');
 const router = express.Router();
 const Meeting = require('../models/Meeting');
@@ -28,7 +29,7 @@ router.get('/', auth, async (req, res) => {
     }).sort({ scheduledDate: 1, scheduledTime: 1 });
     res.json(meetings);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -196,7 +197,7 @@ router.post('/', auth, can('meetings.create'), async (req, res) => {
 
     res.status(201).json(meeting);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -239,7 +240,7 @@ router.put('/:id', auth, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -272,7 +273,7 @@ router.delete('/:id', auth, async (req, res) => {
 
     res.json({ message: 'Deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 

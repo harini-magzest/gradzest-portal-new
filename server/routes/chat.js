@@ -1,6 +1,8 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
+const CallSummary = require('../models/CallSummary');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
@@ -96,7 +98,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.status(201).json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -148,7 +150,7 @@ router.put('/groups/:id/members', authMiddleware, async (req, res) => {
     notifyRoom(req, room, me);
     res.json(room.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -279,13 +281,13 @@ router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, asyn
     await room.save();
     res.json({ recordingUrl: msg.recordingUrl });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
 // Call history (in-app calls + Tata Smartflo phone calls) with recordings.
 // Everyone sees calls they took part in; full admins (not App Team) see all, optionally ?userId=.
-// GET /api/chat/calls/history?days=7|30|90&userId=
+// GET /api/chat/calls/history?days=7|30|90&userId=   (or &since=<ISO date>, e.g. the start of today)
 router.get('/calls/history', authMiddleware, async (req, res) => {
   const smartflo = require('../lib/smartflo');
   try {
@@ -293,7 +295,9 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     const viewer = await User.findById(me).select('role isAppTeam smartfloAgent');
     const fullAdmin = viewer?.role === 'admin' && !viewer.isAppTeam;
     const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
-    const since = new Date(Date.now() - days * 86400000);
+    const sinceParam = req.query.since ? new Date(String(req.query.since)) : null;
+    const since = sinceParam && !isNaN(sinceParam) && Date.now() - sinceParam < 90 * 86400000
+      ? sinceParam : new Date(Date.now() - days * 86400000);
     const filterUser = fullAdmin && req.query.userId ? String(req.query.userId) : '';
 
     // ── In-app calls ──
@@ -339,9 +343,61 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     }
 
     calls.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
-    res.json({ calls: calls.slice(0, 500), smartflo: sf, canSeeAll: fullAdmin });
+    const page = calls.slice(0, 500);
+    const summaries = await CallSummary.find({ callId: { $in: page.map(c => c.id) } }).lean();
+    const byCall = new Map(summaries.map(s => [s.callId, s]));
+    page.forEach(c => {
+      const s = byCall.get(c.id);
+      if (s) Object.assign(c, { summary: s.summary, summaryBy: s.authorName, summaryAt: s.updatedAt });
+    });
+    res.json({ calls: page, smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Write or edit the summary of a call. Staff only; for in-app calls, only someone who was on the call.
+// PUT /api/chat/calls/:callId/summary  { summary, otherPartyName?, startedAt? }
+router.put('/calls/:callId/summary', authMiddleware, async (req, res) => {
+  if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
+  const summary = typeof req.body.summary === 'string' ? req.body.summary.trim() : '';
+  if (!summary) return res.status(400).json({ message: 'Summary required' });
+  if (summary.length > 4000) return res.status(400).json({ message: 'Summary is too long (4000 characters max)' });
+  const callId = String(req.params.callId);
+  try {
+    const me = req.user.id.toString();
+    let source = 'smartflo';
+    let other = { id: '', name: typeof req.body.otherPartyName === 'string' ? req.body.otherPartyName.slice(0, 200) : '' };
+    let startedAt = req.body.startedAt ? new Date(req.body.startedAt) : null;
+    if (!callId.startsWith('sf-')) {
+      if (!/^[a-f0-9]{24}$/i.test(callId)) return res.status(404).json({ message: 'Call not found' });
+      const room = await ChatRoom.findOne({ participants: me, 'messages._id': callId }).select('participants participantNames messages.$');
+      const msg = room?.messages?.[0];
+      if (!msg || msg.type !== 'call') return res.status(404).json({ message: 'Call not found' });
+      source = 'in_app';
+      const otherId = room.participants.find(p => p !== me) || '';
+      other = { id: otherId, name: room.participantNames?.[room.participants.indexOf(otherId)] || '' };
+      startedAt = msg.timestamp;
+    }
+    const author = await User.findById(me).select('name');
+    const existing = await CallSummary.findOne({ callId });
+    const doc = await CallSummary.findOneAndUpdate({ callId }, {
+      callId, source, summary, authorId: me, authorName: author?.name || '',
+      otherPartyId: other.id, otherPartyName: other.name,
+      callStartedAt: startedAt && !isNaN(startedAt) ? startedAt : null,
+    }, { upsert: true, new: true, setDefaultsOnInsert: true });
+
+    // First summary of a call with a student goes on that student's timeline
+    if (!existing && other.id) {
+      const student = await User.findOne({ _id: other.id, role: 'student' }).select('name');
+      if (student) recordStaffActivity(req, {
+        kind: 'call', title: 'Call summary', detail: summary.slice(0, 300),
+        studentId: student._id, studentName: student.name,
+      });
+    }
+    res.json({ callId, summary: doc.summary, summaryBy: doc.authorName, summaryAt: doc.updatedAt });
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -370,7 +426,7 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, asyn
     });
     res.json(msg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -403,14 +459,19 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
     );
     const newMsg = updated.messages[updated.messages.length - 1];
 
-    // Notify other participants in real time
+    // Notify other participants in real time. 'call:logged' lets a staff member who received
+    // the call (rather than placed it) be asked for a summary too.
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');
     updated.participants
       .filter(p => p !== req.user.id.toString())
       .forEach(pid => {
         const sid = userSockets.get(String(pid));
-        if (sid) io.to(sid).emit('chat:new-message', { roomId: updated.id });
+        if (!sid) return;
+        io.to(sid).emit('chat:new-message', { roomId: updated.id });
+        if (callStatus === 'answered') io.to(sid).emit('call:logged', {
+          callId: String(newMsg._id), otherName: callerName || '', status: callStatus,
+        });
       });
 
     res.json(newMsg.toJSON());
@@ -500,7 +561,7 @@ router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUse
 
     res.json(newMsg.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -565,14 +626,16 @@ router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
   }
 });
 
-// Mark all messages from others as read
+// Mark all messages from others as read — for this user only. In a group, one member opening the chat
+// must not clear it for everyone else, so readers are tracked per message in readBy.
 router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
   try {
-    await ChatRoom.updateOne(
-      memberFilter(req),
-      { $set: { 'messages.$[elem].read': true } },
-      { arrayFilters: [{ 'elem.senderId': { $ne: req.user.id.toString() } }] }
-    );
+    const me = req.user.id.toString();
+    const room = await ChatRoom.findOne(memberFilter(req)).select('participants');
+    if (!room) return res.status(404).json({ message: 'Room not found' });
+    const update = { $addToSet: { 'messages.$[elem].readBy': me } };
+    if (room.participants.length === 2) update.$set = { 'messages.$[elem].read': true };
+    await ChatRoom.updateOne({ _id: room._id }, update, { arrayFilters: [{ 'elem.senderId': { $ne: me } }] });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ message: 'Server error' });

@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -292,7 +293,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ token: accessToken, user: userObj });
   } catch (err) {
     console.error('[auth/register]', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
