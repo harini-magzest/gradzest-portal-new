@@ -10,6 +10,7 @@ const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
+const { assignNextCounselor } = require('../lib/assignCounselor');
 const { can, loadAccess, canView } = require('../lib/access');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
@@ -221,6 +222,9 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
   const { name, email, password, phone, nationality, educationLevel, gpa, englishScore, budget, preferredCountries, interestedCourses, counselorId } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
+    if (await User.exists({ email: email.toLowerCase() })) {
+      return res.status(409).json({ message: 'An account with this email already exists' });
+    }
     const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash(password, 10);
     const student = new User({
