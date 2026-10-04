@@ -9,6 +9,7 @@ const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
 const { assignNextCounselor } = require('../lib/assignCounselor');
+const { fireEvent } = require('../lib/automation');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 const { recordSignInActivity } = require('../lib/recordSignIn');
 const { isAdminLocked, invalidate: invalidateAccountState } = require('../lib/accountState');
@@ -283,6 +284,8 @@ router.post('/register', async (req, res) => {
     const assignedCounselor = await assignNextCounselor(user);
     if (assignedCounselor) await user.save();
     notifyAdminsOfNewLead(req.app, user, assignedCounselor); // fire-and-forget; never blocks or fails sign-up
+    fireEvent('student.created', { studentId: user._id });
+    if (assignedCounselor) fireEvent('counselor.assigned', { studentId: user._id });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);
