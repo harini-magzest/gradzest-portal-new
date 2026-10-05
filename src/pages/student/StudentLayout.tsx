@@ -17,6 +17,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/student/applications', label: 'Applications', icon: FileText },
   { to: '/student/countries', label: 'Countries', icon: Globe },
   { to: '/student/universities', label: 'Universities', icon: GraduationCap },
+  { to: '/student/compare', label: 'Compare & cost', icon: Scale, mobileHide: true },
   { to: '/student/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
   { to: '/student/shortlist', label: 'Shortlist', icon: Bookmark, mobileHide: true },
   { to: '/student/activities', label: 'Activities', icon: CalendarDays },

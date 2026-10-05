@@ -39,6 +39,7 @@ const Activities = lazy(() => import('./pages/Activities'));
 const StudentLayout       = lazy(() => import('./pages/student/StudentLayout'));
 const StudentDashboard    = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentUniversities = lazy(() => import('./pages/student/StudentUniversities'));
+const CompareCosts = lazy(() => import('./components/CompareCosts'));
 const StudentApplications = lazy(() => import('./pages/student/StudentApplications'));
 const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'));
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
@@ -175,6 +176,7 @@ export default function App() {
             <Route path="/student" element={<StudentLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="universities" element={<StudentUniversities />} />
+              <Route path="compare" element={<CompareCosts />} />
               <Route path="applications" element={<StudentApplications />} />
               <Route path="chat" element={<StudentChat />} />
               <Route path="profile" element={<StudentProfile />} />
@@ -193,6 +195,7 @@ export default function App() {
               <Route path="students/*" element={<CounselorStudents />} />
               <Route path="chat" element={<CounselorChat />} />
               <Route path="universities" element={<CounselorUniversities />} />
+              <Route path="compare" element={<CompareCosts />} />
               <Route path="profile" element={<CounselorProfile />} />
               <Route path="courses" element={<CounselorCourses />} />
               <Route path="countries" element={<CounselorCountries />} />

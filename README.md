@@ -86,3 +86,11 @@ Zest answers from the uploaded knowledge base, the university catalogue and role
 - If a key is ever pasted somewhere it shouldn't be, rotate it at the provider straight away (delete the old key, make a new one). Cleaning up afterwards does not make an exposed key safe again.
 - If you need a shared secret for a specific task (for example the SMTP password to test email), get it through a password manager's secure share, never over chat.
 - Tell the repository owner if you suspect a leak. Nobody will be blamed, and the faster it's reported, the cheaper it is to fix.
+
+## Checks and merging
+
+Every pull request into `main` runs three automatic checks (`.github/workflows/ci.yml`): **typecheck-build**, **backend-tests** and **ui-tests**. They are the same commands as step 4 above, so run those locally before you open the pull request.
+
+- **Update your branch before merging.** `git fetch origin && git merge origin/main`, then fix conflicts by reading *both* sides. A branch built from an old snapshot can silently overwrite newer work on `main` when it is merged, and the checks only catch it if you run them on the merged result.
+- **Don't share one working folder.** Two people (or two tools) committing in the same checkout can reset each other's branch and wipe uncommitted work. Use separate clones, or `git worktree add ../my-work -b my-branch origin/main`.
+- **For a repository admin, once:** Settings → Branches → add a rule for `main` → *Require a pull request before merging* and *Require status checks to pass before merging* (select the three checks above) → *Require branches to be up to date before merging*. Without this rule the checks only warn; they don't block.
