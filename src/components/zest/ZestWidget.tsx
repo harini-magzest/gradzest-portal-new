@@ -265,7 +265,7 @@ export default function ZestWidget() {
               placeholder={attachedFile ? 'Ask about this document...' : 'Ask Zest a question...'}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button
+            <button aria-label="Send"
               type="button"
               onClick={send}
               disabled={loading || !input.trim()}

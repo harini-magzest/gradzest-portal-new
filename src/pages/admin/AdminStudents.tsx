@@ -899,7 +899,7 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
               <h2 className="text-xl font-bold text-white mt-0.5">Select Student & Course</h2>
               {selectedStudent && <p className="text-sky-100 text-sm mt-1">Eligibility checked against <span className="font-semibold">{selectedStudent.name}</span>'s profile</p>}
             </div>
-            <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
+            <button aria-label="Close" type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
@@ -1441,7 +1441,7 @@ export default function AdminStudents() {
                 {activeTags.map(tag => (
                   <span key={tag.label} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
                     {tag.label}
-                    <button type="button" onClick={tag.clear} className="hover:text-blue-900 leading-none"><X className="w-3 h-3" /></button>
+                    <button aria-label="Close" type="button" onClick={tag.clear} className="hover:text-blue-900 leading-none"><X className="w-3 h-3" /></button>
                   </span>
                 ))}
                 <button type="button" onClick={clearAll} className="text-xs text-blue-600 hover:text-blue-800 underline">Clear all</button>

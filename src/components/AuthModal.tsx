@@ -100,7 +100,7 @@ export default function AuthModal() {
               <span className="text-[#0d1b4b]">Grad</span><span className="text-blue-500">zest</span>
             </span>
           </div>
-          <button
+          <button aria-label="Close"
             type="button"
             onClick={close}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"

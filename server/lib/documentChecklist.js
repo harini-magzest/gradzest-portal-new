@@ -1,6 +1,7 @@
 // Builds a student's document checklist: the documents every application needs, plus whatever each
 // destination country's visa requires (Country.visa.documents), matched against what the student has uploaded.
 // Pure functions (no database access) so they can be tested directly; routes/students.js loads the data.
+const { passportWarning, parseDate } = require('./documentCheck');
 
 // The standard set. `uploadType` is the document type the student's upload form uses, so "Upload" on a missing
 // item files the document under the type that will match it next time.
@@ -50,8 +51,10 @@ function bestMatch(docs, test) {
  * @param {{ documents?: any[] }} student
  * @param {{ name: string, visa?: { documents?: string[] } }[]} countries  the student's destination countries
  */
-function buildChecklist(student, countries = []) {
+function buildChecklist(student, countries = [], now = Date.now()) {
   const docs = student.documents || [];
+  const intakes = (student.applications || []).map((a) => parseDate(a.intake)).filter(Boolean).sort((a, b) => a - b);
+  const passport = passportWarning(student.passport?.expiryDate, now, intakes[0] || null);
   const items = [];
 
   for (const c of CORE) {
@@ -59,6 +62,7 @@ function buildChecklist(student, countries = []) {
     items.push({
       key: c.key, label: c.label, scope: 'all', uploadType: c.uploadType,
       status: m ? m.status : 'missing', docId: m ? String(m.doc._id) : null, docName: m ? m.doc.name : null,
+      ...(c.key === 'passport' && passport ? { warning: passport } : {}),
     });
   }
 

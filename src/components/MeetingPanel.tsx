@@ -163,7 +163,7 @@ function ScheduleModal({
             <CalendarDays className="w-5 h-5 text-white" />
             <h2 className="text-base font-bold text-white">Schedule Meeting</h2>
           </div>
-          <button type="button" onClick={onClose}
+          <button aria-label="Close" type="button" onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -372,7 +372,7 @@ export default function MeetingPanel({ theme, meetingsPagePath, hideSchedule = f
               <h2 className="text-sm font-bold text-white">Meetings</h2>
             </div>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={load} disabled={loading}
+              <button aria-label="Refresh" type="button" onClick={load} disabled={loading}
                 className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 text-white ${loading ? 'animate-spin' : ''}`} />
               </button>
