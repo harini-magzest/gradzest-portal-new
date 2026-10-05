@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import SkipLink from '../../components/SkipLink';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
   { to: '/board', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -29,6 +30,7 @@ export default function BoardLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Board workspace" />
       <div className="flex">
         <DashboardSidebar navItems={navItems} />
@@ -43,7 +45,7 @@ export default function BoardLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
           <Outlet />
         </main>
       </div>

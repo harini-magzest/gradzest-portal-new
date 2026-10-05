@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { api } from '../../api';
+import { useT } from '../../i18n/LanguageContext';
 
 type Data = Awaited<ReturnType<typeof api.students.dataAccess>>;
 
@@ -11,6 +12,7 @@ export default function DataAccessLog() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
+  const { t } = useT();
 
   useEffect(() => {
     let live = true;
@@ -25,14 +27,14 @@ export default function DataAccessLog() {
     <section aria-labelledby="data-access-title" className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="w-5 h-5 text-emerald-600" aria-hidden="true" />
-        <h2 id="data-access-title" className="font-semibold text-gray-900">Who has viewed my details</h2>
+        <h2 id="data-access-title" className="font-semibold text-gray-900">{t('dataAccess.title')}</h2>
       </div>
       <p className="text-xs text-gray-500 mb-3">
-        Every time a member of the team opens your personal details (such as your passport or contact information), it is recorded here.
+        {t('dataAccess.intro')}
       </p>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-      {!error && !data && <p className="text-sm text-gray-400">Loading…</p>}
-      {data && rows.length === 0 && <p className="text-sm text-gray-500">Nobody has viewed your details yet.</p>}
+      {!error && !data && <p className="text-sm text-gray-400">{t('dataAccess.loading')}</p>}
+      {data && rows.length === 0 && <p className="text-sm text-gray-500">{t('dataAccess.empty')}</p>}
       {rows.length > 0 && (
         <>
           <ul className="divide-y divide-gray-50">
@@ -48,7 +50,7 @@ export default function DataAccessLog() {
           </ul>
           {rows.length > 5 && (
             <button type="button" onClick={() => setOpen(o => !o)} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-800">
-              {open ? 'Show fewer' : `Show all ${rows.length}`}
+              {open ? t('dataAccess.showFewer') : t('dataAccess.showAll', { n: rows.length })}
             </button>
           )}
         </>

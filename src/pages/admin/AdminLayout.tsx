@@ -6,6 +6,7 @@ import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
+import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
@@ -52,6 +53,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-purple-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Admin workspace" />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
@@ -75,7 +77,7 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

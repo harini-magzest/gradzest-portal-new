@@ -335,7 +335,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
             </div>
             <h2 className="text-lg font-bold text-gray-900">{editing ? 'Edit Course' : 'Add Course'}</h2>
           </div>
-          <button type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
+          <button aria-label="Close" type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
             <X className="w-4 h-4" />
           </button>
         </div>

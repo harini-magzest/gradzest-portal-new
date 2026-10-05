@@ -89,7 +89,7 @@ function Toast({ notification: n, onDismiss }: ToastProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold text-gray-900 truncate">{n.title}</p>
-              <button type="button" onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+              <button aria-label="Close" type="button" onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>

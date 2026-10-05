@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, AlertTriangle, CheckCircle2, Compass } from 'lucide-react';
 import { api } from '../../api';
+import { useT } from '../../i18n/LanguageContext';
 
 type Step = Awaited<ReturnType<typeof api.students.nextStep>>;
 
@@ -11,6 +12,7 @@ const URGENT = new Set(['document_rejected', 'passport_expired', 'respond_to_off
 // The one thing the student should do next, worked out on the server from their documents and applications.
 export default function NextStepCard() {
   const [step, setStep] = useState<Step | null>(null);
+  const { t } = useT();
 
   useEffect(() => {
     let live = true;
@@ -25,12 +27,12 @@ export default function NextStepCard() {
 
   return (
     <section
-      aria-label="Your next step"
+      aria-label={t('nextStep.label')}
       className={`rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center gap-4 ${urgent ? 'bg-amber-50 border-amber-200' : done ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}
     >
       <Icon aria-hidden="true" className={`w-8 h-8 flex-shrink-0 ${urgent ? 'text-amber-600' : done ? 'text-emerald-600' : 'text-blue-600'}`} />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your next step</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('nextStep.label')}</p>
         <h2 className="font-semibold text-gray-900">{step.title}</h2>
         <p className="text-sm text-gray-600 mt-0.5">{step.detail}</p>
       </div>

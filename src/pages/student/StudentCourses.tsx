@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import ApplicationModal from '../../components/ApplicationModal';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import { useShortlist } from '../../hooks/useShortlist';
+import { useT } from '../../i18n/LanguageContext';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -48,6 +49,7 @@ export default function StudentCourses() {
   const [eligibleOnly, setEligibleOnly] = useState(false);
   const [applyModal, setApplyModal] = useState<{ course: any; uni: any } | null>(null);
   const shortlist = useShortlist();
+  const { t } = useT();
 
   const loadCourses = () => {
     setLoadError('');
@@ -100,7 +102,7 @@ export default function StudentCourses() {
           <p className="text-gray-500 mt-1">Browse and apply to courses across partner universities</p>
         </div>
         <Link to="/student/shortlist" className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg">
-          <Bookmark className="w-4 h-4" aria-hidden="true" /> Compare shortlist{shortlist.count ? ` (${shortlist.count})` : ''}
+          <Bookmark className="w-4 h-4" aria-hidden="true" /> {t('courses.compare')}{shortlist.count ? ` (${shortlist.count})` : ''}
         </Link>
       </div>
       {shortlist.error && <p role="alert" className="text-sm text-red-600">{shortlist.error}</p>}
@@ -220,7 +222,7 @@ export default function StudentCourses() {
                     className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors disabled:opacity-50 ${saved ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                   >
                     {saved ? <BookmarkCheck className="w-4 h-4" aria-hidden="true" /> : <Bookmark className="w-4 h-4" aria-hidden="true" />}
-                    {saved ? 'Saved' : 'Save to compare'}
+                    {saved ? t('courses.saved') : t('courses.save')}
                   </button>
                 );
               })()}
