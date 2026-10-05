@@ -10,7 +10,7 @@ const AutomationLogSchema = new mongoose.Schema({
   status:      { type: String, enum: ['success', 'partial', 'failed'], default: 'success' },
   actions: [{
     _id: false,
-    type:   String,
+    type:   { type: String }, // object form: a bare `type: String` makes Mongoose treat the whole entry as a string
     status: { type: String, enum: ['success', 'failed', 'skipped'] },
     detail: String,
   }],

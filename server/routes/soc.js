@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const { execFile } = require('child_process');
 const path = require('path');
 const PDFDocument = require('pdfkit');
@@ -229,7 +230,7 @@ router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
       openIncidentsBySeverity: toMap(incidentsBySeverity),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -266,7 +267,7 @@ router.get('/stats/geo', authMiddleware, adminOnly, async (req, res) => {
     }
     res.json({ period, countries: [...byCountry.values()].sort((a, b) => b.count - a.count), unresolved });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -294,7 +295,7 @@ router.get('/events/export.csv', authMiddleware, adminOnly, attachUserEmail, asy
       { label: 'User agent', key: 'userAgent' }, { label: 'Message', key: 'message' },
     ], events);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -316,7 +317,7 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 
     res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts, truncated: !!(searching && events.m.truncated) });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -364,7 +365,7 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     // for incidents that change live over the socket, without duplicating targets.
     res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY, truncated });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -386,7 +387,7 @@ router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, 
       { label: 'SLA resolve breached', value: (i) => (computeSla(i).resolveBreached ? 'yes' : 'no') },
     ], incidents);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -451,7 +452,7 @@ router.get('/incidents/:id/report.pdf', authMiddleware, adminOnly, async (req, r
     doc.moveDown(1).fontSize(8).fillColor('#888').text(`Generated ${new Date().toISOString()}`);
     doc.end();
   } catch (err) {
-    if (!res.headersSent) res.status(500).json({ message: err.message || 'Server error' });
+    if (!res.headersSent) sendServerError(res, err, 'Server error');
   }
 });
 
@@ -461,7 +462,7 @@ router.get('/analysts', authMiddleware, adminOnly, async (req, res) => {
     const analysts = await User.find({ role: 'admin' }).select('name email').sort({ name: 1 }).lean();
     res.json({ analysts });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -540,7 +541,7 @@ router.patch('/incidents/:id', authMiddleware, adminOnly, attachUserEmail, async
     if (r.error) return res.status(r.error.status).json({ message: r.error.message });
     res.json(r.incident);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -561,7 +562,7 @@ router.post('/incidents/:id/notes', authMiddleware, adminOnly, async (req, res) 
     req.app.get('io')?.to('admin-room').emit('incident_updated', incident.toObject());
     res.json(incident);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -619,7 +620,7 @@ router.get('/investigate/search-users', authMiddleware, adminOnly, async (req, r
       .select('name email role').limit(10).lean();
     res.json({ users: users.map(u => ({ id: u._id, name: u.name, email: u.email, role: u.role })) });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -680,7 +681,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
       relatedIncidents,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -694,7 +695,7 @@ router.post('/investigate/user/:id/logout-everywhere', authMiddleware, adminOnly
     logAnalystAction({ analyst: req.user, action: 'revoke_user_sessions', targetType: 'user', targetId: user._id, reason: `Sessions revoked for ${user.email}`, io: req.app.get('io') });
     res.json({ message: 'All sessions revoked for this user.' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -712,7 +713,7 @@ router.delete('/investigate/user/:id/sessions/:sessionId', authMiddleware, admin
     logAnalystAction({ analyst: req.user, action: 'revoke_session', targetType: 'session', targetId: req.params.sessionId, reason: `Revoked session for ${user.email} (${label})`, metadata: { userId: String(user._id) }, io: req.app.get('io') });
     res.json({ message: 'Session revoked.', activeSessions: user.sessions.length });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -759,7 +760,7 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
         : 'Password invalidated and sessions revoked, but the reset email could not be sent. The user can use "Forgot password" to set a new one.',
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -807,7 +808,7 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
     const isBlocked = buildIpMatcher(blockRows.map((r) => r.ip))(ip);
     res.json({ ip, isBlocked, timeline, intel, relatedIncidents });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1041,7 +1042,7 @@ router.get('/blocked-ips', authMiddleware, adminOnly, async (req, res) => {
       .sort({ createdAt: -1 }).populate('blockedBy', 'name email').lean();
     res.json({ blockedIps: rows });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1061,7 +1062,7 @@ router.post('/blocked-ips', authMiddleware, adminOnly, attachUserEmail, async (r
     logAnalystAction({ analyst: req.user, action: 'block_ip', targetType: 'ip', targetId: target.value, reason: [reason, expiresAt && `until ${expiresAt.toISOString()}`].filter(Boolean).join(' — '), io: req.app.get('io') });
     res.json(row);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1091,7 +1092,7 @@ router.post('/blocked-ips/bulk', authMiddleware, adminOnly, attachUserEmail, asy
     }
     res.json({ blocked, rejected });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1102,7 +1103,7 @@ router.delete('/blocked-ips/:ip', authMiddleware, adminOnly, attachUserEmail, as
     logAnalystAction({ analyst: req.user, action: 'unblock_ip', targetType: 'ip', targetId: req.params.ip, io: req.app.get('io') });
     res.json({ message: 'IP unblocked' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1114,7 +1115,7 @@ router.get('/suppressions', authMiddleware, adminOnly, async (req, res) => {
       .sort({ createdAt: -1 }).populate('createdBy', 'name email').lean();
     res.json({ suppressions: rows });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1142,7 +1143,7 @@ router.post('/suppressions', authMiddleware, adminOnly, attachUserEmail, async (
     logAnalystAction({ analyst: req.user, action: 'add_suppression', targetType: 'suppression', targetId: rule._id, reason: `${kind} ${normalized}${incidentTypes?.length ? ` for ${incidentTypes.join(', ')}` : ''}${reason ? ` — ${reason}` : ''}`, io: req.app.get('io') });
     res.status(201).json(rule);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1155,7 +1156,7 @@ router.delete('/suppressions/:id', authMiddleware, adminOnly, attachUserEmail, a
     logAnalystAction({ analyst: req.user, action: 'remove_suppression', targetType: 'suppression', targetId: rule._id, reason: `${rule.kind} ${rule.value}`, io: req.app.get('io') });
     res.json({ message: 'Suppression removed' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1182,7 +1183,7 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
     ]);
     res.json({ period: '24h', topAccessors, recentAccesses });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1210,7 +1211,7 @@ router.get('/audit-trail/verify', authMiddleware, adminOnly, async (req, res) =>
   try {
     res.json(await verifyAuditChain());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1250,7 +1251,7 @@ router.get('/audit-trail/export.csv', authMiddleware, adminOnly, attachUserEmail
       { label: 'Hash', key: 'hash' },
     ], actions);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1260,7 +1261,7 @@ router.get('/audit-trail', authMiddleware, adminOnly, async (req, res) => {
     const actions = await enrichAudit(await AnalystAction.find().sort({ createdAt: -1 }).limit(limit).lean());
     res.json({ actions });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1352,7 +1353,7 @@ router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
 
     res.json({ ...postureCache, cached: false });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

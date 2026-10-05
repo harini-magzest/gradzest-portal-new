@@ -195,6 +195,13 @@ const MAX_TOOL_ROUNDS = 4;
 // Roomy enough for a full email draft or a multi-step answer; the "short and direct" rule keeps normal replies short.
 const MAX_OUTPUT_TOKENS = 1500;
 
+function callModel(params, onText) {
+  if (!onText) return getClient().messages.create(params);
+  const stream = getClient().messages.stream(params);
+  stream.on('text', (delta) => onText(delta));
+  return stream.finalMessage();
+}
+
 /**
  * @param {string} question
  * @param {{ title: string, text: string }[]} chunks  top-matching knowledge-base chunks for this turn

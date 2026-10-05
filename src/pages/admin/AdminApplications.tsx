@@ -2,12 +2,14 @@
 import { Link } from 'react-router-dom';
 import {
   FileText, RefreshCw, Search, X, ChevronDown, AlertTriangle,
-  CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2, FileDown,
+  CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2, FileDown, Download,
   Users, Mail, Phone, CalendarDays, MessageCircle, Copy, Trash2, StickyNote,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadApplicationReportPdf } from '../../utils/applicationReportPdf';
 
 const ALL_STATUSES = [
   { value: 'draft',          label: 'Draft',          color: 'gray' },
@@ -40,7 +42,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function exportApplicationsToCSV(apps: any[]) {
-  const rows = apps.map(a => ({
+  exportRowsToCsv(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, apps.map(a => ({
     'Student Name':    a.studentName        || '',
     'Student Email':   a.studentEmail       || '',
     'Nationality':     a.studentNationality || '',
@@ -51,21 +53,7 @@ function exportApplicationsToCSV(apps: any[]) {
     'Submitted Date':  a.submittedDate      || '',
     'Updated Date':    a.updatedDate        || '',
     'Notes':           a.notes              || '',
-  }));
-
-  if (!rows.length) return;
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-  ].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `applications_export_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  })));
 }
 
 const LEAD_STATUSES = [
@@ -86,27 +74,14 @@ function whatsappNumber(phone: string) {
 }
 
 function exportSubscribersToCSV(subs: any[]) {
-  if (!subs.length) return;
-  const rows = subs.map(s => ({
+  exportRowsToCsv(`subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`, subs.map(s => ({
     'Name':          s.name  || '',
     'Email':         s.email || '',
     'Phone':         s.phone || '',
     'Status':        leadStatusOf(s).label,
     'Notes':         s.notes || '',
     'Registered On': s.subscribedAt ? new Date(s.subscribedAt).toISOString().slice(0, 10) : '',
-  }));
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-  ].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  })));
 }
 
 function SubscriberModal({
@@ -782,6 +757,15 @@ export default function AdminApplications() {
                       <div className="flex-shrink-0">
                         <StatusBadge status={app.status} />
                       </div>
+
+                      {/* Download report */}
+                      <button
+                        type="button"
+                        onClick={() => downloadApplicationReportPdf(app)}
+                        title="Download application report PDF"
+                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-purple-700 active:scale-95 transition-all">
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
 
                       {/* Update button */}
                       <button

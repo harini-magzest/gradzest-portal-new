@@ -189,6 +189,7 @@ const mailer = nodemailer.createTransport({
 require('./lib/emailLog').withEmailLog(mailer);
 app.set('mailer', mailer);
 require('./lib/criticalAlert').initCriticalAlert(mailer);
+require('./lib/zestAlert').initZestAlert(mailer);
 markActive('critical_alert', 'server/lib/criticalAlert.js — emails admins on new critical-severity incidents');
 
 // Public email subscription / free registration
@@ -287,6 +288,7 @@ app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
+ app.use('/api/dashboards',    require('./routes/dashboards'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');

@@ -1,3 +1,4 @@
+import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -28,10 +29,12 @@ export default function AppTeamDashboard() {
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([api.admin.applications(), api.admin.students(), api.admin.counselors()])
       .then(([a, s, c]) => { setApps(a); setStudents(s); setCounselors(c); })
+      .catch(err => setError(err.message || 'Could not load dashboard data. Refresh to try again.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -94,6 +97,9 @@ export default function AppTeamDashboard() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>
+      )}
       {/* Header — same orange banner as the other Application Team pages */}
       <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-3">
@@ -107,6 +113,8 @@ export default function AppTeamDashboard() {
         </div>
         <p className="text-orange-50 mt-3 text-sm">Overview of all applications, students, and counselor assignments</p>
       </div>
+
+      <WeeklyTrends />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

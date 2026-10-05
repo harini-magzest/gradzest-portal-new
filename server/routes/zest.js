@@ -119,8 +119,34 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
     const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
     res.json({ answer, sources });
   } catch (err) {
+    if (err instanceof ZestUnavailable) return res.status(503).json({ message: UNAVAILABLE });
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
+  }
+});
+
+// Same answer as /ask, delivered as server-sent events so the first words appear while the rest
+// is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
+// or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
+router.post('/ask-stream', authMiddleware, async (req, res) => {
+  const question = (req.body.question || '').trim().slice(0, 1000);
+  if (!question) return res.status(400).json({ message: 'question is required' });
+  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+
+  try {
+    const { answer, sources, degraded } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    send({ type: 'done', answer, sources, ...(degraded ? { degraded } : {}) });
+  } catch (err) {
+    if (!(err instanceof ZestUnavailable)) console.error('[zest/ask-stream]', err.message);
+    send({ type: 'error', message: err instanceof ZestUnavailable ? UNAVAILABLE : 'Zest could not answer right now. Please try again.' });
+  } finally {
+    res.end();
   }
 });
 

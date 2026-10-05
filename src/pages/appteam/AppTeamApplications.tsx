@@ -1,11 +1,12 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import jsPDF from 'jspdf';
 import { api } from '../../api';
+import { downloadApplicationReportPdf } from '../../utils/applicationReportPdf';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Search, X, ChevronRight, Download, FileText,
+  Search, X, ChevronRight, Download, FileDown, FileText,
   User, UserCog, Layers, Calendar, Clock, CheckCircle,
   AlertCircle, BookOpen, Globe, DollarSign, MessageSquare,
   Send, ChevronDown, ChevronUp, GraduationCap,
@@ -291,6 +292,15 @@ export default function AppTeamApplications() {
       });
   }, [enriched, search, statusFilter, counselorFilter]);
 
+  const handleExport = () => {
+    exportRowsToCsv(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, filtered.map(app => ({
+      'Student Name': app._student?.name || '', 'Student Email': app._student?.email || '',
+      Counselor: app._counselor?.name || '', University: app.universityName || '', Course: app.courseName || '',
+      Intake: app.intake || '', Status: app.status || '',
+      'Submitted Date': app.submittedDate || '', 'Updated Date': app.updatedDate || '',
+    })));
+  };
+
   const handleSelect = useCallback(async (app: any) => {
     setSelected(app);
     setDraftStatus(app.status);
@@ -323,150 +333,7 @@ export default function AppTeamApplications() {
 
   const downloadPDF = () => {
     if (!selected) return;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 18;
-    const contentW = pageW - margin * 2;
-    let y = 0;
-
-    const addPage = () => { doc.addPage(); y = 18; };
-    const checkY = (needed: number) => { if (y + needed > 275) addPage(); };
-
-    // ── Header banner ────────────────────────────────────────────────
-    doc.setFillColor(59, 7, 100);
-    doc.rect(0, 0, pageW, 36, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Student Application Report', margin, 16);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`, margin, 24);
-    const status = STATUS_MAP[selected.status];
-    doc.text(`Status: ${status?.label ?? selected.status}`, pageW - margin, 24, { align: 'right' });
-    y = 46;
-
-    // ── Section helper ───────────────────────────────────────────────
-    const sectionTitle = (title: string) => {
-      checkY(14);
-      doc.setFillColor(245, 243, 255);
-      doc.rect(margin, y, contentW, 8, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
-      doc.text(title, margin + 3, y + 5.5);
-      y += 12;
-    };
-
-    const row = (label: string, value: string, col = 0, cols = 1) => {
-      if (!value || value === '—') return;
-      checkY(10);
-      const colW = contentW / cols;
-      const x = margin + col * colW;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 140);
-      doc.text(label.toUpperCase(), x, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(30, 30, 30);
-      const lines = doc.splitTextToSize(value, colW - 4);
-      doc.text(lines, x, y + 5);
-      y += 5 + lines.length * 5 + 3;
-    };
-
-    const twoCol = (l1: string, v1: string, l2: string, v2: string) => {
-      checkY(14);
-      const colW = contentW / 2;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 140);
-      doc.text(l1.toUpperCase(), margin, y);
-      doc.text(l2.toUpperCase(), margin + colW, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(30, 30, 30);
-      doc.text(v1 || '—', margin, y + 5);
-      doc.text(v2 || '—', margin + colW, y + 5);
-      y += 14;
-    };
-
-    // ── Student Profile ──────────────────────────────────────────────
-    sectionTitle('Student Profile');
-    twoCol('Full Name',    selected._student?.name || '—', 'Email', selected._student?.email || '—');
-    twoCol('Nationality', selected._student?.nationality || '—', 'Education Level', selectedStudent?.educationLevel || '—');
-    twoCol('GPA',         selectedStudent?.gpa ? `${selectedStudent.gpa} / 4.0` : '—',
-           'English Score', selectedStudent?.englishScore ? `${selectedStudent.englishScore.type} ${selectedStudent.englishScore.score}` : '—');
-    twoCol('Budget',      selectedStudent?.budget ? `$${Number(selectedStudent.budget).toLocaleString()}` : '—',
-           'Preferred Countries', selectedStudent?.preferredCountries?.join(', ') || '—');
-    y += 2;
-
-    // ── Application Details ──────────────────────────────────────────
-    sectionTitle('Application Details');
-    twoCol('University', selected.universityName || '—', 'Course', selected.courseName || '—');
-    twoCol('Intake',     selected.intake || '—', 'Application Status', status?.label ?? selected.status);
-    twoCol('Submitted',  fmtDate(selected.submittedDate || selected.createdAt), 'Last Updated', fmtDate(selected.updatedDate || selected.updatedAt));
-    if (selected.notes || selected.processingNotes) {
-      row('Processing Notes', selected.notes || selected.processingNotes);
-    }
-    y += 2;
-
-    // ── Counselor ────────────────────────────────────────────────────
-    sectionTitle('Assigned Counselor');
-    if (selected._counselor) {
-      twoCol('Name', selected._counselor.name, 'Email', selected._counselor.email || '—');
-      if (selected._counselor.specialty) row('Specialty', selected._counselor.specialty);
-    } else {
-      doc.setFontSize(10); doc.setTextColor(160, 160, 160);
-      doc.setFont('helvetica', 'italic');
-      doc.text('No counselor assigned', margin, y); y += 10;
-    }
-    y += 2;
-
-    // ── Documents ────────────────────────────────────────────────────
-    sectionTitle(`Documents (${selectedStudent?.documents?.length ?? 0})`);
-    if (!selectedStudent?.documents?.length) {
-      doc.setFontSize(10); doc.setTextColor(160, 160, 160);
-      doc.setFont('helvetica', 'italic');
-      doc.text('No documents uploaded', margin, y); y += 10;
-    } else {
-      selectedStudent.documents.forEach((d: any, i: number) => {
-        checkY(12);
-        const bg = i % 2 === 0 ? [250, 248, 255] : [255, 255, 255];
-        doc.setFillColor(bg[0], bg[1], bg[2]);
-        doc.rect(margin, y - 3, contentW, 11, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(30, 30, 30);
-        doc.text(d.name || 'Document', margin + 3, y + 3.5);
-        const ds = d.type ? `${d.type}` : '';
-        const statusText = d.status ? ` · ${d.status.charAt(0).toUpperCase() + d.status.slice(1)}` : '';
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 120);
-        doc.text(ds + statusText, margin + 3, y + 8.5);
-        const fileLabel = d.url ? 'File uploaded' : 'No file';
-        doc.setTextColor(d.url ? 22 : 160, d.url ? 163 : 160, d.url ? 74 : 160);
-        doc.text(fileLabel, pageW - margin - 3, y + 3.5, { align: 'right' });
-        y += 12;
-      });
-    }
-
-    // ── Footer on every page ─────────────────────────────────────────
-    const totalPages = doc.getNumberOfPages();
-    for (let p = 1; p <= totalPages; p++) {
-      doc.setPage(p);
-      doc.setFillColor(245, 243, 255);
-      doc.rect(0, 288, pageW, 9, 'F');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(120, 100, 160);
-      doc.text('Gradzest — Student Application Report', margin, 294);
-      doc.text(`Page ${p} of ${totalPages}`, pageW - margin, 294, { align: 'right' });
-    }
-
-    const safeName = (selected._student?.name || 'student').replace(/\s+/g, '_');
-    doc.save(`${safeName}_application_report.pdf`);
+    downloadApplicationReportPdf(selected, { student: selectedStudent, counselor: selected._counselor });
   };
 
   if (loading) return (
@@ -536,6 +403,10 @@ export default function AppTeamApplications() {
             <GraduationCap className="w-3.5 h-3.5" /> Learning Hub
           </Link>
           <span className="text-xs text-gray-400 ml-auto">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+          <button type="button" onClick={handleExport} disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+            <FileDown className="w-3.5 h-3.5" /> Export CSV
+          </button>
           {(search || statusFilter !== 'all' || counselorFilter !== 'all') && (
             <button type="button" onClick={() => { setSearch(''); setStatusFilter('all'); setCounselorFilter('all'); }}
               className="text-xs text-orange-500 font-semibold hover:underline flex items-center gap-1">

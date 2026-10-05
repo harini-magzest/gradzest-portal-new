@@ -18,6 +18,8 @@ import StudentEditForm, { StudentProfileFields } from '../../components/StudentE
 import StudentNotes from '../../components/StudentNotes';
 import { usePermissions } from '../../hooks/usePermissions';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -426,21 +428,11 @@ function StudentsList() {
   const pct = (n: number) => source.length > 0 ? `${Math.round((n / source.length) * 100)}%` : '0%';
 
   const handleExport = () => {
-    const rows = filtered.map(s => ({
+    exportRowsToCsv('students.csv', filtered.map(s => ({
       Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
       Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: staffNames[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
-    }));
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [
-      headers.join(','),
-      ...rows.map(r => headers.map(h => JSON.stringify((r as Record<string, string>)[h] ?? '')).join(',')),
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = 'students.csv'; a.click();
-    URL.revokeObjectURL(url);
+    })));
   };
 
   const activeTags: { label: string; clear: () => void }[] = [];
@@ -905,6 +897,10 @@ function StudentDetail() {
               <Link to="/counselor/universities" className="flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
                 <Plus className="w-4 h-4" /> Application
               </Link>
+              <button type="button" onClick={() => downloadStudentProfilePdf(student, { counselorName: counselorName || undefined })}
+                className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                <Download className="w-4 h-4" /> Download Profile PDF
+              </button>
               {canEditStudent && !editing && (
                 <button type="button" onClick={() => setEditing(true)} className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
                   <Edit2 className="w-4 h-4" /> Edit Profile
