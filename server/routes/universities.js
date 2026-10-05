@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const University = require('../models/University');
 const { fetchEnrichmentData } = require('../lib/enrichUniversity');
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
     res.json(unis);
   } catch (err) {
     console.error('GET /api/universities error:', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -66,7 +67,7 @@ router.put('/:id/courses/:courseId/custom', authMiddleware, async (req, res) => 
     await uni.save();
     res.json(course);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -83,7 +84,7 @@ router.get('/:id', async (req, res) => {
     res.json(uni);
   } catch (err) {
     console.error('GET /api/universities/:id error:', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

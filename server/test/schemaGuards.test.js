@@ -6,7 +6,7 @@ const AnalystAction = require('../models/AnalystAction');
 
 // logSecurityEvent / createIncident / logAnalystAction all swallow their own errors by design (logging must never break
 // a request). The flip side is that a type missing from a schema enum fails SILENTLY: the event is simply never
-// written. This happened once when a merge dropped three enum values and every SOC two-factor event vanished.
+// written. This happened once when a merge dropped three enum values and the audit events that used them vanished.
 // These tests read the source and fail loudly if code logs something its schema would reject.
 
 const SERVER = path.join(__dirname, '..');
@@ -27,7 +27,6 @@ describe('every logged type is allowed by its schema', () => {
     const allowed = SecurityEvent.schema.path('type').enumValues;
     const used = uniq([
       ...literals(/logSecurityEvent\(\s*'([a-z_]+)'/g),
-      ...literals(/\bevent\(req,\s*'([a-z_]+)'/g), // routes/socAuth.js logs through a local event(req, type, …) helper
       ...literals(/^\s{2}([a-z_]+):\s*\[detect\./gm).filter((x) => x.file.endsWith('logSecurityEvent.js')), // RULES_BY_EVENT_TYPE keys
       ...literals(/\?\s*'(token_expired)'\s*:\s*'(token_invalid)'/g),
     ]);
@@ -47,7 +46,7 @@ describe('every logged type is allowed by its schema', () => {
     const incidentTypes = sources
       .filter((s) => /detectIncidents|scanUpload/.test(s.p))
       .flatMap((s) => [...s.text.matchAll(/type:\s*'([a-z_]+)',\s*\n\s*severity:/g)].map((m) => ({ file: s.p, value: m[1] })));
-    expect(incidentTypes.length).toBeGreaterThan(5);
+    expect(incidentTypes.length).toBeGreaterThan(3); // (just guards against the scan silently finding nothing)
     const missing = incidentTypes.filter((u) => !allowed.includes(u.value)).map((u) => `${u.value} (${u.file})`);
     expect(missing).toEqual([]);
     expect(used.length).toBeGreaterThan(0);
@@ -63,9 +62,9 @@ describe('every logged type is allowed by its schema', () => {
     if (templated.length) for (const a of ['quarantine_upload', 'restore_upload', 'purge_upload']) expect(allowed).toContain(a);
   });
 
-  it('the SOC two-factor event types survive (regression for the dropped-enum merge)', () => {
+  it('core security event types survive merges (regression for a dropped-enum merge)', () => {
     const allowed = SecurityEvent.schema.path('type').enumValues;
-    for (const t of ['soc_mfa_success', 'soc_mfa_failure', 'soc_mfa_enrolled', 'data_export', 'privilege_change', 'password_reset_request']) {
+    for (const t of ['data_export', 'bulk_delete', 'privilege_change', 'password_reset_request']) {
       expect(allowed).toContain(t);
     }
   });

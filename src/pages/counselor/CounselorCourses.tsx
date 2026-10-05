@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag } from 'lucide-react';
+import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag, Download } from 'lucide-react';
 import { api } from '../../api';
 import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -298,6 +299,14 @@ export default function CounselorCourses() {
   const results = useMemo(() => searchCourses(allCourses, filters, students), [allCourses, filters, students]);
   const opts = useMemo(() => filterOptions(allCourses), [allCourses]);
 
+  const handleExport = () => {
+    exportRowsToCsv('courses.csv', results.map((c: any) => ({
+      Course: c.name || '', Level: c.level || '', University: c.uniName || '',
+      City: c.city || '', Country: c.country || '', Duration: c.duration || '',
+      'Tuition Fee': c.tuitionFee || '', Currency: c.currency || '', Intake: (c.intake || []).join('; '),
+    })));
+  };
+
   const applyCustom = (course: any, data: { tags: string[]; customFields: { key: string; value: string }[] }) => {
     const cid = String(course._id || course.id);
     setUniversities(prev => prev.map(u => String(u.id || u._id) !== course.uniId ? u : {
@@ -327,14 +336,20 @@ export default function CounselorCourses() {
       )}
 
       <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <BookOpen className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
+              <h1 className="text-2xl font-bold leading-tight">Available Courses</h1>
+            </div>
           </div>
-          <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
-            <h1 className="text-2xl font-bold leading-tight">Available Courses</h1>
-          </div>
+          <button type="button" onClick={handleExport} disabled={results.length === 0}
+            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0">
+            <Download className="w-4 h-4" />Export CSV
+          </button>
         </div>
       </div>
 

@@ -12,7 +12,7 @@ import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';
 import SavedFilters from './SavedFilters';
 import DeviceDetails from './DeviceDetails';
-import { Mask } from './Mask';
+import { formatBucket } from './ui';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -77,6 +77,7 @@ export default function OverviewTab() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   // Live feed state — mirrors the pattern previously used for useActivityFeed.
   const [events, setEvents] = useState<SecurityEvent[]>([]);
@@ -96,14 +97,19 @@ export default function OverviewTab() {
   useEffect(() => { periodRef.current = period; }, [period]);
   const lastStatsRefresh = useRef(0);
 
+  // silent = background refresh: no spinner, and a failed refresh keeps the numbers already on screen.
   const loadStats = useCallback(async (p: Period, opts: { silent?: boolean } = {}) => {
     if (!opts.silent) { setLoading(true); setError(''); }
-    try { setStats(await api.soc.stats(p)); }
+    try { setStats(await api.soc.stats(p)); setUpdatedAt(new Date()); setError(''); }
     catch (err: any) { if (!opts.silent) setError(err.message || 'Failed to load stats.'); }
     if (!opts.silent) setLoading(false);
   }, []);
 
   useEffect(() => { loadStats(period); }, [loadStats, period]);
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) loadStats(period, { silent: true }); }, 60000);
+    return () => clearInterval(t);
+  }, [loadStats, period]);
 
   const fetchEvents = useCallback((skip: number) => api.soc.events({
     limit: 50, skip, q: feedFilters.q.trim() || undefined, type: feedFilters.type, severity: feedFilters.severity,
@@ -197,8 +203,9 @@ export default function OverviewTab() {
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => loadStats(period)} disabled={loading}
-          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50">
+        {updatedAt && <span className="ml-auto mr-2 text-[11px] text-gray-400 self-center" title="Refreshes automatically every minute">Updated {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+        <button type="button" onClick={() => loadStats(period)} disabled={loading} aria-label="Refresh"
+          className={`p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 ${updatedAt ? '' : 'ml-auto'}`}>
           <RefreshCw className={`w-4 h-4 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -232,9 +239,9 @@ export default function OverviewTab() {
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={stats.series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatBucket} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip />
+                    <Tooltip labelFormatter={(l: any) => formatBucket(String(l))} />
                     <Area type="monotone" dataKey="count" name="Events" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.15} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -352,11 +359,11 @@ export default function OverviewTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-sm font-semibold text-gray-900 truncate"><Mask value={e.email} fallback="Unknown" /></span>
+                    <span className="text-sm font-semibold text-gray-900 truncate">{e.email || 'Unknown'}</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
                     <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                   </div>
-                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? ` — ${e.message}` : ''}</p>
+                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? <> — {e.message}</> : ''}</p>
                   {e.userAgent && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{e.userAgent}</p>}
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums pt-0.5">{time}</span>

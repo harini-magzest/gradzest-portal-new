@@ -975,6 +975,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TeamWorkload />
+          <Funnel />
+        </div>
+        <WeeklyTrends />
+
         {/* Tab bar */}
         {!loading && (
           <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">

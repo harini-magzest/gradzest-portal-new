@@ -1,3 +1,4 @@
+import GlobalSearch from './dashboards/GlobalSearch';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
@@ -52,6 +53,11 @@ export default function DashboardTopbar({
       {/* Right cell */}
       <div className="flex-1 flex items-center px-4 md:px-6 min-w-0">
         <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+          {(user?.role === 'admin' || user?.role === 'counselor') && (
+            <div className="hidden md:block w-64 mr-2">
+              <GlobalSearch basePath={user.role === 'counselor' ? '/counselor/students' : '/admin/students'} />
+            </div>
+          )}
           <NotificationBell buttonClassName={`relative ${ICON_BTN}`} />
 
           <div className="relative" ref={profileRef}>

@@ -1,6 +1,7 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles } from 'lucide-react';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
@@ -17,6 +18,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/universities', label: 'Universities', icon: GraduationCap },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
+  { to: '/admin/meetings', label: 'Meetings', icon: Video },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { to: '/admin/zest', label: 'Zest', icon: Sparkles },
@@ -34,11 +36,12 @@ function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
 
 export default function AdminLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
   const unreadCount = useUnreadMessages();
   const newLeads = useNewLeadCount();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (user?.role !== 'admin') return <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
   const sidebarItems = navItems.map(item => ({
     to: item.to, label: item.label, end: item.end,

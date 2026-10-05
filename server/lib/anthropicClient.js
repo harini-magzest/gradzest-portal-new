@@ -18,6 +18,13 @@ function getClient() {
   return client;
 }
 
+// Test-only seam, same shape as initCriticalAlert's mailer injection (lib/criticalAlert.js) —
+// lets tests substitute a fake { messages: { create, stream } } client instead of hitting the
+// real Anthropic API. Never called in production: nothing in server/ invokes this outside tests.
+function setAnthropicClientForTests(fakeClient) {
+  client = fakeClient;
+}
+
 function isZestConfigured() {
   return !!(process.env.ANTHROPIC_API_KEY && Anthropic);
 }
@@ -145,6 +152,13 @@ function buildSystemPrompt(role) {
 
 const MAX_TOOL_ROUNDS = 4;
 
+function callModel(params, onText) {
+  if (!onText) return getClient().messages.create(params);
+  const stream = getClient().messages.stream(params);
+  stream.on('text', (delta) => onText(delta));
+  return stream.finalMessage();
+}
+
 /**
  * @param {string} question
  * @param {{ title: string, text: string }[]} chunks  top-matching knowledge-base chunks for this turn
@@ -152,9 +166,10 @@ const MAX_TOOL_ROUNDS = 4;
  * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin')
  * @param {string} [attachedDocText]  text of a one-off document the user attached to this turn, if any
  * @param {{ id: string, role: string }} [user]  the authenticated caller, for tool scoping (required if role !== 'student')
+ * @param {(delta: string) => void} [onText]  if given, receives answer text as it is generated
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
-async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null) {
+async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null) {
   if (!isZestConfigured()) throw new Error('Zest is not configured (missing ANTHROPIC_API_KEY)');
 
   const context = chunks.length
@@ -181,7 +196,7 @@ async function askZest(question, chunks, history = [], role = 'student', attache
   };
   if (tools.length) createParams.tools = tools;
 
-  let message = await getClient().messages.create({ ...createParams, messages });
+  let message = await callModel({ ...createParams, messages }, onText);
 
   // Tool-use loop: Claude asks for live data, we fetch it (scoped to `user`), hand it back, and
   // let Claude continue — capped so a confused model can't loop forever on our dime.
@@ -195,11 +210,11 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     }
     messages.push({ role: 'assistant', content: message.content });
     messages.push({ role: 'user', content: toolResults });
-    message = await getClient().messages.create({ ...createParams, messages });
+    message = await callModel({ ...createParams, messages }, onText);
   }
 
   const text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
   return { text, toolsUsed };
 }
 
-module.exports = { askZest, isZestConfigured, buildSystemPrompt };
+module.exports = { askZest, isZestConfigured, buildSystemPrompt, setAnthropicClientForTests };

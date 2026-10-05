@@ -16,7 +16,7 @@ export function SocSocketProvider({ children }: { children: ReactNode }) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const s: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    const s: Socket = io(import.meta.env.VITE_API_URL || '', {
       auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
       reconnectionAttempts: 10, reconnectionDelay: 2000, reconnectionDelayMax: 10000,
     });

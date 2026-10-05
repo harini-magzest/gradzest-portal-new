@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { ClipboardCheck, Eye, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import { api } from '../../api';
 import { useSocSocket } from './SocketContext';
-import { Mask } from './Mask';
+import { ErrorBanner, Spinner, errorText } from './ui';
 
 interface TopAccessor { _id: string; accessorEmail: string; accessorRole: string; totalAccesses: number; uniqueApplicants: number }
 interface PiiAccess { _id: string; accessorEmail: string; accessorRole: string; applicantEmail: string; fieldsAccessed: string[]; accessType: string; createdAt: string }
-interface AnalystAction { _id: string; analystEmail: string; action: string; targetType: string; targetId: string; reason: string; createdAt: string }
+interface AnalystAction { _id: string; analystName?: string; targetLabel?: string; analystEmail: string; action: string; targetType: string; targetId: string; reason: string; createdAt: string }
 
 const ACTION_LABEL: Record<string, string> = {
   block_ip: 'Blocked IP', unblock_ip: 'Unblocked IP', revoke_user_sessions: 'Revoked sessions',
@@ -14,6 +14,8 @@ const ACTION_LABEL: Record<string, string> = {
   bulk_block_ip: 'Bulk-blocked IPs', revoke_session: 'Revoked one session', force_password_reset: 'Forced password reset',
   add_suppression: 'Added suppression rule', remove_suppression: 'Removed suppression rule',
 };
+// Anything not listed above (newer actions) still reads as words, not a raw code.
+const actionLabel = (a: string) => ACTION_LABEL[a] || a.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 
 interface ChainStatus { ok: boolean; checked: number; unchained: number; brokenAt: { createdAt: string; action: string } | null }
 
@@ -38,9 +40,7 @@ export default function AuditTab() {
       setTopAccessors(pii.topAccessors || []);
       setRecentAccesses(pii.recentAccesses || []);
       setActions(trail.actions || []);
-    } catch (err: any) {
-      setError(err.message || 'Could not load audit data.');
-    }
+    } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, []);
 
@@ -49,13 +49,15 @@ export default function AuditTab() {
   useEffect(() => {
     if (!socket) return;
     const onPiiAccess = () => load();
-    const onAnalystAction = (entry: AnalystAction) => setActions(prev => [entry, ...prev].slice(0, 50));
+    // The pushed entry only carries ids; refetch so names and targets are resolved like every other row.
+    const onAnalystAction = () => { api.soc.auditTrail().then(t => setActions(t.actions || [])).catch(() => {}); };
     socket.on('pii_access', onPiiAccess);
     socket.on('analyst_action', onAnalystAction);
     return () => { socket.off('pii_access', onPiiAccess); socket.off('analyst_action', onAnalystAction); };
   }, [socket, load]);
 
-  if (loading) return <div className="p-8 text-center text-sm text-gray-400">Loading…</div>;
+  if (loading) return <Spinner />;
+  if (error) return <ErrorBanner message={error} onRetry={load} />;
 
   return (
     <div className="space-y-6">
@@ -81,7 +83,7 @@ export default function AuditTab() {
               <tbody>
                 {topAccessors.map(a => (
                   <tr key={a._id} className="border-b border-gray-50 last:border-0">
-                    <td className="py-2 pr-4 font-medium text-gray-800"><Mask value={a.accessorEmail} /></td>
+                    <td className="py-2 pr-4 font-medium text-gray-800">{a.accessorEmail}</td>
                     <td className="py-2 pr-4 text-gray-500 capitalize">{a.accessorRole}</td>
                     <td className="py-2 pr-4">
                       <span className={a.uniqueApplicants >= 30 ? 'text-red-600 font-semibold' : 'text-gray-700'}>{a.uniqueApplicants}</span>
@@ -107,9 +109,9 @@ export default function AuditTab() {
             {recentAccesses.map(a => (
               <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
                 <div className="min-w-0">
-                  <span className="font-medium text-gray-800"><Mask value={a.accessorEmail} /></span>
+                  <span className="font-medium text-gray-800">{a.accessorEmail}</span>
                   <span className="text-gray-400"> viewed </span>
-                  <span className="font-medium text-gray-800"><Mask value={a.applicantEmail} /></span>
+                  <span className="font-medium text-gray-800">{a.applicantEmail}</span>
                   <span className="text-xs text-gray-400 ml-2">{a.fieldsAccessed.join(', ')}</span>
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
@@ -130,7 +132,7 @@ export default function AuditTab() {
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
-              <ShieldAlert className="w-3 h-3" /> Chain broken at {chain.brokenAt ? `${ACTION_LABEL[chain.brokenAt.action] || chain.brokenAt.action}, ${formatTime(chain.brokenAt.createdAt)}` : 'an unknown entry'} — the log was modified
+              <ShieldAlert className="w-3 h-3" /> Chain broken at {chain.brokenAt ? `${actionLabel(chain.brokenAt.action)}, ${formatTime(chain.brokenAt.createdAt)}` : 'an unknown entry'} — the log was modified
             </span>
           ))}
           <button type="button" onClick={() => api.soc.download('/audit-trail/export.csv', 'soc-audit-trail.csv').catch(() => {})}
@@ -145,9 +147,9 @@ export default function AuditTab() {
             {actions.map(a => (
               <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
                 <div className="min-w-0">
-                  <span className="font-medium text-gray-800"><Mask value={a.analystEmail} /></span>
-                  <span className="text-gray-400"> · {ACTION_LABEL[a.action] || a.action} · </span>
-                  <span className="font-mono text-xs text-gray-600">{a.targetId}</span>
+                  <span className="font-medium text-gray-800" title={a.analystEmail}>{a.analystName || a.analystEmail}</span>
+                  <span className="text-gray-400"> · {actionLabel(a.action)} · </span>
+                  <span className="text-xs text-gray-700" title={a.targetId}>{a.targetLabel || a.targetId}</span>
                   {a.reason && <span className="text-xs text-gray-400 ml-2">({a.reason})</span>}
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>

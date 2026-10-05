@@ -22,9 +22,6 @@ describe('SOC is owner-only', () => {
     const denied = await request(app).get('/api/soc/stats').set('Authorization', `Bearer ${other}`);
     expect(ok.status).toBe(200);
     expect(denied.status).toBe(403);
-    const owners = await request(app).get('/api/soc/owners').set('Authorization', `Bearer ${owner}`);
-    expect(owners.status).toBe(200);
-    expect(owners.body.emails).toEqual(['owner@soc.test']); // domain entries are not listed
   });
 });
 

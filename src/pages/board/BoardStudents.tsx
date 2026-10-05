@@ -2,6 +2,8 @@ import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../../api';
 import { Search, X, ChevronRight, User, FileText, Download, Layers, UserCog } from 'lucide-react';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100' },
@@ -65,6 +67,14 @@ export default function BoardStudents() {
     );
   }, [students, search]);
 
+  const handleExport = () => {
+    exportRowsToCsv('students.csv', filtered.map(s => ({
+      Name: s.name || '', Email: s.email || '', Phone: s.phone || '', Nationality: s.nationality || '',
+      Status: s.status || '', Counselor: counselorMap[s.counselorId?._id || s.counselorId]?.name || 'Unassigned',
+      Applications: String(appsByStudent[s._id || s.id]?.length || 0), 'Joined Date': s.joinedDate || '',
+    })));
+  };
+
   const selectStudent = useCallback(async (s: any) => {
     setSelected(s);
     setDetail(null);
@@ -97,7 +107,13 @@ export default function BoardStudents() {
       {/* Left list */}
       <div className={`flex flex-col border-r border-gray-200 bg-white ${selected ? 'hidden lg:flex w-72' : 'flex-1'}`}>
         <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-base font-bold text-gray-900 mb-2">Students <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-base font-bold text-gray-900">Students <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
+            <button type="button" onClick={handleExport} title="Export CSV"
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors">
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -150,7 +166,15 @@ export default function BoardStudents() {
                 <p className="text-xs text-gray-500">{selected.email}</p>
               </div>
             </div>
-            {selected.status && <Pill status={selected.status} />}
+            <div className="flex items-center gap-2">
+              {selected.status && <Pill status={selected.status} />}
+              <button type="button"
+                onClick={() => downloadStudentProfilePdf({ ...selected, ...(detail || {}), applications: studentApps }, { counselorName: assignedCounselor?.name, counselorEmail: assignedCounselor?.email })}
+                title="Download Profile PDF"
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors">
+                <Download className="w-3.5 h-3.5" /> PDF
+              </button>
+            </div>
           </div>
 
           <div className="p-6 space-y-5">

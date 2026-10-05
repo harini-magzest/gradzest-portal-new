@@ -30,6 +30,7 @@ export default function ZestWidget() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -60,17 +61,35 @@ export default function ZestWidget() {
     };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
+    if (file) {
+      try {
+        const { answer, sources } = await api.zest.askWithFile(question, file, history);
+        setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: answer, sources }]);
+      } catch (err: any) {
+        setMessages(prev => [...prev, {
+          id: `e-${Date.now()}`, role: 'assistant', error: true,
+          text: err?.message || "Zest couldn't answer that right now. Please try again.",
+        }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    const replyId = `a-${Date.now()}`;
+    setMessages(prev => [...prev, { id: replyId, role: 'assistant', text: '' }]);
+    setStreamingId(replyId);
     try {
-      const { answer, sources } = file
-        ? await api.zest.askWithFile(question, file, history)
-        : await api.zest.ask(question, history);
-      setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: answer, sources }]);
+      const { answer, sources } = await api.zest.askStream(question, history, (delta) => {
+        setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: m.text + delta } : m)));
+      });
+      setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: answer, sources } : m)));
     } catch (err: any) {
-      setMessages(prev => [...prev, {
-        id: `e-${Date.now()}`, role: 'assistant', error: true,
-        text: err?.message || "Zest couldn't answer that right now. Please try again.",
-      }]);
+      setMessages(prev => prev.map(m => (m.id === replyId ? {
+        ...m, error: true, text: err?.message || "Zest couldn't answer that right now. Please try again.",
+      } : m)));
     } finally {
+      setStreamingId(null);
       setLoading(false);
     }
   };
@@ -114,7 +133,7 @@ export default function ZestWidget() {
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
-          {messages.map(m => (
+          {messages.filter(m => !(m.id === streamingId && !m.text)).map(m => (
             <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                 m.role === 'user'
@@ -134,7 +153,7 @@ export default function ZestWidget() {
               </div>
             </div>
           ))}
-          {loading && (
+          {loading && !(streamingId && messages.find(m => m.id === streamingId)?.text) && (
             <div className="flex justify-start">
               <div className="bg-white border border-gray-100 shadow-sm rounded-2xl px-4 py-2.5 flex gap-1 items-center">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />

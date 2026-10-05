@@ -18,14 +18,37 @@ const { scoreRequest } = require('../lib/skyload/botDetection');
 const { tryAcquire, release } = require('../lib/skyload/connectionThrottle');
 const { bump } = require('../lib/skyload/riskRegistry');
 const { logSecurityEvent } = require('./logSecurityEvent');
+const jwt = require('jsonwebtoken');
 
 const BOT_FLAG_THRESHOLD = 4;
+
+// A signed-in full admin using the SOC is not a bot, even though one dashboard load legitimately fires a couple of dozen
+// parallel requests. Scoring those as "bot-fast" raised the owner's own IP risk, which cut that IP's concurrent-request
+// allowance from 15 to 4 for ten minutes — so sections of the dashboard intermittently failed to load. Requests under
+// /api/soc carrying a valid full-admin token are therefore neither scored nor throttled (they are still authenticated,
+// authorised as owner and audited by the SOC routes themselves). Everything else, including every unauthenticated
+// request and every non-admin token, is treated exactly as before.
+// Uses originalUrl so it also works when called from a limiter mounted under /api (where req.path is relative), and
+// matches /api/soc exactly or /api/soc/… — never a lookalike such as /api/socks.
+function isTrustedSocAdmin(req) {
+  const path = String(req.originalUrl || req.url || req.path || '').split('?')[0];
+  if (path !== '/api/soc' && !path.startsWith('/api/soc/')) return false;
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return false;
+  try {
+    const p = jwt.verify(token, process.env.JWT_SECRET);
+    return p.role === 'admin' && !p.isAppTeam;
+  } catch {
+    return false;
+  }
+}
 
 function skyload(req, res, next) {
   // Monitoring/health-check traffic is expected to look "bot-like" (no
   // browser headers, high frequency from uptime checkers) — exempt it
   // rather than generate constant false flags against legitimate infra.
   if (req.path === '/api/health') return next();
+  if (isTrustedSocAdmin(req)) return next();
 
   if (!tryAcquire(req.ip)) {
     return res.status(429).json({ message: 'Too many concurrent requests from this connection. Please slow down.' });
@@ -50,4 +73,4 @@ function skyload(req, res, next) {
   next();
 }
 
-module.exports = { skyload };
+module.exports = { skyload, isTrustedSocAdmin };
