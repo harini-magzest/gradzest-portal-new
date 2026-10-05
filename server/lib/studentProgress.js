@@ -8,7 +8,7 @@ async function checklistFor(studentId) {
   const Country = require('../models/Country');
   const University = require('../models/University');
   const mongoose = require('mongoose');
-  const student = await User.findOne({ _id: studentId, role: 'student' }).select('documents preferredCountries applications').lean();
+  const student = await User.findOne({ _id: studentId, role: 'student' }).select('documents preferredCountries applications passport').lean();
   if (!student) return null;
   const apps = student.applications || [];
   const ids = apps.map((a) => a.universityId).filter((id) => id && mongoose.isValidObjectId(id));
@@ -26,4 +26,11 @@ async function timelineFor(studentId) {
   return student ? { applications: buildTimeline(student.applications || []) } : null;
 }
 
-module.exports = { checklistFor, timelineFor };
+// The one thing the student should do next (see nextStep.js).
+async function nextStepForStudent(studentId) {
+  const [checklist, timeline] = await Promise.all([checklistFor(studentId), timelineFor(studentId)]);
+  if (!checklist || !timeline) return null;
+  return require('./nextStep').nextStepFor(checklist, timeline.applications);
+}
+
+module.exports = { checklistFor, timelineFor, nextStepForStudent };
