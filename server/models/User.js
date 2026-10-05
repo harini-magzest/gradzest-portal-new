@@ -281,6 +281,13 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
+  // Universities the student has saved to compare (see GET /api/students/me/shortlist). `universityId` is the
+  // university's short id (or _id); capped at 20 by the route.
+  shortlist: {
+    type: [{ _id: false, universityId: { type: String, required: true }, addedAt: { type: Date, default: Date.now } }],
+    default: undefined,
+  },
+
   // Short code a student shares so friends can sign up as their referral (see lib/referrals.js). Created on first use.
   referralCode: { type: String, unique: true, sparse: true },
 

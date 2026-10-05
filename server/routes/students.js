@@ -91,6 +91,42 @@ router.put('/me', authMiddleware, async (req, res) => {
 // are allowed to see (/:id/...). `me` routes are declared first so "me" is never read as a student id.
 const asStudent = (req, res, next) => (req.user.role === 'student' ? next() : res.status(403).json({ message: 'Forbidden' }));
 
+// Universities a student has saved to compare. Capped so the list stays a shortlist.
+const SHORTLIST_MAX = 20;
+
+router.get('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const { findUniversity } = require('../lib/findUniversity');
+    const { summarise } = require('../lib/universityCompare');
+    const me = await User.findById(req.user.id).select('shortlist').lean();
+    const unis = await Promise.all((me?.shortlist || []).map((s) => findUniversity(s.universityId)));
+    // A university deleted since it was saved just drops out of the list
+    res.json(unis.filter(Boolean).map(summarise));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const { findUniversity } = require('../lib/findUniversity');
+    const uni = await findUniversity(req.body?.universityId);
+    if (!uni) return res.status(404).json({ message: 'University not found' });
+    const universityId = uni.id || String(uni._id);
+    const me = await User.findById(req.user.id).select('shortlist').lean();
+    const list = me?.shortlist || [];
+    if (list.some((s) => s.universityId === universityId)) return res.json({ universityId, saved: true, count: list.length });
+    if (list.length >= SHORTLIST_MAX) return res.status(409).json({ message: `Your shortlist is full (${SHORTLIST_MAX}). Remove one to add another.` });
+    await User.updateOne({ _id: req.user.id, 'shortlist.universityId': { $ne: universityId } }, { $push: { shortlist: { universityId, addedAt: new Date() } } });
+    res.status(201).json({ universityId, saved: true, count: list.length + 1 });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.delete('/me/shortlist/:universityId', authMiddleware, asStudent, async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.user.id }, { $pull: { shortlist: { universityId: req.params.universityId } } });
+    res.json({ universityId: req.params.universityId, saved: false });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
 router.get('/me/checklist', authMiddleware, asStudent, async (req, res) => {
   try {
     const result = await checklistFor(req.user.id);
