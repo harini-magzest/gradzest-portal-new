@@ -650,15 +650,19 @@ router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) 
   if (!text) return res.status(400).json({ message: 'Note text is required' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const author = await User.findById(req.user.id).select('name');
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $push: { counselorNotes: { text: text.trim(), counselorId: req.user.id, counselorName: author?.name || 'Counselor' } } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Student not found' });
-    recordStaffActivity(req, { kind: 'note', title: 'Note added', detail: text.trim().slice(0, 140), studentId: user._id, studentName: user.name });
-    res.json(user.toJSON());
+    const author = await User.findById(req.user.id).select('name').lean();
+    const student = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'student' },
+      { $push: { counselorNotes: { text, visibility, counselorId: String(req.user.id), counselorName: author?.name || 'Staff' } } },
+      { new: true, projection: { name: 1, counselorNotes: 1 } },
+    ).lean();
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    // The activity log is shared with other staff, so it records that a note was added, never its text
+    recordStaffActivity(req, {
+      kind: 'note', title: visibility === 'public' ? 'Public note added' : 'Private note added',
+      studentId: student._id, studentName: student.name,
+    });
+    res.status(201).json({ notes: notesFor(student, req.user.id) });
   } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
@@ -673,13 +677,13 @@ router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req
   }
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const user = await User.findOneAndUpdate(
-      { _id: req.params.id, 'counselorNotes._id': req.params.noteId },
-      { $set: { 'counselorNotes.$.text': text.trim() } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Not found' });
-    res.json(user.toJSON());
+    const { student, note } = await loadNote(req, res);
+    if (!note) return;
+    if (!isAuthor(note, req.user.id)) return res.status(403).json({ message: 'Only the author can edit this note' });
+    if (text !== undefined) note.text = text;
+    if (visibility !== undefined) note.visibility = visibility;
+    await student.save();
+    res.json({ notes: notesFor(student, req.user.id) });
   } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
@@ -688,13 +692,14 @@ router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $pull: { counselorNotes: { _id: req.params.noteId } } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Not found' });
-    res.json(user.toJSON());
+    const { student, note } = await loadNote(req, res);
+    if (!note) return;
+    if (!isAuthor(note, req.user.id) && !(req.user.role === 'admin' && isPublic(note))) {
+      return res.status(403).json({ message: 'Only the author can delete this note' });
+    }
+    student.counselorNotes.pull(note._id);
+    await student.save();
+    res.json({ notes: notesFor(student, req.user.id) });
   } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
