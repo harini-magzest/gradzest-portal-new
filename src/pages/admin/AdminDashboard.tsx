@@ -1,11 +1,9 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users, UserCog, FileText, Activity, Plus, Trash2, X, Shield,
-  Eye, EyeOff, Check, UserPlus, Search, ExternalLink,
+  Eye, EyeOff, Check, UserPlus, Search,
   ToggleLeft, ToggleRight, Info, GraduationCap, RefreshCw, AlertTriangle, UserCheck, MessageSquare,
-  ChevronDown, ChevronUp, BookOpen, DollarSign, MapPin, CheckCircle,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
@@ -125,16 +123,6 @@ function Spinner({ size = 4, white = false }: { size?: number; white?: boolean }
   return <span className={`w-${size} h-${size} border-2 ${white ? 'border-white/40 border-t-white' : 'border-gray-300 border-t-gray-600'} rounded-full animate-spin inline-block`} />;
 }
 
-function DetailRow({ label, value }: { label: string; value?: any }) {
-  if (value === null || value === undefined || value === '') return null;
-  return (
-    <div className="flex gap-2 py-1.5 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-400 w-36 flex-shrink-0">{label}</span>
-      <span className="text-xs text-gray-800 font-medium flex-1">{String(value)}</span>
-    </div>
-  );
-}
-
 function normalId(obj: any) { return (obj?._id || obj?.id)?.toString() ?? ''; }
 
 function counselorPerf(counselor: any, allStudents: any[]) {
@@ -169,420 +157,6 @@ function counselorPerf(counselor: any, allStudents: any[]) {
       { label: 'Student Portfolio', value: Math.round(portfolioRate * 100), bar: 'bg-purple-500' },
     ],
   };
-}
-
-// ── Student detail modal ─────────────────────────────────────────────────────
-
-function StudentDetailModal({ student, counselorName, onClose, onChat, onNewApplication }: { student: any; counselorName?: string; onClose: () => void; onChat?: () => void; onNewApplication?: () => void }) {
-  const initials = student.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-4xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
-
-        {/* Header banner */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 pt-6 pb-5 flex-shrink-0">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0">
-                {initials}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">{student.name}</h2>
-                <p className="text-purple-200 text-sm mt-0.5">{student.email}</p>
-                <p className="flex items-center gap-1 text-purple-100 text-xs mt-1" title="Assigned counselor">
-                  <UserCog className="w-3.5 h-3.5" /> {counselorName || 'Unassigned'}
-                </p>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <StatusBadge status={student.status} />
-                  {student.nationality && (
-                    <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full font-medium border border-white/20">{student.nationality}</span>
-                  )}
-                  {student.educationLevel && (
-                    <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full font-medium border border-white/20">{student.educationLevel}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} aria-label="Close"
-              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0 mt-0.5">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="grid grid-cols-4 gap-3 mt-5">
-            {[
-              { label: 'Applications', value: student.applications?.length ?? 0 },
-              { label: 'Documents', value: student.documents?.length ?? 0 },
-              { label: 'GPA', value: student.gpa ?? '—' },
-              { label: 'Budget', value: student.budget ? `$${Number(student.budget).toLocaleString()}` : '—' },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-purple-200 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Left column */}
-            <div className="space-y-5">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Personal Information</p>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <DetailRow label="Phone" value={student.phone} />
-                  <DetailRow label="Nationality" value={student.nationality} />
-                  <DetailRow label="Date of Birth" value={student.dateOfBirth} />
-                  <DetailRow label="Gender" value={student.gender} />
-                  <DetailRow label="Status" value={student.status} />
-                  <DetailRow label="Joined" value={student.joinedDate} />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Academic Profile</p>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <DetailRow label="Education Level" value={student.educationLevel} />
-                  <DetailRow label="GPA" value={student.gpa} />
-                  {student.englishScore?.score && (
-                    <DetailRow label="English Score" value={`${student.englishScore.type} — ${student.englishScore.score}`} />
-                  )}
-                  <DetailRow label="Budget" value={student.budget ? `$${Number(student.budget).toLocaleString()}` : undefined} />
-                </div>
-              </div>
-              {student.preferredCountries?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Countries</p>
-                  <div className="flex flex-wrap gap-2">
-                    {student.preferredCountries.map((c: string) => (
-                      <span key={c} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium border border-purple-100">{c}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {student.interestedCourses?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Interested Courses</p>
-                  <div className="flex flex-wrap gap-2">
-                    {student.interestedCourses.map((c: string) => (
-                      <span key={c} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-medium border border-indigo-100">{c}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right column */}
-            <div className="space-y-5">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                  Applications{student.applications?.length > 0 ? ` (${student.applications.length})` : ''}
-                </p>
-                {student.applications?.length > 0 ? (
-                  <div className="space-y-2">
-                    {[...student.applications].sort((a: any, b: any) => new Date(b.updatedDate || b.updatedAt || b.submittedDate || b.createdAt || 0).getTime() - new Date(a.updatedDate || a.updatedAt || a.submittedDate || a.createdAt || 0).getTime()).map((app: any, i: number) => (
-                      <Link key={app._id || i} to={`/university/${app.universityId}`}
-                        className="bg-gray-50 hover:bg-blue-50 rounded-xl p-3 flex items-start gap-3 border border-gray-100 transition-colors group">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 group-hover:text-[#0d1b4b]">{app.universityName}</p>
-                          <p className="text-xs text-gray-500">{app.courseName}</p>
-                          {app.intake && <p className="text-xs text-gray-400">{app.intake}</p>}
-                        </div>
-                        <StatusBadge status={app.status} />
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 text-center">
-                    <p className="text-sm text-gray-400">No applications yet</p>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                  Documents{student.documents?.length > 0 ? ` (${student.documents.length})` : ''}
-                </p>
-                {student.documents?.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {student.documents.map((doc: any, i: number) => (
-                      <div key={doc._id || i} className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-center justify-between border border-gray-100">
-                        <div>
-                          <p className="text-xs font-medium text-gray-900">{doc.name}</p>
-                          <p className="text-xs text-gray-400">{doc.type}{doc.uploadedDate ? ` · ${doc.uploadedDate}` : ''}</p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {doc.url && (
-                            <a href={uploadUrl(doc.url)} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-200 font-medium transition-colors">
-                              <ExternalLink className="w-3 h-3" /> Open
-                            </a>
-                          )}
-                          <StatusBadge status={doc.status} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 text-center">
-                    <p className="text-sm text-gray-400">No documents uploaded</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 flex gap-3">
-          {onChat && (
-            <button type="button" onClick={onChat}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-                text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 shadow-md
-                active:scale-[0.98] transition-all">
-              <MessageSquare className="w-4 h-4" />Chat
-            </button>
-          )}
-          {onNewApplication && (
-            <button type="button" onClick={onNewApplication}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-                text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 shadow-md
-                active:scale-[0.98] transition-all">
-              <Plus className="w-4 h-4" />New Application
-            </button>
-          )}
-          <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Counselor detail modal ───────────────────────────────────────────────────
-
-function CounselorDetailModal({ counselor, students, onClose, onChat }: { counselor: any; students: any[]; onClose: () => void; onChat?: () => void }) {
-  const initials = counselor.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  const assignedIds: string[] = (counselor.assignedStudents ?? []).map((id: any) => id.toString());
-  const assignedStudentDetails = students.filter(s => assignedIds.includes(normalId(s)));
-  const perf = counselorPerf(counselor, students);
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-5xl h-[93vh] flex flex-col shadow-2xl overflow-hidden">
-
-        {/* Header banner */}
-        <div className="bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-600 px-6 pt-6 pb-5 flex-shrink-0">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0">
-                {initials}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">{counselor.name}</h2>
-                {counselor.title && <p className="text-purple-200 text-sm font-medium mt-0.5">{counselor.title}</p>}
-                <p className="text-purple-300 text-xs mt-0.5">{counselor.email}</p>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {counselor.phone && <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full border border-white/20">{counselor.phone}</span>}
-                  {counselor.nationality && <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full border border-white/20">{counselor.nationality}</span>}
-                  {counselor.experience !== undefined && <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full border border-white/20">{counselor.experience}y exp</span>}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 flex-shrink-0">
-              <div className="bg-white/15 border border-white/25 rounded-2xl px-5 py-3 text-center">
-                <p className="text-3xl font-extrabold text-white leading-none">{perf.score}</p>
-                <p className="text-xs font-semibold text-purple-200 mt-1">{perf.tier}</p>
-              </div>
-              <button type="button" onClick={onClose} aria-label="Close"
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all mt-0.5">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-3 mt-5">
-            {[
-              { label: 'Students', value: perf.studentCount },
-              { label: 'Applications', value: perf.submitted },
-              { label: 'Offers', value: perf.offers },
-              { label: 'Accepted', value: perf.accepted },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-purple-200 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Left column */}
-            <div className="space-y-5">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Performance Metrics</p>
-                <div className={`rounded-xl border p-4 ${perf.bg}`}>
-                  <div className="space-y-3">
-                    {perf.metrics.map(m => (
-                      <div key={m.label}>
-                        <div className="flex justify-between text-xs text-gray-700 mb-1.5">
-                          <span className="font-medium">{m.label}</span>
-                          <span className="font-bold">{m.value}%</span>
-                        </div>
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: 10 }, (_, i) => (
-                            <div key={i} className={`h-2 flex-1 rounded-sm ${i < Math.round(m.value / 10) ? m.bar : 'bg-gray-200'}`} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {counselor.bio && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Work Update</p>
-                  <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                    <p className="text-sm text-gray-700 leading-relaxed">{counselor.bio}</p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Profile</p>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <DetailRow label="Experience" value={counselor.experience !== undefined ? `${counselor.experience} years` : undefined} />
-                  <DetailRow label="Phone" value={counselor.phone} />
-                  <DetailRow label="Nationality" value={counselor.nationality} />
-                  <DetailRow label="Date of Birth" value={counselor.dateOfBirth} />
-                  <DetailRow label="Gender" value={counselor.gender} />
-                </div>
-              </div>
-
-              {counselor.address && (counselor.address.city || counselor.address.country) && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Address</p>
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    {counselor.address.street && <DetailRow label="Street" value={counselor.address.street} />}
-                    <DetailRow label="City" value={counselor.address.city} />
-                    <DetailRow label="State / Province" value={counselor.address.state} />
-                    <DetailRow label="Country" value={counselor.address.country} />
-                    <DetailRow label="Postal Code" value={counselor.address.postalCode} />
-                  </div>
-                </div>
-              )}
-
-              {counselor.educationBackground && (counselor.educationBackground.degree || counselor.educationBackground.institution) && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Education</p>
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <DetailRow label="Degree" value={counselor.educationBackground.degree} />
-                    <DetailRow label="Institution" value={counselor.educationBackground.institution} />
-                    <DetailRow label="Graduation Year" value={counselor.educationBackground.graduationYear} />
-                  </div>
-                </div>
-              )}
-
-              {(counselor.linkedIn || counselor.website) && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Online Presence</p>
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <DetailRow label="LinkedIn" value={counselor.linkedIn} />
-                    <DetailRow label="Website" value={counselor.website} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right column */}
-            <div className="space-y-5">
-              {counselor.specialization?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Specializations</p>
-                  <div className="flex flex-wrap gap-2">
-                    {counselor.specialization.map((s: string) => (
-                      <span key={s} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium border border-purple-100">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {counselor.languages?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Languages</p>
-                  <div className="flex flex-wrap gap-2">
-                    {counselor.languages.map((l: string) => (
-                      <span key={l} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium border border-purple-100">{l}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {counselor.certifications?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Certifications</p>
-                  <div className="flex flex-wrap gap-2">
-                    {counselor.certifications.map((c: string) => (
-                      <span key={c} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium border border-purple-100">{c}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                  Assigned Students ({assignedStudentDetails.length})
-                </p>
-                {assignedStudentDetails.length > 0 ? (
-                  <div className="space-y-2">
-                    {assignedStudentDetails.map(s => (
-                      <div key={normalId(s)} className="bg-gray-50 rounded-xl p-3 flex items-center gap-3 border border-gray-100">
-                        <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                          {s.name?.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">{s.name}</p>
-                          <p className="text-xs text-gray-500">{s.email}</p>
-                          {s.nationality && <p className="text-xs text-gray-400">{s.nationality}</p>}
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <StatusBadge status={s.status} />
-                          {s.gpa && <p className="text-xs text-blue-600 font-semibold mt-1">GPA {s.gpa}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 text-center">
-                    <p className="text-sm text-gray-400">
-                      {assignedIds.length > 0 ? 'Student data not loaded yet.' : 'No students assigned yet.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 flex gap-3">
-          {onChat && (
-            <button type="button" onClick={onChat}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-                text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-md
-                active:scale-[0.98] transition-all">
-              <MessageSquare className="w-4 h-4" />Chat
-            </button>
-          )}
-          <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── New counselor modal ──────────────────────────────────────────────────────
@@ -1185,206 +759,6 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
   );
 }
 
-// ── New Application Modal ────────────────────────────────────────────────────
-
-function NewApplicationModal({ student, onClose, onCreated }: {
-  student: any; onClose: () => void; onCreated: () => void;
-}) {
-  const [universities, setUniversities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [expandedUni, setExpandedUni] = useState<string | null>(null);
-  const [applying, setApplying] = useState<string | null>(null);
-  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [applyError, setApplyError] = useState('');
-  const [applySuccess, setApplySuccess] = useState('');
-
-  useEffect(() => {
-    api.admin.universities()
-      .then(data => { setUniversities(data); setLoading(false); })
-      .catch(e => { setError(e.message || 'Failed to load universities.'); setLoading(false); });
-  }, []);
-
-  const filtered = universities.filter(u =>
-    !search ||
-    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.country?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleApply = async (uni: any, course: any) => {
-    const key = `${normalId(uni)}-${normalId(course)}`;
-    setApplying(key);
-    setApplyError('');
-    setApplySuccess('');
-    try {
-      await api.admin.createApplication({
-        studentId: normalId(student),
-        universityName: uni.name,
-        courseName: course.name,
-        intake: course.intake?.[0] || undefined,
-        universityId: normalId(uni),
-        courseId: normalId(course),
-      });
-      setAppliedIds(prev => new Set([...prev, key]));
-      setApplySuccess(`Applied to ${course.name} at ${uni.name}`);
-      onCreated();
-    } catch (e: any) {
-      setApplyError(e.message || 'Failed to create application.');
-    }
-    setApplying(null);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-3"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 flex-shrink-0">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">New Application</p>
-              <h2 className="text-xl font-bold text-white mt-0.5">Select University & Course</h2>
-              <p className="text-purple-100 text-sm mt-1">for <span className="font-semibold">{student.name}</span></p>
-            </div>
-            <button type="button" onClick={onClose} aria-label="Close"
-              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search universities or countries…"
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
-          </div>
-        </div>
-
-        {/* Feedback banners */}
-        {applySuccess && (
-          <div className="mx-5 mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex-shrink-0">
-            <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-            <p className="text-sm text-green-700 font-medium">{applySuccess}</p>
-          </div>
-        )}
-        {applyError && (
-          <div className="mx-5 mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex-shrink-0">
-            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-700">{applyError}</p>
-          </div>
-        )}
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center gap-3 py-16 text-gray-400">
-              <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-              <span className="text-sm">Loading universities…</span>
-            </div>
-          ) : error ? (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <GraduationCap className="w-8 h-8 mb-2 opacity-40" />
-              <p className="text-sm">No universities found.</p>
-            </div>
-          ) : filtered.map(uni => {
-            const uid = normalId(uni);
-            const isOpen = expandedUni === uid;
-            const courses: any[] = uni.courses || [];
-            return (
-              <div key={uid} className="border border-gray-200 rounded-xl overflow-hidden">
-                {/* University row */}
-                <button type="button" onClick={() => setExpandedUni(isOpen ? null : uid)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
-                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
-                    {uni.name?.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{uni.name}</p>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      {uni.country && (
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <MapPin className="w-3 h-3" />{uni.country}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <BookOpen className="w-3 h-3" />{courses.length} course{courses.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
-                  {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-                </button>
-
-                {/* Courses list */}
-                {isOpen && (
-                  <div className="divide-y divide-gray-100 border-t border-gray-200">
-                    {courses.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-6">No courses available.</p>
-                    ) : courses.map((course: any) => {
-                      const cid = normalId(course);
-                      const key = `${uid}-${cid}`;
-                      const isApplied = appliedIds.has(key);
-                      const isApplying = applying === key;
-                      return (
-                        <div key={cid} className="flex items-center gap-4 px-4 py-3 bg-white hover:bg-purple-50/30 transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-800">{course.name}</p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                              {course.level && <span className="text-xs text-gray-500">{course.level}</span>}
-                              {course.duration && <span className="text-xs text-gray-400">{course.duration}</span>}
-                              {course.tuitionFee != null && (
-                                <span className="flex items-center gap-0.5 text-xs text-green-700 font-medium">
-                                  <DollarSign className="w-3 h-3" />{Number(course.tuitionFee).toLocaleString()} {course.currency || 'USD'}
-                                </span>
-                              )}
-                              {course.intake?.length > 0 && (
-                                <span className="text-xs text-indigo-600">{course.intake.join(', ')}</span>
-                              )}
-                            </div>
-                          </div>
-                          <button type="button"
-                            disabled={isApplied || isApplying}
-                            onClick={() => handleApply(uni, course)}
-                            className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all active:scale-95
-                              ${isApplied
-                                ? 'bg-green-50 text-green-700 border-green-200 cursor-default'
-                                : 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700 hover:border-purple-700 shadow-sm disabled:opacity-60'}`}>
-                            {isApplying ? (
-                              <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying…</>
-                            ) : isApplied ? (
-                              <><Check className="w-3.5 h-3.5" />Applied</>
-                            ) : (
-                              <><Plus className="w-3.5 h-3.5" />Apply</>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
-          <BtnGhost onClick={onClose} className="w-full">Close</BtnGhost>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main dashboard ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
@@ -1408,9 +782,6 @@ export default function AdminDashboard() {
   const [studentSearch, setStudentSearch] = useState('');
   const [studentDateFilter, setStudentDateFilter] = useState('');
   const [counselorSearch, setCounselorSearch] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [selectedCounselor, setSelectedCounselor] = useState<any>(null);
-  const [newAppStudent, setNewAppStudent] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -1501,6 +872,10 @@ export default function AdminDashboard() {
     c.email?.toLowerCase().includes(counselorSearch.toLowerCase())
   ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+  // Open the same full record pages the Students and Team pages use
+  const openStudent = (id: string) => navigate(`/admin/students/${id}`, { state: { ids: filteredStudents.map(normalId) } });
+  const openCounselor = (id: string) => navigate(`/admin/counselors/${id}/performance`);
+
   return (
     <>
       {showNewCounselor && (
@@ -1524,32 +899,6 @@ export default function AdminDashboard() {
           }}
         />
       )}
-      {selectedStudent && (
-        <StudentDetailModal
-          student={selectedStudent}
-          counselorName={counselorNameById[selectedStudent.counselorId]}
-          onClose={() => setSelectedStudent(null)}
-          onChat={() => {
-            navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedStudent), name: selectedStudent.name } } });
-            setSelectedStudent(null);
-          }}
-          onNewApplication={() => {
-            setNewAppStudent(selectedStudent);
-            setSelectedStudent(null);
-          }}
-        />
-      )}
-      {selectedCounselor && (
-        <CounselorDetailModal
-          counselor={selectedCounselor}
-          students={students}
-          onClose={() => setSelectedCounselor(null)}
-          onChat={() => {
-            navigate('/admin/chat', { state: { openChatWith: { _id: normalId(selectedCounselor), name: selectedCounselor.name } } });
-            setSelectedCounselor(null);
-          }}
-        />
-      )}
       {assigningStudent && (
         <AssignCounselorModal
           student={assigningStudent}
@@ -1565,13 +914,6 @@ export default function AdminDashboard() {
           allCounselors={counselors}
           onClose={() => setAssigningCounselor(null)}
           onSaved={() => { setAssigningCounselor(null); loadData(); }}
-        />
-      )}
-      {newAppStudent && (
-        <NewApplicationModal
-          student={newAppStudent}
-          onClose={() => setNewAppStudent(null)}
-          onCreated={() => loadData()}
         />
       )}
       <div className="space-y-6">
@@ -1597,7 +939,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Total Students', value: stats?.totalStudents ?? '—', icon: Users, to: '/admin/students' },
-              { label: 'Counselors', value: stats?.totalCounselors ?? '—', icon: UserCog, to: '/admin/counselors' },
+              { label: 'Team', value: stats?.totalCounselors ?? '—', icon: UserCog, to: '/admin/counselors' },
               { label: 'Applications', value: stats?.totalApplications ?? '—', icon: FileText, to: '/admin/applications' },
               { label: 'Active Students', value: stats?.activeStudents ?? '—', icon: Activity, to: '/admin/students' },
             ].map(s => (
@@ -1637,7 +979,7 @@ export default function AdminDashboard() {
         {!loading && (
           <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
             {([
-              { key: 'counselors', label: 'Counselors', count: counselors.length, icon: UserCog },
+              { key: 'counselors', label: 'Team', count: counselors.length, icon: UserCog },
               { key: 'students', label: 'Students', count: students.length, icon: Users },
             ] as const).map(tab => (
               <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
@@ -1661,7 +1003,7 @@ export default function AdminDashboard() {
               <div className="relative flex-1 min-w-0 max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input value={counselorSearch} onChange={e => setCounselorSearch(e.target.value)}
-                  placeholder="Search counselors…"
+                  placeholder="Search team…"
                   className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
               </div>
               <BtnPrimary onClick={() => setShowNewCounselor(true)}>
@@ -1673,18 +1015,22 @@ export default function AdminDashboard() {
               {filteredCounselors.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 text-gray-400">
                   <UserCog className="w-8 h-8 mb-2 opacity-40" />
-                  <p className="text-sm">{counselorSearch ? 'No counselors match your search.' : 'No counselors yet. Create one above.'}</p>
+                  <p className="text-sm">{counselorSearch ? 'No team members match your search.' : 'No team members yet. Create one above.'}</p>
                 </div>
               ) : filteredCounselors.map(c => {
                 const id = normalId(c);
                 const perf = counselorPerf(c, students);
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/40 transition-colors">
-                    <div className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
+                    <button type="button" onClick={() => openCounselor(id)} aria-label={`Open ${c.name}'s profile`}
+                      className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
                       {c.name?.charAt(0)}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
+                      <button type="button" onClick={() => openCounselor(id)}
+                        className="font-semibold text-gray-900 text-sm text-left hover:text-purple-700 hover:underline transition-colors">
+                        {c.name}
+                      </button>
                       <p className="text-xs text-gray-500">{c.email}</p>
                       {c.specialization?.length > 0 && (
                         <p className="text-xs text-purple-600 mt-0.5 truncate">{c.specialization.join(' · ')}</p>
@@ -1718,7 +1064,7 @@ export default function AdminDashboard() {
                           active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1">
                         <UserCheck className="w-3.5 h-3.5" />Assign
                       </button>
-                      <BtnView onClick={() => setSelectedCounselor(c)} color="purple" />
+                      <BtnView onClick={() => openCounselor(id)} color="purple" />
                       <BtnDanger onClick={() => handleDeleteCounselor(id)} disabled={deletingId === id}>
                         {deletingId === id ? <><Spinner size={3} />Deleting…</> : <><Trash2 className="w-3.5 h-3.5" />Delete</>}
                       </BtnDanger>
@@ -1772,11 +1118,15 @@ export default function AdminDashboard() {
                 const isToggling = togglingId === id;
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/40 transition-colors">
-                    <div className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
+                    <button type="button" onClick={() => openStudent(id)} aria-label={`Open ${s.name}'s record`}
+                      className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
                       {s.name?.charAt(0)}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm">{s.name}</p>
+                      <button type="button" onClick={() => openStudent(id)}
+                        className="font-semibold text-gray-900 text-sm text-left hover:text-purple-700 hover:underline transition-colors">
+                        {s.name}
+                      </button>
                       <p className="text-xs text-gray-500">{s.email}</p>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                         {s.nationality && <span className="text-xs text-gray-400">{s.nationality}</span>}
@@ -1822,7 +1172,7 @@ export default function AdminDashboard() {
                           : isActive ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
                         {isToggling ? '…' : isActive ? 'Deactivate' : 'Activate'}
                       </button>
-                      <BtnView onClick={() => setSelectedStudent(s)} color="blue" />
+                      <BtnView onClick={() => openStudent(id)} color="blue" />
                       <BtnDanger onClick={() => handleDeleteStudent(id)} disabled={deletingId === id}>
                         {deletingId === id ? <><Spinner size={3} />Deleting…</> : <><Trash2 className="w-3.5 h-3.5" />Delete</>}
                       </BtnDanger>
