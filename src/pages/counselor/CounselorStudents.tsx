@@ -11,6 +11,7 @@ import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import BulkActionBar from '../../components/BulkActionBar';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
@@ -371,6 +372,7 @@ function StudentsList() {
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const loadStudents = useCallback(async () => {
     setLoading(true); setLoadError('');
@@ -600,6 +602,8 @@ function StudentsList() {
         </div>
       </div>
 
+      <BulkActionBar ids={[...selectedIds]} onClear={() => setSelectedIds(new Set())} onDone={loadStudents} />
+
       {/* ── Table ── */}
       {loading && allStudents.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
@@ -611,6 +615,11 @@ function StudentsList() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="w-10 px-4 py-3.5">
+                    <input type="checkbox" aria-label="Select all students on this page" checked={paginated.length > 0 && paginated.every((s: any) => selectedIds.has(normalId(s)))}
+                      onChange={() => setSelectedIds(prev => { const n = new Set(prev); const all = paginated.every((s: any) => n.has(normalId(s))); paginated.forEach((s: any) => (all ? n.delete(normalId(s)) : n.add(normalId(s)))); return n; })}
+                      className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                  </th>
                   {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
                     <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
                   ))}
@@ -618,7 +627,7 @@ function StudentsList() {
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-16">
+                  <tr><td colSpan={9} className="text-center py-16">
                     <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                     <p className="text-sm text-gray-500">{activeTags.length ? 'No students match your filters.' : 'No students yet.'}</p>
                   </td></tr>
@@ -630,6 +639,11 @@ function StudentsList() {
                   const offer = (s.applications || []).some((a: any) => a.status === 'offer_received');
                   return (
                     <tr key={id} className="border-b border-gray-50 hover:bg-green-50/30 transition-colors">
+                      <td className="w-10 px-4 py-3.5">
+                        <input type="checkbox" aria-label={`Select ${s.name}`} checked={selectedIds.has(id)}
+                          onChange={() => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
+                          className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                      </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</div>

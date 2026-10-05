@@ -15,6 +15,7 @@ const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = requ
 const { assignNextCounselor } = require('../lib/assignCounselor');
 const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
 const { checklistFor, timelineFor } = require('../lib/studentProgress');
+const { validateBulk } = require('../lib/bulkActions');
 
 const router = express.Router();
 
@@ -84,6 +85,84 @@ router.put('/me', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('[PUT /students/me]', err);
     sendServerError(res, err, 'Server error');
+  }
+});
+
+// Bulk actions: change the stage, add a tag, create a follow-up task or (admin) reassign the counselor for many students at
+// once. Each student is checked on its own against the caller's access, so one student the caller may not change never
+// blocks the rest; the response says exactly what happened to each. Declared before the /:id routes.
+router.post('/bulk', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const checked = validateBulk(req.body, req.user, LEAD_STAGES);
+  if (checked.error) return res.status(checked.status || 400).json({ message: checked.error });
+  const { ids, action, value } = checked;
+
+  try {
+    const access = req.user.role === 'admin' ? { admin: true, permissions: new Set(['students.stage']) } : await loadAccess(req);
+    if (action === 'set_stage' && !access.admin && !access.permissions.has('students.stage')) {
+      return res.status(403).json({ message: 'Your profile does not allow changing lead stages' });
+    }
+
+    let counselor = null;
+    if (action === 'reassign' && value) {
+      counselor = await User.findOne({ _id: value, role: 'counselor' }).select('name');
+      if (!counselor) return res.status(400).json({ message: 'Counselor not found' });
+    }
+
+    const students = await User.find({ _id: { $in: ids }, role: 'student' });
+    const byId = new Map(students.map((s) => [String(s._id), s]));
+    const result = { action, requested: ids.length, updated: 0, unchanged: 0, skipped: [] };
+    const actor = req.user.role === 'counselor' ? await User.findById(req.user.id).select('name') : null;
+
+    for (const id of ids) {
+      const student = byId.get(id);
+      if (!student) { result.skipped.push({ id, name: '', reason: 'not_found' }); continue; }
+      if (!canManage(access, student)) { result.skipped.push({ id, name: student.name, reason: 'forbidden' }); continue; }
+
+      if (action === 'set_stage') {
+        const from = student.leadStage || 'new_enquiry';
+        if (from === value) { result.unchanged++; continue; }
+        student.leadStage = value;
+        student.leadStageChangedAt = new Date();
+        await student.save();
+        recordStaffActivity(req, { kind: 'stage', title: 'Lead Stage updated (bulk)', detail: `'${LEAD_STAGES[from]}' to '${LEAD_STAGES[value]}'`, studentId: student._id, studentName: student.name });
+        fireEvent('student.stageChanged', { studentId: student._id, fromStage: from });
+      } else if (action === 'add_tag') {
+        const tags = student.tags || [];
+        if (tags.some((t) => t.toLowerCase() === value.toLowerCase())) { result.unchanged++; continue; }
+        if (tags.length >= 20) { result.skipped.push({ id, name: student.name, reason: 'too_many_tags' }); continue; }
+        student.tags = [...tags, value];
+        await student.save();
+        recordStaffActivity(req, { kind: 'student', title: 'Tag added (bulk)', detail: value, studentId: student._id, studentName: student.name });
+      } else if (action === 'create_task') {
+        const Task = require('../models/Task');
+        await Task.create({
+          title: value.title, priority: value.priority, dueDate: value.dueDate,
+          studentId: student._id, studentName: student.name,
+          assignedTo: req.user.id, assignedToName: actor?.name || '', assignedToRole: req.user.role,
+          assignedBy: req.user.id, assignedByName: actor?.name || '',
+        });
+        recordStaffActivity(req, { kind: 'task', title: 'Task created (bulk)', detail: `${value.title}${value.dueDate ? ` · due ${value.dueDate}` : ''}`, studentId: student._id, studentName: student.name });
+      } else {
+        // reassign (admin only). Students are not emailed one by one here: a mass move should not send a wave of mail.
+        const prev = student.counselorId ? String(student.counselorId) : '';
+        if (prev === (value || '')) { result.unchanged++; continue; }
+        if (prev) await User.findByIdAndUpdate(prev, { $pull: { assignedStudents: id } });
+        student.counselorId = value || undefined;
+        if (value && student.leadStatus === 'new') student.leadStatus = 'contacted';
+        await student.save();
+        if (value) {
+          await User.findByIdAndUpdate(value, { $addToSet: { assignedStudents: id } });
+          fireEvent('counselor.assigned', { studentId: id });
+        }
+        recordStaffActivity(req, { kind: 'student', title: 'Counselor reassigned (bulk)', detail: counselor ? `to ${counselor.name}` : 'unassigned', studentId: student._id, studentName: student.name });
+      }
+      result.updated++;
+    }
+    res.json(result);
+  } catch (err) {
+    logError('students', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

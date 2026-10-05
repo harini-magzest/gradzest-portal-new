@@ -175,6 +175,8 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    bulk: (data: { ids: string[]; action: 'set_stage' | 'add_tag' | 'create_task' | 'reassign'; value: unknown }) =>
+      req<{ action: string; requested: number; updated: number; unchanged: number; skipped: { id: string; name: string; reason: string }[] }>('/students/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
     checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
