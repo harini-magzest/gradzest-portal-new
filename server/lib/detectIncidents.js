@@ -68,12 +68,17 @@ async function createIncident(io, doc) {
 
 // Reuses the open incident matching `query` (refreshing its title and, if
 // given, appending the triggering event ids), or creates one from `doc`.
+// One atomic update rather than load → push → save: events that arrive together
+// (a burst of failed logins, WAF hits) used to load the same incident and race,
+// and every save after the first failed with a VersionError — dropping those
+// events from the incident and logging "No matching document found" each time.
 async function raiseIncident(io, query, doc, eventIds = []) {
-  const existing = await SecurityIncident.findOne({ ...query, status: 'open' }).sort({ createdAt: -1 });
+  const update = { $set: { title: doc.title } };
+  if (eventIds.length) update.$addToSet = { sourceEventIds: { $each: eventIds } };
+  const existing = await SecurityIncident.findOneAndUpdate(
+    { ...query, status: 'open' }, update, { sort: { createdAt: -1 }, new: true },
+  );
   if (!existing) return createIncident(io, doc);
-  if (eventIds.length) existing.sourceEventIds.push(...eventIds);
-  existing.title = doc.title;
-  await existing.save();
   emitIncident(io, 'incident_updated', existing);
   return existing;
 }

@@ -60,3 +60,32 @@ describe('detectIncidents — idempotent incident creation', () => {
     expect(incidents[0].sourceEventIds.length).toBe(2);
   });
 });
+
+describe('detectIncidents — concurrent triggers', () => {
+  it('a burst of simultaneous events lands on one incident with every event attached, and the title stays encrypted at rest', async () => {
+    const ip = `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
+    const events = [];
+    for (let i = 0; i < 12; i++) {
+      events.push(await SecurityEvent.create({ type: 'login_failure', severity: 'low', ip, email: 'burst@x.com' }));
+    }
+    // Open the incident first, then fire the rest at once — before the fix, all but one of these
+    // concurrent saves failed with a VersionError and their event ids were lost.
+    await checkLoginFailureRules(events[4], null);
+    const errors = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a.join(' ')));
+    await Promise.all(events.slice(5).map(e => checkLoginFailureRules(e, null)));
+    spy.mockRestore();
+
+    const incidents = await SecurityIncident.find({ type: 'brute_force', relatedIp: ip });
+    expect(incidents).toHaveLength(1);
+    const attached = incidents[0].sourceEventIds.map(String);
+    for (const e of events.slice(4)) expect(attached).toContain(String(e._id));
+    expect(new Set(attached).size).toBe(attached.length); // no duplicates
+    expect(errors.filter(m => /No matching document|VersionError/.test(m))).toEqual([]);
+
+    // The atomic update still goes through the encryption setter
+    const raw = await SecurityIncident.collection.findOne({ _id: incidents[0]._id });
+    expect(raw.title).not.toMatch(/failed logins/);
+    expect(incidents[0].title).toMatch(/failed logins from/);
+  });
+});
