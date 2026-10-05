@@ -10,6 +10,8 @@ function statusOf(err) {
 }
 
 function isTransient(err) {
+  // Some of the answer was already streamed to the user; starting over would repeat it.
+  if (err?.zestPartial) return false;
   const status = Number(statusOf(err));
   if (TRANSIENT_STATUS.has(status)) return true;
   const msg = String(err?.message || err || '');

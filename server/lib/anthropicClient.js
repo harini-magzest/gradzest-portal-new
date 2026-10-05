@@ -19,7 +19,9 @@ function getClient() {
   return client;
 }
 
-// Test-only seam, mirrors geminiClient.js's setGeminiClientForTests.
+// Test-only seam, same shape as initCriticalAlert's mailer injection (lib/criticalAlert.js) —
+// lets tests substitute a fake { messages: { create, stream } } client instead of hitting the
+// real Anthropic API. Never called in production: nothing in server/ invokes this outside tests.
 function setAnthropicClientForTests(fakeClient) {
   client = fakeClient;
 }
@@ -195,11 +197,17 @@ const MAX_TOOL_ROUNDS = 4;
 // Roomy enough for a full email draft or a multi-step answer; the "short and direct" rule keeps normal replies short.
 const MAX_OUTPUT_TOKENS = 1500;
 
+// A failure after some text has already reached the caller is marked so withRetry does not replay it:
+// a retry would stream the start of the answer a second time.
 function callModel(params, onText) {
   if (!onText) return getClient().messages.create(params);
+  let emitted = false;
   const stream = getClient().messages.stream(params);
-  stream.on('text', (delta) => onText(delta));
-  return stream.finalMessage();
+  stream.on('text', (delta) => { emitted = true; onText(delta); });
+  return stream.finalMessage().catch((err) => {
+    if (emitted && err && typeof err === 'object') err.zestPartial = true;
+    throw err;
+  });
 }
 
 /**
@@ -209,10 +217,11 @@ function callModel(params, onText) {
  * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin')
  * @param {string} [attachedDocText]  text of a one-off document the user attached to this turn, if any
  * @param {{ id: string, role: string }} [user]  the authenticated caller, for tool scoping (required if role !== 'student')
+ * @param {(delta: string) => void} [onText]  if given, receives answer text as it is generated
  * @param {{ ip?: string, io?: object }} [ctx]  request context, used only for the PII access audit
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
-async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, ctx = {}) {
+async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null, ctx = {}) {
   if (!isZestConfigured()) throw new Error('Zest is not configured (missing ANTHROPIC_API_KEY)');
 
   const context = chunks.length
@@ -239,7 +248,7 @@ async function askZest(question, chunks, history = [], role = 'student', attache
   };
   if (tools.length) createParams.tools = tools;
 
-  const create = (params) => withRetry(() => getClient().messages.create(params));
+  const create = (params) => withRetry(() => callModel(params, onText));
   let message = await create({ ...createParams, messages });
 
   // Tool-use loop: Claude asks for live data, we fetch it (scoped to `user`), hand it back, and

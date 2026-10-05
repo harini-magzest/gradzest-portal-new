@@ -98,28 +98,30 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
 
 /* ── Chat (any authenticated role) ───────────────────────────────────────── */
 
+// One answer, shared by /ask (returned as JSON) and /ask-stream (onText receives the text as it is generated).
+async function answerQuestion(req, question, history, onText = null) {
+  const matches = await retrieveChunks(question, history);
+
+  const { text: answer, toolsUsed } = await askZest(
+    question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req),
+    onText, { ip: req.ip, io: req.app.get('io') },
+  );
+  const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+
+  await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
+
+  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+  return { answer, sources };
+}
+
 router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
 
-  const history = sanitizeHistory(req.body.history);
-
   try {
-    const matches = await retrieveChunks(question, history);
-
-    const { text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req),
-      { ip: req.ip, io: req.app.get('io') },
-    );
-    const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
-
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
-    res.json({ answer, sources });
+    res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
   } catch (err) {
-    if (err instanceof ZestUnavailable) return res.status(503).json({ message: UNAVAILABLE });
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
   }
@@ -128,7 +130,7 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
 // Same answer as /ask, delivered as server-sent events so the first words appear while the rest
 // is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
 // or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
-router.post('/ask-stream', authMiddleware, async (req, res) => {
+router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
@@ -140,11 +142,11 @@ router.post('/ask-stream', authMiddleware, async (req, res) => {
   const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 
   try {
-    const { answer, sources, degraded } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
-    send({ type: 'done', answer, sources, ...(degraded ? { degraded } : {}) });
+    const { answer, sources } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    send({ type: 'done', answer, sources });
   } catch (err) {
-    if (!(err instanceof ZestUnavailable)) console.error('[zest/ask-stream]', err.message);
-    send({ type: 'error', message: err instanceof ZestUnavailable ? UNAVAILABLE : 'Zest could not answer right now. Please try again.' });
+    console.error('[zest/ask-stream]', err.message);
+    send({ type: 'error', message: 'Zest could not answer right now. Please try again.' });
   } finally {
     res.end();
   }
@@ -176,7 +178,7 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), { ip: req.ip, io: req.app.get('io') });
+    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
     await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
       question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
