@@ -5,6 +5,16 @@ const SEEN_KEY = 'gz_namaste_seen';
 const DURATION_MS = 3500;
 const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
 const GREETING_COLOUR = '#FFFFFF';
+// The intro is the video at public/namaste-intro.mp4: hands, lotus, glow and the "NAMASTE / WELCOME / GRADZEST" text are all
+// in the footage, so it plays alone for its full length. If the file is missing, or doesn't start playing within
+// VIDEO_WAIT_MS (autoplay blocked, slow network), the drawn hands below play instead.
+const VIDEO_SRC = '/namaste-intro.mp4';
+const VIDEO_WAIT_MS = 2500;
+const VIDEO_HOLD_MS = 500; // the last frame stays up this long so the text can be read
+const VIDEO_EXIT_MS = 700; // then the slide-up
+const VIDEO_DEFAULT_MS = 5500; // used only if the browser can't report the video's length
+// Flat navy of the footage's own background, so the frame can be shown whole (never cropped) with no visible edges.
+const VIDEO_BG = '#09152d';
 
 // The public site and each dashboard get their own intro, so entering a dashboard after the
 // homepage in the same session still plays it once.
@@ -99,8 +109,8 @@ const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
 
 const GREETING = 'Namaste'.split('');
 
-// Timeline (3.5s): hands slide together and trace in 0–1.6s, the glow blooms 1.2–2.4s, 'Namaste' reveals letter by letter from 1.5s, then the
-// whole overlay slides up and fades 2.9–3.5s.
+// Drawn fallback timeline (3.5s): hands slide together and trace in 0–1.6s, the glow blooms 1.2–2.4s, 'Namaste' reveals letter by letter from
+// 1.5s, then the whole overlay slides up and fades 2.9–3.5s.
 const CSS = `
 .gz-namaste { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 .gz-namaste-bg {
@@ -111,6 +121,21 @@ const CSS = `
 @keyframes gz-namaste-exit {
   0%, 82% { transform: translateY(0); opacity: 1; animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); }
   100% { transform: translateY(-100%); opacity: 0; }
+}
+.gz-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* Portrait screens: the artwork sits in the middle ~60% of the 16:9 frame, so enlarge the video to fill the width (only the empty sides
+   are cropped) and fade its top and bottom edges, where the glow would otherwise end in a hard line. */
+@media (max-aspect-ratio: 1/1) {
+  .gz-video {
+    inset: auto; top: 50%; left: 0; height: auto; aspect-ratio: 16 / 9;
+    transform: translateY(-50%) scale(1.5);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+  }
+}
+@keyframes gz-namaste-video-exit {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-100%); opacity: 0; }
 }
 @keyframes gz-draw {
   to { stroke-dashoffset: 0; }
@@ -163,17 +188,37 @@ export default function NamasteIntro() {
   const { pathname } = useLocation();
   const area = areaOf(pathname);
   const [show, setShow] = useState(() => shouldPlay(area));
+  // 'loading' until the video actually starts playing; 'missing' means play the drawn fallback instead.
+  const [video, setVideo] = useState<'loading' | 'ok' | 'missing'>('loading');
+  const [videoMs, setVideoMs] = useState(0);
+
+  // Entering another area after an intro has ended starts a new one from scratch: the video has to start playing again
+  // (a stale 'ok' would start the clock for a video that may never play). While an intro is still up this does nothing.
+  useEffect(() => {
+    if (show || !shouldPlay(area)) return;
+    setVideo('loading');
+    setShow(true);
+  }, [area]);
 
   useEffect(() => {
-    if (shouldPlay(area)) setShow(true);
-  }, [area]);
+    if (!show || video !== 'loading') return;
+    const t = setTimeout(() => setVideo('missing'), VIDEO_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [show, video]);
 
   useEffect(() => {
     if (!show) return;
     try { sessionStorage.setItem(`${SEEN_KEY}:${area}`, '1'); } catch { /* storage unavailable: replays next load */ }
-    const t = setTimeout(() => setShow(false), DURATION_MS);
-    return () => clearTimeout(t);
   }, [show, area]);
+
+  // The clock starts once we know which version plays, so the exit never fires before the animation has begun. It doesn't
+  // depend on the area, so navigating while the intro is up can't restart it out of step with the slide-up animation.
+  const totalMs = video === 'ok' ? videoMs + VIDEO_HOLD_MS + VIDEO_EXIT_MS : DURATION_MS;
+  useEffect(() => {
+    if (!show || video === 'loading') return;
+    const t = setTimeout(() => setShow(false), totalMs);
+    return () => clearTimeout(t);
+  }, [show, video, totalMs]);
 
   // While the intro covers the page: Esc skips it, and the page behind it can't scroll.
   useEffect(() => {
@@ -190,17 +235,48 @@ export default function NamasteIntro() {
 
   if (!show) return null;
 
+  const fallback = video === 'missing';
+
   return (
     <div
       role="dialog"
       aria-label="Welcome to Gradzest"
       onClick={() => setShow(false)}
-      className="gz-namaste gz-namaste-bg fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden cursor-pointer"
-      style={{ animation: `gz-namaste-exit ${DURATION_MS}ms linear both`, height: '100dvh' }}
+      className={`gz-namaste ${fallback ? 'gz-namaste-bg' : ''} fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden cursor-pointer`}
+      style={{
+        height: '100dvh',
+        // Flat navy while the video loads or plays (it matches the footage); the drawn fallback keeps its gradient.
+        background: fallback ? undefined : VIDEO_BG,
+        animation: fallback
+          ? `gz-namaste-exit ${DURATION_MS}ms linear both`
+          : video === 'ok'
+            ? `gz-namaste-video-exit ${VIDEO_EXIT_MS}ms cubic-bezier(0.76, 0, 0.24, 1) ${videoMs + VIDEO_HOLD_MS}ms both`
+            : 'none',
+      }}
     >
       <style>{CSS}</style>
 
-      {PARTICLES.map((p, i) => (
+      {/* The intro itself. Whole frame is shown (contain, not cover) so the hands, lotus and text are never cropped. */}
+      {!fallback && (
+        <video
+          src={VIDEO_SRC}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+          onPlaying={e => {
+            const d = e.currentTarget.duration;
+            setVideoMs(Number.isFinite(d) && d > 0 ? Math.round(d * 1000) : VIDEO_DEFAULT_MS);
+            setVideo('ok');
+          }}
+          // Only a failure to start means fall back; once it plays, a late error just leaves the last frame up until the clock runs out.
+          onError={() => setVideo(v => (v === 'loading' ? 'missing' : v))}
+          className="gz-video"
+        />
+      )}
+
+      {fallback && PARTICLES.map((p, i) => (
         <span
           key={i}
           className="gz-dust absolute rounded-full"
@@ -209,28 +285,21 @@ export default function NamasteIntro() {
         />
       ))}
 
-      <button
-        type="button"
-        autoFocus
-        onClick={e => { e.stopPropagation(); setShow(false); }}
-        className="absolute top-4 right-4 z-10 rounded-full border border-blue-300/30 bg-white/5 px-4 py-1.5 text-sm font-medium text-blue-100 backdrop-blur-sm transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-      >
-        Skip intro
-      </button>
+      {fallback && (
+        <div className="relative flex flex-col items-center">
+          <div className="gz-halo absolute left-1/2 top-[40%] h-56 w-56 rounded-full bg-blue-500/45 blur-3xl sm:h-80 sm:w-80" aria-hidden="true" />
+          <svg viewBox="0 0 200 260" className="relative w-[min(46vw,220px)] max-h-[42dvh] h-auto overflow-visible drop-shadow-[0_0_16px_rgba(59,130,246,0.7)]" aria-hidden="true">
+            <Hands />
+          </svg>
 
-      <div className="relative flex flex-col items-center">
-        <div className="gz-halo absolute left-1/2 top-[40%] h-56 w-56 rounded-full bg-blue-500/45 blur-3xl sm:h-80 sm:w-80" aria-hidden="true" />
-        <svg viewBox="0 0 200 260" className="relative w-[min(46vw,220px)] max-h-[42dvh] h-auto overflow-visible drop-shadow-[0_0_16px_rgba(59,130,246,0.7)]" aria-hidden="true">
-          <Hands />
-        </svg>
-
-        <p className="gz-greeting relative mt-6 text-3xl uppercase sm:text-5xl" aria-label="Namaste">
-          {GREETING.map((ch, i) => (
-            <span key={i} className="gz-letter" style={{ animationDelay: `${1.5 + i * 0.07}s` }} aria-hidden="true">{ch}</span>
-          ))}
-        </p>
-        <p className="gz-sub relative mt-3 text-xs font-medium uppercase tracking-[0.35em] text-cyan-200/80 sm:text-sm">Welcome to Gradzest</p>
-      </div>
+          <p className="gz-greeting relative mt-6 text-3xl uppercase sm:text-5xl" aria-label="Namaste">
+            {GREETING.map((ch, i) => (
+              <span key={i} className="gz-letter" style={{ animationDelay: `${1.5 + i * 0.07}s` }} aria-hidden="true">{ch}</span>
+            ))}
+          </p>
+          <p className="gz-sub relative mt-3 text-xs font-medium uppercase tracking-[0.35em] text-cyan-200/80 sm:text-sm">Welcome to Gradzest</p>
+        </div>
+      )}
     </div>
   );
 }
