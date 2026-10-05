@@ -45,7 +45,7 @@ function UniversityCard({ uni, student, saved, onToggleSaved }: { uni: any; stud
           type="button"
           onClick={e => { e.stopPropagation(); onToggleSaved(uni); }}
           aria-pressed={saved}
-          aria-label={saved ? `Remove ${uni.name} from your shortlist` : `Save ${uni.name} to your shortlist`}
+          aria-label={saved ? `Remove ${uni.name} from your saved universities` : `Save ${uni.name} to your saved universities`}
           className="absolute bottom-2 left-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-colors"
         >
           <Heart className={`w-4 h-4 ${saved ? 'text-rose-500 fill-rose-500' : 'text-gray-500'}`} />
@@ -117,7 +117,7 @@ export default function StudentUniversities() {
   const [level, setLevel] = useState('');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
-  // Heart on a card: saves to / removes from the shortlist. Updated at once, undone if the server refuses.
+  // Heart on a card: saves to / removes from the saved universities. Updated at once, undone if the server refuses.
   const toggleSaved = async (uni: any) => {
     const id = String(uni.id || uni._id);
     const wasSaved = savedIds.has(id);
@@ -125,10 +125,10 @@ export default function StudentUniversities() {
     if (wasSaved) next.delete(id); else next.add(id);
     setSavedIds(next);
     try {
-      if (wasSaved) await api.shortlist.remove(id); else await api.shortlist.add(id);
+      if (wasSaved) await api.savedUniversities.remove(id); else await api.savedUniversities.add(id);
     } catch (err: any) {
       setSavedIds(savedIds);
-      toast.error(err?.message || 'Could not update your shortlist.');
+      toast.error(err?.message || 'Could not update your saved universities.');
     }
   };
 
@@ -140,7 +140,7 @@ export default function StudentUniversities() {
   useEffect(() => {
     loadUniversities();
     api.students.me().then(setStudent).catch(() => toast.error('Failed to load your eligibility info.'));
-    api.shortlist.list().then(l => setSavedIds(new Set(l.map(u => u.id)))).catch(() => { /* hearts just start empty */ });
+    api.savedUniversities.list().then(l => setSavedIds(new Set(l.map(u => u.id)))).catch(() => { /* hearts just start empty */ });
     if (user?.role === 'student' && !(user as any)?.onboarding?.universityBrowsed) {
       api.onboarding.markStep('universityBrowsed').then(refreshUser).catch(() => {});
     }

@@ -285,9 +285,9 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
-  // Universities the student has saved to compare (see GET /api/students/me/shortlist). `universityId` is the
-  // university's short id (or _id); capped at 20 by the route.
-  shortlist: {
+  // Universities the student has saved with the heart on the Universities page (see GET /api/students/me/saved-universities).
+  // `universityId` is the university's short id (or _id); capped at 20 by the route. Separate from `shortlist` above, which holds saved courses.
+  savedUniversities: {
     type: [{ _id: false, universityId: { type: String, required: true }, addedAt: { type: Date, default: Date.now } }],
     default: undefined,
   },
@@ -304,6 +304,19 @@ const UserSchema = new mongoose.Schema({
   // Active login sessions — one per device, each with its own refresh token
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },
+
+  // Two-factor sign-in with an authenticator app (see lib/twoFactor.js). Everything secret is `select: false`, so no
+  // query returns it unless a route asks for it by name ('+twoFactor.secret'); toJSON below also cuts the block down to
+  // { enabled }. `secret` is encrypted at rest, `recoveryCodes` holds keyed hashes (never the codes), and `lastStep` is
+  // the last TOTP time step accepted, so one code cannot be used twice.
+  twoFactor: {
+    enabled: { type: Boolean, default: false },
+    enabledAt: Date,
+    secret: { type: String, select: false },
+    pendingSecret: { type: String, select: false },
+    recoveryCodes: { type: [String], select: false, default: undefined },
+    lastStep: { type: Number, select: false },
+  },
 
   // Admin: when this admin last opened the New Subscribers list (drives the unread badge)
   subscribersSeenAt: { type: Date, default: null },
@@ -343,7 +356,12 @@ UserSchema.set('toJSON', {
   // Staff notes never travel inside a user object — that would hand them to the student and
   // every private note to every colleague. They're served only by GET /api/students/:id/notes,
   // which applies public/private visibility (lib/studentNotes.js).
-  transform: (doc, ret) => { delete ret.counselorNotes; return ret; },
+  transform: (doc, ret) => {
+    delete ret.counselorNotes;
+    // Whatever was selected, a user object never carries 2FA secrets, only whether it is on.
+    if (ret.twoFactor) ret.twoFactor = { enabled: !!ret.twoFactor.enabled };
+    return ret;
+  },
 });
 
 module.exports = mongoose.model('User', UserSchema);
