@@ -7,8 +7,23 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-do-not-use-in-production';
 process.env.FRONTEND_URL = 'http://localhost:5173';
+process.env.SOC_OWNER_RECHECK_MS = '300'; // so the live-feed owner re-check can be observed in a test
 process.env.SOC_OWNER_EMAILS = '@example.com,owner@soc.test';
 process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
+// A developer's real model keys live in server/.env, and dotenv does not override variables that are already set —
+// blanking them here guarantees no test can reach a real model API (slow, flaky, and it spends the key's quota).
+// Tests that exercise a model backend inject a fake client or set a dummy key themselves.
+// app.js refuses to load without a MONGODB_URI, and dotenv would otherwise fill it from a developer's real
+// server/.env (the live database). Pin a dummy first: a machine with no .env (a fresh clone, CI) can run the
+// suite, and no test can ever see the real address. beforeAll below swaps in the in-memory server's URI.
+process.env.MONGODB_URI = 'mongodb://127.0.0.1:1/never-used-replaced-in-beforeAll';
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
+process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
+// Same for WhatsApp: a developer's real credentials must never let a test message a real phone.
+process.env.WHATSAPP_TOKEN = '';
+process.env.WHATSAPP_PHONE_NUMBER_ID = '';
+process.env.WHATSAPP_TEMPLATE_NAME = '';
 
 let mongod: MongoMemoryServer;
 

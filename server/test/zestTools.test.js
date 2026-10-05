@@ -14,13 +14,12 @@ async function mk(role, extra = {}) {
   return { token: res.body.token, id: res.body.user.id, email };
 }
 
-describe('Zest tools are only offered to staff', () => {
-  it('students get an empty tool list; counselors and admins get all three', () => {
-    expect(getToolsForRole('student')).toEqual([]);
-    expect(getToolsForRole('counselor').map(t => t.name).sort()).toEqual(
-      ['list_my_open_tasks', 'list_open_lead_alerts', 'lookup_student_status'],
-    );
-    expect(getToolsForRole('admin')).toHaveLength(3);
+describe('which tools each role is offered', () => {
+  it('students get only the catalogue search; counselors and admins get every tool', () => {
+    expect(getToolsForRole('student').map(t => t.name)).toEqual(['search_universities']);
+    const staff = ['list_my_open_tasks', 'list_my_students', 'list_open_lead_alerts', 'lookup_student_status', 'pipeline_summary', 'search_universities'];
+    expect(getToolsForRole('counselor').map(t => t.name).sort()).toEqual(staff);
+    expect(getToolsForRole('admin').map(t => t.name).sort()).toEqual(staff);
   });
 });
 

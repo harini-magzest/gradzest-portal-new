@@ -15,7 +15,7 @@ export default function DashboardTopbar({
 }) {
   const { user, logout } = useAuth();
   // Staff see their role from the Roles tree (e.g. "Associate Counsellor HO workspace")
-  const { workspace } = usePortalName();
+  const { workspace, name: roleName } = usePortalName();
   const label = user?.role === 'counselor' || user?.role === 'admin' ? workspace : workspaceLabel;
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -76,7 +76,7 @@ export default function DashboardTopbar({
               <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
                 <div className="px-4 py-2.5 border-b border-gray-100">
                   <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                  <p className="text-xs text-gray-400 capitalize mt-0.5">{user?.role}</p>
+                  <p className="text-xs text-gray-400 capitalize mt-0.5">{user?.role === 'counselor' || user?.role === 'admin' ? roleName : user?.role}</p>
                 </div>
                 {user?.role === 'student' && (
                   <Link to="/student/profile" onClick={() => setProfileOpen(false)}

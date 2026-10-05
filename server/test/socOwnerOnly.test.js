@@ -108,6 +108,21 @@ describe('the live SOC feed is owner-only too (no side door through the socket)'
     expect(subApp).toHaveLength(0);
   });
 
+  it('an owner who is removed from SOC_OWNER_EMAILS is dropped from the live feed without reconnecting', async () => {
+    const owner = await mk('admin');
+    process.env.SOC_OWNER_EMAILS = owner.email;
+    const so = await connect(owner);
+    await waitUntil(async () => (await members('admin-room')).includes(owner.id));
+    const got = listen(so, 'security_event');
+
+    process.env.SOC_OWNER_EMAILS = 'nobody-else@example.com'; // demoted while the tab stays open
+    await waitUntil(async () => !(await members('admin-room')).includes(owner.id));
+
+    io.to('admin-room').emit('security_event', { type: 'login_failure', email: 'secret@example.com' });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(got).toHaveLength(0);
+  });
+
   it('real SOC events are delivered to the owner only (a sign-in row and an incident, via the app\'s own emitters)', async () => {
     const owner = await mk('admin');
     const otherAdmin = await mk('admin');

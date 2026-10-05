@@ -5,7 +5,9 @@
 // whole domain — used by the test suite only; never use it in production.
 
 const owners = () => String(process.env.SOC_OWNER_EMAILS || 'hameed@magzest.in')
-  .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  // Domain wildcards are for the test suite; ignored in production so a stray "@company.com" can't open the SOC to everyone.
+  .filter((e) => !(process.env.NODE_ENV === 'production' && e.startsWith('@')));
 
 function isSocOwnerEmail(email) {
   const e = String(email || '').trim().toLowerCase();

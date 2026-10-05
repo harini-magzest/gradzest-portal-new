@@ -1,5 +1,5 @@
 const express = require('express');
-const { sendServerError } = require('../lib/httpError');
+const { logError } = require('../lib/logError');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -14,6 +14,8 @@ const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 const { assignNextCounselor } = require('../lib/assignCounselor');
 const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
+const { buildChecklist, destinationNames } = require('../lib/documentChecklist');
+const { buildTimeline } = require('../lib/applicationTimeline');
 
 const router = express.Router();
 
@@ -27,7 +29,8 @@ router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
     const io = req.app.get('io');
     students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -85,6 +88,64 @@ router.put('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// Document checklist and application timeline, for the student themself (/me/...) or for staff viewing a student they
+// are allowed to see (/:id/...). `me` routes are declared first so "me" is never read as a student id.
+async function checklistFor(studentId) {
+  const Country = require('../models/Country');
+  const University = require('../models/University');
+  const mongoose = require('mongoose');
+  const student = await User.findOne({ _id: studentId, role: 'student' }).select('documents preferredCountries applications').lean();
+  if (!student) return null;
+  const apps = student.applications || [];
+  const ids = apps.map((a) => a.universityId).filter((id) => id && mongoose.isValidObjectId(id));
+  const names = apps.map((a) => a.universityName).filter(Boolean);
+  const unis = ids.length || names.length
+    ? await University.find({ $or: [{ _id: { $in: ids } }, { name: { $in: names } }] }).select('country').lean()
+    : [];
+  const wanted = destinationNames(student, unis.map((u) => u.country)).map((n) => n.toLowerCase());
+  const countries = wanted.length ? (await Country.find({}).select('name visa.documents').lean()).filter((c) => wanted.includes(String(c.name).toLowerCase())) : [];
+  return buildChecklist(student, countries);
+}
+
+async function timelineFor(studentId) {
+  const student = await User.findOne({ _id: studentId, role: 'student' }).select('applications').lean();
+  return student ? { applications: buildTimeline(student.applications || []) } : null;
+}
+
+const asStudent = (req, res, next) => (req.user.role === 'student' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+router.get('/me/checklist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await checklistFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/me/timeline', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await timelineFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/checklist', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await checklistFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/timeline', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await timelineFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
 // Add document (student only) — accepts multipart/form-data with optional file
 router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
@@ -98,7 +159,8 @@ router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('fil
     const newDoc = user.documents[user.documents.length - 1];
     fireEvent('document.uploaded', { studentId: user._id, document: newDoc });
     res.json(newDoc.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -115,7 +177,8 @@ router.delete('/me/documents/:docId', authMiddleware, async (req, res) => {
     const removed = owner?.documents?.[0];
     if (removed) deleteStoredFile(removed.url);
     res.json({ message: 'Document deleted' });
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -286,12 +349,9 @@ router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
-    // Include the assigned counselor's name so the profile can show it
-    const counselor = student.counselorId
-      ? await User.findById(student.counselorId).select('name').lean().catch(() => null)
-      : null;
-    res.json({ ...student.toJSON(), counselorName: counselor?.name || null });
-  } catch {
+    res.json(student.toJSON());
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -401,7 +461,8 @@ router.post('/:id/documents', authMiddleware, can('documents.request'), async (r
     }
 
     res.json(newDoc.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -428,7 +489,8 @@ router.put('/:id/documents/:docId', authMiddleware, can('documents.verify'), asy
     if (io && sids && doc) sids.forEach(sid => io.to(sid).emit('document:status_updated', { name: doc.name, status }));
 
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -438,7 +500,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-  } catch { return res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); return res.status(500).json({ message: 'Server error' }); }
   const StaffActivity = require('../models/StaffActivity');
   const ActivityLog = require('../models/ActivityLog');
   const EmailLog = require('../models/EmailLog');
@@ -583,7 +645,7 @@ router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req,
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/meta — tags and short summary (admin, or the assigned counselor)
@@ -610,7 +672,7 @@ router.put('/:id/meta', authMiddleware, async (req, res) => {
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // ── Staff notes: public (all staff who can open the student) or private (author only) ──
@@ -661,7 +723,7 @@ router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) 
       studentId: student._id, studentName: student.name,
     });
     res.status(201).json({ notes: notesFor(student, req.user.id) });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/notes/:noteId — the author edits the text and/or switches public ↔ private
@@ -682,7 +744,7 @@ router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req
     if (visibility !== undefined) note.visibility = visibility;
     await student.save();
     res.json({ notes: notesFor(student, req.user.id) });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // DELETE /api/students/:id/notes/:noteId — the author, or an admin for a public note
@@ -698,7 +760,7 @@ router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (
     student.counselorNotes.pull(note._id);
     await student.save();
     res.json({ notes: notesFor(student, req.user.id) });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

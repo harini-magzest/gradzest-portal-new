@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const SEEN_KEY = 'gz_namaste_seen';
-const DURATION_MS = 3200;
+const DURATION_MS = 3500;
 const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
+const GREETING_COLOUR = '#FFFFFF';
 
 // The public site and each dashboard get their own intro, so entering a dashboard after the
 // homepage in the same session still plays it once.
@@ -21,84 +22,141 @@ function shouldPlay(area: string): boolean {
   }
 }
 
-// One hand of the joined-palms pose, drawn on the left of x=100 and clipped there so the
-// mirrored right hand meets it exactly on the centre line.
-const SKIN = '#E8B48A';
-const LINE = '#8A5A3B';
-const FINGERS: { x: number; top: number }[] = [
-  { x: 60, top: 40 },
-  { x: 71, top: 26 },
-  { x: 82, top: 18 },
-  { x: 91, top: 14 },
+// Line-art Namaste (anjali mudra): two hands pressed palm to palm, fingers pointing up, seen from the
+// front. Only the left hand is described; the right is its mirror across x=100, so the pair is
+// symmetrical and the two meet on the centre line. Each half slides in from its own side while its
+// strokes trace themselves (stroke-dash); every stroke uses pathLength=1 so one dash rule animates all.
+type Stroke = { d: string; delay: number; rotate?: number };
+
+const FINGER_R = 5.25;
+// x = finger centre, top = fingertip, rotate = degrees leaning toward the centre (the index lies on it)
+const FINGERS = [
+  { x: 61, top: 80, rotate: 6, delay: 0.45 },
+  { x: 72.5, top: 54, rotate: 3, delay: 0.6 },
+  { x: 84, top: 34, rotate: 1, delay: 0.75 },
+  { x: 94.5, top: 28, rotate: 0, delay: 0.9 },
 ];
+
+const HAND_STROKES: Stroke[] = [
+  { d: 'M78 246 H100 M80 234 H100', delay: 0 }, // sleeve cuff
+  { d: 'M55.75 142 C50 172 62 204 80 234', delay: 0.15 }, // outer edge of the palm down to the wrist
+  { d: 'M55.75 146 C70 140 86 140 100 146', delay: 0.3 }, // knuckle line
+  ...FINGERS.map(f => ({
+    d: `M${f.x - FINGER_R} 144 V${f.top + FINGER_R} A${FINGER_R} ${FINGER_R} 0 0 1 ${f.x + FINGER_R} ${f.top + FINGER_R} V144`,
+    delay: f.delay,
+    rotate: f.rotate,
+  })),
+  { d: 'M99.75 36 V152', delay: 1.0 }, // centre seam where the palms meet
+  { d: 'M100 158 C90 152 82 156 81 172 C80 188 88 200 100 198', delay: 1.1 }, // thumb folded against the palm
+];
+
+// Soft gold body behind the outlines, so the pair has some volume instead of reading as wire.
+const PALM_FILL = 'M55.75 142 C50 172 62 204 80 234 H100 V142 Z';
+
+const rotateAttr = (rotate?: number) => (rotate ? `rotate(${rotate} 100 144)` : undefined);
 
 function Hand() {
   return (
-    <g clipPath="url(#gz-namaste-half)" fill={SKIN} stroke={LINE} strokeWidth="1.4" strokeLinejoin="round">
-      <path d="M58 76 L100 76 L100 146 L68 146 C60 134 56 108 58 76 Z" />
-      {FINGERS.map(f => (
-        <rect key={f.x} x={f.x} y={f.top} width="10" height={150 - f.top} rx="5" />
-      ))}
-    </g>
+    <>
+      <g className="gz-fill" stroke="none" fill="url(#gz-fill)">
+        <path d={PALM_FILL} />
+        {HAND_STROKES.filter(st => st.rotate !== undefined).map(st => (
+          <path key={st.d} d={st.d} transform={rotateAttr(st.rotate)} />
+        ))}
+      </g>
+      <g fill="none" stroke="#67E8F9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {HAND_STROKES.map(st => (
+          <path key={st.d} d={st.d} pathLength={1} className="gz-draw" style={{ animationDelay: `${st.delay}s` }} transform={rotateAttr(st.rotate)} />
+        ))}
+      </g>
+    </>
   );
 }
 
-const PARTICLES = [
-  { left: '18%', top: '30%', delay: 1.0, size: 10 },
-  { left: '82%', top: '28%', delay: 1.1, size: 9 },
-  { left: '26%', top: '62%', delay: 1.2, size: 8 },
-  { left: '74%', top: '64%', delay: 1.3, size: 11 },
-  { left: '34%', top: '20%', delay: 1.4, size: 7 },
-  { left: '66%', top: '18%', delay: 1.5, size: 9 },
-  { left: '12%', top: '50%', delay: 1.6, size: 6 },
-  { left: '88%', top: '48%', delay: 1.7, size: 6 },
-];
+function Hands() {
+  return (
+    <>
+      <defs>
+        <linearGradient id="gz-fill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#67E8F9" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.4" />
+        </linearGradient>
+      </defs>
+      <g className="gz-join-left"><Hand /></g>
+      <g className="gz-join-right"><g transform="translate(200 0) scale(-1 1)"><Hand /></g></g>
+    </>
+  );
+}
 
+// Golden dust: fixed positions (no per-render randomness) drifting upward at staggered speeds.
+const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
+  left: `${(i * 37 + 11) % 100}%`,
+  top: `${(i * 53 + 17) % 100}%`,
+  size: 2 + (i % 4),
+  duration: 4 + (i % 5),
+  delay: -((i * 0.7) % 6),
+}));
+
+const GREETING = 'Namaste'.split('');
+
+// Timeline (3.5s): hands slide together and trace in 0–1.6s, the glow blooms 1.2–2.4s, 'Namaste' reveals letter by letter from 1.5s, then the
+// whole overlay slides up and fades 2.9–3.5s.
 const CSS = `
-.gz-namaste { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.gz-namaste { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 .gz-namaste-bg {
-  background: radial-gradient(ellipse at 50% 45%, #fff8ec 0%, #fbe6c2 48%, #eab976 100%);
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(59, 130, 246, 0.28) 0%, transparent 62%),
+    linear-gradient(180deg, #0e1c4d 0%, #09133a 100%);
 }
-@keyframes gz-namaste-fade-out {
-  0%, 78% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes gz-namaste-exit {
+  0%, 82% { transform: translateY(0); opacity: 1; animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); }
+  100% { transform: translateY(-100%); opacity: 0; }
 }
-@keyframes gz-hand-left {
-  0% { transform: translateX(-120vw) rotate(-10deg); }
-  100% { transform: translateX(0) rotate(0deg); }
+@keyframes gz-draw {
+  to { stroke-dashoffset: 0; }
 }
-@keyframes gz-hand-right {
-  0% { transform: translateX(120vw) rotate(10deg); }
-  100% { transform: translateX(0) rotate(0deg); }
+@keyframes gz-fill-in {
+  to { opacity: 1; }
+}
+@keyframes gz-join-left {
+  from { transform: translateX(-46px); }
+  to { transform: translateX(0); }
+}
+@keyframes gz-join-right {
+  from { transform: translateX(46px); }
+  to { transform: translateX(0); }
 }
 @keyframes gz-text-in {
-  0% { opacity: 0; transform: translateY(12px) scale(0.96); letter-spacing: 0.3em; }
-  100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.04em; }
+  0% { opacity: 0; transform: translateY(12px); letter-spacing: 0.35em; }
+  100% { opacity: 1; transform: translateY(0); letter-spacing: 0.12em; }
 }
-@keyframes gz-glow-pulse {
-  0% { text-shadow: 0 0 0 rgba(212, 160, 60, 0); }
-  50% { text-shadow: 0 0 28px rgba(212, 160, 60, 0.85), 0 0 60px rgba(255, 200, 100, 0.5); }
-  100% { text-shadow: 0 0 14px rgba(212, 160, 60, 0.45); }
+@keyframes gz-glow {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
 }
-@keyframes gz-lantern {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.08); }
+@keyframes gz-letter-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
-@keyframes gz-particle {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
-  40% { opacity: 1; }
-  100% { opacity: 0; transform: translate(0, -40px) scale(1); }
+@keyframes gz-sub-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.gz-hand-left { animation: gz-hand-left 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.gz-hand-right { animation: gz-hand-right 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.gz-greeting {
-  animation: gz-text-in 0.8s ease-out 1.0s both, gz-glow-pulse 0.8s ease-in-out 1.8s both;
-  color: #9a6b16;
-  font-weight: 700;
-  font-family: Georgia, "Times New Roman", serif;
+@keyframes gz-dust {
+  0% { opacity: 0; transform: translateY(0); }
+  30%, 70% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(-60px); }
 }
-.gz-lantern { animation: gz-lantern 2.4s ease-in-out infinite; }
-.gz-particle { animation: gz-particle 1.6s ease-out both; box-shadow: 0 0 10px 3px rgba(245, 190, 80, 0.85); }
+.gz-join-left { animation: gz-join-left 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.gz-join-right { animation: gz-join-right 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.gz-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: gz-draw 0.9s ease-out forwards; }
+.gz-fill { opacity: 0; animation: gz-fill-in 1s ease-out 1.1s forwards; }
+.gz-halo { animation: gz-glow 1.6s ease-out 1.2s both; }
+.gz-greeting { letter-spacing: 0.12em; color: ${GREETING_COLOUR}; font-weight: 700; text-shadow: 0 0 22px rgba(103, 232, 249, 0.55); }
+.gz-letter { display: inline-block; animation: gz-letter-in 0.7s ease-out both; }
+.gz-sub { animation: gz-sub-in 0.9s ease-out 2s both; }
+.gz-dust { animation: gz-dust linear infinite; background: #A5F3FC; box-shadow: 0 0 8px 2px rgba(103, 232, 249, 0.6); }
 `;
 
 export default function NamasteIntro() {
@@ -117,56 +175,61 @@ export default function NamasteIntro() {
     return () => clearTimeout(t);
   }, [show, area]);
 
+  // While the intro covers the page: Esc skips it, and the page behind it can't scroll.
+  useEffect(() => {
+    if (!show) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShow(false); };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [show]);
+
   if (!show) return null;
 
   return (
     <div
-      role="presentation"
+      role="dialog"
+      aria-label="Welcome to Gradzest"
       onClick={() => setShow(false)}
       className="gz-namaste gz-namaste-bg fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden cursor-pointer"
-      style={{ animation: `gz-namaste-fade-out ${DURATION_MS}ms ease-in both` }}
+      style={{ animation: `gz-namaste-exit ${DURATION_MS}ms linear both`, height: '100dvh' }}
     >
       <style>{CSS}</style>
 
+      {PARTICLES.map((p, i) => (
+        <span
+          key={i}
+          className="gz-dust absolute rounded-full"
+          style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDuration: `${p.duration}s`, animationDelay: `${p.delay}s` }}
+          aria-hidden="true"
+        />
+      ))}
+
       <button
         type="button"
+        autoFocus
         onClick={e => { e.stopPropagation(); setShow(false); }}
-        className="absolute top-5 right-5 z-10 rounded-full border border-amber-700/40 bg-white/60 px-4 py-1.5 text-sm font-medium text-amber-900 backdrop-blur-sm hover:bg-white/90"
+        className="absolute top-4 right-4 z-10 rounded-full border border-blue-300/30 bg-white/5 px-4 py-1.5 text-sm font-medium text-blue-100 backdrop-blur-sm transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
       >
         Skip intro
       </button>
 
-      <div className="gz-lantern absolute -left-16 top-10 h-64 w-64 rounded-full bg-orange-300/40 blur-3xl" aria-hidden="true" />
-      <div className="gz-lantern absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-amber-300/40 blur-3xl" aria-hidden="true" style={{ animationDelay: '1.2s' }} />
-
-      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 w-[min(90vw,520px)] h-[85vh] opacity-40" aria-hidden="true">
-        <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#B8862B" strokeWidth="2.5" />
-        <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#D4A03C" strokeWidth="1" />
-      </svg>
-
       <div className="relative flex flex-col items-center">
-        <svg viewBox="0 0 200 150" className="w-[min(70vw,320px)] h-auto overflow-visible drop-shadow-[0_8px_12px_rgba(120,70,20,0.28)]" aria-hidden="true">
-          <defs>
-            <clipPath id="gz-namaste-half">
-              <rect x="0" y="0" width="100" height="150" />
-            </clipPath>
-          </defs>
-          <g className="gz-hand-left"><Hand /></g>
-          <g className="gz-hand-right">
-            <g transform="translate(200 0) scale(-1 1)"><Hand /></g>
-          </g>
+        <div className="gz-halo absolute left-1/2 top-[40%] h-56 w-56 rounded-full bg-blue-500/45 blur-3xl sm:h-80 sm:w-80" aria-hidden="true" />
+        <svg viewBox="0 0 200 260" className="relative w-[min(46vw,220px)] max-h-[42dvh] h-auto overflow-visible drop-shadow-[0_0_16px_rgba(59,130,246,0.7)]" aria-hidden="true">
+          <Hands />
         </svg>
 
-        <p className="gz-greeting mt-4 text-4xl sm:text-5xl">Namaste</p>
-
-        {PARTICLES.map((p, i) => (
-          <span
-            key={i}
-            className="gz-particle absolute rounded-full bg-amber-500"
-            style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDelay: `${p.delay}s` }}
-            aria-hidden="true"
-          />
-        ))}
+        <p className="gz-greeting relative mt-6 text-3xl uppercase sm:text-5xl" aria-label="Namaste">
+          {GREETING.map((ch, i) => (
+            <span key={i} className="gz-letter" style={{ animationDelay: `${1.5 + i * 0.07}s` }} aria-hidden="true">{ch}</span>
+          ))}
+        </p>
+        <p className="gz-sub relative mt-3 text-xs font-medium uppercase tracking-[0.35em] text-cyan-200/80 sm:text-sm">Welcome to Gradzest</p>
       </div>
     </div>
   );
