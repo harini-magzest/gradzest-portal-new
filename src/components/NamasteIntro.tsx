@@ -3,8 +3,11 @@ import { useLocation } from 'react-router-dom';
 
 const SEEN_KEY = 'gz_namaste_seen';
 const DURATION_MS = 5000;
+// Optional golden-hour photo of joined hands (see the prompt in docs/namaste-photo-prompt.md). When the file is
+// missing or fails to load, the drawn hands below play instead, so the intro never shows a broken image.
+const PHOTO_SRC = '/namaste-hands.jpg';
 const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
-// Light gold reads clearly on the navy background and keeps the site's accent.
+// Light gold reads clearly on the dark golden-hour background and keeps the site's accent.
 const GREETING_COLOUR = '#F6D27A';
 
 // The public site and each dashboard get their own intro, so entering a dashboard after the
@@ -80,8 +83,15 @@ const PARTICLES = [
 const CSS = `
 .gz-namaste { font-family: Georgia, 'Times New Roman', serif; }
 .gz-namaste-bg {
-  background: radial-gradient(ellipse at 50% 42%, #1f3a7d 0%, #0d1b4b 58%, #060d28 100%);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(246, 176, 72, 0.55) 0%, rgba(196, 112, 34, 0.25) 38%, transparent 70%),
+    linear-gradient(180deg, #3b2310 0%, #2a1608 55%, #140a04 100%);
 }
+@keyframes gz-photo-in {
+  0% { opacity: 0; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.gz-photo { animation: gz-photo-in 2.4s ease-out both; }
 @keyframes gz-namaste-fade-out {
   0%, 80% { opacity: 1; }
   100% { opacity: 0; }
@@ -127,6 +137,7 @@ export default function NamasteIntro() {
   const { pathname } = useLocation();
   const area = areaOf(pathname);
   const [show, setShow] = useState(() => shouldPlay(area));
+  const [photo, setPhoto] = useState<'loading' | 'ok' | 'missing'>('loading');
 
   useEffect(() => {
     if (shouldPlay(area)) setShow(true);
@@ -150,6 +161,17 @@ export default function NamasteIntro() {
     >
       <style>{CSS}</style>
 
+      {/* Preloads the photo; rendered only once it has loaded, so a missing file is never visible. */}
+      {photo === 'loading' && (
+        <img src={PHOTO_SRC} alt="" className="hidden" onLoad={() => setPhoto('ok')} onError={() => setPhoto('missing')} />
+      )}
+      {photo === 'ok' && (
+        <>
+          <img src={PHOTO_SRC} alt="" className="gz-photo absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" aria-hidden="true" />
+        </>
+      )}
+
       <button
         type="button"
         onClick={e => { e.stopPropagation(); setShow(false); }}
@@ -161,12 +183,15 @@ export default function NamasteIntro() {
       <div className="gz-lantern absolute -left-16 top-10 h-48 w-48 rounded-full bg-amber-400/25 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" />
       <div className="gz-lantern absolute -right-16 bottom-10 h-48 w-48 rounded-full bg-amber-400/25 blur-3xl sm:h-64 sm:w-64" aria-hidden="true" style={{ animationDelay: '1.5s' }} />
 
+      {photo !== 'ok' && (
       <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMax meet" className="absolute bottom-0 h-[70dvh] w-[min(80vw,400px)] opacity-40" aria-hidden="true">
         <path d="M60 390 L60 170 Q60 40 200 40 Q340 40 340 170 L340 390" fill="none" stroke="#D9A94A" strokeWidth="2.5" />
         <path d="M80 390 L80 175 Q80 60 200 60 Q320 60 320 175 L320 390" fill="none" stroke="#E8BE62" strokeWidth="1" />
       </svg>
+      )}
 
       <div className="relative flex flex-col items-center">
+        {photo !== 'ok' && (
         <svg viewBox="0 0 200 150" className="w-[min(55vw,240px)] h-auto overflow-visible drop-shadow-[0_8px_12px_rgba(120,70,20,0.28)]" aria-hidden="true">
           <defs>
             <clipPath id="gz-namaste-half">
@@ -180,6 +205,7 @@ export default function NamasteIntro() {
             <g transform="translate(200 0) scale(-1 1)"><Hand id="r" /></g>
           </g>
         </svg>
+        )}
 
         <p className="gz-greeting mt-4 text-3xl sm:text-5xl">Namaste</p>
 
