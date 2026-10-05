@@ -20,7 +20,6 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/student/shortlist', label: 'Shortlist', icon: Heart, mobileHide: true },
   { to: '/student/compare', label: 'Compare & cost', icon: Scale, mobileHide: true },
   { to: '/student/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
-  { to: '/student/shortlist', label: 'Shortlist', icon: Bookmark, mobileHide: true },
   { to: '/student/activities', label: 'Activities', icon: CalendarDays },
   { to: '/student/meetings', label: 'Meetings', icon: Video },
   { to: '/student/events', label: 'Events', icon: Ticket, mobileHide: true },

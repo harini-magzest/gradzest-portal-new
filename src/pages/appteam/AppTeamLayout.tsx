@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import SkipLink from '../../components/SkipLink';
 import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
@@ -39,6 +40,7 @@ export default function AppTeamLayout() {
 
   return (
     <div className="min-h-screen bg-orange-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Application Team workspace" search={search} />
       <div className="flex">
 

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import ZestIcon from '../../components/zest/ZestIcon';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Video } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Video, Ticket } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
@@ -71,6 +71,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-purple-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Admin workspace" search={search} />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
