@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
 
 // Ordered so the 24h window is always evaluated (and recorded) before the 1h window
 const REMINDER_WINDOWS = [
@@ -45,14 +46,18 @@ async function runMeetingReminderCheck(io, userSockets, mailer) {
         }
       }
 
+      const people = await User.find({
+        _id: { $in: meeting.participants.filter(p => p.userId).map(p => p.userId) },
+      }).select('email phone notificationPrefs').lean();
+      const personById = new Map(people.map(u => [String(u._id), u]));
+      for (const u of people) sendExtraChannels(u, `${title}. ${message}${link ? ` Join: ${link}` : ''}`);
+
       if (mailer) {
         const emailParticipants = meeting.participants.filter(p => p.email || p.userId);
-        const users = await User.find({
-          _id: { $in: emailParticipants.filter(p => !p.email).map(p => p.userId) },
-        }).select('email').lean();
-        const emailById = new Map(users.map(u => [String(u._id), u.email]));
         for (const p of emailParticipants) {
-          const to = p.email || emailById.get(String(p.userId));
+          const person = personById.get(String(p.userId));
+          if (person && !wantsEmail(person)) continue;
+          const to = p.email || person?.email;
           if (!to) continue;
           mailer.sendMail({
             from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,

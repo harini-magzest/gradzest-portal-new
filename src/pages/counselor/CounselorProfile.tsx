@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
+import NotificationPreferences from '../../components/NotificationPreferences';
 
 const DOC_TYPES = [
   'Degree Certificate', 'Teaching Certificate', 'Professional License',
@@ -316,6 +317,7 @@ export default function CounselorProfile() {
             </button>
           </div>
 
+          <NotificationPreferences />
           <ActiveSessionsPanel />
         </div>
       </div>

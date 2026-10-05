@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, X, Send, FileText, Settings2, Paperclip } from 'lucide-react';
+import { Sparkles, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 
@@ -10,6 +10,8 @@ interface ZestMessage {
   text: string;
   sources?: { documentId: string; title: string }[];
   error?: boolean;
+  logId?: string;
+  rating?: 'up' | 'down';
 }
 
 const WELCOME: ZestMessage = {
@@ -63,8 +65,8 @@ export default function ZestWidget() {
     setLoading(true);
     if (file) {
       try {
-        const { answer, sources } = await api.zest.askWithFile(question, file, history);
-        setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: answer, sources }]);
+        const { answer, sources, logId } = await api.zest.askWithFile(question, file, history);
+        setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: answer, sources, logId }]);
       } catch (err: any) {
         setMessages(prev => [...prev, {
           id: `e-${Date.now()}`, role: 'assistant', error: true,
@@ -80,10 +82,10 @@ export default function ZestWidget() {
     setMessages(prev => [...prev, { id: replyId, role: 'assistant', text: '' }]);
     setStreamingId(replyId);
     try {
-      const { answer, sources } = await api.zest.askStream(question, history, (delta) => {
+      const { answer, sources, logId } = await api.zest.askStream(question, history, (delta) => {
         setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: m.text + delta } : m)));
       });
-      setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: answer, sources } : m)));
+      setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: answer, sources, logId } : m)));
     } catch (err: any) {
       setMessages(prev => prev.map(m => (m.id === replyId ? {
         ...m, error: true, text: err?.message || "Zest couldn't answer that right now. Please try again.",
@@ -91,6 +93,17 @@ export default function ZestWidget() {
     } finally {
       setStreamingId(null);
       setLoading(false);
+    }
+  };
+
+  const rate = async (m: ZestMessage, rating: 'up' | 'down') => {
+    if (!m.logId || m.rating === rating) return;
+    const previous = m.rating;
+    setMessages(prev => prev.map(x => (x.id === m.id ? { ...x, rating } : x)));
+    try {
+      await api.zest.feedback(m.logId, rating);
+    } catch {
+      setMessages(prev => prev.map(x => (x.id === m.id ? { ...x, rating: previous } : x)));
     }
   };
 
@@ -141,6 +154,18 @@ export default function ZestWidget() {
                   : m.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-gray-800 border border-gray-100 shadow-sm'
               }`}>
                 <p className="whitespace-pre-wrap">{m.text}</p>
+                {m.role === 'assistant' && m.logId && !m.error && m.id !== streamingId && (
+                  <div className="mt-2 flex items-center gap-1 text-gray-400">
+                    <button type="button" onClick={() => rate(m, 'up')} aria-label="Helpful" aria-pressed={m.rating === 'up'}
+                      className={`p-1 rounded hover:bg-gray-100 ${m.rating === 'up' ? 'text-emerald-600' : ''}`}>
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => rate(m, 'down')} aria-label="Not helpful" aria-pressed={m.rating === 'down'}
+                      className={`p-1 rounded hover:bg-gray-100 ${m.rating === 'down' ? 'text-red-500' : ''}`}>
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
                     {m.sources.map(s => (

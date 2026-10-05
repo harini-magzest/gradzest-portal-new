@@ -5,6 +5,10 @@ const LeadAlert = require('../models/LeadAlert');
 const authMiddleware = require('../middleware/auth');
 const { LEAD_STAGES } = require('../lib/automation');
 const { daysSinceStageChange } = require('../lib/leadRisk');
+const { scoreLead } = require('../lib/leadScore');
+const Meeting = require('../models/Meeting');
+const { buildConversion } = require('../lib/conversionReport');
+const { sendCsv } = require('../lib/csv');
 
 const router = express.Router();
 
@@ -95,6 +99,38 @@ router.get('/admin/funnel', authMiddleware, requireRole('admin'), async (req, re
   res.json({ stages, total: stages.reduce((n, s) => n + s.count, 0) });
 });
 
+/* ── Admin: conversion report (lead -> application -> offer -> enrolled), optionally as CSV ─────── */
+
+router.get('/admin/conversion', authMiddleware, requireRole('admin'), async (req, res) => {
+  const groupBy = ['counselor', 'country', 'source'].includes(req.query.groupBy) ? req.query.groupBy : 'counselor';
+  const parseDate = (v, endOfDay) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v || ''))) return null;
+    const d = new Date(`${v}T${endOfDay ? '23:59:59.999' : '00:00:00'}Z`);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const from = parseDate(req.query.from, false);
+  const to = parseDate(req.query.to, true);
+
+  const [students, counselors] = await Promise.all([
+    User.find({ role: 'student' }).select('counselorId source preferredCountries applications.status createdAt').lean(),
+    User.find({ role: 'counselor' }).select('name').lean(),
+  ]);
+  const counselorNames = new Map(counselors.map(c => [String(c._id), c.name]));
+  const report = buildConversion(students, groupBy, { counselorNames, from, to });
+
+  if (req.query.format === 'csv') {
+    const label = { counselor: 'Counselor', country: 'Country', source: 'Lead source' }[groupBy];
+    const rows = [...report.rows, { ...report.totals, group: 'Total' }];
+    return sendCsv(res, `conversion-by-${groupBy}-${new Date().toISOString().slice(0, 10)}.csv`, [
+      { label, key: 'group' }, { label: 'Leads', key: 'leads' }, { label: 'Applied', key: 'applied' },
+      { label: 'Offers', key: 'offers' }, { label: 'Enrolled', key: 'enrolled' },
+      { label: 'Lead to applied %', key: 'leadToApplied' }, { label: 'Applied to offer %', key: 'appliedToOffer' },
+      { label: 'Lead to enrolled %', key: 'leadToEnrolled' },
+    ], rows);
+  }
+  res.json(report);
+});
+
 /* ── Admin / App Team / Board: weekly trends ─────────────────────────────── */
 
 router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => {
@@ -145,6 +181,45 @@ router.get('/search', authMiddleware, async (req, res) => {
   };
   const students = await User.find(filter).select('name email phone leadStage').limit(10).lean();
   res.json({ students: students.map(s => ({ id: String(s._id), name: s.name, email: s.email || '', phone: s.phone || '', leadStage: s.leadStage || 'new_enquiry' })) });
+});
+
+/* ── Lead scores: who to call first (admin: everyone; counselor: their own students) ─────────── */
+
+router.get('/leads/scores', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
+  const filter = { role: 'student', ...(req.user.role === 'counselor' ? { counselorId: String(req.user.id) } : {}) };
+  const students = await User.find(filter)
+    .select('name email phone leadStage leadStageChangedAt createdAt applications documents preferredCountries budget educationLevel gpa englishScore sessions counselorId')
+    .lean();
+
+  const ids = students.map(s => String(s._id));
+  const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const meetings = ids.length
+    ? await Meeting.find({ 'participants.userId': { $in: ids }, scheduledDate: { $gte: since }, status: { $ne: 'cancelled' } }).select('participants').lean()
+    : [];
+  const idSet = new Set(ids);
+  const meetingCount = new Map();
+  for (const m of meetings) {
+    for (const p of m.participants || []) {
+      if (idSet.has(String(p.userId))) meetingCount.set(String(p.userId), (meetingCount.get(String(p.userId)) || 0) + 1);
+    }
+  }
+
+  const scored = students
+    .map(s => ({ s, result: scoreLead(s, { meetingsLast30d: meetingCount.get(String(s._id)) || 0 }) }))
+    .filter(x => x.result.band !== 'closed');
+  const bands = { hot: 0, warm: 0, cool: 0, cold: 0 };
+  scored.forEach(x => { bands[x.result.band]++; });
+
+  const leads = scored
+    .sort((a, b) => b.result.score - a.result.score)
+    .slice(0, 25)
+    .map(({ s, result }) => ({
+      studentId: String(s._id), name: s.name, email: s.email || '', leadStage: s.leadStage || 'new_enquiry',
+      score: result.score, band: result.band, reasons: result.reasons,
+    }));
+
+  res.json({ leads, bands, total: scored.length });
 });
 
 module.exports = router;

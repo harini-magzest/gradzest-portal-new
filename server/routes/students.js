@@ -14,6 +14,8 @@ const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 const { assignNextCounselor } = require('../lib/assignCounselor');
 const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
+const { buildChecklist, destinationNames } = require('../lib/documentChecklist');
+const { buildTimeline } = require('../lib/applicationTimeline');
 
 const router = express.Router();
 
@@ -84,6 +86,64 @@ router.put('/me', authMiddleware, async (req, res) => {
     console.error('[PUT /students/me]', err);
     sendServerError(res, err, 'Server error');
   }
+});
+
+// Document checklist and application timeline, for the student themself (/me/...) or for staff viewing a student they
+// are allowed to see (/:id/...). `me` routes are declared first so "me" is never read as a student id.
+async function checklistFor(studentId) {
+  const Country = require('../models/Country');
+  const University = require('../models/University');
+  const mongoose = require('mongoose');
+  const student = await User.findOne({ _id: studentId, role: 'student' }).select('documents preferredCountries applications').lean();
+  if (!student) return null;
+  const apps = student.applications || [];
+  const ids = apps.map((a) => a.universityId).filter((id) => id && mongoose.isValidObjectId(id));
+  const names = apps.map((a) => a.universityName).filter(Boolean);
+  const unis = ids.length || names.length
+    ? await University.find({ $or: [{ _id: { $in: ids } }, { name: { $in: names } }] }).select('country').lean()
+    : [];
+  const wanted = destinationNames(student, unis.map((u) => u.country)).map((n) => n.toLowerCase());
+  const countries = wanted.length ? (await Country.find({}).select('name visa.documents').lean()).filter((c) => wanted.includes(String(c.name).toLowerCase())) : [];
+  return buildChecklist(student, countries);
+}
+
+async function timelineFor(studentId) {
+  const student = await User.findOne({ _id: studentId, role: 'student' }).select('applications').lean();
+  return student ? { applications: buildTimeline(student.applications || []) } : null;
+}
+
+const asStudent = (req, res, next) => (req.user.role === 'student' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+router.get('/me/checklist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await checklistFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/me/timeline', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await timelineFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/checklist', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await checklistFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/timeline', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await timelineFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file

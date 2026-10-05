@@ -62,3 +62,24 @@ describe('dashboard summary response shapes', () => {
     expect(res.body.weeks[7].week).toMatch(/^\d{4}-W\d{2}$/);
   });
 });
+
+describe('lead scores', () => {
+  it('are for staff only, and a counselor sees only their own students ranked by score', async () => {
+    const student = await mk('student');
+    expect((await request(app).get('/api/dashboards/leads/scores').set(as(student))).status).toBe(403);
+
+    const counselor = await mk('counselor');
+    const other = await mk('counselor');
+    const hot = await mk('student', { counselorId: counselor.id, leadStage: 'visa_process', leadStageChangedAt: new Date() });
+    const cold = await mk('student', { counselorId: counselor.id, leadStage: 'not_responding', leadStageChangedAt: new Date(Date.now() - 40 * 86400000) });
+    await mk('student', { counselorId: other.id, leadStage: 'enrolment' });
+    await mk('student', { counselorId: counselor.id, leadStage: 'dnd' });
+
+    const res = await request(app).get('/api/dashboards/leads/scores').set(as(counselor));
+    expect(res.status).toBe(200);
+    expect(res.body.leads.map(l => l.studentId)).toEqual([hot.id, cold.id]); // dnd is closed, other's lead is not theirs
+    expect(res.body.leads[0].score).toBeGreaterThan(res.body.leads[1].score);
+    expect(res.body.leads[0].reasons.length).toBeGreaterThan(0);
+    expect(res.body.total).toBe(2);
+  });
+});

@@ -20,6 +20,10 @@ process.env.MONGODB_URI = 'mongodb://127.0.0.1:1/never-used-replaced-in-beforeAl
 process.env.ANTHROPIC_API_KEY = '';
 process.env.GEMINI_API_KEY = '';
 process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
+// Same for WhatsApp: a developer's real credentials must never let a test message a real phone.
+process.env.WHATSAPP_TOKEN = '';
+process.env.WHATSAPP_PHONE_NUMBER_ID = '';
+process.env.WHATSAPP_TEMPLATE_NAME = '';
 
 let mongod: MongoMemoryServer;
 

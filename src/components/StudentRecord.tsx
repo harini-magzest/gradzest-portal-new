@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
 import LeadStageSelect, { PIPELINE_STAGES, leadStageOf } from './LeadStageSelect';
 import StudentNotes from './StudentNotes';
+import ApplicationTimeline from './dashboards/ApplicationTimeline';
+import DocumentChecklist from './dashboards/DocumentChecklist';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export type RecordTab = 'timeline' | 'notes' | 'messages' | 'activities' | 'emails' | 'pipelines' | 'files';
@@ -576,6 +578,17 @@ function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEd
 
 // ── Files ────────────────────────────────────────────────────────────────────
 function FilesPanel({ student }: { student: any }) {
+  const id = String(student._id || student.id || '');
+  return (
+    <div className="space-y-5">
+      {id && <ApplicationTimeline studentId={id} />}
+      {id && <DocumentChecklist studentId={id} />}
+      <FilesList student={student} />
+    </div>
+  );
+}
+
+function FilesList({ student }: { student: any }) {
   const docs = student.documents || [];
   if (!docs.length) return <Empty icon={FileText} text="No documents yet." />;
   const badge: Record<string, string> = { verified: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-700', pending: 'bg-amber-50 text-amber-700' };
