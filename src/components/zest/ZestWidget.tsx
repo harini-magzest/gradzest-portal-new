@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Sparkles, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
+import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
 
 interface ZestMessage {
   id: string;
@@ -35,6 +36,7 @@ export default function ZestWidget() {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const speech = useSpeech();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -67,6 +69,7 @@ export default function ZestWidget() {
       try {
         const { answer, sources, logId } = await api.zest.askWithFile(question, file, history);
         setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: answer, sources, logId }]);
+        if (speech.speakAnswers) speech.speak(answer);
       } catch (err: any) {
         setMessages(prev => [...prev, {
           id: `e-${Date.now()}`, role: 'assistant', error: true,
@@ -86,6 +89,7 @@ export default function ZestWidget() {
         setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: m.text + delta } : m)));
       });
       setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: answer, sources, logId } : m)));
+      if (speech.speakAnswers) speech.speak(answer);
     } catch (err: any) {
       setMessages(prev => prev.map(m => (m.id === replyId ? {
         ...m, error: true, text: err?.message || "Zest couldn't answer that right now. Please try again.",
@@ -129,6 +133,28 @@ export default function ZestWidget() {
             <span className="font-semibold text-lg">Zest</span>
           </div>
           <div className="flex items-center gap-1">
+            {(speech.canListen || speech.canSpeak) && (
+              <select
+                value={speech.lang}
+                onChange={e => speech.setLang(e.target.value)}
+                aria-label="Voice language"
+                title="Language for voice input and spoken answers"
+                className="bg-white/10 text-white text-xs rounded-lg px-1.5 py-1 border border-white/20 focus:outline-none"
+              >
+                {SPEECH_LANGS.map(l => <option key={l.code} value={l.code} className="text-gray-900">{l.label}</option>)}
+              </select>
+            )}
+            {speech.canSpeak && (
+              <button
+                type="button"
+                onClick={() => speech.setSpeakAnswers(!speech.speakAnswers)}
+                aria-pressed={speech.speakAnswers}
+                title={speech.speakAnswers ? 'Stop reading answers aloud' : 'Read answers aloud'}
+                className="p-1.5 rounded-lg hover:bg-white/10"
+              >
+                {speech.speakAnswers ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-70" />}
+              </button>
+            )}
             {user.role === 'admin' && !user.isAppTeam && (
               <button
                 type="button"
@@ -199,6 +225,7 @@ export default function ZestWidget() {
               </button>
             </div>
           )}
+          {speech.error && <p role="alert" className="text-xs text-red-600 mb-2">{speech.error}</p>}
           <div className="flex items-center gap-2">
             <input
               ref={fileRef}
@@ -216,6 +243,18 @@ export default function ZestWidget() {
             >
               <Paperclip className="w-4 h-4" />
             </button>
+            {speech.canListen && (
+              <button
+                type="button"
+                onClick={() => (speech.listening ? speech.stop() : speech.listen(text => setInput(text)))}
+                aria-pressed={speech.listening}
+                title={speech.listening ? 'Stop listening' : 'Speak your question'}
+                disabled={loading}
+                className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center disabled:opacity-40 ${speech.listening ? 'bg-red-50 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+              >
+                {speech.listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
