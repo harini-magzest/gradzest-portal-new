@@ -16,13 +16,8 @@ function isZestConfigured() {
   return anthropic.isZestConfigured() || gemini.isZestConfigured();
 }
 
-// Which backend answers, for logs and alert emails
-function providerName() {
-  return anthropic.isZestConfigured() ? 'anthropic' : gemini.isZestConfigured() ? 'gemini' : 'none';
-}
-
 function askZest(...args) {
   return pickProvider().askZest(...args);
 }
 
-module.exports = { askZest, isZestConfigured, providerName };
+module.exports = { askZest, isZestConfigured };

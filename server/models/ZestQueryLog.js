@@ -15,4 +15,9 @@ const ZestQueryLogSchema = new mongoose.Schema({
 
 ZestQueryLogSchema.index({ createdAt: -1 });
 
+// Questions and answers routinely contain a student's name, email, application status or document names (Zest's
+// lookup tools return them), so the log is encrypted at rest like the other PII-bearing collections. Rows written
+// before this was added stay readable: the plugin only decrypts values that are actually ciphertext.
+ZestQueryLogSchema.plugin(require('../lib/encryptedFields'), { fields: ['question', 'answer'] });
+
 module.exports = mongoose.model('ZestQueryLog', ZestQueryLogSchema);
