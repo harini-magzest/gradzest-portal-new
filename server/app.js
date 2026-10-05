@@ -276,6 +276,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/events',   require('./routes/events'));
 app.use('/api/referrals', require('./routes/referrals'));
+app.use('/api/parent-links', require('./routes/parent').manage);
+app.use('/api/parent', require('./routes/parent').view);
 app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));

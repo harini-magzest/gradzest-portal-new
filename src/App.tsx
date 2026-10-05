@@ -45,6 +45,7 @@ const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'))
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
 const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
+const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
@@ -148,6 +149,8 @@ export default function App() {
         <ZestWidget />
         <Suspense fallback={<PageSpinner />}>
           <Routes>
+            {/* Read-only progress page a student shares with a parent; no account, no site chrome */}
+            <Route path="/parent/:token" element={<ParentView />} />
             {/* Public routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />

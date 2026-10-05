@@ -292,6 +292,17 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  parentLinks: {
+    list: () => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }[]>('/parent-links', { headers: authHeaders() }),
+    create: (data: { label?: string; days?: number }) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean } & { url: string }>('/parent-links', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    revoke: (id: string) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }>(`/parent-links/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  // Public: no sign-in, the secret in the link is the credential
+  parent: {
+    view: (token: string) => req<{ studentName: string; counselorName: string; applications: { universityName: string; courseName: string; intake: string; status: string; rejected: boolean; steps: { label: string; state: 'done' | 'current' | 'upcoming' }[]; daysInStage: number | null; daysToIntake: number | null; intakePassed: boolean; next: string }[]; documents: { total: number; verified: number; uploaded: number; missing: number; percent: number; stillNeeded: string[] } | null; upcomingMeetings: { title: string; date: string; time: string; durationMin: number }[]; expiresAt: string }>(`/parent/${encodeURIComponent(token)}`),
+  },
+
   referrals: {
     mine: () => req<{ code: string; link: string; rewardText: string; referrals: { name: string; status: 'signed_up' | 'applied' | 'offer' | 'enrolled'; rewardEarned: boolean; rewardPaid: boolean; joinedAt: string }[]; stats: { total: number; enrolled: number; paid: number } }>('/referrals/me', { headers: authHeaders() }),
     all: () => req<{ referrals: { id: string; referrerName: string; referrerEmail: string; referredName: string; status: string; rewardEarned: boolean; paid: boolean; paidAt: string | null; paidNote: string; createdAt: string }[]; stats: { total: number; earned: number; owed: number } }>('/referrals', { headers: authHeaders() }),
