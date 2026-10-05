@@ -43,6 +43,8 @@ const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
+const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
+const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
 // Counselor module
@@ -172,6 +174,7 @@ export default function App() {
               <Route path="countries" element={<StudentCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<StudentMeetings />} />
+              <Route path="events" element={<StudentEvents />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
@@ -186,6 +189,7 @@ export default function App() {
               <Route path="countries" element={<CounselorCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<CounselorMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="applications" element={<CounselorApplications />} />
               <Route path="learning" element={<CounselorLearning />} />
             </Route>
@@ -204,6 +208,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="live-feed" element={<AdminActivityFeed />} />
               <Route path="meetings" element={<AdminMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />

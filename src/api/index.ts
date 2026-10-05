@@ -292,6 +292,42 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  events: {
+    list: () => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }[]>('/events', { headers: authHeaders() }),
+    create: (data: { title: string; startsAt: string; description?: string; link?: string; durationMin?: number; capacity?: number }) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>('/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/events/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    register: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'POST', headers: authHeaders() }),
+    unregister: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'DELETE', headers: authHeaders() }),
+    registrations: (id: string) => req<{ name: string; email: string; registeredAt: string }[]>(`/events/${id}/registrations`, { headers: authHeaders() }),
+    registrationsCsv: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/registrations?format=csv`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'event-registrations.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    downloadIcs: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-event.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  },
+
   notificationPrefs: {
     get: () => req<{ email: boolean; whatsapp: boolean; whatsappAvailable: boolean; hasPhone: boolean; warning?: string }>('/notifications/preferences', { headers: authHeaders() }),
     update: (data: { email?: boolean; whatsapp?: boolean }) =>
