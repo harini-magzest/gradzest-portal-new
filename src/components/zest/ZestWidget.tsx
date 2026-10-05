@@ -114,9 +114,9 @@ export default function ZestWidget() {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close Zest' : 'Open Zest'}
-        className="fixed bottom-6 right-6 z-[250] w-14 h-14 rounded-full bg-[#0d1b4b] hover:bg-[#152258] shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-[250] w-16 h-16 flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
       >
-        {open ? <X className="w-6 h-6" /> : <ZestIcon className="w-6 h-6" />}
+        {open ? <X className="w-6 h-6 text-[#0d1b4b]" /> : <ZestIcon className="w-16 h-16" />}
       </button>
 
       <div
