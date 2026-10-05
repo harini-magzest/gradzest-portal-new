@@ -15,6 +15,29 @@ const { askZest, isZestConfigured } = require('../lib/zestModel');
 const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { filterByRelativeScore } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
+const { notifyZestFailure } = require('../lib/zestAlert');
+
+const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ZEST_PROVIDER=ollama (free, self-hosted), ANTHROPIC_API_KEY or GEMINI_API_KEY.';
+const UNAVAILABLE = "Zest's AI is unavailable right now and the team has been notified. Please try again later.";
+
+// The model failed and there was nothing to fall back to — routes turn this into a 503
+class ZestUnavailable extends Error {}
+
+// When the AI fails, answer with the knowledge-base passages retrieval already found rather than
+// nothing — plain text, since the chat widget renders answers as-is.
+function knowledgeBaseFallback(matches) {
+  if (!matches.length) return null;
+  const passages = matches.slice(0, 3).map(m => {
+    const text = m.text.trim();
+    return `From "${m.documentTitle}":\n${text.length > 600 ? `${text.slice(0, 600).trimEnd()}…` : text}`;
+  });
+  return `Zest's AI is unavailable right now, so here is what Gradzest's knowledge base says:\n\n${passages.join('\n\n')}`;
+}
+
+// Stop on the first failure (no retry), email the team, and say which route/role hit it — never the question
+function reportFailure(err, req, route) {
+  notifyZestFailure({ kind: err.kind || 'error', message: err.message }, { route, role: req.user.role });
+}
 
 const router = express.Router();
 
@@ -98,25 +121,35 @@ async function answerQuestion(req, question, history, onText) {
   ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
   const matches = filterByRelativeScore(ranked);
 
-  const { text: answer, toolsUsed } = await askZest(
-    question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user, onText,
-  );
   const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+
+  let answer, toolsUsed;
+  try {
+    ({ text: answer, toolsUsed } = await askZest(
+      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', req.user, onText,
+    ));
+  } catch (err) {
+    reportFailure(err, req, onText ? '/api/zest/ask-stream' : '/api/zest/ask');
+    const fallback = knowledgeBaseFallback(matches);
+    if (!fallback) throw new ZestUnavailable(err.message);
+    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [] });
+    return { answer: fallback, sources, degraded: true };
+  }
 
   await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
   return { answer, sources };
 }
 
 router.post('/ask', authMiddleware, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' });
+  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
 
   try {
     res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
   } catch (err) {
+    if (err instanceof ZestUnavailable) return res.status(503).json({ message: UNAVAILABLE });
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
   }
@@ -128,7 +161,7 @@ router.post('/ask', authMiddleware, async (req, res) => {
 router.post('/ask-stream', authMiddleware, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' });
+  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -137,11 +170,11 @@ router.post('/ask-stream', authMiddleware, async (req, res) => {
   const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 
   try {
-    const { answer, sources } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
-    send({ type: 'done', answer, sources });
+    const { answer, sources, degraded } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    send({ type: 'done', answer, sources, ...(degraded ? { degraded } : {}) });
   } catch (err) {
-    console.error('[zest/ask-stream]', err.message);
-    send({ type: 'error', message: 'Zest could not answer right now. Please try again.' });
+    if (!(err instanceof ZestUnavailable)) console.error('[zest/ask-stream]', err.message);
+    send({ type: 'error', message: err instanceof ZestUnavailable ? UNAVAILABLE : 'Zest could not answer right now. Please try again.' });
   } finally {
     res.end();
   }
@@ -155,7 +188,7 @@ router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploade
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!req.file) return res.status(400).json({ message: 'A file is required' });
   if (!question) { fs.unlink(req.file.path, () => {}); return res.status(400).json({ message: 'question is required' }); }
-  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY.' }); }
+  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: NOT_CONFIGURED }); }
 
   // multipart fields arrive as strings, not JSON — the KB-less /ask route gets a real array.
   let rawHistory = req.body.history;
@@ -173,7 +206,13 @@ router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploade
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, req.user);
+    let answer, toolsUsed;
+    try {
+      ({ text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, req.user));
+    } catch (err) {
+      reportFailure(err, req, '/api/zest/ask-with-file');
+      return res.status(503).json({ message: UNAVAILABLE });
+    }
     await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
       question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,

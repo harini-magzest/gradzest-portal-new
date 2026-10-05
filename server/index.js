@@ -34,6 +34,15 @@ const { startChatEscalation } = require('./jobs/chatEscalation');
 const { startWeeklyDigest } = require('./jobs/weeklyDigest');
 const { startZestDailyAnalytics } = require('./jobs/zestDailyAnalytics');
 
+// With a self-hosted model, find out at boot (not on a user's first question) if Ollama is down
+// or the model was never pulled — log it and email ZEST_ALERT_EMAILS.
+async function checkZestOnStartup() {
+  if (!require('./lib/ollamaClient').isZestConfigured()) return;
+  const problem = await require('./lib/ollamaChat').checkOllama();
+  if (!problem) { console.log(`[zest] Ollama ready (model ${process.env.OLLAMA_MODEL || require('./lib/ollamaChat').DEFAULT_MODEL})`); return; }
+  require('./lib/zestAlert').notifyZestFailure({ kind: 'startup', message: problem }, { route: 'server startup' });
+}
+
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
 
@@ -53,6 +62,7 @@ connectDB().then(async () => {
   startChatEscalation(io, userSockets);
   startWeeklyDigest(mailer);
   startZestDailyAnalytics(mailer);
+  checkZestOnStartup();
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);
