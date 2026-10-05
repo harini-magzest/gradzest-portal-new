@@ -9,6 +9,7 @@ import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
 import NamasteIntro from './components/NamasteIntro';
+import { ReferralCapture } from './lib/referral';
 import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -43,6 +44,9 @@ const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
+const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
+const ParentView          = lazy(() => import('./pages/ParentView'));
+const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
 // Counselor module
@@ -136,6 +140,7 @@ export default function App() {
       <AuthModalProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <ReferralCapture />
         <ActivityTracker />
         <ToastLayer />
         <FlashToast />
@@ -144,6 +149,8 @@ export default function App() {
         <ZestWidget />
         <Suspense fallback={<PageSpinner />}>
           <Routes>
+            {/* Read-only progress page a student shares with a parent; no account, no site chrome */}
+            <Route path="/parent/:token" element={<ParentView />} />
             {/* Public routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
@@ -172,6 +179,7 @@ export default function App() {
               <Route path="countries" element={<StudentCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<StudentMeetings />} />
+              <Route path="events" element={<StudentEvents />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
@@ -186,6 +194,7 @@ export default function App() {
               <Route path="countries" element={<CounselorCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<CounselorMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="applications" element={<CounselorApplications />} />
               <Route path="learning" element={<CounselorLearning />} />
             </Route>
@@ -204,6 +213,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="live-feed" element={<AdminActivityFeed />} />
               <Route path="meetings" element={<AdminMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />

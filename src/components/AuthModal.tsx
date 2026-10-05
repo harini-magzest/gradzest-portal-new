@@ -4,6 +4,7 @@ import { X, GraduationCap, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'luc
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { api, setApiToken } from '../api';
+import { getReferral, clearReferral } from '../lib/referral';
 import PasswordStrengthBar from './PasswordStrengthBar';
 import { checkPasswordStrength } from '../utils/passwordStrength';
 
@@ -70,7 +71,8 @@ export default function AuthModal() {
     if (regPassword !== regConfirm) { setRegError('Passwords do not match.'); return; }
     setRegLoading(true);
     try {
-      const { token } = await api.auth.register({ name: regName, email: regEmail, password: regPassword });
+      const { token } = await api.auth.register({ name: regName, email: regEmail, password: regPassword, ref: getReferral() });
+      clearReferral();
       setApiToken(token);
       await refreshUser();
       close();

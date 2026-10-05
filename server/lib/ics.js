@@ -5,6 +5,7 @@
 const OFFSET = /^[+-]\d{2}:\d{2}$/.test(process.env.MEETING_TZ_OFFSET || '') ? process.env.MEETING_TZ_OFFSET : '+05:30';
 
 function startOf(meeting) {
+  if (meeting.start instanceof Date) return isNaN(meeting.start.getTime()) ? null : meeting.start; // events: already absolute
   const d = new Date(`${meeting.scheduledDate}T${meeting.scheduledTime}:00${OFFSET}`);
   return isNaN(d.getTime()) ? null : d;
 }

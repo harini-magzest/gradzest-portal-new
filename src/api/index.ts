@@ -108,7 +108,7 @@ export const api = {
         body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
-    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
+    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
       req<{ token: string; user: any }>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -290,6 +290,59 @@ export const api = {
     uploadDocument: (formData: FormData) => upload<any>('/counselors/me/documents', formData),
     deleteDocument: (docId: string) =>
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  parentLinks: {
+    list: () => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }[]>('/parent-links', { headers: authHeaders() }),
+    create: (data: { label?: string; days?: number }) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean } & { url: string }>('/parent-links', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    revoke: (id: string) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }>(`/parent-links/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  // Public: no sign-in, the secret in the link is the credential
+  parent: {
+    view: (token: string) => req<{ studentName: string; counselorName: string; applications: { universityName: string; courseName: string; intake: string; status: string; rejected: boolean; steps: { label: string; state: 'done' | 'current' | 'upcoming' }[]; daysInStage: number | null; daysToIntake: number | null; intakePassed: boolean; next: string }[]; documents: { total: number; verified: number; uploaded: number; missing: number; percent: number; stillNeeded: string[] } | null; upcomingMeetings: { title: string; date: string; time: string; durationMin: number }[]; expiresAt: string }>(`/parent/${encodeURIComponent(token)}`),
+  },
+
+  referrals: {
+    mine: () => req<{ code: string; link: string; rewardText: string; referrals: { name: string; status: 'signed_up' | 'applied' | 'offer' | 'enrolled'; rewardEarned: boolean; rewardPaid: boolean; joinedAt: string }[]; stats: { total: number; enrolled: number; paid: number } }>('/referrals/me', { headers: authHeaders() }),
+    all: () => req<{ referrals: { id: string; referrerName: string; referrerEmail: string; referredName: string; status: string; rewardEarned: boolean; paid: boolean; paidAt: string | null; paidNote: string; createdAt: string }[]; stats: { total: number; earned: number; owed: number } }>('/referrals', { headers: authHeaders() }),
+    setPaid: (id: string, paid: boolean, note?: string) => req<{ id: string; paid: boolean }>(`/referrals/${id}/paid`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ paid, note }) }),
+  },
+
+  events: {
+    list: () => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }[]>('/events', { headers: authHeaders() }),
+    create: (data: { title: string; startsAt: string; description?: string; link?: string; durationMin?: number; capacity?: number }) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>('/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/events/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    register: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'POST', headers: authHeaders() }),
+    unregister: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'DELETE', headers: authHeaders() }),
+    registrations: (id: string) => req<{ name: string; email: string; registeredAt: string }[]>(`/events/${id}/registrations`, { headers: authHeaders() }),
+    registrationsCsv: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/registrations?format=csv`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'event-registrations.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    downloadIcs: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-event.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   notificationPrefs: {

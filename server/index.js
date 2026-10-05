@@ -29,6 +29,7 @@ const { startSecurityDigest } = require('./jobs/securityDigest');
 const { initAutomation, seedStarterTemplates } = require('./lib/automation');
 const { startAutomationScheduler } = require('./jobs/automationScheduler');
 const { startMeetingReminders } = require('./jobs/meetingReminders');
+const { startEventReminders } = require('./jobs/eventReminders');
 const { startTaskReminders } = require('./jobs/taskReminders');
 const { startApplicationFollowups } = require('./jobs/applicationFollowups');
 const { startChatEscalation } = require('./jobs/chatEscalation');
@@ -50,6 +51,7 @@ connectDB().then(async () => {
   await seedStarterTemplates();
   startAutomationScheduler();
   startMeetingReminders(io, userSockets, mailer);
+  startEventReminders(io, userSockets, mailer);
   startTaskReminders(io, userSockets);
   startApplicationFollowups(io, userSockets);
   startChatEscalation(io, userSockets);
