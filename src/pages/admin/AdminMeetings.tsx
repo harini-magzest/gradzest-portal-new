@@ -117,7 +117,7 @@ function ScheduleModal({
             </div>
             <h2 className="text-lg font-bold text-gray-900">Schedule Meeting</h2>
           </div>
-          <button type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+          <button aria-label="Close" type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -288,7 +288,7 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
             </div>
             <h3 className="text-base font-bold text-gray-900 truncate">{meeting.title}</h3>
           </div>
-          <button type="button" onClick={handleDelete} disabled={deleting}
+          <button aria-label="Delete" type="button" onClick={handleDelete} disabled={deleting}
             className="flex-shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
             {deleting ? <Spinner /> : <Trash2 className="w-4 h-4" />}
           </button>
@@ -423,7 +423,7 @@ export default function AdminMeetings() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={load} disabled={loading}
+              <button aria-label="Refresh" type="button" onClick={load} disabled={loading}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>

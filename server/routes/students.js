@@ -222,6 +222,82 @@ router.get('/me/timeline', authMiddleware, asStudent, async (req, res) => {
   } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
+// ── Shortlist: courses the student has saved to compare side by side ────────────────────────────
+// Entries point at a university + course; the details are looked up fresh each time so fees stay current.
+async function shortlistRows(entries) {
+  const ids = [...new Set(entries.map((e) => e.universityId))];
+  const unis = ids.length ? await University.find({ id: { $in: ids } }).lean() : [];
+  const byId = new Map(unis.map((u) => [String(u.id), u]));
+  const rows = [];
+  for (const e of entries) {
+    const uni = byId.get(e.universityId);
+    const course = uni?.courses?.find((c) => String(c.id || c._id) === e.courseId);
+    if (uni && course) rows.push(shortlistLib.describeEntry(uni, course, e.addedAt)); // silently skips courses that have since been removed
+  }
+  return { courses: rows, ...shortlistLib.highlights(rows), max: shortlistLib.MAX_SHORTLIST };
+}
+
+router.get('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('shortlist').lean();
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    res.json(await shortlistRows(user.shortlist || []));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  const universityId = String(req.body?.universityId || '').trim();
+  const courseId = String(req.body?.courseId || '').trim();
+  if (!universityId || !courseId) return res.status(400).json({ message: 'universityId and courseId are required' });
+  try {
+    const uni = await University.findOne({ id: universityId }).select('courses.id courses._id').lean();
+    if (!uni || !uni.courses?.some((c) => String(c.id || c._id) === courseId)) return res.status(404).json({ message: 'Course not found' });
+    const user = await User.findById(req.user.id).select('shortlist');
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    const next = shortlistLib.addEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), universityId, courseId);
+    if (!next) return res.status(400).json({ message: `You can compare up to ${shortlistLib.MAX_SHORTLIST} courses. Remove one first.` });
+    user.shortlist = next;
+    await user.save();
+    res.status(201).json(await shortlistRows(next));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.delete('/me/shortlist/:universityId/:courseId', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('shortlist');
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    user.shortlist = shortlistLib.removeEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), req.params.universityId, req.params.courseId);
+    await user.save();
+    res.json(await shortlistRows(user.shortlist));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// The one thing the student should do next, for the card at the top of their dashboard.
+router.get('/me/next-step', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const step = await nextStepForStudent(req.user.id);
+    if (!step) return res.status(404).json({ message: 'Student not found' });
+    res.json(step);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// Who has looked at this student's personal details: the PII audit trail, shown back to the person it is about.
+// Staff are shown by name and role; the technical details (IP, field list) stay in the SOC view.
+router.get('/me/data-access', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const rows = await PiiAccessLog.find({ applicantId: req.user.id }).sort({ createdAt: -1 }).limit(100);
+    const ids = [...new Set(rows.map((r) => String(r.accessorId)))];
+    const users = ids.length ? await User.find({ _id: { $in: ids } }).select('name').lean() : [];
+    const names = new Map(users.map((u) => [String(u._id), u.name]));
+    res.json({
+      accesses: rows.map((r) => ({
+        id: String(r._id), at: r.createdAt, role: r.accessorRole || 'staff',
+        name: names.get(String(r.accessorId)) || '', kind: r.accessType,
+      })),
+    });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
 router.get('/:id/checklist', authMiddleware, can('students.view'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {

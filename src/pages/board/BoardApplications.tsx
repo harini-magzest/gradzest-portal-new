@@ -272,7 +272,7 @@ function DetailPanel({
         <div className="flex items-center gap-1">
           <button onClick={() => downloadApplicationReportPdf(selectedApp, { student: studentDetail, counselor: assignedCounselor })}
             title="Download application report PDF" className="p-1 hover:bg-gray-100 rounded-lg"><Download className="w-4 h-4 text-gray-500" /></button>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+          <button aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
         </div>
       </div>
 

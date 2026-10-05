@@ -6,6 +6,9 @@ import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
+import { useT } from '../../i18n/LanguageContext';
+import type { TranslationKey } from '../../i18n/translations';
+import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
@@ -17,6 +20,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/student/shortlist', label: 'Shortlist', icon: Heart, mobileHide: true },
   { to: '/student/compare', label: 'Compare & cost', icon: Scale, mobileHide: true },
   { to: '/student/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
+  { to: '/student/shortlist', label: 'Shortlist', icon: Bookmark, mobileHide: true },
   { to: '/student/activities', label: 'Activities', icon: CalendarDays },
   { to: '/student/meetings', label: 'Meetings', icon: Video },
   { to: '/student/events', label: 'Events', icon: Ticket, mobileHide: true },
@@ -37,18 +41,26 @@ export default function StudentLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
   const unreadCount = useUnreadMessages();
+  const { t } = useT();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#0d1b4b] border-t-transparent rounded-full animate-spin"></div></div>;
   if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
   if (user?.role !== 'student') return <Navigate to={loginRedirect(location)} />;
 
+  // '/student' is the dashboard; every other item is named by the last part of its path ('/student/chat' -> nav.chat)
+  const navLabel = (item: { to: string; label: string }) => {
+    const slug = item.to.split('/').pop();
+    return t(`nav.${slug === 'student' ? 'dashboard' : slug}` as TranslationKey);
+  };
+
   const sidebarItems = navItems.map(item => ({
-    to: item.to, label: item.label, end: item.end,
+    to: item.to, label: navLabel(item), end: item.end,
     icon: (typeof item.icon === 'string' ? GraduationCap : item.icon) as React.ComponentType<{ className?: string }>,
     badge: item.label === 'Chat' ? unreadCount : undefined,
   }));
 
   return (
     <div className="min-h-screen bg-blue-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Student workspace" />
       <EmailVerificationBanner />
       <div className="flex">
@@ -65,12 +77,12 @@ export default function StudentLayout() {
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
                 )}
               </div>
-              <span>{item.label}</span>
+              <span>{navLabel(item)}</span>
             </NavLink>
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

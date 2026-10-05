@@ -5,6 +5,7 @@ import { CallProvider } from './context/CallContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
@@ -135,6 +136,7 @@ function PageSpinner() {
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <ToastProvider>
     <AuthProvider>
       <CallProvider>
@@ -267,6 +269,7 @@ export default function App() {
       </CallProvider>
     </AuthProvider>
     </ToastProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }
