@@ -41,6 +41,7 @@ export default function IncidentsTab() {
   const [params, setParams] = useSearchParams();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [slaPolicy, setSlaPolicy] = useState<SlaPolicy>(DEFAULT_SLA_POLICY);
   const [analysts, setAnalysts] = useState<{ _id: string; name: string; email: string }[]>([]);
@@ -88,7 +89,7 @@ export default function IncidentsTab() {
     try {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: 0 });
       setIncidents(data.incidents || []);
-      setTotal(data.total ?? (data.incidents || []).length);
+      setTotal(data.total ?? (data.incidents || []).length); setTruncated(!!data.truncated);
       if (data.slaPolicy) setSlaPolicy(data.slaPolicy);
     } catch (e) { setError(errorText(e)); }
     setLoading(false);
@@ -263,6 +264,7 @@ export default function IncidentsTab() {
             </div>
           );
         })}
+        {truncated && <p className="p-3 text-center text-xs text-amber-700 bg-amber-50 border-t border-amber-100">Search looked at the newest 5,000 records only. Narrow the filters or date range to find older matches.</p>}
         {!loading && incidents.length < total && (
           <div className="p-3 text-center border-t border-gray-50">
             <button onClick={loadMore} disabled={loadingMore}

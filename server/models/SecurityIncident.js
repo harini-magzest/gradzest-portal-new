@@ -71,6 +71,6 @@ securityIncidentSchema.index({ createdAt: -1 });
 securityIncidentSchema.index({ status: 1, createdAt: -1 });
 securityIncidentSchema.index({ severity: 1, createdAt: -1 });
 
-securityIncidentSchema.plugin(require('../lib/encryptedFields'), { fields: ['title','relatedIp','relatedEmail'] });
+securityIncidentSchema.plugin(require('../lib/encryptedFields'), { fields: ['title','relatedIp','relatedEmail','notes.author','notes.text'] });
 
 module.exports = mongoose.model("SecurityIncident", securityIncidentSchema);

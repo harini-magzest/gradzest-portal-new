@@ -7,13 +7,15 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-do-not-use-in-production';
 process.env.FRONTEND_URL = 'http://localhost:5173';
+process.env.SOC_OWNER_RECHECK_MS = '300'; // so the live-feed owner re-check can be observed in a test
 process.env.SOC_OWNER_EMAILS = '@example.com,owner@soc.test';
 process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
-// app.js loads the developer's server/.env, and dotenv never overrides a variable that is already
-// set — so pin these empty. Otherwise a local ZEST_PROVIDER=ollama would reroute the Anthropic
-// tests to a real Ollama, and a local ZEST_ALERT_EMAILS would let a test send a real alert email.
-process.env.ZEST_PROVIDER = '';
-process.env.ZEST_ALERT_EMAILS = '';
+// A developer's real model keys live in server/.env, and dotenv does not override variables that are already set —
+// blanking them here guarantees no test can reach a real model API (slow, flaky, and it spends the key's quota).
+// Tests that exercise a model backend inject a fake client or set a dummy key themselves.
+process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
+process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
 
 let mongod: MongoMemoryServer;
 

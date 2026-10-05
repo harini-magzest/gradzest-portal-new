@@ -327,13 +327,33 @@ io.use(async (socket, next) => {
   }
 });
 
+// Room membership is decided when a socket connects, so an owner who is later demoted, deactivated, locked or removed from
+// SOC_OWNER_EMAILS would keep receiving live security events and PII until the tab closed. Re-check the members of
+// admin-room regularly and drop anyone who is no longer an owner.
+const OWNER_RECHECK_MS = Math.max(200, parseInt(process.env.SOC_OWNER_RECHECK_MS || '60000', 10) || 60000);
+const ownerRecheck = setInterval(async () => {
+  try {
+    const sockets = await io.in('admin-room').fetchSockets();
+    if (!sockets.length) return;
+    const { isSocOwnerEmail } = require('./lib/socOwners');
+    const { isBlocked } = require('./lib/accountState');
+    const users = await require('./models/User').find({ _id: { $in: [...new Set(sockets.map((s) => s.data.userId))] } }).select('email').lean();
+    const emailOf = new Map(users.map((u) => [String(u._id), u.email]));
+    for (const s of sockets) {
+      const uid = String(s.data.userId);
+      if (!isSocOwnerEmail(emailOf.get(uid)) || await isBlocked(uid)) s.leave('admin-room');
+    }
+  } catch { /* try again next tick */ }
+}, OWNER_RECHECK_MS);
+if (ownerRecheck.unref) ownerRecheck.unref();
+
 // WebRTC signaling
 io.on('connection', (socket) => {
   // Rooms are joined on connection, not only on 'register': the SOC tabs open their own socket and never send
   // 'register', so without this their live feeds would say "Live" but never receive an event.
-  const joinRooms = async () => {
+  const doJoinRooms = async () => {
     const uid = socket.data.userId;
-    if (!uid) return;
+    if (!uid) return true;
     // Rooms decide who is pushed what:
     //   user:<id>        one person (targeted activity)
     //   activity-room    admins + Application Team (the business activity feed)
@@ -349,9 +369,16 @@ io.on('connection', (socket) => {
         try {
           const me = await require('./models/User').findById(uid).select('email').lean();
           if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
-        } catch { /* no owner room on a lookup failure: fail closed */ }
+        } catch { return false; /* no owner room on a lookup failure: fail closed (a later 'register' retries) */ }
       }
     }
+    return true;
+  };
+  // Runs once per connection (it is called on connect and again on 'register'); only a failed owner lookup is retried.
+  let joining = null;
+  const joinRooms = () => {
+    if (!joining) joining = doJoinRooms().then((ok) => { if (!ok) joining = null; });
+    return joining;
   };
   void joinRooms();
 

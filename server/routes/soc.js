@@ -72,24 +72,18 @@ async function adminOnly(req, res, next) {
 // Substring search over encrypted fields cannot run in MongoDB, so for the lists where it matters the newest rows
 // matching the structured filters are loaded (decrypted by the model hooks) and filtered here.
 const SEARCH_SCAN_CAP = 5000;
-function matchesText(row, q, fields) {
+// `pick` is a list of row keys, or a function returning the values of a row to search.
+function matchesText(row, q, pick) {
   const term = q.trim().slice(0, 100).toLowerCase();
-  return fields.some((f) => String(row[f] ?? '').toLowerCase().includes(term));
+  const values = typeof pick === 'function' ? pick(row) : pick.map((f) => row[f]);
+  return values.some((v) => String(v ?? '').toLowerCase().includes(term));
 }
-async function searchRows(Model, query, q, fields) {
+async function searchRows(Model, query, q, pick) {
   const rows = await Model.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
-  return rows.filter((r) => matchesText(r, q, fields));
-}
-
-// Search clauses for a free-text box. Encrypted fields can only be matched exactly (they are stored as
-// ciphertext), the others keep substring matching.
-function searchClauses(q, plainFields, encryptedFields) {
-  const term = q.trim().slice(0, 100);
-  const rx = new RegExp(escapeRegex(term), 'i');
-  return [
-    ...plainFields.map((f) => ({ [f]: rx })),
-    ...encryptedFields.map((f) => ({ [f]: { $in: [term, term.toLowerCase()] } })),
-  ];
+  const matched = rows.filter((r) => matchesText(r, q, pick));
+  // Hitting the cap means older rows were never looked at: callers pass this on so the UI can say so.
+  matched.truncated = rows.length >= SEARCH_SCAN_CAP;
+  return matched;
 }
 
 const SECURITY_TYPE_LABEL = {
@@ -278,20 +272,22 @@ router.get('/stats/geo', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // ── GET /api/soc/events ──────────────────────────────────────────────────────
-function buildEventQuery({ since, type, severity, q }) {
+const EVENT_SEARCH_FIELDS = ['email', 'ip', 'message'];
+// Free-text `q` is not part of the query: email/ip/message are stored encrypted, so it is applied in memory (searchRows).
+function buildEventQuery({ since, type, severity }) {
   const query = {};
   if (since) query.createdAt = { $gt: new Date(since) };
   if (type && type !== 'all') query.type = type;
   if (severity && severity !== 'all') query.severity = severity;
-  if (q && q.trim()) {
-    query.$or = searchClauses(q, [], ['email', 'ip', 'message']);
-  }
   return query;
 }
 
 router.get('/events/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const events = await SecurityEvent.find(buildEventQuery(req.query)).sort({ createdAt: -1 }).limit(5000).lean();
+    const eq = buildEventQuery(req.query);
+    const events = req.query.q && req.query.q.trim()
+      ? await searchRows(SecurityEvent, eq, req.query.q, EVENT_SEARCH_FIELDS)
+      : await SecurityEvent.find(eq).sort({ createdAt: -1 }).limit(5000).lean();
     logExport(req, 'events', events.length);
     sendCsv(res, 'soc-events.csv', [
       { label: 'Time', key: 'createdAt' }, { label: 'Type', key: 'type' }, { label: 'Severity', key: 'severity' },
@@ -309,14 +305,17 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildEventQuery(req.query);
 
+    const searching = req.query.q && req.query.q.trim();
     const [events, total, rawCounts] = await Promise.all([
-      SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      SecurityEvent.countDocuments(query),
+      searching
+        ? searchRows(SecurityEvent, query, req.query.q, EVENT_SEARCH_FIELDS).then((m) => ({ m }))
+        : SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      searching ? null : SecurityEvent.countDocuments(query),
       SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
     ]);
     const counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
 
-    res.json({ events, total, skip, limit, counts });
+    res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts, truncated: !!(searching && events.m.truncated) });
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -350,10 +349,10 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildIncidentQuery({ ...req.query, assignedTo: resolveAssignedTo(req.query.assignedTo, req) });
 
-    let incidents; let total;
+    let incidents; let total; let truncated = false;
     if (req.query.q && req.query.q.trim()) {
       const matched = await searchRows(SecurityIncident, query, req.query.q, INCIDENT_SEARCH_FIELDS);
-      total = matched.length;
+      total = matched.length; truncated = matched.truncated;
       incidents = await SecurityIncident.populate(matched.slice(skip, skip + limit), { path: 'assignedTo', select: 'name email' });
     } else {
       [incidents, total] = await Promise.all([
@@ -364,7 +363,7 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     }
     // The policy travels with the list so the client can mirror computeSla()
     // for incidents that change live over the socket, without duplicating targets.
-    res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY });
+    res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY, truncated });
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -839,7 +838,7 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
     res.json({
       needsReview,
       uploads: list.map((u) => ({ ...u, vtLink: vtLink(u.sha256) })),
-      total: searching ? rows.m.length : total, skip, limit,
+      total: searching ? rows.m.length : total, skip, limit, truncated: !!(searching && rows.m.truncated),
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
   } catch (err) {
@@ -963,12 +962,8 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
 // ── UI activity (page / button / file trail) ─────────────────────────────────
 
 // Free-text search over the UI trail runs in memory (several searched fields are stored encrypted).
-const uiRowText = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)].join(' ');
-async function searchUi(query, q) {
-  const term = q.trim().slice(0, 100).toLowerCase();
-  const rows = await UiActivity.find(query).sort({ createdAt: -1 }).limit(SEARCH_SCAN_CAP).lean();
-  return rows.filter((r) => uiRowText(r).toLowerCase().includes(term));
-}
+const uiRowValues = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)];
+const searchUi = (query, q) => searchRows(UiActivity, query, q, uiRowValues);
 
 function buildUiQuery({ userId, email, kind, q, page, since }) {
   const query = {};
@@ -1003,17 +998,17 @@ router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 100, 300);
     const skip = Math.max(parseInt(req.query.skip) || 0, 0);
     const query = buildUiQuery(req.query);
-    let rows; let total;
+    let rows; let total; let truncated = false;
     if (req.query.q && req.query.q.trim()) {
       const matched = await searchUi(query, req.query.q);
-      total = matched.length; rows = matched.slice(skip, skip + limit);
+      total = matched.length; rows = matched.slice(skip, skip + limit); truncated = matched.truncated;
     } else {
       [rows, total] = await Promise.all([
         UiActivity.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         UiActivity.countDocuments(query),
       ]);
     }
-    res.json({ activity: rows, total, skip, limit, trackedRoles: require('./uiTrail').trackedRoles() });
+    res.json({ activity: rows, total, skip, limit, truncated, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }

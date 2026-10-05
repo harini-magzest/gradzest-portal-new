@@ -53,6 +53,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
   const { socket, isLive } = useSocSocket();
   const [rows, setRows] = useState<UiRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [tracked, setTracked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +72,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
     setLoading(true); setError('');
     try {
       const d = await api.soc.uiActivity(params(filters, 0));
-      setRows(d.activity || []); setTotal(d.total || 0); setTracked(d.trackedRoles || []);
+      setRows(d.activity || []); setTotal(d.total || 0); setTruncated(!!d.truncated); setTracked(d.trackedRoles || []);
     } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, [filters]);
@@ -178,6 +179,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
             </div>
           );
         })}
+        {truncated && <p className="p-3 text-center text-xs text-amber-700 bg-amber-50 border-t border-amber-100">Search looked at the newest 5,000 records only. Narrow the filters or date range to find older matches.</p>}
         {!loading && rows.length < total && (
           <div className="p-3 text-center border-t border-gray-50">
             <button onClick={loadMore} disabled={loadingMore} className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50 rounded-lg disabled:opacity-50">
