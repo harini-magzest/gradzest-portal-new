@@ -17,6 +17,9 @@ const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { retrieveChunks } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
+const { denyStudent } = require('../lib/access');
+const { checklistFor } = require('../lib/studentProgress');
+const { gatherFacts, templateDraft, buildPrompt, parseDraft, CHANNELS } = require('../lib/followupDraft');
 
 const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
 const UNAVAILABLE = "Zest's AI is unavailable right now. Please try again later.";
@@ -216,6 +219,46 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
   } finally {
     fs.unlink(req.file.path, () => {});
+  }
+});
+
+/* ── Follow-up drafts for staff ──────────────────────────────────────────── */
+
+// A draft message to a student who has gone quiet, for the counselor to review and send themselves (Zest cannot send).
+// The wording comes from the AI when it is available; otherwise from a plain template, so there is always a draft.
+router.post('/followup-draft', authMiddleware, askLimiter, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const { studentId } = req.body || {};
+  const channel = CHANNELS.includes(req.body?.channel) ? req.body.channel : 'email';
+  if (!mongoose.isValidObjectId(studentId)) return res.status(400).json({ message: 'studentId is required' });
+  try {
+    if (await denyStudent(req, res, studentId)) return;
+    const [student, checklist, me] = await Promise.all([
+      User.findById(studentId).select('name email phone leadStage leadStageChangedAt createdAt preferredCountries applications').lean(),
+      checklistFor(studentId),
+      User.findById(req.user.id).select('name').lean(),
+    ]);
+    const facts = gatherFacts(student, checklist);
+    const counselorName = me?.name || '';
+
+    let draft = null;
+    let source = 'template';
+    if (isZestConfigured()) {
+      try {
+        // No knowledge-base chunks and no history: the prompt carries every fact, and nothing else should leak in
+        const { text } = await askZest(buildPrompt(facts, channel, counselorName), [], [], req.user.role, '', await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
+        const parsed = parseDraft(text, channel);
+        if (parsed.body) { draft = parsed; source = 'ai'; }
+      } catch (err) {
+        console.error('[zest/followup-draft] AI unavailable, using the template:', err.message);
+      }
+    }
+    if (!draft) draft = templateDraft(facts, channel, counselorName);
+
+    res.json({ ...draft, channel, source, studentName: student.name, email: student.email || '', phone: student.phone || '', daysIdle: facts.daysIdle });
+  } catch (err) {
+    console.error('[zest/followup-draft]', err.message);
+    res.status(500).json({ message: 'Could not prepare a draft right now.' });
   }
 });
 

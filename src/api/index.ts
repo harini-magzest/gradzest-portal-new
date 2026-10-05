@@ -736,6 +736,8 @@ export const api = {
       if (history) fd.append('history', JSON.stringify(history));
       return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
+    followupDraft: (studentId: string, channel: 'email' | 'whatsapp') =>
+      req<{ subject: string; body: string; channel: 'email' | 'whatsapp'; source: 'ai' | 'template'; studentName: string; email: string; phone: string; daysIdle: number }>('/zest/followup-draft', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId, channel }) }),
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
