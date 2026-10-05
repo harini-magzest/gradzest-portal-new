@@ -20,7 +20,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 const FIX_HINTS = {
   unreachable: 'Start Ollama on the server (open the Ollama app, or run "ollama serve"), then check ZEST_OLLAMA_URL in server/.env.',
-  model_missing: 'Download the model on the Ollama machine: ollama pull <ZEST_MODEL>.',
+  model_missing: 'Download the model on the Ollama machine: ollama pull <OLLAMA_MODEL>.',
   timeout: 'The machine may be too slow or busy for this model. Try a smaller model, or raise ZEST_TIMEOUT_MS.',
   tool_loop: 'The model kept asking for live data without answering. A larger model (e.g. qwen2.5:14b) handles tools more reliably.',
   empty_answer: 'The model returned nothing. Try again; if it keeps happening, switch to a larger model.',
@@ -41,8 +41,8 @@ async function notifyZestFailure(failure, context = {}) {
   if (now - (lastSent.get(kind) || 0) < cooldownMs()) return false;
   lastSent.set(kind, now);
 
-  const provider = process.env.ZEST_PROVIDER || 'anthropic';
-  const model = process.env.ZEST_MODEL || '(default)';
+  const provider = require('./zestModel').providerName();
+  const model = (provider === 'ollama' ? process.env.OLLAMA_MODEL : provider === 'gemini' ? process.env.GEMINI_MODEL : process.env.ZEST_MODEL) || '(default)';
   const when = new Date(now).toLocaleString('en-IN', { hour12: false });
   const hint = FIX_HINTS[kind] || (kind.startsWith('http_') ? 'Check the Ollama logs on the server for details.' : '');
   try {

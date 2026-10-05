@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import {
   FileText, RefreshCw, Search, X, ChevronDown, AlertTriangle,
   CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2,
-  GraduationCap, Plus, Trash2, ChevronUp, ArrowRight,
+  GraduationCap, Plus, Trash2, ChevronUp, ArrowRight, Download, FileDown,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import { usePortalName } from '../../hooks/usePortalName';
+import { exportRowsToCsv } from '../../utils/exportCsv';
+import { downloadApplicationReportPdf } from '../../utils/applicationReportPdf';
 
 const ALL_STATUSES = [
   { value: 'draft',          label: 'Draft' },
@@ -419,6 +421,15 @@ export default function CounselorApplications() {
       return tb - ta;
     });
 
+  const handleExport = () => {
+    exportRowsToCsv(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, filtered.map(a => ({
+      'Student Name': a.studentName || '', 'Student Email': a.studentEmail || '',
+      University: a.universityName || '', Course: a.courseName || '', Intake: a.intake || '',
+      Status: a.status || '', 'Submitted Date': a.submittedDate || '', 'Updated Date': a.updatedDate || '',
+      Notes: a.notes || '',
+    })));
+  };
+
   // Unique students in the visible order, so the profile's arrows step through them
   const studentNav = { ids: [...new Set(filtered.map(a => String(a.studentId)))] };
 
@@ -532,6 +543,10 @@ export default function CounselorApplications() {
                 </button>
               )}
               <p className="text-xs text-gray-400 ml-auto">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</p>
+              <button type="button" onClick={handleExport} disabled={filtered.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                <FileDown className="w-3.5 h-3.5" /> Export CSV
+              </button>
             </div>
 
             {loading ? (
@@ -590,6 +605,14 @@ export default function CounselorApplications() {
                       <div className="flex-shrink-0">
                         <StatusBadge status={app.status} />
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => downloadApplicationReportPdf(app)}
+                        title="Download application report PDF"
+                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-green-700 active:scale-95 transition-all">
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
 
                       <button
                         type="button"

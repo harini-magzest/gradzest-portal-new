@@ -11,7 +11,7 @@ const ok = (body) => new Response(JSON.stringify(body), { status: 200 });
 const chatReply = (message) => ok({ message: { role: 'assistant', ...message }, done: true });
 
 let fetchSpy;
-const ENV_KEYS = ['ZEST_PROVIDER', 'ZEST_MODEL', 'ZEST_ALERT_EMAILS', 'ZEST_ALERT_COOLDOWN_MIN'];
+const ENV_KEYS = ['ZEST_PROVIDER', 'OLLAMA_MODEL', 'ZEST_ALERT_EMAILS', 'ZEST_ALERT_COOLDOWN_MIN'];
 let savedEnv;
 beforeEach(() => {
   savedEnv = Object.fromEntries(ENV_KEYS.map(k => [k, process.env[k]]));
@@ -69,7 +69,7 @@ describe('Ollama connector', () => {
   });
 
   it('startup check reports a missing model with the command to fix it', async () => {
-    process.env.ZEST_MODEL = 'qwen2.5:7b';
+    process.env.OLLAMA_MODEL = 'qwen2.5:7b';
     fetchSpy.mockResolvedValueOnce(ok({ models: [{ name: 'llama3.1:8b' }] }));
     expect(await checkOllama()).toMatch(/ollama pull qwen2\.5:7b/);
     fetchSpy.mockResolvedValueOnce(ok({ models: [{ name: 'qwen2.5:7b' }] }));
@@ -107,6 +107,9 @@ describe('/api/zest/ask with Ollama', () => {
     const res = await request(app).post('/api/auth/login').send({ email, password: 'TestPass123!' });
     return { Authorization: `Bearer ${res.body.token}` };
   }
+
+  // /ask runs a $text search before calling the model, which needs the text index to exist
+  beforeAll(() => KnowledgeChunk.init());
 
   it('answers through Ollama when it is up', async () => {
     process.env.ZEST_PROVIDER = 'ollama';

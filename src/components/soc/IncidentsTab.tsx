@@ -4,6 +4,7 @@ import { AlertTriangle, UserCircle2, Loader2, Search, Download, Clock } from 'lu
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useSocSocket } from './SocketContext';
+import { ErrorBanner, errorText } from './ui';
 import {
   type Incident, type SlaPolicy, DEFAULT_SLA_POLICY, SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL, SLA_TONE_STYLE, slaState,
 } from './incidentShared';
@@ -48,6 +49,9 @@ export default function IncidentsTab() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Incident | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState('');
 
   const patch = (p: Partial<Filters>) => setFilters(f => ({ ...f, ...p }));
 
@@ -86,11 +90,37 @@ export default function IncidentsTab() {
       setIncidents(data.incidents || []);
       setTotal(data.total ?? (data.incidents || []).length);
       if (data.slaPolicy) setSlaPolicy(data.slaPolicy);
-    } catch (err: any) {
-      setError(err.message || 'Could not load incidents.');
-    }
+    } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, [filters]);
+
+  const togglePick = (id: string) => setPicked(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  // Clearing a batch of noise (e.g. one rule's false positives) in one go; the reason is recorded on every incident.
+  const bulkAssign = async (analystId: string) => {
+    const ids = [...picked];
+    if (!ids.length || !analystId) return;
+    setBulkBusy(true); setBulkMsg('');
+    try {
+      const r = await api.soc.bulkUpdateIncidents(ids, { assignedTo: analystId });
+      setBulkMsg(`${r.updated.length} assigned${r.failed.length ? `, ${r.failed.length} failed` : ''}.`);
+      setPicked(new Set());
+      await load();
+    } catch (e) { setBulkMsg(errorText(e)); }
+    setBulkBusy(false);
+  };
+  const bulkClose = async (status: 'resolved' | 'false_positive') => {
+    const ids = [...picked];
+    if (!ids.length) return;
+    if (!window.confirm(`Mark ${ids.length} incident${ids.length === 1 ? '' : 's'} as ${status.replace('_', ' ')}?`)) return;
+    setBulkBusy(true); setBulkMsg('');
+    try {
+      const r = await api.soc.bulkUpdateIncidents(ids, { status, resolutionReason: status === 'false_positive' ? 'benign_activity' : 'fixed', resolutionComment: 'Closed in bulk from the incident list' });
+      setBulkMsg(`${r.updated.length} updated${r.failed.length ? `, ${r.failed.length} failed` : ''}.`);
+      setPicked(new Set());
+      await load();
+    } catch (e) { setBulkMsg(errorText(e)); }
+    setBulkBusy(false);
+  };
 
   const loadMore = async () => {
     setLoadingMore(true); setError('');
@@ -98,9 +128,7 @@ export default function IncidentsTab() {
       const data = await api.soc.incidents({ ...apiFilters(filters), limit: PAGE_SIZE, skip: incidents.length });
       setIncidents(prev => [...prev, ...(data.incidents || [])]);
       setTotal(data.total ?? incidents.length);
-    } catch (err: any) {
-      setError(err.message || 'Could not load more incidents.');
-    }
+    } catch (e) { setError(errorText(e)); }
     setLoadingMore(false);
   };
 
@@ -129,7 +157,7 @@ export default function IncidentsTab() {
 
   const exportCsv = () => {
     const qs = new URLSearchParams(Object.entries(apiFilters(filters)).filter(([, v]) => v) as [string, string][]);
-    api.soc.download(`/incidents/export.csv?${qs}`, 'soc-incidents.csv').catch(() => {});
+    api.soc.download(`/incidents/export.csv?${qs}`, 'soc-incidents.csv').catch(e => setError(errorText(e)));
   };
 
   const selectCls = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500';
@@ -137,7 +165,7 @@ export default function IncidentsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit max-w-full overflow-x-auto">
           {['all', 'open', 'investigating', 'resolved', 'false_positive'].map(s => (
             <button key={s} type="button" onClick={() => patch({ status: s })}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filters.status === s ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
@@ -172,8 +200,28 @@ export default function IncidentsTab() {
       <SavedFilters storageKey="soc.incidentFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
 
+      {(picked.size > 0 || bulkMsg) && (
+        <div className="flex items-center gap-2 flex-wrap bg-purple-50 border border-purple-100 rounded-xl px-4 py-2 text-sm">
+          {picked.size > 0 && <span className="font-semibold text-purple-800">{picked.size} selected</span>}
+          {picked.size > 0 && (
+            <>
+              <button type="button" disabled={bulkBusy} onClick={() => bulkClose('false_positive')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark false positive</button>
+              <button type="button" disabled={bulkBusy} onClick={() => bulkClose('resolved')} className="px-3 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 disabled:opacity-50">Mark resolved</button>
+              <select value="" disabled={bulkBusy} onChange={e => bulkAssign(e.target.value)} aria-label="Assign selected to" className="px-2 py-1 text-xs font-semibold rounded-lg bg-white border border-purple-200 text-purple-700">
+                <option value="">Assign to…</option>
+                {analysts.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+              </select>
+              <button type="button" onClick={() => setPicked(new Set())} className="text-xs text-gray-500 hover:underline">Clear</button>
+            </>
+          )}
+          {bulkMsg && <span className="text-xs text-gray-600 ml-auto">{bulkMsg}</span>}
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
+        ) : loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
         ) : incidents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -185,8 +233,12 @@ export default function IncidentsTab() {
           const sla = slaState(inc, slaPolicy, now);
           const showSla = inc.status === 'open' || inc.status === 'investigating' || sla.breached;
           return (
-            <button key={inc._id} onClick={() => select(inc)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 text-left transition-colors">
+            <div key={inc._id} className="flex items-center border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+              {(inc.status === 'open' || inc.status === 'investigating') ? (
+                <input type="checkbox" checked={picked.has(inc._id)} onChange={() => togglePick(inc._id)} aria-label={`Select ${inc.title}`} className="ml-4 w-4 h-4 accent-purple-600 flex-shrink-0" />
+              ) : <span className="ml-4 w-4 flex-shrink-0" />}
+              <button onClick={() => select(inc)}
+              className="flex-1 min-w-0 flex items-center justify-between gap-3 pl-3 pr-5 py-4 text-left transition-colors">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="text-sm font-semibold text-gray-900 truncate">{inc.title}</span>
@@ -208,6 +260,7 @@ export default function IncidentsTab() {
               </div>
               <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(inc.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             </button>
+            </div>
           );
         })}
         {!loading && incidents.length < total && (

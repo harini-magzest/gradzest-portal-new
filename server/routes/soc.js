@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const { execFile } = require('child_process');
 const path = require('path');
 const PDFDocument = require('pdfkit');
@@ -50,7 +51,6 @@ const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 // accounts have role 'admin' but are deliberately blocked from admin-level functions elsewhere (see blockAppTeam
 // in admin.js), and stay blocked here too.
 const { isSocOwnerEmail, ownerEmails } = require('../lib/socOwners');
-const { socMfaOk } = require('../lib/socMfa');
 
 async function adminOnly(req, res, next) {
   try {
@@ -63,8 +63,6 @@ async function adminOnly(req, res, next) {
     if (!isSocOwnerEmail(email)) {
       return res.status(403).json({ message: 'Not authorised for the SOC' });
     }
-    // Being the owner is not enough: the SOC also needs a current two-factor step-up token (lib/socMfa.js).
-    if (!(await socMfaOk(req, res))) return;
     next();
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -125,11 +123,6 @@ function logExport(req, what, rows) {
 const PERIOD_MS = { '24h': 24 * 60 * 60 * 1000, '7d': 7 * 24 * 60 * 60 * 1000, '30d': 30 * 24 * 60 * 60 * 1000 };
 
 // ── GET /api/soc/stats ───────────────────────────────────────────────────────
-// The SOC maintainers' own emails, so the UI can hide those (and only those) behind ********.
-router.get('/owners', authMiddleware, adminOnly, (req, res) => {
-  res.json({ emails: ownerEmails() });
-});
-
 router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     const period = PERIOD_MS[req.query.period] ? req.query.period : '24h';
@@ -243,7 +236,7 @@ router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
       openIncidentsBySeverity: toMap(incidentsBySeverity),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -280,7 +273,7 @@ router.get('/stats/geo', authMiddleware, adminOnly, async (req, res) => {
     }
     res.json({ period, countries: [...byCountry.values()].sort((a, b) => b.count - a.count), unresolved });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -306,7 +299,7 @@ router.get('/events/export.csv', authMiddleware, adminOnly, attachUserEmail, asy
       { label: 'User agent', key: 'userAgent' }, { label: 'Message', key: 'message' },
     ], events);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -325,7 +318,7 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 
     res.json({ events, total, skip, limit, counts });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -373,7 +366,7 @@ router.get('/incidents', authMiddleware, adminOnly, async (req, res) => {
     // for incidents that change live over the socket, without duplicating targets.
     res.json({ incidents, total, skip, limit, slaPolicy: SLA_POLICY });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -395,7 +388,7 @@ router.get('/incidents/export.csv', authMiddleware, adminOnly, attachUserEmail, 
       { label: 'SLA resolve breached', value: (i) => (computeSla(i).resolveBreached ? 'yes' : 'no') },
     ], incidents);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -460,7 +453,7 @@ router.get('/incidents/:id/report.pdf', authMiddleware, adminOnly, async (req, r
     doc.moveDown(1).fontSize(8).fillColor('#888').text(`Generated ${new Date().toISOString()}`);
     doc.end();
   } catch (err) {
-    if (!res.headersSent) res.status(500).json({ message: err.message || 'Server error' });
+    if (!res.headersSent) sendServerError(res, err, 'Server error');
   }
 });
 
@@ -470,60 +463,86 @@ router.get('/analysts', authMiddleware, adminOnly, async (req, res) => {
     const analysts = await User.find({ role: 'admin' }).select('name email').sort({ name: 1 }).lean();
     res.json({ analysts });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
 const INCIDENT_STATUSES = ['open', 'investigating', 'resolved', 'false_positive'];
 const RESOLUTION_REASONS = ['fixed', 'benign_activity', 'expected_behavior', 'testing', 'duplicate', 'other'];
 
-router.patch('/incidents/:id', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+// Applies a status / assignment / resolution change to ONE incident, keeping the SLA clock honest: the first analyst touch
+// acknowledges, closing stamps resolvedAt, reopening clears it and the previous outcome. Shared by PATCH /incidents/:id
+// and PATCH /incidents/bulk so both behave identically. Returns { error: { status, message } } or { incident }.
+async function applyIncidentUpdate(id, body, actor, io) {
+  if (!isObjectId(id)) return { error: { status: 404, message: 'Incident not found' } };
+  const { status, assignedTo, resolutionReason, resolutionComment } = body || {};
+  if (status && !INCIDENT_STATUSES.includes(status)) return { error: { status: 400, message: 'Invalid status' } };
+  if (resolutionReason && !RESOLUTION_REASONS.includes(resolutionReason)) return { error: { status: 400, message: 'Invalid resolution reason' } };
+
+  const before = await SecurityIncident.findById(id).select('status assignedTo acknowledgedAt').lean();
+  if (!before) return { error: { status: 404, message: 'Incident not found' } };
+
+  const update = {};
+  if (status) update.status = status;
+  if (assignedTo !== undefined) update.assignedTo = assignedTo || null;
+
+  const now = new Date();
+  const touched = (status && status !== 'open') || (assignedTo !== undefined && assignedTo);
+  if (touched && !before.acknowledgedAt) update.acknowledgedAt = now;
+  if (status) {
+    if (CLOSED.includes(status)) {
+      update.resolvedAt = CLOSED.includes(before.status) ? undefined : now;
+      if (resolutionReason !== undefined) update.resolutionReason = resolutionReason;
+      if (resolutionComment !== undefined) update.resolutionComment = String(resolutionComment).slice(0, 1000);
+    } else {
+      update.resolvedAt = null;
+      update.resolutionReason = '';
+      update.resolutionComment = '';
+    }
+    if (update.resolvedAt === undefined) delete update.resolvedAt;
+  }
+
+  const incident = await SecurityIncident.findByIdAndUpdate(id, update, { new: true }).populate('assignedTo', 'name email');
+
+  if (status && status !== before.status) {
+    const outcome = CLOSED.includes(status) && resolutionReason ? ` (${resolutionReason})` : '';
+    logAnalystAction({ analyst: actor, action: 'incident_status_change', targetType: 'incident', targetId: incident._id, reason: `${before.status} → ${status}${outcome}`, io });
+  }
+  if (assignedTo !== undefined && String(before.assignedTo || '') !== String(assignedTo || '')) {
+    logAnalystAction({ analyst: actor, action: 'incident_assigned', targetType: 'incident', targetId: incident._id, reason: assignedTo ? `Assigned to ${incident.assignedTo?.name || assignedTo}` : 'Unassigned', io });
+  }
+  io?.to('admin-room').emit('incident_updated', incident.toObject());
+  return { incident };
+}
+
+// PATCH /api/soc/incidents/bulk { ids: [...], status?, assignedTo?, resolutionReason?, resolutionComment? } — up to 100
+// incidents at once (e.g. clearing a noisy rule's false positives). Must be registered BEFORE /incidents/:id.
+router.patch('/incidents/bulk', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Incident not found' });
-    const { status, assignedTo, resolutionReason, resolutionComment } = req.body || {};
-    if (status && !INCIDENT_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
-    if (resolutionReason && !RESOLUTION_REASONS.includes(resolutionReason)) return res.status(400).json({ message: 'Invalid resolution reason' });
-
-    const before = await SecurityIncident.findById(req.params.id).select('status assignedTo acknowledgedAt').lean();
-    if (!before) return res.status(404).json({ message: 'Incident not found' });
-
-    const update = {};
-    if (status) update.status = status;
-    if (assignedTo !== undefined) update.assignedTo = assignedTo || null;
-
-    // SLA clock: first analyst touch acknowledges; closing stamps resolvedAt,
-    // reopening clears it (and the previous outcome).
-    const now = new Date();
-    const touched = (status && status !== 'open') || (assignedTo !== undefined && assignedTo);
-    if (touched && !before.acknowledgedAt) update.acknowledgedAt = now;
-    if (status) {
-      if (CLOSED.includes(status)) {
-        update.resolvedAt = CLOSED.includes(before.status) ? undefined : now;
-        if (resolutionReason !== undefined) update.resolutionReason = resolutionReason;
-        if (resolutionComment !== undefined) update.resolutionComment = String(resolutionComment).slice(0, 1000);
-      } else {
-        update.resolvedAt = null;
-        update.resolutionReason = '';
-        update.resolutionComment = '';
-      }
-      if (update.resolvedAt === undefined) delete update.resolvedAt;
-    }
-
-    const incident = await SecurityIncident.findByIdAndUpdate(req.params.id, update, { new: true }).populate('assignedTo', 'name email');
-
+    const { ids, ...changes } = req.body || {};
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ message: 'ids must be a non-empty array' });
+    if (ids.length > 100) return res.status(400).json({ message: 'At most 100 incidents per request' });
+    if (changes.status === undefined && changes.assignedTo === undefined) return res.status(400).json({ message: 'Nothing to change: provide status and/or assignedTo' });
     const io = req.app.get('io');
-    if (status && status !== before.status) {
-      const outcome = CLOSED.includes(status) && resolutionReason ? ` (${resolutionReason})` : '';
-      logAnalystAction({ analyst: req.user, action: 'incident_status_change', targetType: 'incident', targetId: incident._id, reason: `${before.status} → ${status}${outcome}`, io });
+    const updated = [];
+    const failed = [];
+    for (const id of [...new Set(ids.map(String))]) {
+      const r = await applyIncidentUpdate(id, changes, req.user, io);
+      if (r.error) failed.push({ id, message: r.error.message }); else updated.push(String(r.incident._id));
     }
-    if (assignedTo !== undefined && String(before.assignedTo || '') !== String(assignedTo || '')) {
-      logAnalystAction({ analyst: req.user, action: 'incident_assigned', targetType: 'incident', targetId: incident._id, reason: assignedTo ? `Assigned to ${incident.assignedTo?.name || assignedTo}` : 'Unassigned', io });
-    }
-
-    io?.to('admin-room').emit('incident_updated', incident.toObject());
-    res.json(incident);
+    res.json({ updated, failed });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.patch('/incidents/:id', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
+  try {
+    const r = await applyIncidentUpdate(req.params.id, req.body, req.user, req.app.get('io'));
+    if (r.error) return res.status(r.error.status).json({ message: r.error.message });
+    res.json(r.incident);
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -544,7 +563,7 @@ router.post('/incidents/:id/notes', authMiddleware, adminOnly, async (req, res) 
     req.app.get('io')?.to('admin-room').emit('incident_updated', incident.toObject());
     res.json(incident);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -602,7 +621,7 @@ router.get('/investigate/search-users', authMiddleware, adminOnly, async (req, r
       .select('name email role').limit(10).lean();
     res.json({ users: users.map(u => ({ id: u._id, name: u.name, email: u.email, role: u.role })) });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -663,7 +682,7 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
       relatedIncidents,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -677,7 +696,7 @@ router.post('/investigate/user/:id/logout-everywhere', authMiddleware, adminOnly
     logAnalystAction({ analyst: req.user, action: 'revoke_user_sessions', targetType: 'user', targetId: user._id, reason: `Sessions revoked for ${user.email}`, io: req.app.get('io') });
     res.json({ message: 'All sessions revoked for this user.' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -695,7 +714,7 @@ router.delete('/investigate/user/:id/sessions/:sessionId', authMiddleware, admin
     logAnalystAction({ analyst: req.user, action: 'revoke_session', targetType: 'session', targetId: req.params.sessionId, reason: `Revoked session for ${user.email} (${label})`, metadata: { userId: String(user._id) }, io: req.app.get('io') });
     res.json({ message: 'Session revoked.', activeSessions: user.sessions.length });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -742,7 +761,7 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
         : 'Password invalidated and sessions revoked, but the reset email could not be sent. The user can use "Forgot password" to set a new one.',
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -790,7 +809,7 @@ router.get('/investigate/ip/:ip', authMiddleware, adminOnly, async (req, res) =>
     const isBlocked = buildIpMatcher(blockRows.map((r) => r.ip))(ip);
     res.json({ ip, isBlocked, timeline, intel, relatedIncidents });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1028,7 +1047,7 @@ router.get('/blocked-ips', authMiddleware, adminOnly, async (req, res) => {
       .sort({ createdAt: -1 }).populate('blockedBy', 'name email').lean();
     res.json({ blockedIps: rows });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1048,7 +1067,7 @@ router.post('/blocked-ips', authMiddleware, adminOnly, attachUserEmail, async (r
     logAnalystAction({ analyst: req.user, action: 'block_ip', targetType: 'ip', targetId: target.value, reason: [reason, expiresAt && `until ${expiresAt.toISOString()}`].filter(Boolean).join(' — '), io: req.app.get('io') });
     res.json(row);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1078,7 +1097,7 @@ router.post('/blocked-ips/bulk', authMiddleware, adminOnly, attachUserEmail, asy
     }
     res.json({ blocked, rejected });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1089,7 +1108,7 @@ router.delete('/blocked-ips/:ip', authMiddleware, adminOnly, attachUserEmail, as
     logAnalystAction({ analyst: req.user, action: 'unblock_ip', targetType: 'ip', targetId: req.params.ip, io: req.app.get('io') });
     res.json({ message: 'IP unblocked' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1101,7 +1120,7 @@ router.get('/suppressions', authMiddleware, adminOnly, async (req, res) => {
       .sort({ createdAt: -1 }).populate('createdBy', 'name email').lean();
     res.json({ suppressions: rows });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1129,7 +1148,7 @@ router.post('/suppressions', authMiddleware, adminOnly, attachUserEmail, async (
     logAnalystAction({ analyst: req.user, action: 'add_suppression', targetType: 'suppression', targetId: rule._id, reason: `${kind} ${normalized}${incidentTypes?.length ? ` for ${incidentTypes.join(', ')}` : ''}${reason ? ` — ${reason}` : ''}`, io: req.app.get('io') });
     res.status(201).json(rule);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1142,7 +1161,7 @@ router.delete('/suppressions/:id', authMiddleware, adminOnly, attachUserEmail, a
     logAnalystAction({ analyst: req.user, action: 'remove_suppression', targetType: 'suppression', targetId: rule._id, reason: `${rule.kind} ${rule.value}`, io: req.app.get('io') });
     res.json({ message: 'Suppression removed' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1169,7 +1188,7 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
     ]);
     res.json({ period: '24h', topAccessors, recentAccesses });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1197,31 +1216,57 @@ router.get('/audit-trail/verify', authMiddleware, adminOnly, async (req, res) =>
   try {
     res.json(await verifyAuditChain());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
+// Adds the analyst's name and a human-readable description of each action's target. The trail stores bare ids (an
+// incident id, a user id…), which tell a reader nothing; this resolves them in a handful of batched lookups.
+async function enrichAudit(actions) {
+  const idsOf = (t) => [...new Set(actions.filter((a) => a.targetType === t && isObjectId(a.targetId)).map((a) => a.targetId))];
+  const analystIds = [...new Set(actions.map((a) => String(a.analystId)).filter(isObjectId))];
+  const [users, incidents, uploads, suppressions, analysts] = await Promise.all([
+    User.find({ _id: { $in: idsOf('user') } }).select('name email').lean(),
+    SecurityIncident.find({ _id: { $in: idsOf('incident') } }).select('title').lean(),
+    UploadRecord.find({ _id: { $in: idsOf('upload') } }).select('originalName').lean(),
+    SuppressionRule.find({ _id: { $in: idsOf('suppression') } }).select('kind value').lean(),
+    User.find({ _id: { $in: analystIds } }).select('name').lean(),
+  ]);
+  const by = (rows) => new Map(rows.map((r) => [String(r._id), r]));
+  const U = by(users); const I = by(incidents); const F = by(uploads); const S = by(suppressions); const A = by(analysts);
+  return actions.map((a) => {
+    const t = String(a.targetId);
+    let targetLabel = t;
+    if (a.targetType === 'user') { const u = U.get(t); targetLabel = u ? `${u.name} (${u.email})` : 'a deleted account'; }
+    else if (a.targetType === 'incident') targetLabel = I.get(t)?.title || 'a deleted incident';
+    else if (a.targetType === 'upload') targetLabel = F.get(t)?.originalName || 'a deleted upload';
+    else if (a.targetType === 'suppression') { const s = S.get(t); targetLabel = s ? `${s.kind} ${s.value}` : 'a removed suppression rule'; }
+    else if (a.targetType === 'session') targetLabel = 'one signed-in device';
+    return { ...a, analystName: A.get(String(a.analystId))?.name || '', targetLabel };
+  });
+}
+
 router.get('/audit-trail/export.csv', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
-    const actions = await AnalystAction.find().sort({ createdAt: -1 }).limit(5000).lean();
+    const actions = await enrichAudit(await AnalystAction.find().sort({ createdAt: -1 }).limit(5000).lean());
     logExport(req, 'audit-trail', actions.length);
     sendCsv(res, 'soc-audit-trail.csv', [
-      { label: 'Time', key: 'createdAt' }, { label: 'Analyst', key: 'analystEmail' }, { label: 'Action', key: 'action' },
-      { label: 'Target type', key: 'targetType' }, { label: 'Target', key: 'targetId' }, { label: 'Reason', key: 'reason' },
+      { label: 'Time', key: 'createdAt' }, { label: 'Analyst', key: 'analystName' }, { label: 'Analyst email', key: 'analystEmail' }, { label: 'Action', key: 'action' },
+      { label: 'Target type', key: 'targetType' }, { label: 'Target', key: 'targetLabel' }, { label: 'Target id', key: 'targetId' }, { label: 'Reason', key: 'reason' },
       { label: 'Hash', key: 'hash' },
     ], actions);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
 router.get('/audit-trail', authMiddleware, adminOnly, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const actions = await AnalystAction.find().sort({ createdAt: -1 }).limit(limit).lean();
+    const actions = await enrichAudit(await AnalystAction.find().sort({ createdAt: -1 }).limit(limit).lean());
     res.json({ actions });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1313,7 +1358,7 @@ router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
 
     res.json({ ...postureCache, cached: false });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -1349,3 +1394,4 @@ router.get('/posture/checklist-pdf', authMiddleware, adminOnly, (req, res) => {
 });
 
 module.exports = router;
+module.exports.adminOnly = adminOnly; // reused by routes/socExtras.js so every SOC route shares one gate

@@ -37,9 +37,9 @@ const { startZestDailyAnalytics } = require('./jobs/zestDailyAnalytics');
 // With a self-hosted model, find out at boot (not on a user's first question) if Ollama is down
 // or the model was never pulled — log it and email ZEST_ALERT_EMAILS.
 async function checkZestOnStartup() {
-  if (require('./lib/anthropicClient').zestProvider() !== 'ollama') return;
+  if (!require('./lib/ollamaClient').isZestConfigured()) return;
   const problem = await require('./lib/ollamaChat').checkOllama();
-  if (!problem) { console.log(`[zest] Ollama ready (model ${process.env.ZEST_MODEL || require('./lib/ollamaChat').DEFAULT_MODEL})`); return; }
+  if (!problem) { console.log(`[zest] Ollama ready (model ${process.env.OLLAMA_MODEL || require('./lib/ollamaChat').DEFAULT_MODEL})`); return; }
   require('./lib/zestAlert').notifyZestFailure({ kind: 'startup', message: problem }, { route: 'server startup' });
 }
 

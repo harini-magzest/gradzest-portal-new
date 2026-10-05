@@ -1,9 +1,7 @@
-import { Outlet, Navigate } from 'react-router-dom';
-import { ShieldAlert, LogOut, Eye, EyeOff } from 'lucide-react';
-import { RevealProvider, useReveal } from '../../components/soc/Mask';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import SocMfaGate from '../../components/soc/SocMfaGate';
-import { api, setSocToken } from '../../api';
+import { loginRedirect } from '../../lib/loginRedirect';
 
 // Deliberately separate from AdminLayout — its own route tree at /soc, not
 // nested under /admin and not listed in the admin sidebar. Also does NOT
@@ -13,29 +11,19 @@ import { api, setSocToken } from '../../api';
 // page wearing the rest of the site's chrome. Still gated to admin accounts
 // (same underlying permission as the rest of the admin area), just not
 // presented as part of that portal.
-function RevealToggle() {
-  const { revealed, toggle } = useReveal();
-  return (
-    <button type="button" onClick={toggle} className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-100 transition-colors">
-      {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-      {revealed ? 'Hide details' : 'Reveal details'}
-    </button>
-  );
-}
-
 export default function SOCLayout() {
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const location = useLocation();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to="/login?redirect=/soc" />;
-  if (user?.role !== 'admin' || user?.isAppTeam) return <Navigate to="/login?redirect=/soc" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin' || user?.isAppTeam) return <Navigate to={loginRedirect(location)} />;
 
   return (
-    <RevealProvider>
     <div className="min-h-screen bg-gray-950">
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -46,12 +34,10 @@ export default function SOCLayout() {
             <span className="text-sm font-semibold text-gray-100 tracking-wide">Security Operations Center</span>
           </div>
           <div className="flex items-center gap-4">
-            <RevealToggle />
             <span className="text-xs text-gray-400">{user?.name} · analyst</span>
             <button
               type="button"
-              // Signing out also closes the SOC: it voids the two-factor step-up and leaves the live feed.
-              onClick={() => { api.socAuth.logout().catch(() => {}); setSocToken(null); logout(); }}
+              onClick={logout}
               className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-100 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -61,11 +47,8 @@ export default function SOCLayout() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-6">
-        <SocMfaGate>
-          <Outlet />
-        </SocMfaGate>
+        <Outlet />
       </main>
     </div>
-    </RevealProvider>
   );
 }

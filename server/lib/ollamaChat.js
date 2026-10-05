@@ -18,7 +18,7 @@ class ZestProviderError extends Error {
 }
 
 const baseUrl = () => (process.env.ZEST_OLLAMA_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
-const modelName = () => process.env.ZEST_MODEL || DEFAULT_MODEL;
+const modelName = () => process.env.OLLAMA_MODEL || DEFAULT_MODEL;
 const numCtx = () => Number(process.env.ZEST_NUM_CTX) || 8192;
 const timeoutMs = () => Number(process.env.ZEST_TIMEOUT_MS) || 90000;
 
