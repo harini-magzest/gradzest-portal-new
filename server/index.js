@@ -24,6 +24,7 @@ async function autoSeedIfEmpty() {
 }
 
 const { startDeadlineReminders } = require('./jobs/deadlineReminders');
+const { startDocumentReminders } = require('./jobs/documentReminders');
 const { startSecurityDigest } = require('./jobs/securityDigest');
 const { initAutomation, seedStarterTemplates } = require('./lib/automation');
 const { startAutomationScheduler } = require('./jobs/automationScheduler');
@@ -42,6 +43,7 @@ connectDB().then(async () => {
   await autoSeedIfEmpty();
   await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
+  startDocumentReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
   require('./jobs/incidentEscalation').startIncidentEscalation();
   initAutomation({ io, userSockets, mailer });
