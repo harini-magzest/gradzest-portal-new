@@ -199,9 +199,13 @@ const MAX_OUTPUT_TOKENS = 1500;
 
 function callModel(params, onText) {
   if (!onText) return getClient().messages.create(params);
+  let emitted = false;
   const stream = getClient().messages.stream(params);
-  stream.on('text', (delta) => onText(delta));
-  return stream.finalMessage();
+  stream.on('text', (delta) => { emitted = true; onText(delta); });
+  return stream.finalMessage().catch((err) => {
+    if (emitted && err && typeof err === 'object') err.streamedPartial = true;
+    throw err;
+  });
 }
 
 /**

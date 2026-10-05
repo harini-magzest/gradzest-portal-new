@@ -49,13 +49,19 @@ const MAX_TOOL_ROUNDS = 4;
 // identical either way.
 async function runTurn(params, onText) {
   if (!onText) return getClient().models.generateContent(params);
-  const stream = await getClient().models.generateContentStream(params);
   const parts = [];
-  for await (const chunk of stream) {
-    for (const part of chunk.candidates?.[0]?.content?.parts || []) {
-      parts.push(part);
-      if (typeof part.text === 'string' && !part.thought && !part.functionCall) onText(part.text);
+  let emitted = false;
+  try {
+    const stream = await getClient().models.generateContentStream(params);
+    for await (const chunk of stream) {
+      for (const part of chunk.candidates?.[0]?.content?.parts || []) {
+        parts.push(part);
+        if (typeof part.text === 'string' && !part.thought && !part.functionCall) { emitted = true; onText(part.text); }
+      }
     }
+  } catch (err) {
+    if (emitted && err && typeof err === 'object') err.streamedPartial = true;
+    throw err;
   }
   const functionCalls = parts.filter(p => p.functionCall).map(p => p.functionCall);
   return {

@@ -10,6 +10,7 @@ function statusOf(err) {
 }
 
 function isTransient(err) {
+  if (err?.streamedPartial) return false; // text already reached the client; a retry would duplicate it
   const status = Number(statusOf(err));
   if (TRANSIENT_STATUS.has(status)) return true;
   const msg = String(err?.message || err || '');
