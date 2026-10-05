@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, User, Lock, Bell, GitBranch,
-  ShieldCheck, MessageCircle, CalendarDays, Download, AlertTriangle,
-  ChevronRight, Save, Eye, EyeOff, GripVertical, Check,
+  Building2, User, Lock, CalendarDays, Download, AlertTriangle,
+  ChevronRight, Save, Eye, EyeOff, Check,
   Smartphone, Globe, Users, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -16,9 +15,8 @@ import { usePortalName } from '../../hooks/usePortalName';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SectionKey =
-  | 'company' | 'profile' | 'password'
-  | 'notifications' | 'automation' | 'app-stages'
-  | 'users' | 'permissions' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
+  | 'company' | 'profile' | 'password' | 'automation'
+  | 'users' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
 
@@ -26,11 +24,8 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'company',         label: 'Company Profile',      icon: Building2 },
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
-  { key: 'notifications',   label: 'Notifications',        icon: Bell },
   { key: 'users',           label: 'Users and Controls',   icon: Users },
   { key: 'automation',      label: 'Automation',           icon: Zap },
-  { key: 'app-stages',      label: 'Application Stages',   icon: GitBranch },
-  { key: 'permissions',     label: 'App Team',             icon: ShieldCheck },
   { key: 'whatsapp',        label: 'WhatsApp / SMS',       icon: Smartphone },
   { key: 'google-cal',      label: 'Google Calendar',      icon: CalendarDays },
   { key: 'export',          label: 'Export & Backup',      icon: Download },
@@ -228,145 +223,6 @@ function PasswordSecurity() {
   );
 }
 
-function NotificationsSection() {
-  const [prefs, setPrefs] = useState({
-    newStudent: true, newApplication: true, meetingReminder: true,
-    visaUpdate: true, documentReview: false, counselorReport: true,
-    emailDigest: false, smsAlerts: false,
-  });
-  const toggle = (k: keyof typeof prefs) => setPrefs(p => ({ ...p, [k]: !p[k] }));
-  return (
-    <SectionCard title="Notification Preferences">
-      <div className="divide-y divide-gray-100">
-        <Toggle checked={prefs.newStudent} onChange={() => toggle('newStudent')} label="New student registered" />
-        <Toggle checked={prefs.newApplication} onChange={() => toggle('newApplication')} label="New application submitted" />
-        <Toggle checked={prefs.meetingReminder} onChange={() => toggle('meetingReminder')} label="Meeting reminders (30 min before)" />
-        <Toggle checked={prefs.visaUpdate} onChange={() => toggle('visaUpdate')} label="Visa status updates" />
-        <Toggle checked={prefs.documentReview} onChange={() => toggle('documentReview')} label="Document review requests" />
-        <Toggle checked={prefs.counselorReport} onChange={() => toggle('counselorReport')} label="Weekly counselor performance report" />
-        <Toggle checked={prefs.emailDigest} onChange={() => toggle('emailDigest')} label="Daily email digest" />
-        <Toggle checked={prefs.smsAlerts} onChange={() => toggle('smsAlerts')} label="SMS alerts for critical events" />
-      </div>
-    </SectionCard>
-  );
-}
-
-function ApplicationStages() {
-  const [stages, setStages] = useState([
-    { id: 'draft', label: 'Incomplete', color: '#6b7280' },
-    { id: 'submitted', label: 'Submitted', color: '#3b82f6' },
-    { id: 'under_review', label: 'Under Review', color: '#f59e0b' },
-    { id: 'offer_received', label: 'Offer Received', color: '#10b981' },
-    { id: 'accepted', label: 'Visa Applied', color: '#6366f1' },
-    { id: 'enrolled', label: 'Visa Approved', color: '#8b5cf6' },
-    { id: 'rejected', label: 'Rejected', color: '#ef4444' },
-  ]);
-  const moveUp = (i: number) => {
-    if (i === 0) return;
-    const n = [...stages]; [n[i-1], n[i]] = [n[i], n[i-1]]; setStages(n);
-  };
-  const moveDown = (i: number) => {
-    if (i === stages.length - 1) return;
-    const n = [...stages]; [n[i], n[i+1]] = [n[i+1], n[i]]; setStages(n);
-  };
-  return (
-    <SectionCard title="Application Stages">
-      <p className="text-xs text-gray-400 mb-4">Drag to reorder stages in the application pipeline.</p>
-      <div className="space-y-2">
-        {stages.map((s, i) => (
-          <div key={s.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
-            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
-            <span className="text-sm font-medium text-gray-800 flex-1">{s.label}</span>
-            <div className="flex gap-1 flex-shrink-0">
-              <button type="button" onClick={() => moveUp(i)} disabled={i === 0}
-                className="px-2 py-1 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-30">↑</button>
-              <button type="button" onClick={() => moveDown(i)} disabled={i === stages.length - 1}
-                className="px-2 py-1 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-30">↓</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-function RolesPermissions() {
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [saving, setSaving] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.admin.appteamUsers().then(setAdminUsers).catch(() => {});
-  }, []);
-
-  const toggleAppTeam = async (user: any) => {
-    setSaving(user.id || user._id);
-    try {
-      const updated = await api.admin.markAppTeam(user.id || user._id, !user.isAppTeam);
-      setAdminUsers(prev => prev.map(u => (u.id || u._id) === (updated.id || updated._id) ? updated : u));
-    } catch {} finally {
-      setSaving(null);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="App Team Users">
-        <p className="text-sm text-gray-500 mb-1.5">
-          Reclassify an <strong>existing</strong> admin account between Admin Team and Application Team. This also controls how their chat rooms appear to counselors ("Admin Team" vs "Application Team").
-        </p>
-        <p className="text-sm text-gray-500 mb-4">
-          To add a brand-new Application Team member, use{' '}
-          <Link to="/admin/counselors" className="text-orange-600 font-medium hover:underline">
-            Team → Application Team → New Application Team Member
-          </Link>{' '}
-          instead — this list only relabels accounts that already exist.
-        </p>
-        {adminUsers.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No admin users found.</p>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {adminUsers.map(u => {
-              const uid = u.id || u._id;
-              return (
-                <div key={uid} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{u.name}</p>
-                    <p className="text-xs text-gray-400">{u.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.isAppTeam ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
-                      {u.isAppTeam ? 'Application Team' : 'Admin Team'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleAppTeam(u)}
-                      disabled={saving === uid}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 transition-colors"
-                    >
-                      {saving === uid ? 'Saving…' : u.isAppTeam ? 'Set as Admin Team' : 'Set as Application Team'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-xs text-gray-400 mt-4">Changes take effect immediately — counselor chat rooms will be relabeled on next load.</p>
-      </SectionCard>
-
-      <SectionCard title="Permissions">
-        <p className="text-sm text-gray-500">
-          Counselor permissions come from the profile assigned to each user in{' '}
-          <Link to="/admin/settings?section=users&tab=users" className="text-purple-600 font-medium hover:underline">
-            Users and Controls → Users
-          </Link>. Admin accounts always have full access.
-        </p>
-      </SectionCard>
-    </div>
-  );
-}
-
 function WhatsAppSMS() {
   const [waToken, setWaToken] = useState('');
   const [phoneId, setPhoneId] = useState('');
@@ -527,11 +383,8 @@ export default function AdminSettings() {
       case 'company':         return <CompanyProfile />;
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
-      case 'notifications':   return <NotificationsSection />;
       case 'users':           return <AdminUsersControls />;
       case 'automation':      return <AdminAutomation />;
-      case 'app-stages':      return <ApplicationStages />;
-      case 'permissions':     return <RolesPermissions />;
       case 'whatsapp':        return <WhatsAppSMS />;
       case 'google-cal':      return <GoogleCalendar />;
       case 'export':          return <ExportBackup />;

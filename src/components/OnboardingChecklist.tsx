@@ -25,9 +25,9 @@ const STEPS: Step[] = [
   { key: 'universityBrowsed', label: 'Browse universities',        description: 'Explore universities and find courses that match your goals.', link: '/student/universities', linkLabel: 'Browse Universities' },
 ];
 
-export default function OnboardingChecklist() {
+export default function OnboardingChecklist({ defaultCollapsed = false }: { defaultCollapsed?: boolean }) {
   const { user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [dismissed, setDismissed] = useState(
     () => localStorage.getItem('onboarding_dismissed') === '1'
   );
@@ -52,8 +52,10 @@ export default function OnboardingChecklist() {
   if (allDone) localStorage.setItem('onboarding_all_done', '1');
 
   return (
-    <div className="bg-white border border-[#0d1b4b]/20 rounded-2xl shadow-sm overflow-hidden mb-6">
-      <div className="flex items-center justify-between px-5 py-4 cursor-pointer select-none" onClick={() => setCollapsed(c => !c)}>
+    <div className="bg-white border border-[#0d1b4b]/20 rounded-2xl shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 cursor-pointer select-none" onClick={() => setCollapsed(c => !c)}
+        role="button" tabIndex={0} aria-expanded={!collapsed}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCollapsed(c => !c); } }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#f0f4ff] flex items-center justify-center">
             <span className="text-sm font-bold text-[#0d1b4b]">{done}/{total}</span>
@@ -73,6 +75,7 @@ export default function OnboardingChecklist() {
               <X className="w-4 h-4 text-gray-400" />
             </button>
           )}
+          {collapsed && !allDone && <span className="text-xs font-semibold text-[#0d1b4b]">Show steps</span>}
           {collapsed ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronUp className="w-4 h-4 text-gray-400" />}
         </div>
       </div>

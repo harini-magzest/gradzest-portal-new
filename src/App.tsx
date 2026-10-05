@@ -138,6 +138,7 @@ export default function App() {
         <ActivityTracker />
         <ToastLayer />
         <FlashToast />
+        <NamasteIntro />
         <AuthModal />
         <ZestWidget />
         <Suspense fallback={<PageSpinner />}>

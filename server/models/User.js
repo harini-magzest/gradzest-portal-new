@@ -165,10 +165,14 @@ const AcademicDetailSchema = new mongoose.Schema({
   docs: [AcadDocSchema],
 }, { _id: false });
 
+// A staff note on a student. counselorId/counselorName are the author (any staff role).
+// public: every staff member who can open the student sees it; private: only the author.
+// Notes written before visibility existed have no value and count as private.
 const CounselorNoteSchema = new mongoose.Schema({
   text: { type: String, required: true },
   counselorId: String,
   counselorName: String,
+  visibility: { type: String, enum: ['public', 'private'], default: 'private' },
 }, { timestamps: true });
 
 const UserSchema = new mongoose.Schema({
@@ -314,6 +318,12 @@ const UserSchema = new mongoose.Schema({
 // Unique only among accounts that have an email, so any number of phone-only leads can coexist
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } });
 
-UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toJSON', {
+  virtuals: true,
+  // Staff notes never travel inside a user object — that would hand them to the student and
+  // every private note to every colleague. They're served only by GET /api/students/:id/notes,
+  // which applies public/private visibility (lib/studentNotes.js).
+  transform: (doc, ret) => { delete ret.counselorNotes; return ret; },
+});
 
 module.exports = mongoose.model('User', UserSchema);

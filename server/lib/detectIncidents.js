@@ -68,12 +68,17 @@ async function createIncident(io, doc) {
 
 // Reuses the open incident matching `query` (refreshing its title and, if
 // given, appending the triggering event ids), or creates one from `doc`.
+// One atomic update rather than load → push → save: events that arrive together
+// (a burst of failed logins, WAF hits) used to load the same incident and race,
+// and every save after the first failed with a VersionError — dropping those
+// events from the incident and logging "No matching document found" each time.
 async function raiseIncident(io, query, doc, eventIds = []) {
-  const existing = await SecurityIncident.findOne({ ...query, status: 'open' }).sort({ createdAt: -1 });
+  const update = { $set: { title: doc.title } };
+  if (eventIds.length) update.$addToSet = { sourceEventIds: { $each: eventIds } };
+  const existing = await SecurityIncident.findOneAndUpdate(
+    { ...query, status: 'open' }, update, { sort: { createdAt: -1 }, new: true },
+  );
   if (!existing) return createIncident(io, doc);
-  if (eventIds.length) existing.sourceEventIds.push(...eventIds);
-  existing.title = doc.title;
-  await existing.save();
   emitIncident(io, 'incident_updated', existing);
   return existing;
 }
@@ -343,19 +348,6 @@ async function raiseUnsafeUploadIncident(record, io) {
   });
 }
 
-// Raised when the SOC owner's two-factor prompt is locked after repeated wrong codes: someone who already has the
-// owner's password is guessing authenticator codes. The lock itself stops them; this makes sure it is seen.
-async function raiseSocMfaLockoutIncident({ email, ip, userId }, io) {
-  await createIncident(io, {
-    type: 'account_lockout',
-    severity: 'high',
-    title: `SOC two-factor locked after repeated wrong codes (${email || 'owner'})`,
-    relatedIp: ip,
-    relatedUserId: userId,
-    relatedEmail: email,
-  });
-}
-
 // Great-circle distance between two lat/lon points, in km. Exported
 // separately so the threshold math can be unit-tested with known city
 // coordinates without depending on a live geolocation lookup.
@@ -383,7 +375,7 @@ async function checkImpossibleTravelRule(event, io, intelFn = getIpIntel) {
   const prior = await SecurityEvent.findOne({
     type: 'login_success',
     userId: event.userId,
-    ip: { $ne: event.ip, $ne: '' },
+    ip: { $nin: [event.ip, ''] },
     createdAt: { $gte: since, $lt: event.createdAt },
   }).sort({ createdAt: -1 });
   if (!prior) return;
@@ -471,6 +463,6 @@ async function checkNewDevicePrivilegedRule(event, io) {
 module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
-  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseAnalystFlaggedUploadIncident, raiseUnsafeUploadIncident, raiseSocMfaLockoutIncident, checkImpossibleTravelRule,
+  checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseAnalystFlaggedUploadIncident, raiseUnsafeUploadIncident, checkImpossibleTravelRule,
   checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
 };

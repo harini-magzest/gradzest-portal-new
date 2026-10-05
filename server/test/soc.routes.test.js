@@ -1,10 +1,12 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
 const { app } = require('../app');
 const User = require('../models/User');
 const BlockedIp = require('../models/BlockedIp');
 const AnalystAction = require('../models/AnalystAction');
 const PiiAccessLog = require('../models/PiiAccessLog');
 const SecurityIncident = require('../models/SecurityIncident');
+const SecurityEvent = require('../models/SecurityEvent');
 const { waitUntil } = require('./helpers');
 
 async function makeAdmin(emailPrefix) {
@@ -91,9 +93,8 @@ describe('PII access logging — real endpoint, real log entries', () => {
       .set('Authorization', `Bearer ${login.body.token}`);
     expect(res.status).toBe(200);
 
-    await new Promise((r) => setTimeout(r, 200)); // logPiiAccess is fire-and-forget
-
-    const logEntry = await PiiAccessLog.findOne({ applicantId: student.userId, accessorEmail: counselorEmail });
+    // logPiiAccess is fire-and-forget: poll for the row rather than sleeping a fixed time.
+    const logEntry = await waitUntil(() => PiiAccessLog.findOne({ applicantId: student.userId, accessorEmail: counselorEmail }));
     expect(logEntry).toBeTruthy();
     expect(logEntry.fieldsAccessed).toEqual(expect.arrayContaining(['passport', 'address']));
     expect(logEntry.accessType).toBe('view');
@@ -159,8 +160,8 @@ describe('Incident assignment — the assignee picker in the UI needs a real, po
     expect(res.body.assignedTo).toBeTruthy();
     expect(res.body.assignedTo.email).toBe(targetEmail);
 
-    await new Promise((r) => setTimeout(r, 200)); // logAnalystAction is fire-and-forget
-    const after = await AnalystAction.findOne({ action: 'incident_assigned', targetId: incident._id }).sort({ createdAt: -1 });
+    // logAnalystAction is fire-and-forget: poll for the audit row rather than sleeping.
+    const after = await waitUntil(() => AnalystAction.findOne({ action: 'incident_assigned', targetId: incident._id }).sort({ createdAt: -1 }));
     expect(after).toBeTruthy();
 
     await SecurityIncident.deleteOne({ _id: incident._id });
@@ -189,5 +190,77 @@ describe('Incidents pagination — GET /incidents supports skip so the list is n
     for (const inc of nextPage.body.incidents) expect(firstIds.has(inc._id)).toBe(false);
 
     await SecurityIncident.deleteMany({ _id: { $in: created.map((c) => c._id) } });
+  });
+});
+
+describe('GET /incidents/:id — deep-linking to one incident not on the current page', () => {
+  it('returns the incident with its assignee populated, 404s for an unknown id, and does not shadow export.csv', async () => {
+    const { token, userId } = await makeAdmin('incident-byid-admin');
+    const incident = await SecurityIncident.create({ type: 'manual', severity: 'low', title: 'Deep-link test incident', assignedTo: userId });
+
+    const found = await request(app).get(`/api/soc/incidents/${incident._id}`).set('Authorization', `Bearer ${token}`);
+    expect(found.status).toBe(200);
+    expect(found.body.incident._id).toBe(String(incident._id));
+    expect(found.body.incident.assignedTo.email).toBeTruthy();
+    expect(found.body.slaPolicy).toBeTruthy();
+
+    const missing = await request(app).get(`/api/soc/incidents/${new mongoose.Types.ObjectId()}`).set('Authorization', `Bearer ${token}`);
+    expect(missing.status).toBe(404);
+
+    // '/incidents/:id' is declared after '/incidents/export.csv' specifically so it
+    // can't swallow that route — guard the ordering stays that way.
+    const csv = await request(app).get('/api/soc/incidents/export.csv').set('Authorization', `Bearer ${token}`);
+    expect(csv.status).toBe(200);
+    expect(csv.headers['content-type']).toMatch(/csv/);
+
+    await SecurityIncident.deleteOne({ _id: incident._id });
+  });
+});
+
+describe('GET /incidents?assignedTo=... — "assigned to me" / "unassigned" filters', () => {
+  it('me resolves to the caller, unassigned matches null, and a specific analyst id passes through', async () => {
+    const { token, userId } = await makeAdmin('assignedto-filter-admin');
+    const { userId: otherId } = await makeAdmin('assignedto-filter-other');
+    const ip = `198.51.100.${Math.floor(Math.random() * 250)}`;
+    const mine = await SecurityIncident.create({ type: 'manual', severity: 'low', status: 'open', title: 'Mine', relatedIp: ip, assignedTo: userId });
+    const theirs = await SecurityIncident.create({ type: 'manual', severity: 'low', status: 'open', title: 'Theirs', relatedIp: ip, assignedTo: otherId });
+    const unassigned = await SecurityIncident.create({ type: 'manual', severity: 'low', status: 'open', title: 'Unassigned', relatedIp: ip });
+
+    const me = await request(app).get('/api/soc/incidents').query({ status: 'open', relatedIp: ip, assignedTo: 'me' }).set('Authorization', `Bearer ${token}`);
+    expect(me.body.incidents.map((i) => i.title)).toEqual(['Mine']);
+
+    const none = await request(app).get('/api/soc/incidents').query({ status: 'open', assignedTo: 'unassigned' }).set('Authorization', `Bearer ${token}`);
+    expect(none.body.incidents.some((i) => i.title === 'Unassigned')).toBe(true);
+    expect(none.body.incidents.some((i) => i.title === 'Mine' || i.title === 'Theirs')).toBe(false);
+
+    const specific = await request(app).get('/api/soc/incidents').query({ status: 'open', relatedIp: ip, assignedTo: otherId }).set('Authorization', `Bearer ${token}`);
+    expect(specific.body.incidents.map((i) => i.title)).toEqual(['Theirs']);
+
+    await SecurityIncident.deleteMany({ _id: { $in: [mine._id, theirs._id, unassigned._id] } });
+  });
+});
+
+describe('GET /events — pagination', () => {
+  it('returns a total count and skip moves past the first page without overlap', async () => {
+    const { token } = await makeAdmin('events-paginate-admin');
+    const ip = `203.0.113.${Math.floor(Math.random() * 250)}`;
+    const created = [];
+    for (let i = 0; i < 3; i++) {
+      created.push(await SecurityEvent.create({ type: 'login_failure', severity: 'low', ip, message: `paginate-test-${i}` }));
+    }
+
+    const first = await request(app).get('/api/soc/events').query({ type: 'login_failure', limit: 2, skip: 0 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(first.status).toBe(200);
+    expect(first.body.events.length).toBeLessThanOrEqual(2);
+    expect(first.body.total).toBeGreaterThanOrEqual(3);
+
+    const second = await request(app).get('/api/soc/events').query({ type: 'login_failure', limit: 2, skip: 2 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(second.status).toBe(200);
+    const firstIds = new Set(first.body.events.map((e) => e._id));
+    for (const e of second.body.events) expect(firstIds.has(e._id)).toBe(false);
+
+    await SecurityEvent.deleteMany({ _id: { $in: created.map((c) => c._id) } });
   });
 });

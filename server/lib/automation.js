@@ -4,6 +4,7 @@ const Notification = require('../models/Notification');
 const AutomationRule = require('../models/AutomationRule');
 const AutomationTemplate = require('../models/AutomationTemplate');
 const AutomationLog = require('../models/AutomationLog');
+const { daysSince, daysSinceStageChange } = require('./leadRisk');
 
 /* ── Catalogue (also served to the admin UI via GET /api/automation/meta) ──── */
 
@@ -181,11 +182,11 @@ function fieldValue(ctx, key) {
     case 'student.educationLevel':   return student.educationLevel || '';
     case 'student.daysSinceSignup': {
       const joined = student.createdAt || student.joinedDate;
-      return joined ? Math.floor((Date.now() - new Date(joined).getTime()) / 86400000) : '';
+      return joined ? daysSince(joined) : '';
     }
     case 'student.daysSinceStageChange': {
-      const changed = student.leadStageChangedAt || student.createdAt || student.joinedDate;
-      return changed ? Math.floor((Date.now() - new Date(changed).getTime()) / 86400000) : '';
+      const d = daysSinceStageChange(student);
+      return d === null ? '' : d;
     }
     case 'student.documentCount':    return (student.documents || []).length;
     case 'student.applicationCount': return (student.applications || []).length;

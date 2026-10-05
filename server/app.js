@@ -29,7 +29,7 @@ const { initSecurityLogger } = require('./middleware/logSecurityEvent');
 const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
-const { skyload } = require('./middleware/skyload');
+const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -110,9 +110,12 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many attempts. Please try again in 15 minutes.' },
 });
+// The owner's own SOC traffic is exempt (same rule as Skyload): a dashboard load plus tab-hopping, search and the
+// background refresh can legitimately approach 120 calls a minute, and a 429 there shows up as a section that won't load.
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 120,
+  skip: isTrustedSocAdmin,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
@@ -287,8 +290,8 @@ app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/ui-trail', require('./routes/uiTrail'));
-app.use('/api/soc-auth', require('./routes/socAuth'));
 app.use('/api/soc', require('./routes/soc'));
+app.use('/api/soc', require('./routes/socExtras'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
@@ -334,14 +337,33 @@ io.use(async (socket, next) => {
   }
 });
 
+// Room membership is decided when a socket connects, so an owner who is later demoted, deactivated, locked or removed from
+// SOC_OWNER_EMAILS would keep receiving live security events and PII until the tab closed. Re-check the members of
+// admin-room regularly and drop anyone who is no longer an owner.
+const OWNER_RECHECK_MS = Math.max(200, parseInt(process.env.SOC_OWNER_RECHECK_MS || '60000', 10) || 60000);
+const ownerRecheck = setInterval(async () => {
+  try {
+    const sockets = await io.in('admin-room').fetchSockets();
+    if (!sockets.length) return;
+    const { isSocOwnerEmail } = require('./lib/socOwners');
+    const { isBlocked } = require('./lib/accountState');
+    const users = await require('./models/User').find({ _id: { $in: [...new Set(sockets.map((s) => s.data.userId))] } }).select('email').lean();
+    const emailOf = new Map(users.map((u) => [String(u._id), u.email]));
+    for (const s of sockets) {
+      const uid = String(s.data.userId);
+      if (!isSocOwnerEmail(emailOf.get(uid)) || await isBlocked(uid)) s.leave('admin-room');
+    }
+  } catch { /* try again next tick */ }
+}, OWNER_RECHECK_MS);
+if (ownerRecheck.unref) ownerRecheck.unref();
+
 // WebRTC signaling
 io.on('connection', (socket) => {
-  socket.on('register', async () => {
+  // Rooms are joined on connection, not only on 'register': the SOC tabs open their own socket and never send
+  // 'register', so without this their live feeds would say "Live" but never receive an event.
+  const doJoinRooms = async () => {
     const uid = socket.data.userId;
-    if (!uid) return;
-    const wasOffline = !userSockets.has(uid);
-    if (wasOffline) userSockets.set(uid, new Set());
-    userSockets.get(uid).add(socket.id);
+    if (!uid) return true;
     // Rooms decide who is pushed what:
     //   user:<id>        one person (targeted activity)
     //   activity-room    admins + Application Team (the business activity feed)
@@ -356,12 +378,27 @@ io.on('connection', (socket) => {
         socket.join('full-admin-room');
         try {
           const me = await require('./models/User').findById(uid).select('email').lean();
-          // Owner AND (when two-factor is required) currently stepped-up: the live feed follows the same rule as the REST API.
-          const mfa = require('./lib/socMfa');
-          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email) && (!mfa.required() || mfa.liveActive(uid))) socket.join('admin-room');
-        } catch { /* no owner room on a lookup failure: fail closed */ }
+          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
+        } catch { return false; /* no owner room on a lookup failure: fail closed (a later 'register' retries) */ }
       }
     }
+    return true;
+  };
+  // Runs once per connection (it is called on connect and again on 'register'); only a failed owner lookup is retried.
+  let joining = null;
+  const joinRooms = () => {
+    if (!joining) joining = doJoinRooms().then((ok) => { if (!ok) joining = null; });
+    return joining;
+  };
+  void joinRooms();
+
+  socket.on('register', async () => {
+    const uid = socket.data.userId;
+    if (!uid) return;
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
+    userSockets.get(uid).add(socket.id);
+    await joinRooms();
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });

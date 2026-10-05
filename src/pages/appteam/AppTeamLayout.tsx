@@ -1,7 +1,8 @@
 import React from 'react';
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Layers, Users, UserCog, CalendarDays, Activity, MessageSquare, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 
@@ -18,14 +19,15 @@ const navItems: { to: string; label: string; icon: React.ComponentType<{ classNa
 
 export default function AppTeamLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to="/login?redirect=/appteam" />;
-  if (user?.role !== 'admin') return <Navigate to="/login?redirect=/appteam" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
   return (
     <div className="min-h-screen bg-orange-50">

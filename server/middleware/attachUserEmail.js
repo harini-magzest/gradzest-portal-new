@@ -5,6 +5,7 @@ const User = require('../models/User');
 // (PII access, analyst actions) mount this after authMiddleware to fetch it
 // once per request, rather than changing what's embedded in the token.
 module.exports = async function attachUserEmail(req, res, next) {
+  if (req.user?.email && req.user?.name) return next(); // already resolved (e.g. by the SOC adminOnly gate)
   try {
     const user = await User.findById(req.user.id).select('email name').lean();
     if (user) {

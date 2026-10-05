@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api';
-import { Mask } from './Mask';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -108,7 +107,7 @@ export default function FeatureUsage({ onInvestigateUser, userId }: { onInvestig
                         {data.users.map(u => (
                           <tr key={u.userId} className="border-t border-gray-50">
                             <td className="py-2">
-                              <button type="button" onClick={() => onInvestigateUser?.(u.userId)} className="font-medium text-purple-700 hover:underline"><Mask value={u.email} /></button>
+                              <button type="button" onClick={() => onInvestigateUser?.(u.userId)} className="font-medium text-purple-700 hover:underline">{u.email}</button>
                               <Bar value={u.actions} max={userMax} />
                             </td>
                             <td className="py-2 capitalize text-gray-500">{u.role}</td>

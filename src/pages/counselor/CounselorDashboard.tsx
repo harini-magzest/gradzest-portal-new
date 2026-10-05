@@ -1,3 +1,4 @@
+import FollowupQueue from '../../components/dashboards/FollowupQueue';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, FileText, MessageSquare, TrendingUp, AlertCircle, ArrowRight, Star, Plus, Award, Edit3, CheckCircle2, Target, ClipboardList, MessageCircle, Send, UserCog, GraduationCap, MapPin, BookOpen, Phone, Video, PhoneCall } from 'lucide-react';
@@ -5,6 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { Counselor } from '../../types';
 import { usePortalName } from '../../hooks/usePortalName';
+import MyCallPerformance from '../../components/MyCallPerformance';
+
 
 function fmt12h(time24: string) {
   if (!time24) return '';
@@ -163,6 +166,7 @@ export default function CounselorDashboard() {
   return (
     <>
     <div className="space-y-6">
+      <FollowupQueue />
       <div className="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center">
@@ -409,6 +413,8 @@ export default function CounselorDashboard() {
           </div>
         </div>
       </div>
+
+      <MyCallPerformance />
 
       {/* Work Status Note */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
