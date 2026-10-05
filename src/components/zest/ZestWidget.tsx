@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GraduationCap, X, Send, FileText, Settings2, Paperclip } from 'lucide-react';
+import { GraduationCap, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 
