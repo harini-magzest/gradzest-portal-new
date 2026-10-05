@@ -6,6 +6,7 @@ const KnowledgeDocument = require('../models/KnowledgeDocument');
 const KnowledgeChunk = require('../models/KnowledgeChunk');
 const ZestQueryLog = require('../models/ZestQueryLog');
 const LeadAlert = require('../models/LeadAlert');
+const ChatRoom = require('../models/ChatRoom');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
@@ -20,6 +21,7 @@ const { createZestLimiter } = require('../lib/zestLimiter');
 const { denyStudent } = require('../lib/access');
 const { checklistFor } = require('../lib/studentProgress');
 const { gatherFacts, templateDraft, buildPrompt, parseDraft, CHANNELS } = require('../lib/followupDraft');
+const zestDraft = require('../lib/zestDraft');
 
 const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
 const UNAVAILABLE = "Zest's AI is unavailable right now. Please try again later.";
