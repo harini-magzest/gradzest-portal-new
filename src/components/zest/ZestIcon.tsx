@@ -1,8 +1,7 @@
-// Zest's mark: a message bubble holding the Gradzest graduation cap, with a gold sparkle, on a white tile.
+// Zest's mark: a message bubble holding the Gradzest graduation cap, with a gold sparkle, with no background tile.
 export default function ZestIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className={`flex-shrink-0 ${className}`} aria-hidden="true">
-      <rect width="48" height="48" rx="12" fill="#ffffff" />
       <path d="M24 8c-9 0-16 5.9-16 13.2 0 3.8 1.8 7.2 4.7 9.6L11 40l7.8-3.8c1.6.4 3.3.6 5.2.6 9 0 16-5.9 16-13.2S33 8 24 8z" fill="#0d1b4b" />
       <g transform="translate(10.8 9.35) scale(1.1)" fill="none" stroke="#ffffff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 10l10-5 10 5-10 5z" />
