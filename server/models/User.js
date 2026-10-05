@@ -281,6 +281,9 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
+  // Short code a student shares so friends can sign up as their referral (see lib/referrals.js). Created on first use.
+  referralCode: { type: String, unique: true, sparse: true },
+
   // How this person wants reminders. Email is on unless turned off; WhatsApp is opt-in (see lib/notificationChannels.js).
   notificationPrefs: {
     email: { type: Boolean, default: true },

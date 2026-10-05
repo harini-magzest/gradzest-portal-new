@@ -264,7 +264,7 @@ async function sendVerificationEmail(user, mailer, frontendUrl) {
 }
 
 router.post('/register', async (req, res) => {
-  const { name, email, password, phone, nationality } = req.body;
+  const { name, email, password, phone, nationality, ref } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   const pwError = validatePasswordStrength(password);
   if (pwError) return res.status(400).json({ message: pwError });
@@ -281,6 +281,7 @@ router.post('/register', async (req, res) => {
       leadStatus: 'new',
     });
     await user.save();
+    if (ref) await require('../lib/referrals').recordReferral(ref, user); // never fails the sign-up
     const assignedCounselor = await assignNextCounselor(user);
     if (assignedCounselor) await user.save();
     notifyAdminsOfNewLead(req.app, user, assignedCounselor); // fire-and-forget; never blocks or fails sign-up

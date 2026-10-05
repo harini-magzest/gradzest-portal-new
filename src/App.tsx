@@ -9,6 +9,7 @@ import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
 import NamasteIntro from './components/NamasteIntro';
+import { ReferralCapture } from './lib/referral';
 import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -138,6 +139,7 @@ export default function App() {
       <AuthModalProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <ReferralCapture />
         <ActivityTracker />
         <ToastLayer />
         <FlashToast />

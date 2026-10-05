@@ -108,7 +108,7 @@ export const api = {
         body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
-    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
+    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
       req<{ token: string; user: any }>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -290,6 +290,12 @@ export const api = {
     uploadDocument: (formData: FormData) => upload<any>('/counselors/me/documents', formData),
     deleteDocument: (docId: string) =>
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  referrals: {
+    mine: () => req<{ code: string; link: string; rewardText: string; referrals: { name: string; status: 'signed_up' | 'applied' | 'offer' | 'enrolled'; rewardEarned: boolean; rewardPaid: boolean; joinedAt: string }[]; stats: { total: number; enrolled: number; paid: number } }>('/referrals/me', { headers: authHeaders() }),
+    all: () => req<{ referrals: { id: string; referrerName: string; referrerEmail: string; referredName: string; status: string; rewardEarned: boolean; paid: boolean; paidAt: string | null; paidNote: string; createdAt: string }[]; stats: { total: number; earned: number; owed: number } }>('/referrals', { headers: authHeaders() }),
+    setPaid: (id: string, paid: boolean, note?: string) => req<{ id: string; paid: boolean }>(`/referrals/${id}/paid`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ paid, note }) }),
   },
 
   events: {
