@@ -116,7 +116,7 @@ export default function ZestWidget() {
         aria-label={open ? 'Close Zest' : 'Open Zest'}
         className="fixed bottom-6 right-6 z-[250] w-14 h-14 rounded-full bg-[#0d1b4b] hover:bg-[#152258] shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105"
       >
-        {open ? <X className="w-6 h-6" /> : <ZestIcon className="w-6 h-6" inverted />}
+        {open ? <X className="w-6 h-6" /> : <ZestIcon className="w-6 h-6" />}
       </button>
 
       <div
@@ -126,7 +126,7 @@ export default function ZestWidget() {
       >
         <div className="bg-[#0d1b4b] text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
-            <ZestIcon className="w-5 h-5" inverted />
+            <ZestIcon className="w-5 h-5" />
             <span className="font-semibold text-lg">Zest AI</span>
           </div>
           <div className="flex items-center gap-1">
