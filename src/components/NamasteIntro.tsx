@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
+// A welcome for new visitors only: shown once per browser, on the public homepage, to someone who isn't signed in. Never on
+// the dashboards, the login pages, other public pages or a parent's share link.
 const SEEN_KEY = 'gz_namaste_seen';
+const INTRO_PATH = '/';
 const DURATION_MS = 3500;
-const DASHBOARDS = ['student', 'counselor', 'admin', 'soc', 'appteam', 'board'];
 const GREETING_COLOUR = '#FFFFFF';
 // The intro is the video at public/namaste-intro.mp4: hands, lotus, glow and the "NAMASTE / WELCOME / GRADZEST" text are all
 // in the footage, so it plays alone for its full length. If the file is missing, or doesn't start playing within
@@ -16,20 +19,19 @@ const VIDEO_DEFAULT_MS = 5500; // used only if the browser can't report the vide
 // Flat navy of the footage's own background, so the frame can be shown whole (never cropped) with no visible edges.
 const VIDEO_BG = '#09152d';
 
-// The public site and each dashboard get their own intro, so entering a dashboard after the
-// homepage in the same session still plays it once.
-function areaOf(pathname: string): string {
-  const first = pathname.split('/')[1] || '';
-  return DASHBOARDS.includes(first) ? first : 'public';
-}
-
-function shouldPlay(area: string): boolean {
+// True for a browser that has never seen the intro. If storage can't be read (so we couldn't remember it was shown) the
+// intro is skipped rather than replaying on every visit.
+function isNewVisitor(): boolean {
   try {
-    if (sessionStorage.getItem(`${SEEN_KEY}:${area}`)) return false;
+    if (localStorage.getItem(SEEN_KEY)) return false;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   } catch {
     return false;
   }
+}
+
+function markSeen() {
+  try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* storage unavailable: isNewVisitor() already skipped the intro */ }
 }
 
 // Line-art Namaste (anjali mudra): two hands pressed palm to palm, fingers pointing up, seen from the
@@ -186,19 +188,27 @@ const CSS = `
 
 export default function NamasteIntro() {
   const { pathname } = useLocation();
-  const area = areaOf(pathname);
-  const [show, setShow] = useState(() => shouldPlay(area));
+  const { isAuthenticated, loading } = useAuth();
+  // A session restore in flight when the page loaded means this browser has signed in before, so this isn't a new customer:
+  // no intro for the whole page load, even if the restore fails and they end up signed out.
+  const [returning] = useState(loading);
+  const eligible = !returning && !loading && !isAuthenticated && pathname === INTRO_PATH;
+  const [show, setShow] = useState(() => eligible && isNewVisitor());
   // 'loading' until the video actually starts playing; 'missing' means play the drawn fallback instead.
   const [video, setVideo] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [videoMs, setVideoMs] = useState(0);
 
-  // Entering another area after an intro has ended starts a new one from scratch: the video has to start playing again
-  // (a stale 'ok' would start the clock for a video that may never play). While an intro is still up this does nothing.
+  // A new visitor who lands on another page first gets the intro when they reach the homepage. Once it has started the
+  // seen-flag is set, so this can never start a second one.
   useEffect(() => {
-    if (show || !shouldPlay(area)) return;
-    setVideo('loading');
+    if (show || !eligible || !isNewVisitor()) return;
     setShow(true);
-  }, [area]);
+  }, [eligible]);
+
+  // Remembered from the moment it starts, so refreshing mid-intro doesn't replay it.
+  useEffect(() => {
+    if (show) markSeen();
+  }, [show]);
 
   useEffect(() => {
     if (!show || video !== 'loading') return;
@@ -206,13 +216,8 @@ export default function NamasteIntro() {
     return () => clearTimeout(t);
   }, [show, video]);
 
-  useEffect(() => {
-    if (!show) return;
-    try { sessionStorage.setItem(`${SEEN_KEY}:${area}`, '1'); } catch { /* storage unavailable: replays next load */ }
-  }, [show, area]);
-
   // The clock starts once we know which version plays, so the exit never fires before the animation has begun. It doesn't
-  // depend on the area, so navigating while the intro is up can't restart it out of step with the slide-up animation.
+  // depend on the route, so navigating while the intro is up can't restart it out of step with the slide-up animation.
   const totalMs = video === 'ok' ? videoMs + VIDEO_HOLD_MS + VIDEO_EXIT_MS : DURATION_MS;
   useEffect(() => {
     if (!show || video === 'loading') return;

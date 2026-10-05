@@ -3,6 +3,9 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import NamasteIntro from './NamasteIntro';
 
+const auth = vi.hoisted(() => ({ isAuthenticated: false, loading: false }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
+
 // jsdom can't play video, so the tests drive the <video> element's events by hand ('playing', 'error') and move the
 // clock with fake timers. Lengths below mirror the component: VIDEO_WAIT_MS 2500, VIDEO_HOLD_MS 500, VIDEO_EXIT_MS 700,
 // DURATION_MS 3500. After the video ends its last frame is held, then the overlay slides up.
@@ -11,25 +14,28 @@ const HOLD_MS = 500;
 const EXIT_MS = 700;
 const totalFor = (seconds: number) => Math.round(seconds * 1000) + HOLD_MS + EXIT_MS;
 const VIDEO_TOTAL_MS = totalFor(VIDEO_SECONDS);
+const SEEN_KEY = 'gz_namaste_seen';
 
 function GoTo({ to }: { to: string }) {
   const navigate = useNavigate();
   return <button onClick={() => navigate(to)}>go {to}</button>;
 }
 
-function renderIntro(path = '/') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <NamasteIntro />
-      <GoTo to="/student" />
-    </MemoryRouter>,
-  );
-}
+const tree = (path: string) => (
+  <MemoryRouter initialEntries={[path]}>
+    <NamasteIntro />
+    <GoTo to="/" />
+    <GoTo to="/universities" />
+    <GoTo to="/student" />
+  </MemoryRouter>
+);
+const renderIntro = (path = '/') => render(tree(path));
 
 const dialog = () => screen.queryByRole('dialog', { name: 'Welcome to Gradzest' });
 const video = () => dialog()?.querySelector('video') ?? null;
 const drawnHands = () => dialog()?.querySelector('svg') ?? null;
 const advance = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
+const goTo = (to: string) => act(() => { fireEvent.click(screen.getByText(`go ${to}`)); });
 
 function videoStartsPlaying(seconds = VIDEO_SECONDS) {
   const el = video()!;
@@ -48,13 +54,116 @@ function mockReducedMotion(reduce: boolean) {
 describe('NamasteIntro', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    sessionStorage.clear();
+    localStorage.clear();
+    auth.isAuthenticated = false;
+    auth.loading = false;
     mockReducedMotion(false);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     document.body.style.overflow = '';
+  });
+
+  describe('who sees it', () => {
+    it('plays for a new, signed-out visitor on the homepage', () => {
+      renderIntro('/');
+      expect(dialog()).toBeInTheDocument();
+    });
+
+    it('is remembered per browser from the moment it starts', () => {
+      renderIntro('/');
+      expect(localStorage.getItem(SEEN_KEY)).toBe('1');
+    });
+
+    it('does not play again once it has played', () => {
+      const first = renderIntro('/');
+      videoStartsPlaying();
+      advance(VIDEO_TOTAL_MS);
+      expect(dialog()).toBeNull();
+      first.unmount();
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not replay after a refresh in the middle of it', () => {
+      const first = renderIntro('/');
+      videoStartsPlaying();
+      advance(1500);
+      first.unmount();
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not play for a returning visitor', () => {
+      localStorage.setItem(SEEN_KEY, '1');
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not play for a signed-in user', () => {
+      auth.isAuthenticated = true;
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not play while a returning browser\'s session is restored, nor if the restore then fails', () => {
+      auth.loading = true;
+      const view = renderIntro('/');
+      expect(dialog()).toBeNull();
+      auth.loading = false; // restore failed: signed out, but this browser has signed in before
+      view.rerender(tree('/'));
+      expect(dialog()).toBeNull();
+    });
+
+    it.each(['/student', '/student/universities', '/counselor', '/admin', '/admin/zest', '/soc', '/appteam', '/board'])(
+      'never plays on a dashboard (%s)',
+      path => {
+        renderIntro(path);
+        expect(dialog()).toBeNull();
+      },
+    );
+
+    it.each(['/login', '/forgot-password', '/universities', '/university/12', '/resources', '/search', '/parent/abc123'])(
+      'does not play on any page other than the homepage (%s)',
+      path => {
+        renderIntro(path);
+        expect(dialog()).toBeNull();
+        expect(localStorage.getItem(SEEN_KEY)).toBeNull();
+      },
+    );
+
+    it('plays when a new visitor who landed elsewhere first reaches the homepage', () => {
+      renderIntro('/universities');
+      expect(dialog()).toBeNull();
+      goTo('/');
+      expect(dialog()).toBeInTheDocument();
+    });
+
+    it('plays only once even if the visitor keeps moving between pages', () => {
+      renderIntro('/');
+      videoStartsPlaying();
+      advance(VIDEO_TOTAL_MS);
+      expect(dialog()).toBeNull();
+      goTo('/universities');
+      goTo('/');
+      goTo('/student');
+      goTo('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not play for people who prefer reduced motion', () => {
+      mockReducedMotion(true);
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
+
+    it('does not play if the browser will not let it remember that it did (it would replay every visit)', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+      renderIntro('/');
+      expect(dialog()).toBeNull();
+    });
   });
 
   describe('with the video', () => {
@@ -117,6 +226,18 @@ describe('NamasteIntro', () => {
       expect(video()).toBeInTheDocument();
       expect(drawnHands()).toBeNull();
     });
+
+    it('navigating while the intro is up does not restart its clock', () => {
+      renderIntro();
+      videoStartsPlaying();
+      advance(4000);
+      goTo('/universities');
+      expect(dialog()).toBeInTheDocument();
+      advance(VIDEO_TOTAL_MS - 4000 - 1);
+      expect(dialog()).toBeInTheDocument();
+      advance(1);
+      expect(dialog()).toBeNull();
+    });
   });
 
   describe('falling back to the drawn hands', () => {
@@ -147,7 +268,7 @@ describe('NamasteIntro', () => {
     });
   });
 
-  describe('dismissing and not playing', () => {
+  describe('dismissing', () => {
     it('closes on Escape', () => {
       renderIntro();
       videoStartsPlaying();
@@ -162,49 +283,11 @@ describe('NamasteIntro', () => {
       expect(dialog()).toBeNull();
     });
 
-    it('does not play for people who prefer reduced motion', () => {
-      mockReducedMotion(true);
-      renderIntro();
-      expect(dialog()).toBeNull();
-    });
-
-    it('plays once per area per session', () => {
+    it('stays dismissed: closing it early still counts as having seen it', () => {
       const first = renderIntro();
-      videoStartsPlaying();
-      advance(VIDEO_TOTAL_MS);
-      expect(dialog()).toBeNull();
+      act(() => { fireEvent.keyDown(window, { key: 'Escape' }); });
       first.unmount();
       renderIntro();
-      expect(dialog()).toBeNull();
-    });
-  });
-
-  describe('moving between areas', () => {
-    it("a second area's intro starts from scratch: it has to start playing before the clock starts", () => {
-      renderIntro();
-      videoStartsPlaying();
-      act(() => { fireEvent.keyDown(window, { key: 'Escape' }); });
-      expect(dialog()).toBeNull();
-
-      act(() => { fireEvent.click(screen.getByText('go /student')); });
-      expect(dialog()).toBeInTheDocument();
-      expect(video()).toBeInTheDocument();
-      advance(2499);
-      expect(drawnHands()).toBeNull();
-      // The new video never started, so the fallback has to take over instead of a blank screen.
-      advance(1);
-      expect(drawnHands()).toBeInTheDocument();
-    });
-
-    it('navigating while the intro is up does not restart its clock', () => {
-      renderIntro();
-      videoStartsPlaying();
-      advance(4000);
-      act(() => { fireEvent.click(screen.getByText('go /student')); });
-      expect(dialog()).toBeInTheDocument();
-      advance(VIDEO_TOTAL_MS - 4000 - 1);
-      expect(dialog()).toBeInTheDocument();
-      advance(1);
       expect(dialog()).toBeNull();
     });
   });
