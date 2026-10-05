@@ -6,8 +6,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
+import { useToast } from '../../context/ToastContext';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
+import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -152,6 +154,7 @@ function MeetingMessage({ msg, isMe, senderRole }: { msg: any; isMe: boolean; se
 export default function AppTeamChat() {
   const { user } = useAuth();
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const autoCounselorId = searchParams.get('counselorId');
   const [rooms, setRooms] = useState<any[]>([]);
@@ -210,10 +213,11 @@ export default function AppTeamChat() {
             return;
           }
         }
-
-        if (roomList.length > 0) setSelectedRoom(roomList[0]);
-      } catch {}
+      } catch {
+        toast.error('Failed to load conversations.');
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -224,7 +228,8 @@ export default function AppTeamChat() {
         const updated = roomList.find((r: any) => r.id === selectedRoom.id);
         if (updated) setSelectedRoom(updated);
       }
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to refresh conversations.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessageTime]);
 
   useEffect(() => {
@@ -241,15 +246,7 @@ export default function AppTeamChat() {
     return () => clearInterval(id);
   }, [user, selectedRoom?.id]);
 
-  useEffect(() => {
-    if (!selectedRoom?.id) return;
-    api.chat.markRead(selectedRoom.id).catch(() => {});
-    setRooms(prev => prev.map(r =>
-      r.id === selectedRoom.id
-        ? { ...r, messages: r.messages?.map((m: any) => ({ ...m, read: true })) }
-        : r
-    ));
-  }, [selectedRoom?.id]);
+  useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -396,7 +393,7 @@ export default function AppTeamChat() {
                 <p className="text-xs text-gray-400">You're not in any counselling groups yet</p>
               </div>
             ) : groupRooms.map((g: any) => {
-              const unread = g.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+              const unread = unreadCount(g, String(user?.id));
               const lastMsg = g.messages?.[g.messages.length - 1];
               return (
                 <button type="button" key={g.id} onClick={() => setSelectedRoom(g)}
@@ -407,7 +404,7 @@ export default function AppTeamChat() {
                       <span className="text-sm font-semibold truncate text-gray-900">{g.name}</span>
                       {unread > 0 && <span className="bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{unread}</span>}
                     </div>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{lastMsg ? `${lastMsg.senderName}: ${lastMsg.content || lastMsg.fileName || ''}` : `${g.participants.length} members`}</p>
+                    <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{lastMsg ? `${lastMsg.senderName}: ${lastMsg.content || lastMsg.fileName || ''}` : `${g.participants.length} members`}</p>
                   </div>
                 </button>
               );
@@ -424,7 +421,7 @@ export default function AppTeamChat() {
               const pid = String(person._id || person.id);
               const existingRoom = rooms.find((r: any) => r.type !== "group" && r.participants?.map(String).includes(pid));
               const isActive = !!(existingRoom && selectedRoom?.id === existingRoom.id);
-              const unread = existingRoom?.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+              const unread = unreadCount(existingRoom, String(user?.id));
               const lastMsg = existingRoom?.messages?.[existingRoom.messages.length - 1];
               const preview = lastMsg?.type === 'call' ? '📞 Voice call'
                 : lastMsg?.type === 'file' ? `📎 ${lastMsg.fileName || 'Document'}`
@@ -447,7 +444,7 @@ export default function AppTeamChat() {
                       </div>
                     </div>
                     {preview
-                      ? <p className="text-xs text-gray-400 truncate mt-0.5">{preview}</p>
+                      ? <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{preview}</p>
                       : <p className="text-xs text-gray-300 mt-0.5">No messages yet</p>
                     }
                   </div>

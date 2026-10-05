@@ -627,6 +627,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       });
     });
 
+    // Progress posted on a task you created or were assigned
+    socket.on('task:updated', (data: any) => {
+      addNotif({
+        type: 'task', priority: data.status === 'on_hold' ? 'urgent' : 'normal',
+        title: '📋 Task Update',
+        message: `${data.byName} ${data.message}`,
+        link: activitiesLink,
+      });
+      window.dispatchEvent(new CustomEvent('task:updated', { detail: data }));
+    });
+
     // All roles: meeting cancelled
     socket.on('meeting:cancelled', (m: any) => {
       addNotif({

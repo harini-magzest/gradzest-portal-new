@@ -18,11 +18,13 @@ export default function AuthModal() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const DEMO_ACCOUNTS = [
+  // Development only. These are the seeded demo logins (server/seed.js); they must never be in a production bundle,
+  // so both the data and the UI below sit behind import.meta.env.DEV, which the build folds to `false` and removes.
+  const DEMO_ACCOUNTS = import.meta.env.DEV ? [
     { label: 'Student', email: 'aryan@example.com', password: 'student123', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
     { label: 'Counselor', email: 'kavitha@eduabroad.com', password: 'counselor123', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
     { label: 'Admin', email: 'admin@eduabroad.com', password: 'admin123', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-  ];
+  ] : [];
 
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
@@ -134,8 +136,8 @@ export default function AuthModal() {
           {tab === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <p className="text-sm text-gray-500">Welcome back! Sign in to your account.</p>
-              {/* Demo accounts */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+              {/* Demo accounts — development only (see DEMO_ACCOUNTS) */}
+              {import.meta.env.DEV && <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
                 <p className="text-xs font-medium text-gray-500 mb-2">Try a demo account</p>
                 <div className="flex gap-2 flex-wrap">
                   {DEMO_ACCOUNTS.map(acc => (
@@ -150,7 +152,7 @@ export default function AuthModal() {
                   ))}
                 </div>
                 <p className="text-xs text-gray-400 mt-1.5">Click a role to auto-fill credentials, then sign in.</p>
-              </div>
+              </div>}
               {loginError && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
                   <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />

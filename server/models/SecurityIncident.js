@@ -52,6 +52,8 @@ const securityIncidentSchema = new mongoose.Schema(
     // leaves "open", assignment, or a note); resolvedAt = closed as
     // resolved/false_positive (cleared if reopened).
     acknowledgedAt: { type: Date, default: null },
+    // Set once an unacknowledged high/critical incident has triggered the follow-up alert (jobs/incidentEscalation.js).
+    escalatedAt: { type: Date, default: null },
     resolvedAt: { type: Date, default: null },
     resolutionReason: {
       type: String,
@@ -68,5 +70,7 @@ const securityIncidentSchema = new mongoose.Schema(
 securityIncidentSchema.index({ createdAt: -1 });
 securityIncidentSchema.index({ status: 1, createdAt: -1 });
 securityIncidentSchema.index({ severity: 1, createdAt: -1 });
+
+securityIncidentSchema.plugin(require('../lib/encryptedFields'), { fields: ['title','relatedIp','relatedEmail','notes.author','notes.text'] });
 
 module.exports = mongoose.model("SecurityIncident", securityIncidentSchema);

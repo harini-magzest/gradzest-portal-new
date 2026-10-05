@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const mongoose = require('mongoose');
 const Role = require('../models/Role');
 const User = require('../models/User');
@@ -33,7 +34,8 @@ router.get('/', async (req, res) => {
         .select('name email role isAppTeam title hierarchyRole').sort({ name: 1 }).lean(),
     ]);
     res.json({ roles, staff });
-  } catch {
+  } catch (err) {
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -50,9 +52,10 @@ router.post('/', async (req, res) => {
     if (await Role.exists({ name: new RegExp('^' + escaped + '$', 'i') })) {
       return res.status(409).json({ message: 'A role with this name already exists' });
     }
-    const role = await Role.create({ name, description, parentRole: parentRole || null });
+    const role = await Role.create({ name, description, parentRole: parentRole || null, peerVisibility: req.body.peerVisibility === true });
     res.status(201).json(role);
-  } catch {
+  } catch (err) {
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -70,7 +73,8 @@ router.put('/assign/:userId', async (req, res) => {
     ).select('name email role isAppTeam title hierarchyRole');
     if (!user) return res.status(404).json({ message: 'Staff member not found' });
     res.json(user);
-  } catch {
+  } catch (err) {
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -82,6 +86,7 @@ router.put('/:id', async (req, res) => {
     if (!update.name) return res.status(400).json({ message: 'Role name is required' });
   }
   if (req.body.description !== undefined) update.description = req.body.description;
+  if (req.body.peerVisibility !== undefined) update.peerVisibility = req.body.peerVisibility === true;
   try {
     if (req.body.parentRole !== undefined) {
       const parent = req.body.parentRole || null;
@@ -96,7 +101,8 @@ router.put('/:id', async (req, res) => {
     const role = await Role.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!role) return res.status(404).json({ message: 'Role not found' });
     res.json(role);
-  } catch {
+  } catch (err) {
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -112,7 +118,8 @@ router.delete('/:id', async (req, res) => {
     const deleted = await Role.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Role not found' });
     res.json({ message: 'Role deleted' });
-  } catch {
+  } catch (err) {
+    logError('roles', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

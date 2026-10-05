@@ -1,14 +1,22 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const University = require('../models/University');
 const Country = require('../models/Country');
+
+const WRITABLE = (paths, extra = []) => [...new Set(Object.keys(paths).map(p => p.split('.')[0]))].filter(p => !['_id', '__v', 'createdAt', 'updatedAt', ...extra].includes(p));
+const COURSE_FIELDS = WRITABLE(University.schema.path('courses').schema.paths, ['id']);
+const COUNTRY_FIELDS = WRITABLE(Country.schema.paths, ['id']);
+const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {}).filter(([k]) => fields.includes(k)));
 const Subscriber = require('../models/Subscriber');
 const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
+const { assignNextCounselor } = require('../lib/assignCounselor');
 const { can, loadAccess, canView } = require('../lib/access');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
@@ -49,7 +57,8 @@ router.get('/stats', authMiddleware, adminOnly, blockAppTeam, async (req, res) =
     const totalApplications = students.reduce((sum, s) => sum + (s.applications?.length || 0), 0);
     const activeStudents = students.filter(s => s.status === 'active').length;
     res.json({ totalStudents: students.length, totalCounselors: counselors.length, totalApplications, activeStudents });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -59,7 +68,8 @@ router.get('/counselors', authMiddleware, adminOnly, async (req, res) => {
   try {
     const counselors = await User.find({ role: 'counselor' }).select('-password');
     res.json(counselors.map(c => c.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -67,122 +77,12 @@ router.get('/counselors', authMiddleware, adminOnly, async (req, res) => {
 // Counselor performance: call stats (in-app + Tata Smartflo), workload, and an activity timeline.
 // GET /api/admin/counselors/:id/performance?days=1|7|30|90   (days=1 means "today")
 router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
-  const ChatRoom = require('../models/ChatRoom');
-  const Meeting = require('../models/Meeting');
-  const StaffActivity = require('../models/StaffActivity');
-  const smartflo = require('../lib/smartflo');
   try {
     const counselor = await User.findOne({ _id: req.params.id, role: 'counselor' }).select('name email smartfloAgent');
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
-    const cid = String(counselor._id);
-
-    const days = [1, 7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
-    const to = new Date();
-    const from = new Date(to.getFullYear(), to.getMonth(), to.getDate() - (days - 1));
-    const inRange = (d) => { const t = new Date(d); return t >= from && t <= to; };
-
-    // ── Workload ──
-    const students = await User.find({ role: 'student', counselorId: cid }).select('leadStatus applications.status');
-    const apps = students.flatMap(s => s.applications || []);
-    const OFFER = ['offer_received', 'accepted', 'enrolled'];
-
-    const fromDateStr = from.toISOString().slice(0, 10);
-    const meetings = await Meeting.countDocuments({
-      $or: [{ createdBy: cid }, { 'participants.userId': cid }],
-      scheduledDate: { $gte: fromDateStr },
-      status: { $ne: 'cancelled' },
-    });
-
-    // ── In-app chat + calls ──
-    const rooms = await ChatRoom.find({ participants: cid }).select('participants participantNames messages');
-    let messagesSent = 0;
-    const calls = [];
-    const timeline = [];
-    for (const room of rooms) {
-      const otherIdx = room.participants.findIndex(p => p !== cid);
-      const otherName = room.participantNames?.[otherIdx] || room.participantNames?.find(n => n !== counselor.name) || 'User';
-      for (const m of room.messages) {
-        if (!inRange(m.timestamp)) continue;
-        if (m.type === 'call') {
-          const outbound = m.senderId === cid;
-          const answered = m.callStatus === 'answered';
-          const call = {
-            id: String(m._id), source: 'in_app', channel: 'in_app',
-            direction: outbound ? 'outbound' : 'inbound',
-            status: answered ? 'answered' : 'missed',
-            durationSec: answered ? m.callDuration || 0 : 0,
-            startedAt: m.timestamp, party: otherName,
-          };
-          calls.push(call);
-        } else if (m.senderId === cid) {
-          messagesSent++;
-        }
-      }
-    }
-
-    // ── Smartflo calls ──
-    const sf = { configured: smartflo.isConfigured(), agentSet: Boolean(counselor.smartfloAgent), error: '' };
-    if (sf.configured && sf.agentSet) {
-      try {
-        const records = await smartflo.fetchCallRecords(from, to);
-        records.filter(r => smartflo.matchesAgent(r, counselor.smartfloAgent))
-          .forEach(r => calls.push({ ...r, party: r.clientNumber || 'Unknown number' }));
-      } catch (err) {
-        sf.error = err.response?.status
-          ? `Smartflo API returned ${err.response.status}${err.response.status === 401 ? ' (check SMARTFLO_API_TOKEN)' : ''}`
-          : `Could not reach Smartflo: ${err.message}`;
-      }
-    }
-
-    const CHANNELS = ['incoming', 'click_to_call', 'whatsapp', 'in_app'];
-    const byChannel = Object.fromEntries(CHANNELS.map(c => [c, { total: 0, answered: 0, missed: 0 }]));
-    for (const c of calls) {
-      const b = byChannel[c.channel] || byChannel.in_app;
-      b.total++; b[c.status]++;
-    }
-    const callStats = {
-      total: calls.length,
-      inbound: calls.filter(c => c.direction === 'inbound').length,
-      outbound: calls.filter(c => c.direction === 'outbound').length,
-      answered: calls.filter(c => c.status === 'answered').length,
-      missed: calls.filter(c => c.status === 'missed').length,
-      talkSeconds: calls.reduce((s, c) => s + (c.durationSec || 0), 0),
-      byChannel,
-    };
-
-    // ── Timeline: recorded staff actions + every call ──
-    const actions = await StaffActivity.find({ actorId: cid, createdAt: { $gte: from } }).sort({ createdAt: -1 }).limit(300).lean();
-    actions.forEach(a => timeline.push({
-      id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, detail: a.detail, studentName: a.studentName,
-    }));
-    const CHANNEL_LABEL = { incoming: 'Incoming call', click_to_call: 'Click-to-call', whatsapp: 'WhatsApp call', in_app: 'In-app call' };
-    calls.forEach(c => {
-      const mins = c.durationSec ? ` · ${Math.floor(c.durationSec / 60)}m ${c.durationSec % 60}s` : '';
-      timeline.push({
-        id: `call-${c.id}`, at: c.startedAt, kind: 'call', status: c.status,
-        title: `${c.direction === 'outbound' ? 'Outbound' : 'Inbound'} ${CHANNEL_LABEL[c.channel].toLowerCase()} ${c.direction === 'outbound' ? 'to' : 'from'} ${c.party}`,
-        detail: `${c.status === 'answered' ? 'Answered' : 'Missed / not answered'}${mins}${c.source === 'smartflo' ? ' · via Smartflo' : ''}`,
-      });
-    });
-    timeline.sort((a, b) => new Date(b.at) - new Date(a.at));
-
-    res.json({
-      counselor: { id: cid, name: counselor.name, email: counselor.email, smartfloAgent: counselor.smartfloAgent || '' },
-      range: { from, to, days },
-      summary: {
-        students: students.length,
-        newLeads: students.filter(s => s.leadStatus === 'new').length,
-        applications: apps.length,
-        offers: apps.filter(a => OFFER.includes(a.status)).length,
-        meetings,
-        messagesSent,
-      },
-      calls: callStats,
-      smartflo: sf,
-      timeline: timeline.slice(0, 300),
-    });
+    res.json(await buildCounselorPerformance(counselor, req.query.days));
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -204,7 +104,7 @@ router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, async (req, 
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -218,7 +118,8 @@ router.put('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async (re
     ).select('-password');
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
     res.json(counselor.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -228,7 +129,8 @@ router.delete('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async 
   try {
     await User.findOneAndDelete({ _id: req.params.id, role: 'counselor' });
     res.json({ message: 'Counselor deleted' });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -238,7 +140,8 @@ router.get('/appteam-users', authMiddleware, adminOnly, blockAppTeam, async (req
   try {
     const users = await User.find({ role: 'admin' }).select('-password');
     res.json(users.map(u => u.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -269,7 +172,8 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attach
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -293,7 +197,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -310,7 +214,7 @@ router.put('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (req, 
     if (!member) return res.status(404).json({ message: 'Application Team member not found' });
     res.json(member.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -320,7 +224,8 @@ router.delete('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (re
     const deleted = await User.findOneAndDelete({ _id: req.params.id, role: 'admin', isAppTeam: true });
     if (!deleted) return res.status(404).json({ message: 'Application Team member not found' });
     res.json({ message: 'Application Team member deleted' });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -330,6 +235,9 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
   const { name, email, password, phone, nationality, educationLevel, gpa, englishScore, budget, preferredCountries, interestedCourses, counselorId } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
+    if (await User.exists({ email: email.toLowerCase() })) {
+      return res.status(409).json({ message: 'An account with this email already exists' });
+    }
     const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash(password, 10);
     const student = new User({
@@ -356,7 +264,7 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, re
     delete obj.password;
     res.status(201).json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -365,7 +273,8 @@ router.get('/students', authMiddleware, adminOnly, async (req, res) => {
   try {
     const students = await User.find({ role: 'student' }).select('-password');
     res.json(students.map(s => s.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -375,7 +284,8 @@ router.get('/leads/count', authMiddleware, adminOnly, blockAppTeam, async (req, 
   try {
     const count = await User.countDocuments({ role: 'student', leadStatus: 'new' });
     res.json({ count });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -394,7 +304,8 @@ router.put('/students/:id/lead-status', authMiddleware, adminOnly, blockAppTeam,
     ).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     res.json(student.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -409,7 +320,8 @@ router.put('/students/:id/status', authMiddleware, adminOnly, blockAppTeam, asyn
     ).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     res.json(student.toJSON());
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -419,6 +331,25 @@ router.delete('/students/:id', authMiddleware, adminOnly, blockAppTeam, async (r
   try {
     await User.findOneAndDelete({ _id: req.params.id, role: 'student' });
     res.json({ message: 'Student deleted' });
+  } catch (err) {
+    logError('admin', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Danger Zone (Settings): delete every student account. Applications and document records
+// live on the student's User doc, so they go with it. The typed confirmation is re-checked
+// here so a stray request can't wipe the data.
+router.post('/danger/delete-all-students', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+  if (req.body?.confirm !== 'DELETE') return res.status(400).json({ message: 'Type DELETE to confirm' });
+  try {
+    const { deletedCount } = await User.deleteMany({ role: 'student' });
+    logSecurityEvent('bulk_delete', {
+      severity: 'critical', userId: req.user.id, email: req.user.email || '', role: req.user.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: `Deleted all student data (${deletedCount} students)`,
+    }).catch(() => {});
+    res.json({ message: 'All student data deleted', deletedCount });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
@@ -491,7 +422,7 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
 
     res.json(updated.toJSON());
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -537,7 +468,8 @@ router.post('/applications', authMiddleware, can('applications.create'), async (
     });
     fireEvent('application.created', { studentId: student._id, application: newApp });
     res.json(newApp.toJSON ? newApp.toJSON() : newApp);
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -560,7 +492,8 @@ router.get('/applications', authMiddleware, adminOnly, async (req, res) => {
       }
     }
     res.json(applications);
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -615,7 +548,8 @@ router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (
       studentName: student.name,
       studentEmail: student.email,
     });
-  } catch {
+  } catch (err) {
+    logError('admin', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -626,7 +560,7 @@ router.get('/universities', authMiddleware, adminOnly, blockAppTeam, async (req,
   try {
     const unis = await University.find({});
     res.json(unis);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -682,7 +616,7 @@ router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req
     });
     await uni.save();
     res.status(201).json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 // Bulk enrich all universities missing logo or cover image
@@ -722,7 +656,7 @@ router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam,
       console.log(`[enrich-all] Done. Processed ${unis.length} universities.`);
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -765,14 +699,14 @@ router.put('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (
     const uni = await University.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!uni) return res.status(404).json({ message: 'University not found' });
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   try {
     await University.findByIdAndDelete(req.params.id);
     res.json({ message: 'University deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Course CRUD within a university
@@ -781,10 +715,10 @@ router.post('/universities/:id/courses', authMiddleware, adminOnly, blockAppTeam
     const uni = await University.findById(req.params.id);
     if (!uni) return res.status(404).json({ message: 'University not found' });
     const courseId = 'course-' + Date.now();
-    uni.courses.push({ ...req.body, id: courseId });
+    uni.courses.push({ ...pickFields(req.body, COURSE_FIELDS), id: courseId });
     await uni.save();
     res.status(201).json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -793,10 +727,10 @@ router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blo
     if (!uni) return res.status(404).json({ message: 'University not found' });
     const course = uni.courses.id(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
-    Object.assign(course, req.body);
+    Object.assign(course, pickFields(req.body, COURSE_FIELDS));
     await uni.save();
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -806,7 +740,7 @@ router.delete('/universities/:id/courses/:courseId', authMiddleware, adminOnly, 
     uni.courses.pull({ _id: req.params.courseId });
     await uni.save();
     res.json(uni);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 // ── Countries CRUD ───────────────────────────────────────────────────────────
@@ -815,17 +749,17 @@ router.get('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, re
   try {
     const countries = await Country.find({}).sort({ name: 1 });
     res.json(countries);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Country name is required' });
-    const country = new Country(req.body);
+    const country = new Country(pickFields(req.body, COUNTRY_FIELDS));
     await country.save();
     res.status(201).json(country);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -834,14 +768,14 @@ router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req
     const country = await Country.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!country) return res.status(404).json({ message: 'Country not found' });
     res.json(country);
-  } catch (err) { res.status(500).json({ message: err.message || 'Server error' }); }
+  } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
 router.delete('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   try {
     await Country.findByIdAndDelete(req.params.id);
     res.json({ message: 'Country deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Analytics overview
@@ -942,7 +876,7 @@ router.get('/analytics', authMiddleware, adminOnly, blockAppTeam, async (req, re
 
     res.json({ newStudents, visaApprovalRate, conversionRate, revenue, monthlyRegistrations, applicationsByCountry, conversionFunnel, counselorPerformance, topUniversities, applicationsByStatus });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -951,7 +885,7 @@ router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, 
   try {
     const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
     res.json(subscribers);
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -973,7 +907,7 @@ router.get('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (
   try {
     const me = await User.findById(req.user.id).select('subscribersSeenAt');
     res.json({ seenAt: me?.subscribersSeenAt || null });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -981,7 +915,7 @@ router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async 
     const seenAt = new Date();
     await User.updateOne({ _id: req.user.id }, { subscribersSeenAt: seenAt });
     res.json({ seenAt });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Assign a subscriber to a counselor as a follow-up task
@@ -1032,7 +966,7 @@ router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, 
     }
 
     res.json(sub);
-  } catch (err) { res.status(500).json({ message: err.message || 'Failed to assign subscriber' }); }
+  } catch (err) { sendServerError(res, err, 'Failed to assign subscriber'); }
 });
 
 router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -1040,7 +974,7 @@ router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async
     const sub = await Subscriber.findByIdAndDelete(req.params.id);
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json({ message: 'Subscriber deleted' });
-  } catch { res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

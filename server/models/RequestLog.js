@@ -25,4 +25,6 @@ requestLogSchema.index({ ip: 1, createdAt: -1 });
 // High-volume operational log: auto-expire after 14 days
 requestLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 14 });
 
+requestLogSchema.plugin(require('../lib/encryptedFields'), { fields: ['ip','userAgent'] });
+
 module.exports = mongoose.model("RequestLog", requestLogSchema);

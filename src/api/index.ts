@@ -32,6 +32,21 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
+// An error that remembers the HTTP status, so screens can say "rate-limited" or "not authorised" instead of a bare message.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  data?: any;
+  constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
+}
+
+export type NoteVisibility = 'public' | 'private';
+export interface StudentNote {
+  id: string; text: string; visibility: NoteVisibility;
+  authorId: string; authorName: string; mine: boolean;
+  createdAt?: string; updatedAt?: string;
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
@@ -51,7 +66,8 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(err.message || 'Request failed');
+    // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
+    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
   return res.json();
 }
@@ -77,12 +93,19 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export const api = {
+  // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
+  uiTrail: {
+    send: (sessionKey: string, events: unknown[], device?: unknown) =>
+      req<{ tracking: boolean; accepted: number }>('/ui-trail', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ sessionKey, events, device }), keepalive: true,
+      }),
+  },
   auth: {
-    login: (email: string, password: string) =>
+    login: (email: string, password: string, device?: unknown) =>
       req<{ token: string; user: any }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
     register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
@@ -163,16 +186,19 @@ export const api = {
       req<any>(`/students/${studentId}/meta`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
-    addNote: (studentId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
+    // Staff notes: public (every staff member who can open the student) or private (author only)
+    notes: (studentId: string) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, { headers: authHeaders() }),
+    addNote: (studentId: string, text: string, visibility: NoteVisibility) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text, visibility }),
       }),
-    editNote: (studentId: string, noteId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
-        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ text }),
+    editNote: (studentId: string, noteId: string, data: { text?: string; visibility?: NoteVisibility }) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     deleteNote: (studentId: string, noteId: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
         method: 'DELETE', headers: authHeaders(),
       }),
   },
@@ -232,9 +258,13 @@ export const api = {
       fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
       return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
     },
-    callHistory: (days: number, userId?: string) =>
+    callHistory: (days: number, userId?: string, since?: string) =>
       req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
-        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}${since ? `&since=${encodeURIComponent(since)}` : ''}`, { headers: authHeaders() }),
+    saveCallSummary: (callId: string, summary: string, extra: { otherPartyName?: string; startedAt?: string } = {}) =>
+      req<{ callId: string; summary: string; summaryBy: string; summaryAt: string }>(`/chat/calls/${encodeURIComponent(callId)}/summary`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ summary, ...extra }),
+      }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -248,6 +278,7 @@ export const api = {
   counselors: {
     me: () => req<any>('/counselors/me', { headers: authHeaders() }),
     myStudents: () => req<any[]>('/counselors/me/students', { headers: authHeaders() }),
+    myPerformance: (days: number) => req<any>(`/counselors/me/performance?days=${days}`, { headers: authHeaders() }),
     updateMe: (data: any) => req<any>('/counselors/me', {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -293,6 +324,9 @@ export const api = {
     }),
     deleteStudent: (id: string) => req<any>(`/admin/students/${id}`, {
       method: 'DELETE', headers: authHeaders(),
+    }),
+    deleteAllStudents: (confirm: string) => req<{ message: string; deletedCount: number }>('/admin/danger/delete-all-students', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm }),
     }),
     assignCounselor: (studentId: string, counselorId: string | null) => req<any>(`/admin/students/${studentId}/assign`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ counselorId }),
@@ -378,10 +412,11 @@ export const api = {
   soc: {
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
-    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
+    events: (params: { limit?: number; skip?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
       req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
-    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; assignedTo?: string; limit?: number; skip?: number } = {}) =>
       req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    incident: (id: string) => req<any>(`/soc/incidents/${id}`, { headers: authHeaders() }),
     analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
     updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
       req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -405,7 +440,27 @@ export const api = {
       req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    attention: () => req<any>('/soc/attention', { headers: authHeaders() }),
+    incidentDetail: (id: string) => req<any>(`/soc/incidents/${id}/detail`, { headers: authHeaders() }),
+    search: (q: string) => req<any>(`/soc/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    bulkUpdateIncidents: (ids: string[], data: Record<string, unknown>) =>
+      req<{ updated: string[]; failed: { id: string; message: string }[] }>('/soc/incidents/bulk', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ ids, ...data }) }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
+    alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
+    testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
+    uploads: (params: { limit?: number; skip?: number; risk?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/uploads?${toQueryString(params)}`, { headers: authHeaders() }),
+    quarantineUpload: (id: string, action: 'quarantine' | 'restore' | 'purge', reason?: string) =>
+      req<any>(`/soc/uploads/${id}/quarantine`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ action, reason }) }),
+    // Records the analyst's manual VirusTotal verdict (there is no automatic lookup).
+    reviewUpload: (id: string, status: 'clean' | 'flagged' | 'unreviewed', note?: string) =>
+      req<any>(`/soc/uploads/${id}/review`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ status, note }) }),
+    featureUsage: (period: string, userId?: string) =>
+      req<any>(`/soc/feature-usage?${toQueryString({ period, userId })}`, { headers: authHeaders() }),
+    lockUser: (userId: string, locked: boolean, reason?: string) =>
+      req<{ locked: boolean; message: string }>(`/soc/investigate/user/${userId}/lock`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ locked, reason }) }),
+    uiActivity: (params: { limit?: number; skip?: number; email?: string; kind?: string; page?: string; q?: string; userId?: string } = {}) =>
+      req<any>(`/soc/ui-activity?${toQueryString(params)}`, { headers: authHeaders() }),
     // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
     download: async (path: string, filename: string) => {
       const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
@@ -457,9 +512,9 @@ export const api = {
 
   roles: {
     list: () => req<{ roles: any[]; staff: any[] }>('/roles', { headers: authHeaders() }),
-    create: (data: { name: string; description?: string; parentRole?: string | null }) =>
+    create: (data: { name: string; description?: string; parentRole?: string | null; peerVisibility?: boolean }) =>
       req<any>('/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
-    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null }) =>
+    update: (id: string, data: { name?: string; description?: string; parentRole?: string | null; peerVisibility?: boolean }) =>
       req<any>(`/roles/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     remove: (id: string) => req<{ message: string }>(`/roles/${id}`, { method: 'DELETE', headers: authHeaders() }),
     assign: (userId: string, roleId: string | null) =>
@@ -467,10 +522,11 @@ export const api = {
   },
 
   users: {
-    myPermissions: () => req<{ permissions: string[]; restricted: boolean }>('/users/me/permissions', { headers: authHeaders() }),
+    myPermissions: () => req<{ permissions: string[]; restricted: boolean; hasTeam?: boolean; roleName?: string | null }>('/users/me/permissions', { headers: authHeaders() }),
     list: () => req<{ users: any[]; roles: any[]; profiles: any[] }>('/users', { headers: authHeaders() }),
     create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
     profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
     createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
       req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -512,6 +568,97 @@ export const api = {
     }),
     logs: (params: { ruleId?: string; status?: string; limit?: number } = {}) =>
       req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
+  },
+
+  dashboards: {
+    counselorFollowups: () => req<{ stale: { studentId: string; name: string; days: number }[]; stuck: { studentId: string; name: string; universityName: string; status: string; days: number }[]; overdueTasks: { id: string; title: string; dueDate: string; studentId: string; studentName: string }[]; staleDays: number }>('/dashboards/counselor/followups', { headers: authHeaders() }),
+    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
+    funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
+    trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
+    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+  },
+
+  onboarding: {
+    markStep: (step: 'profileComplete' | 'documentUploaded' | 'counselorViewed' | 'universityBrowsed') =>
+      req<any>(`/onboarding/${step}`, { method: 'PUT', headers: authHeaders() }),
+  },
+
+  zest: {
+    ask: (question: string, history?: { role: 'user' | 'assistant'; text: string }[]) =>
+      req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
+      }),
+    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    askStream: async (
+      question: string,
+      history: { role: 'user' | 'assistant'; text: string }[] | undefined,
+      onDelta: (text: string) => void,
+    ): Promise<{ answer: string; sources: { documentId: string; title: string }[] }> => {
+      const res = await fetch(`${BASE}/zest/ask-stream`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ question, history }),
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Zest couldn't answer that right now. Please try again.");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let final: { answer: string; sources: { documentId: string; title: string }[] } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let end: number;
+        while ((end = buffer.indexOf('\n\n')) !== -1) {
+          const line = buffer.slice(0, end).trim();
+          buffer = buffer.slice(end + 2);
+          if (!line.startsWith('data:')) continue;
+          const event = JSON.parse(line.slice(5));
+          if (event.type === 'delta') onDelta(event.text);
+          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources };
+          else if (event.type === 'error') throw new Error(event.message);
+        }
+      }
+      if (!final) throw new Error('Zest stopped before finishing. Please try again.');
+      return final;
+    },
+    // One-off document Q&A: file is analyzed for this question only, never added to the KB.
+    askWithFile: (question: string, file: File, history?: { role: 'user' | 'assistant'; text: string }[]) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('question', question);
+      if (history) fd.append('history', JSON.stringify(history));
+      return upload<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask-with-file', fd);
+    },
+    documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
+    uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
+    renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ title }),
+    }),
+    deleteDocument: (id: string) => req<{ message: string }>(`/zest/documents/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    alerts: () => req<any[]>('/zest/alerts', { headers: authHeaders() }),
+    resolveAlert: (id: string) => req<any>(`/zest/alerts/${id}/resolve`, {
+      method: 'PUT', headers: authHeaders(),
+    }),
+    // Authenticated file download (xlsx): a plain <a href> can't send the bearer token.
+    downloadAlerts: async () => {
+      const res = await fetch(`${BASE}/zest/alerts/export`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zest-lead-alerts-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

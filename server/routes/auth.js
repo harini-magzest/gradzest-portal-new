@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require('../lib/logError');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -8,7 +9,10 @@ const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
 const { assignNextCounselor } = require('../lib/assignCounselor');
+const { fireEvent } = require('../lib/automation');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
+const { recordSignInActivity } = require('../lib/recordSignIn');
+const { isAdminLocked, invalidate: invalidateAccountState } = require('../lib/accountState');
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -86,6 +90,10 @@ router.post('/login', async (req, res) => {
 
     // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      // A lock set by an administrator from the SOC runs to 2099 — it doesn't expire on its own.
+      if (new Date(user.lockedUntil).getFullYear() >= 2090) {
+        return res.status(423).json({ message: 'This account has been locked by an administrator. Please contact support.' });
+      }
       const minutesLeft = Math.ceil((user.lockedUntil - Date.now()) / 60000);
       return res.status(423).json({
         message: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`,
@@ -124,6 +132,12 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // A deactivated account (Settings → Users) can never sign in. This is checked after the password so the
+    // response can't be used to find out which emails are deactivated.
+    if (user.active === false) {
+      return res.status(403).json({ message: 'This account has been deactivated. Please contact your administrator.' });
+    }
+
     // Block login if email is not verified (only for self-registered students with pending token)
     if (user.emailVerified === false && user.emailVerifyToken) {
       return res.status(403).json({
@@ -144,6 +158,10 @@ router.post('/login', async (req, res) => {
       ip: req.ip, userAgent: req.headers['user-agent'] || '',
       message: 'Login successful',
     }).catch(() => {});
+
+    // The trail entry carries the person's name and the device they signed in from (browser-reported hints are
+    // optional and untrusted; see lib/device.js).
+    recordSignInActivity({ kind: 'login', user, req, deviceHints: req.body?.device });
 
     const userObj = user.toJSON();
     delete userObj.password;
@@ -266,6 +284,8 @@ router.post('/register', async (req, res) => {
     const assignedCounselor = await assignNextCounselor(user);
     if (assignedCounselor) await user.save();
     notifyAdminsOfNewLead(req.app, user, assignedCounselor); // fire-and-forget; never blocks or fails sign-up
+    fireEvent('student.created', { studentId: user._id });
+    if (assignedCounselor) fireEvent('counselor.assigned', { studentId: user._id });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);
@@ -276,7 +296,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ token: accessToken, user: userObj });
   } catch (err) {
     console.error('[auth/register]', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -291,7 +311,8 @@ router.get('/verify-email', async (req, res) => {
     await User.findByIdAndUpdate(user._id, { emailVerified: true, emailVerifyToken: undefined, emailVerifyExpires: undefined });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/login?verified=1`);
-  } catch {
+  } catch (err) {
+    logError('auth', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -306,7 +327,8 @@ router.post('/resend-verification', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     res.json({ message: 'Verification email sent.' });
-  } catch {
+  } catch (err) {
+    logError('auth', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -400,6 +422,14 @@ router.post('/refresh', async (req, res) => {
     });
     if (!user) return res.status(401).json({ message: 'Invalid or expired refresh token. Please log in again.' });
 
+    // Deactivated or admin-locked accounts cannot mint new access tokens from an old refresh cookie.
+    if (user.active === false || isAdminLocked(user)) {
+      user.sessions = [];
+      await user.save();
+      invalidateAccountState(user._id);
+      return res.status(401).json({ message: 'This account is no longer active.' });
+    }
+
     const session = user.sessions.find((s) => s.tokenHash === hash);
 
     // Rotate this session's token on every use (prevents token reuse attacks)
@@ -432,6 +462,7 @@ router.post('/logout', async (req, res) => {
         userId: user._id, email: user.email, role: user.role,
         ip: req.ip, userAgent: req.headers['user-agent'] || '',
       }).catch(() => {});
+      recordSignInActivity({ kind: 'logout', user, req });
     }
   }
   res.clearCookie('refreshToken', { path: '/api/auth' });

@@ -2,11 +2,12 @@
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
   Paperclip, Camera, CalendarDays, X, FileText, Download,
-  Calendar, Clock, CheckCircle, Users,
+  Calendar, Clock, CheckCircle, Users, AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { api } from '../../api';
+import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -171,6 +172,7 @@ export default function CounselorChat() {
   const { user } = useAuth();
   const { callState, startCall, startVideoCall, lastMessageTime } = useCallContext();
   const [rooms, setRooms] = useState<any[]>([]);
+  const [chatLoadError, setChatLoadError] = useState('');
   const [myStudents, setMyStudents] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [listTab, setListTab] = useState<'chats' | 'groups'>('chats');
@@ -196,15 +198,17 @@ export default function CounselorChat() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const prevRoomIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  const loadChats = () => {
     if (!user) return;
+    setChatLoadError('');
     Promise.all([api.chat.rooms(), api.counselors.myStudents()])
       .then(([roomList, studentList]) => {
         setRooms(roomList);
         setMyStudents(studentList);
-        if (roomList.length > 0) setSelectedRoom(roomList[0]);
-      }).catch(() => {});
-  }, []);
+      }).catch(() => setChatLoadError('Failed to load conversations.'));
+  };
+
+  useEffect(() => { loadChats(); }, []);
 
   useEffect(() => {
     if (!lastMessageTime) return;
@@ -232,15 +236,7 @@ export default function CounselorChat() {
     return () => clearInterval(id);
   }, [user, selectedRoom?.id]);
 
-  useEffect(() => {
-    if (!selectedRoom?.id) return;
-    api.chat.markRead(selectedRoom.id).catch(() => {});
-    setRooms(prev => prev.map(r =>
-      r.id === selectedRoom.id
-        ? { ...r, messages: r.messages?.map((m: any) => ({ ...m, read: true })) }
-        : r
-    ));
-  }, [selectedRoom?.id]);
+  useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
   useEffect(() => {
     const isRoomChange = prevRoomIdRef.current !== (selectedRoom?.id ?? null);
@@ -361,7 +357,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
   const q = search.toLowerCase();
   const groupCount = rooms.filter((r: any) => r.type === 'group').length;
   const groupUnread = rooms.filter((r: any) => r.type === 'group')
-    .reduce((n: number, r: any) => n + (r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0), 0);
+    .reduce((n: number, r: any) => n + (unreadCount(r, String(user?.id))), 0);
   const filteredRooms = rooms
     // Chats tab = 1:1 conversations; Groups tab = counselling groups (created by admins)
     .filter((room: any) => (listTab === 'groups') === (room.type === 'group'))
@@ -413,7 +409,13 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
             ))}
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredRooms.length === 0 && filteredStudentsWithNoChat.length === 0 ? (
+            {chatLoadError ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <AlertCircle className="w-8 h-8 text-red-300 mb-2" />
+                <p className="text-sm text-red-600 mb-2">{chatLoadError}</p>
+                <button type="button" onClick={loadChats} className="text-xs font-semibold text-green-700 hover:text-green-800">Retry</button>
+              </div>
+            ) : filteredRooms.length === 0 && filteredStudentsWithNoChat.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
                 {listTab === 'groups' ? <Users className="w-8 h-8 text-gray-300 mb-2" /> : <MessageSquare className="w-8 h-8 text-gray-300 mb-2" />}
                 <p className="text-sm text-gray-400">
@@ -425,7 +427,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 {filteredRooms.map((room: any) => {
                   const partnerName = getStudentName(room);
                   const roleLabel = getRoleLabel(room);
-                  const unread = room.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0;
+                  const unread = unreadCount(room, String(user?.id));
                   const lastMsg = room.messages?.[room.messages.length - 1];
                   const lastMsgPreview = lastMsg?.type === 'call'
                     ? `📞 ${lastMsg.callStatus === 'answered' ? 'Voice call' : lastMsg.callStatus === 'no_answer' ? 'Missed call' : 'Call declined'}`
@@ -449,7 +451,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                           </div>
                         </div>
                         <p className={`text-[10px] font-medium mt-0.5 ${getRoleBadgeClass(roleLabel)} inline-block px-1.5 py-0.5 rounded-full`}>{roleLabel}</p>
-                        {lastMsgPreview && <p className="text-xs text-gray-400 truncate mt-0.5">{lastMsgPreview}</p>}
+                        {lastMsgPreview && <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{lastMsgPreview}</p>}
                       </div>
                     </button>
                   );

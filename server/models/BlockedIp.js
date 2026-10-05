@@ -19,4 +19,6 @@ const blockedIpSchema = new mongoose.Schema(
 
 blockedIpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+blockedIpSchema.plugin(require('../lib/encryptedFields'), { fields: ['ip','reason'] });
+
 module.exports = mongoose.model("BlockedIp", blockedIpSchema);

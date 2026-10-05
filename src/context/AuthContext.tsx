@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { api, setApiToken } from '../api';
+import { getDeviceHints } from '../lib/deviceInfo';
 
 // Force a full page reload on HMR so the context reference never mismatches
 if (import.meta.hot) { import.meta.hot.invalidate(); }
@@ -59,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
-      const { token, user: u } = await api.auth.login(email, password);
+      // The device the person signs in from is recorded with the sign-in (browser-reported, display only).
+      const { token, user: u } = await api.auth.login(email, password, await getDeviceHints());
       setApiToken(token);
       setUser(u);
       return { success: true, role: u.role, isAppTeam: u.isAppTeam };
