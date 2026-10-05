@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, GraduationCap, User, MessageSquare, BookOpen, CalendarDays, FileText, Zap, Globe, Video, Ticket } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, User, MessageSquare, BookOpen, CalendarDays, FileText, Zap, Globe, Video, Ticket, Bookmark } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
@@ -15,6 +15,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/student/countries', label: 'Countries', icon: Globe },
   { to: '/student/universities', label: 'Universities', icon: GraduationCap },
   { to: '/student/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
+  { to: '/student/shortlist', label: 'Shortlist', icon: Bookmark, mobileHide: true },
   { to: '/student/activities', label: 'Activities', icon: CalendarDays },
   { to: '/student/meetings', label: 'Meetings', icon: Video },
   { to: '/student/events', label: 'Events', icon: Ticket, mobileHide: true },

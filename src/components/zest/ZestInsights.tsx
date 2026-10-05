@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ThumbsUp, ThumbsDown, HelpCircle, RefreshCw } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, HelpCircle, RefreshCw, BookPlus, Check } from 'lucide-react';
 import { api } from '../../api';
 
 interface Analytics {
@@ -10,6 +10,58 @@ interface Analytics {
   down: number;
   unanswered: { question: string; count: number; lastAsked: string }[];
   downvoted: { id: string; question: string; answer: string; comment: string; at: string }[];
+}
+
+// Turns a weak answer or an unanswered question into a knowledge-base entry: the admin writes the correct answer
+// and it is saved as a small document Zest can find next time.
+function AddToKnowledge({ question, suggested = '', onSaved }: { question: string; suggested?: string; onSaved?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState(suggested);
+  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    setState('saving');
+    setError('');
+    try {
+      await api.zest.addToKnowledge(question, answer);
+      setState('saved');
+      onSaved?.();
+    } catch (err: any) {
+      setError(err.message || 'Could not save this.');
+      setState('idle');
+    }
+  };
+
+  if (state === 'saved') return <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"><Check className="w-3.5 h-3.5" aria-hidden="true" /> Added to the knowledge base</p>;
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800">
+        <BookPlus className="w-3.5 h-3.5" aria-hidden="true" /> Add the correct answer
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2">
+      <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`kb-${question.slice(0, 20)}`}>Correct answer</label>
+      <textarea
+        id={`kb-${question.slice(0, 20)}`}
+        value={answer}
+        onChange={e => setAnswer(e.target.value)}
+        rows={3}
+        maxLength={4000}
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Write the answer Zest should give for this question"
+      />
+      {error && <p role="alert" className="text-xs text-red-600 mt-1">{error}</p>}
+      <div className="flex gap-2 mt-1.5">
+        <button type="button" onClick={save} disabled={!answer.trim() || state === 'saving'} className="text-xs font-medium bg-[#0d1b4b] text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
+          {state === 'saving' ? 'Saving…' : 'Save to knowledge base'}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="text-xs text-gray-500 px-2">Cancel</button>
+      </div>
+    </div>
+  );
 }
 
 // Where Zest is weak: questions it had nothing to ground an answer in (add a knowledge-base document for these)
@@ -72,9 +124,12 @@ export default function ZestInsights() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {data.unanswered.map(u => (
-                  <li key={u.question} className="py-2 flex items-start justify-between gap-3 text-sm">
-                    <span className="text-gray-700">{u.question}</span>
-                    <span className="flex-shrink-0 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{u.count}×</span>
+                  <li key={u.question} className="py-2 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-700">{u.question}</span>
+                      <span className="flex-shrink-0 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{u.count}×</span>
+                    </div>
+                    <AddToKnowledge question={u.question} />
                   </li>
                 ))}
               </ul>
@@ -95,6 +150,7 @@ export default function ZestInsights() {
                     <p className="font-medium text-gray-800">{d.question}</p>
                     <p className="text-gray-500 mt-1 line-clamp-3 whitespace-pre-wrap">{d.answer}</p>
                     {d.comment && <p className="mt-1 text-red-600">“{d.comment}”</p>}
+                    <AddToKnowledge question={d.question} />
                   </li>
                 ))}
               </ul>
