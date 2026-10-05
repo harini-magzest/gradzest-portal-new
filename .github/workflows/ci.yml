@@ -1,0 +1,83 @@
+# Runs on every pull request into main and on every push to main. Three independent jobs so a failure says what broke:
+#   typecheck-build  — `tsc` + the production Vite build (what actually gets deployed)
+#   backend-tests    — the API suite, against an in-memory MongoDB (no secrets, no real database)
+#   ui-tests         — React component tests (jsdom)
+#
+# To make these block bad merges, a repository admin turns on branch protection for `main`
+# (Settings → Branches → Add rule → "Require status checks to pass before merging" → select the three jobs, and
+# "Require a pull request before merging"). See the README, "Checks and merging".
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A newer push to the same branch/PR makes the older run pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  NODE_VERSION: '24'
+
+jobs:
+  typecheck-build:
+    name: typecheck-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      # `npm run build` is `tsc && vite build`: a type error fails here before the bundler runs.
+      - run: npm run build
+
+  backend-tests:
+    name: backend-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      # The tests start an in-memory MongoDB, which downloads a mongod binary on first use; keep it between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongod-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: mongod-${{ runner.os }}-
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      # No server/.env exists on a CI runner: the suite is self-contained (see server/test/setup.ts).
+      - run: npm test
+
+  ui-tests:
+    name: ui-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:ui
