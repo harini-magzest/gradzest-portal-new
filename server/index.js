@@ -39,7 +39,17 @@ const { startZestDailyAnalytics } = require('./jobs/zestDailyAnalytics');
 async function checkZestOnStartup() {
   if (!require('./lib/ollamaClient').isZestConfigured()) return;
   const problem = await require('./lib/ollamaChat').checkOllama();
-  if (!problem) { console.log(`[zest] Ollama ready (model ${process.env.OLLAMA_MODEL || require('./lib/ollamaChat').DEFAULT_MODEL})`); return; }
+  if (!problem) {
+    const model = process.env.OLLAMA_MODEL || require('./lib/ollamaChat').DEFAULT_MODEL;
+    const t0 = Date.now();
+    try {
+      await require('./lib/ollamaChat').warmOllama();
+      console.log(`[zest] Ollama ready — ${model} loaded in ${Math.round((Date.now() - t0) / 1000)}s`);
+    } catch (err) {
+      require('./lib/zestAlert').notifyZestFailure({ kind: 'startup', message: `Model ${model} failed to load: ${err.message}` }, { route: 'server startup' });
+    }
+    return;
+  }
   require('./lib/zestAlert').notifyZestFailure({ kind: 'startup', message: problem }, { route: 'server startup' });
 }
 

@@ -20,7 +20,10 @@ class ZestProviderError extends Error {
 const baseUrl = () => (process.env.ZEST_OLLAMA_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
 const modelName = () => process.env.OLLAMA_MODEL || DEFAULT_MODEL;
 const numCtx = () => Number(process.env.ZEST_NUM_CTX) || 8192;
-const timeoutMs = () => Number(process.env.ZEST_TIMEOUT_MS) || 90000;
+const timeoutMs = () => Number(process.env.ZEST_TIMEOUT_MS) || 120000;
+// Loading a model from disk takes most of a minute on a laptop CPU, and Ollama unloads it after 5
+// idle minutes by default — so keep it in memory longer between questions
+const keepAlive = () => process.env.ZEST_OLLAMA_KEEP_ALIVE || '30m';
 
 // Claude-style tool definitions (zestTools.js) → the function format Ollama expects
 const toOllamaTools = (tools) => tools.map(t => ({
@@ -62,6 +65,7 @@ async function askOllama({ system, messages, tools, maxTokens, maxToolRounds }, 
   const body = {
     model: modelName(),
     stream: false,
+    keep_alive: keepAlive(),
     options: { num_ctx: numCtx(), num_predict: maxTokens, temperature: 0.3 },
   };
   if (tools.length) body.tools = toOllamaTools(tools);
@@ -104,4 +108,9 @@ async function checkOllama() {
   }
 }
 
-module.exports = { askOllama, checkOllama, ZestProviderError, toOllamaTools, DEFAULT_MODEL };
+/** Load the model into memory ahead of the first question (a chat call with no messages only loads it). */
+async function warmOllama() {
+  await post('/api/chat', { model: modelName(), messages: [], keep_alive: keepAlive(), options: { num_ctx: numCtx() } });
+}
+
+module.exports = { askOllama, checkOllama, warmOllama, ZestProviderError, toOllamaTools, DEFAULT_MODEL };
