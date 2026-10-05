@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GraduationCap, Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
+import ZestIcon from '../../components/zest/ZestIcon';
+import { Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
 import { api } from '../../api';
 import { useNotifications } from '../../context/NotificationContext';
 import ZestInsights from '../../components/zest/ZestInsights';
@@ -103,10 +104,10 @@ export default function AdminZest() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#0d1b4b] flex items-center justify-center">
-          <GraduationCap className="w-5 h-5 text-white" />
+          <ZestIcon className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Zest</h1>
+          <h1 className="text-xl font-bold text-gray-900">Zest AI</h1>
           <p className="text-sm text-gray-500">Manage the knowledge base Zest answers from, and review today's lead alerts.</p>
         </div>
       </div>

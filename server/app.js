@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
+const { MongoRateLimitStore } = require('./lib/mongoRateLimitStore');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 // Load env file: .env.production or .env.development first, fall back to .env
@@ -104,6 +105,7 @@ app.use('/api', requestLogger);
 // make many sequential auth calls from the same "IP") don't trip each other's quota.
 // Rate-limiter behavior itself is covered by its own dedicated test instead.
 const authLimiter = rateLimit({
+  store: new MongoRateLimitStore('auth'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   standardHeaders: true,
@@ -114,6 +116,7 @@ const authLimiter = rateLimit({
 // Failures are counted per IP + email: one person mistyping their password must not lock
 // out colleagues on the same office network. The per-IP cap still stops password spraying.
 const loginFailLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-fail'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   skipSuccessfulRequests: true,
@@ -123,6 +126,7 @@ const loginFailLimiter = rateLimit({
   message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
 });
 const loginIpLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-ip'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50,
   skipSuccessfulRequests: true,
@@ -132,6 +136,7 @@ const loginIpLimiter = rateLimit({
   message: { message: 'Too many failed login attempts from this network. Please try again in 15 minutes.' },
 });
 const generalLimiter = rateLimit({
+  store: new MongoRateLimitStore('general'),
   windowMs: 60 * 1000, // 1 minute
   max: 120,
   skip: isTrustedSocAdmin,

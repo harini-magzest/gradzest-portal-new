@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
@@ -1262,6 +1262,16 @@ export default function AdminCounselors() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ?view=<id> (from the top search) opens that Application Team member's profile
+  const [params, setParams] = useSearchParams();
+  const viewId = params.get('view');
+  useEffect(() => {
+    if (!viewId || loading) return;
+    const member = appTeamMembers.find(m => normalId(m) === viewId);
+    if (member) { setActiveRole('appteam'); setEditingAppTeam(member); }
+    setParams(p => { p.delete('view'); return p; }, { replace: true });
+  }, [viewId, loading, appTeamMembers, setParams]);
 
   // Compute metrics for each counselor
   const metricsMap = useMemo(() => {

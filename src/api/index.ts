@@ -699,7 +699,13 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    search: (q: string) => req<{
+      students: { id: string; name: string; email: string; phone: string; leadStage: string }[];
+      // Staff workspaces; team is empty for counselors
+      team?: { id: string; name: string; email: string; kind: 'counselor' | 'appteam' }[];
+      universities?: { id: string; name: string; city: string; country: string }[];
+      courses?: { id: string; name: string; level: string; universityId: string; universityName: string }[];
+    }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 
   onboarding: {

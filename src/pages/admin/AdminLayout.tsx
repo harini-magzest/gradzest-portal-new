@@ -1,9 +1,11 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles, Video, Ticket } from 'lucide-react';
+import ZestIcon from '../../components/zest/ZestIcon';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
 import SkipLink from '../../components/SkipLink';
@@ -23,10 +25,26 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/events', label: 'Events', icon: Ticket },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
-  { to: '/admin/zest', label: 'Zest', icon: GraduationCap },
+  { to: '/admin/zest', label: 'Zest AI', icon: ZestIcon },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
+
+// Everything the top search can open: students, team, universities, courses, the sidebar pages and each Settings section
+const search: SearchConfig = {
+  basePath: '/admin/students',
+  teamLink: t => t.kind === 'counselor' ? `/admin/counselors/${t.id}/performance` : `/admin/counselors?view=${t.id}`,
+  pages: [
+    ...navItems.map(item => ({ label: item.label, to: item.to })),
+    ...[
+      ['company', 'Company Profile'], ['profile', 'My Profile'], ['password', 'Password & Security'],
+      ['users', 'Users and Controls'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
+      ['google-cal', 'Google Calendar'], ['export', 'Export & Backup'], ['danger', 'Danger Zone'],
+    ].map(([key, label]) => ({ label, to: `/admin/settings?section=${key}`, hint: 'Settings' })),
+    { label: 'Roles', to: '/admin/settings?section=users&tab=roles', hint: 'Settings · Users and Controls' },
+    { label: 'Application Board', to: '/admin/application-board', hint: 'Applications' },
+  ],
+};
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
   if (typeof icon === 'string') {
@@ -53,8 +71,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-purple-50">
-      <SkipLink />
-      <DashboardTopbar workspaceLabel="Admin workspace" />
+      <DashboardTopbar workspaceLabel="Admin workspace" search={search} />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
 

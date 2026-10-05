@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
 import { PresenceDot, PresenceLabel } from '../../components/Presence';
@@ -119,6 +119,15 @@ export default function AppTeamCounselors() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // ?view=<id> (from the top search) opens that counselor's details
+  const [params, setParams] = useSearchParams();
+  const viewId = params.get('view');
+  useEffect(() => {
+    if (!viewId) return;
+    setSelectedId(viewId);
+    setParams(p => { p.delete('view'); return p; }, { replace: true });
+  }, [viewId, setParams]);
 
   const studentsByCounselor = useMemo(() => {
     const m: Record<string, any[]> = {};

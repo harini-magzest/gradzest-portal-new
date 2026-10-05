@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GraduationCap, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react';
+import ZestIcon from './ZestIcon';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
@@ -117,9 +118,9 @@ export default function ZestWidget() {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close Zest' : 'Open Zest'}
-        className="fixed bottom-6 right-6 z-[250] w-14 h-14 rounded-2xl bg-[#0d1b4b] hover:bg-[#152258] shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-[250] w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
       >
-        {open ? <X className="w-6 h-6" /> : <GraduationCap className="w-7 h-7" />}
+        {open ? <X className="w-6 h-6 text-[#0d1b4b]" /> : <ZestIcon className="w-24 h-24" />}
       </button>
 
       <div
@@ -128,12 +129,9 @@ export default function ZestWidget() {
         }`}
       >
         <div className="bg-[#0d1b4b] text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            {/* The header is the same navy as the logo tile, so the tile gets a thin light edge to stay visible. */}
-            <span className="w-8 h-8 rounded-lg bg-[#0d1b4b] ring-1 ring-white/30 flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-[18px] h-[18px]" />
-            </span>
-            <span className="font-semibold text-lg">Zest</span>
+          <div className="flex items-center gap-2">
+            <ZestIcon className="w-5 h-5" />
+            <span className="font-semibold text-lg">Zest AI</span>
           </div>
           <div className="flex items-center gap-1">
             {(speech.canListen || speech.canSpeak) && (
