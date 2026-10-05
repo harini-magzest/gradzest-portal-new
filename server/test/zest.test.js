@@ -86,11 +86,11 @@ describe('Zest ad-hoc document analysis (not added to the knowledge base)', () =
     const student = await mk('student');
     const res = await request(app).post('/api/zest/ask-with-file').set(as(student))
       .attach('file', Buffer.from('%PDF-1.4 not a real pdf'), 'doc.pdf');
-    // Without clamd, scanUploadedFile fails closed with 503 before the route's own "question is required"
-    // check ever runs — an unscannable file must never reach extraction/Claude. With a clamd reachable
-    // (e.g. a local container on :3310) the scan passes and the route answers 400. Either is correct;
-    // what must never happen is an auth failure or a success.
-    expect([400, 503]).toContain(res.status);
+    // This environment has no clamd running, so scanUploadedFile fails closed with 503 before
+    // the route's own "question is required" check ever runs — asserting that fail-closed
+    // behavior here (rather than skipping) is itself the point: an unscannable file must never
+    // reach extraction/Claude.
+    expect(res.status).toBe(503);
   });
 
   it('is available to any authenticated role and never creates a KnowledgeDocument', async () => {

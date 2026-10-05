@@ -20,24 +20,4 @@ function filterByRelativeScore(ranked, floor = RELATIVE_SCORE_FLOOR) {
   return ranked.filter(m => m.score >= topScore * floor);
 }
 
-const TOP_K = 5;
-
-/**
- * The knowledge-base chunks worth showing the model for one turn. A short follow-up reply ("UK", "the second
- * one") won't $text-match anything on its own, so the previous user turn is folded into the search.
- * Shared by routes/zest.js and the evaluation script so both retrieve identically.
- * @param {string} question
- * @param {{ role: string, text: string }[]} history  sanitized prior turns, oldest first
- */
-async function retrieveChunks(question, history = []) {
-  const KnowledgeChunk = require('../models/KnowledgeChunk');
-  const priorUserText = [...history].reverse().find(h => h.role === 'user')?.text;
-  const searchQuery = priorUserText ? `${priorUserText} ${question}` : question;
-  const ranked = await KnowledgeChunk.find(
-    { $text: { $search: searchQuery } },
-    { score: { $meta: 'textScore' } },
-  ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
-  return filterByRelativeScore(ranked);
-}
-
-module.exports = { filterByRelativeScore, retrieveChunks, RELATIVE_SCORE_FLOOR, TOP_K };
+module.exports = { filterByRelativeScore, RELATIVE_SCORE_FLOOR };

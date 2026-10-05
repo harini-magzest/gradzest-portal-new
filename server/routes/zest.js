@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const { deleteStoredFile } = require('../lib/storedFile');
 const User = require('../models/User');
 const KnowledgeDocument = require('../models/KnowledgeDocument');
 const KnowledgeChunk = require('../models/KnowledgeChunk');
@@ -11,32 +12,33 @@ const { scanUploadedFile } = require('../middleware/scanUpload');
 const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 const { extractText, chunkText } = require('../lib/pdfText');
-const { askZest, isZestConfigured } = require('../lib/zestModel');
+const { askZest, isZestConfigured } = require('../lib/anthropicClient');
 const { buildAlertsWorkbook } = require('../lib/zestXlsx');
-const { retrieveChunks } = require('../lib/zestRetrieval');
+const { filterByRelativeScore } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
-const { createZestLimiter } = require('../lib/zestLimiter');
 
 const router = express.Router();
 
-// Per-user cap (see lib/zestLimiter.js). Off in the test env, like the other limiters, so tests can ask freely;
-// the limiter itself has its own test.
-const askLimiter = process.env.NODE_ENV === 'test' ? (_req, _res, next) => next() : createZestLimiter();
-
-const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.';
-
-// The signed token carries id/role/email but not the name; Zest uses the name to address the person.
-async function callerFor(req) {
-  const me = await User.findById(req.user.id).select('name').lean().catch(() => null);
-  return { ...req.user, name: me?.name || '' };
-}
-
+// Full admins only — Application Team accounts are role 'admin' too but are excluded,
+// matching the same convention as server/routes/automation.js and server/routes/roles.js.
 function adminOnly(req, res, next) {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+  if (req.user.role !== 'admin' || req.user.isAppTeam) return res.status(403).json({ message: 'Admin only' });
   next();
 }
 
 /* ── Knowledge base management (admin only) ─────────────────────────────── */
+
+// multer's shared fileFilter (middleware/upload.js) also allows doc/docx/images for other
+// routes — reject anything but a PDF here instead of letting it through to pdf-parse, which
+// would just fail later and leave a "failed" document with an orphaned uploaded file behind.
+// The frontend's accept="application/pdf" is easily bypassed, so this check is load-bearing.
+function requirePdf(req, res, next) {
+  if (!req.file) return next();
+  if (req.file.mimetype !== 'application/pdf') {
+    return fs.unlink(req.file.path, () => res.status(400).json({ message: 'Only PDF files are supported for the knowledge base.' }));
+  }
+  next();
+}
 
 // Reads and chunks the PDF while it's still on local disk — must run before
 // uploadToS3IfConfigured, which deletes the local copy once S3 is configured.
@@ -53,7 +55,7 @@ async function extractAndChunk(req, res, next) {
   next();
 }
 
-router.post('/documents', authMiddleware, adminOnly, upload.single('file'), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
+router.post('/documents', authMiddleware, adminOnly, upload.single('file'), requirePdf, scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
   const storagePath = req.file.s3Url || `/uploads/${req.file.filename}`;
   const title = (req.body.title || req.file.originalname || 'Document').trim();
@@ -93,62 +95,64 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
   const doc = await KnowledgeDocument.findByIdAndDelete(req.params.id);
   if (!doc) return res.status(404).json({ message: 'Not found' });
   await KnowledgeChunk.deleteMany({ documentId: doc._id });
+
+  deleteStoredFile(doc.storagePath);
   res.json({ message: 'Deleted' });
+});
+
+// Every question asked of Zest and its answer, so admin can audit what the assistant told
+// staff/students. Was write-only until now — logged on every /ask and /ask-with-file call
+// but never exposed for reading anywhere.
+router.get('/query-logs', authMiddleware, adminOnly, async (req, res) => {
+  const limit = Math.min(200, Number(req.query.limit) || 50);
+  const skip = Math.max(0, Number(req.query.skip) || 0);
+  const [logs, total] = await Promise.all([
+    ZestQueryLog.find().sort({ createdAt: -1 }).skip(skip).limit(limit)
+      .populate('userId', 'name email').lean(),
+    ZestQueryLog.countDocuments(),
+  ]);
+  res.json({
+    logs: logs.map(l => ({
+      id: l._id, question: l.question, answer: l.answer, userRole: l.userRole,
+      userName: l.userId?.name || 'Unknown', userEmail: l.userId?.email || '',
+      sourceDocCount: l.sourceDocIds.length, createdAt: l.createdAt,
+    })),
+    total,
+  });
 });
 
 /* ── Chat (any authenticated role) ───────────────────────────────────────── */
 
-// One answer, shared by /ask (returned as JSON) and /ask-stream (onText receives the text as it is generated).
-async function answerQuestion(req, question, history, onText = null) {
-  const matches = await retrieveChunks(question, history);
-
-  const { text: answer, toolsUsed } = await askZest(
-    question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req),
-    onText, { ip: req.ip, io: req.app.get('io') },
-  );
-  const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
-
-  await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
-  return { answer, sources };
-}
-
-router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
+router.post('/ask', authMiddleware, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
+  if (!isZestConfigured()) return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set GEMINI_API_KEY.' });
+
+  const history = sanitizeHistory(req.body.history);
 
   try {
-    res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
+    // A short follow-up reply ("UK", "the second one") won't $text-match anything on its own —
+    // fold in the previous user turn so retrieval still has real keywords to work with.
+    const priorUserText = [...history].reverse().find(h => h.role === 'user')?.text;
+    const searchQuery = priorUserText ? `${priorUserText} ${question}` : question;
+
+    const TOP_K = 5;
+    const ranked = await KnowledgeChunk.find(
+      { $text: { $search: searchQuery } },
+      { score: { $meta: 'textScore' } },
+    ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
+    const matches = filterByRelativeScore(ranked);
+
+    const answer = await askZest(question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role);
+    const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+
+    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds });
+
+    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+    res.json({ answer, sources });
   } catch (err) {
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
-  }
-});
-
-// Same answer as /ask, delivered as server-sent events so the first words appear while the rest
-// is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
-// or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
-router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
-  const question = (req.body.question || '').trim().slice(0, 1000);
-  if (!question) return res.status(400).json({ message: 'question is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
-
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
-
-  try {
-    const { answer, sources } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
-    send({ type: 'done', answer, sources });
-  } catch (err) {
-    console.error('[zest/ask-stream]', err.message);
-    send({ type: 'error', message: 'Zest could not answer right now. Please try again.' });
-  } finally {
-    res.end();
   }
 });
 
@@ -156,11 +160,11 @@ router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
 // Reuses the exact same security pipeline as a KB upload (ClamAV scan + deep inspection/audit
 // via recordUpload), but skips S3 and never creates a KnowledgeDocument/KnowledgeChunk, and the
 // local copy is deleted right after extraction since nothing should persist past this request.
-router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'), scanUploadedFile, recordUpload('zest_chat'), async (req, res) => {
+router.post('/ask-with-file', authMiddleware, upload.single('file'), scanUploadedFile, recordUpload('zest_chat'), async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!req.file) return res.status(400).json({ message: 'A file is required' });
   if (!question) { fs.unlink(req.file.path, () => {}); return res.status(400).json({ message: 'question is required' }); }
-  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: NOT_CONFIGURED }); }
+  if (!isZestConfigured()) { fs.unlink(req.file.path, () => {}); return res.status(503).json({ message: 'Zest is not configured yet. Ask an admin to set GEMINI_API_KEY.' }); }
 
   // multipart fields arrive as strings, not JSON — the KB-less /ask route gets a real array.
   let rawHistory = req.body.history;
@@ -178,11 +182,8 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
-    await ZestQueryLog.create({
-      userId: req.user.id, userRole: req.user.role,
-      question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
-    });
+    const answer = await askZest(question, [], history, req.user.role, attachedDocText);
+    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [] });
     res.json({ answer, sources: [] });
   } catch (err) {
     console.error('[zest/ask-with-file]', err.message);
