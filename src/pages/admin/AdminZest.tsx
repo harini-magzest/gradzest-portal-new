@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
 import { api } from '../../api';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -102,7 +102,7 @@ export default function AdminZest() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#0d1b4b] flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-white" />
+          <GraduationCap className="w-5 h-5 text-white" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Zest</h1>
