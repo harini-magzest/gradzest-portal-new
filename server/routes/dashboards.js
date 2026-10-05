@@ -7,6 +7,8 @@ const { LEAD_STAGES } = require('../lib/automation');
 const { daysSinceStageChange } = require('../lib/leadRisk');
 const { scoreLead } = require('../lib/leadScore');
 const Meeting = require('../models/Meeting');
+const { buildConversion } = require('../lib/conversionReport');
+const { sendCsv } = require('../lib/csv');
 
 const router = express.Router();
 
@@ -95,6 +97,38 @@ router.get('/admin/funnel', authMiddleware, requireRole('admin'), async (req, re
   const byStage = new Map(counts.map(c => [c._id, c.count]));
   const stages = Object.entries(LEAD_STAGES).map(([key, label]) => ({ key, label, count: byStage.get(key) || 0 }));
   res.json({ stages, total: stages.reduce((n, s) => n + s.count, 0) });
+});
+
+/* ── Admin: conversion report (lead -> application -> offer -> enrolled), optionally as CSV ─────── */
+
+router.get('/admin/conversion', authMiddleware, requireRole('admin'), async (req, res) => {
+  const groupBy = ['counselor', 'country', 'source'].includes(req.query.groupBy) ? req.query.groupBy : 'counselor';
+  const parseDate = (v, endOfDay) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v || ''))) return null;
+    const d = new Date(`${v}T${endOfDay ? '23:59:59.999' : '00:00:00'}Z`);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const from = parseDate(req.query.from, false);
+  const to = parseDate(req.query.to, true);
+
+  const [students, counselors] = await Promise.all([
+    User.find({ role: 'student' }).select('counselorId source preferredCountries applications.status createdAt').lean(),
+    User.find({ role: 'counselor' }).select('name').lean(),
+  ]);
+  const counselorNames = new Map(counselors.map(c => [String(c._id), c.name]));
+  const report = buildConversion(students, groupBy, { counselorNames, from, to });
+
+  if (req.query.format === 'csv') {
+    const label = { counselor: 'Counselor', country: 'Country', source: 'Lead source' }[groupBy];
+    const rows = [...report.rows, { ...report.totals, group: 'Total' }];
+    return sendCsv(res, `conversion-by-${groupBy}-${new Date().toISOString().slice(0, 10)}.csv`, [
+      { label, key: 'group' }, { label: 'Leads', key: 'leads' }, { label: 'Applied', key: 'applied' },
+      { label: 'Offers', key: 'offers' }, { label: 'Enrolled', key: 'enrolled' },
+      { label: 'Lead to applied %', key: 'leadToApplied' }, { label: 'Applied to offer %', key: 'appliedToOffer' },
+      { label: 'Lead to enrolled %', key: 'leadToEnrolled' },
+    ], rows);
+  }
+  res.json(report);
 });
 
 /* ── Admin / App Team / Board: weekly trends ─────────────────────────────── */

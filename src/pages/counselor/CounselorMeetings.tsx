@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, CalendarCheck, CalendarX, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { api } from '../../api';
+import AddToCalendar from '../../components/AddToCalendar';
 import { useAuth } from '../../context/AuthContext';
 import { usePortalName } from '../../hooks/usePortalName';
 
@@ -119,6 +120,7 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
             {active ? <>Join {meta.label} Meeting<ExternalLink className="w-3.5 h-3.5 opacity-70" /></> : 'Session Ended'}
           </button>
         )}
+        {upcoming && <div className="mt-3"><AddToCalendar meeting={meeting} /></div>}
       </div>
     </div>
   );

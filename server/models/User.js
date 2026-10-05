@@ -281,6 +281,12 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
+  // How this person wants reminders. Email is on unless turned off; WhatsApp is opt-in (see lib/notificationChannels.js).
+  notificationPrefs: {
+    email: { type: Boolean, default: true },
+    whatsapp: { type: Boolean, default: false },
+  },
+
   // Active login sessions — one per device, each with its own refresh token
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },

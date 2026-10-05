@@ -14,6 +14,7 @@ import TeamWorkload from '../../components/dashboards/TeamWorkload';
 import Funnel from '../../components/dashboards/Funnel';
 import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import LeadScores from '../../components/dashboards/LeadScores';
+import ConversionReport from '../../components/dashboards/ConversionReport';
 
 const SPECIALIZATIONS = [
   'UK Universities', 'Canada Universities', 'Australia Universities',
@@ -984,6 +985,7 @@ export default function AdminDashboard() {
           <Funnel />
         </div>
         <WeeklyTrends />
+        <ConversionReport />
         <LeadScores studentsPath="/admin/students" />
 
         {/* Tab bar */}

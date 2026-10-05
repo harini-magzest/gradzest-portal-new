@@ -292,6 +292,12 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  notificationPrefs: {
+    get: () => req<{ email: boolean; whatsapp: boolean; whatsappAvailable: boolean; hasPhone: boolean; warning?: string }>('/notifications/preferences', { headers: authHeaders() }),
+    update: (data: { email?: boolean; whatsapp?: boolean }) =>
+      req<{ email: boolean; whatsapp: boolean; whatsappAvailable: boolean; hasPhone: boolean; warning?: string }>('/notifications/preferences', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+  },
+
   meetings: {
     list: () => req<any[]>('/meetings', { headers: authHeaders() }),
     create: (data: any) => req<any>('/meetings', {
@@ -303,6 +309,23 @@ export const api = {
     delete: (id: string) => req<any>(`/meetings/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+    availability: (date: string) =>
+      req<{ date: string; open: boolean; reason?: string; slots: { time: string; available: boolean }[] }>(`/meetings/availability?date=${encodeURIComponent(date)}`, { headers: authHeaders() }),
+    book: (data: { date: string; time: string; notes?: string }) =>
+      req<any>('/meetings/book', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    // One meeting's .ics file, or every upcoming meeting when no id is given.
+    downloadIcs: async (id?: string) => {
+      const res = await fetch(`${BASE}/meetings/${id ? `${id}/` : ''}ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = id ? 'gradzest-meeting.ics' : 'gradzest-meetings.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   admin: {
@@ -580,6 +603,21 @@ export const api = {
     funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
     trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
     leadScores: () => req<{ leads: { studentId: string; name: string; email: string; leadStage: string; score: number; band: 'hot' | 'warm' | 'cool' | 'cold'; reasons: { text: string; points: number }[] }[]; bands: { hot: number; warm: number; cool: number; cold: number }; total: number }>('/dashboards/leads/scores', { headers: authHeaders() }),
+    conversion: (p: { groupBy: string; from?: string; to?: string }) =>
+      req<{ groupBy: string; rows: { group: string; leads: number; applied: number; offers: number; enrolled: number; leadToApplied: number; appliedToOffer: number; leadToEnrolled: number }[]; totals: { group: string; leads: number; applied: number; offers: number; enrolled: number; leadToApplied: number; appliedToOffer: number; leadToEnrolled: number } }>(`/dashboards/admin/conversion?${new URLSearchParams(Object.entries(p).filter(([, v]) => v) as [string, string][])}`, { headers: authHeaders() }),
+    conversionCsv: async (p: { groupBy: string; from?: string; to?: string }) => {
+      const q = new URLSearchParams({ ...(Object.fromEntries(Object.entries(p).filter(([, v]) => v)) as Record<string, string>), format: 'csv' });
+      const res = await fetch(`${BASE}/dashboards/admin/conversion?${q}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conversion-by-${p.groupBy}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
     search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 

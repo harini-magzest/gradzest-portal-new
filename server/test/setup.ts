@@ -21,6 +21,10 @@ process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't m
 // tests to a real Ollama, and a local ZEST_ALERT_EMAILS would let a test send a real alert email.
 process.env.ZEST_PROVIDER = '';
 process.env.ZEST_ALERT_EMAILS = '';
+// Same for WhatsApp: a developer's real credentials must never let a test message a real phone.
+process.env.WHATSAPP_TOKEN = '';
+process.env.WHATSAPP_PHONE_NUMBER_ID = '';
+process.env.WHATSAPP_TEMPLATE_NAME = '';
 
 let mongod: MongoMemoryServer;
 
