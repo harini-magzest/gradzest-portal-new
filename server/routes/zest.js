@@ -17,7 +17,7 @@ const { filterByRelativeScore } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { notifyZestFailure } = require('../lib/zestAlert');
 
-const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ZEST_PROVIDER=ollama (free, self-hosted), ANTHROPIC_API_KEY or GEMINI_API_KEY.';
+const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
 const UNAVAILABLE = "Zest's AI is unavailable right now and the team has been notified. Please try again later.";
 
 // The model failed and there was nothing to fall back to — routes turn this into a 503
