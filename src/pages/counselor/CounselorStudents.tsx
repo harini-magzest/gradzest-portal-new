@@ -213,7 +213,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
 
           {!isEdit && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 text-xs text-blue-700">
-              A default password <strong>student123</strong> will be set. The student can change it after first login.
+              A random temporary password is emailed to the student and shown to you once, in case the email doesn't arrive. The student can change it after first login.
             </div>
           )}
 
