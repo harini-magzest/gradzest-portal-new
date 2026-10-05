@@ -450,6 +450,6 @@ async function seedStarterTemplates() {
 
 module.exports = {
   TRIGGERS, FIELDS, OPERATORS, VARIABLES, ACTION_TYPES, RECIPIENTS, LEAD_STAGES,
-  initAutomation, fireEvent, buildContext, matches, executeRule,
+  initAutomation, fireEvent, buildContext, matches, executeRule, pushNotification,
   renderEmail, renderText, stripTags, sampleVars, seedStarterTemplates,
 };

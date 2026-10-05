@@ -8,6 +8,7 @@ import { ToastProvider } from './context/ToastContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
+import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
@@ -72,6 +73,7 @@ const AdminActivityFeed      = lazy(() => import('./pages/admin/AdminActivityFee
 const AdminMeetings          = lazy(() => import('./pages/admin/AdminMeetings'));
 const AdminSettings          = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminAnalytics         = lazy(() => import('./pages/admin/AdminAnalytics'));
+const AdminZest               = lazy(() => import('./pages/admin/AdminZest'));
 const SOCLayout                = lazy(() => import('./pages/soc/SOCLayout'));
 const SOCDashboard             = lazy(() => import('./pages/soc/SOCDashboard'));
 
@@ -137,6 +139,7 @@ export default function App() {
         <ToastLayer />
         <FlashToast />
         <AuthModal />
+        <ZestWidget />
         <Suspense fallback={<PageSpinner />}>
           <Routes>
             {/* Public routes */}
@@ -202,6 +205,7 @@ export default function App() {
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="zest" element={<AdminZest />} />
               <Route path="roles" element={<Navigate to="/admin/settings?section=users&tab=roles" replace />} />
               <Route path="automation" element={<Navigate to="/admin/settings?section=automation" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
