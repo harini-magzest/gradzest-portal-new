@@ -110,8 +110,27 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many attempts. Please try again in 15 minutes.' },
 });
-// The owner's own SOC traffic is exempt (same rule as Skyload): a dashboard load plus tab-hopping, search and the
-// background refresh can legitimately approach 120 calls a minute, and a 429 there shows up as a section that won't load.
+// Login counts only failed attempts, so a correct password never uses up the budget.
+// Failures are counted per IP + email: one person mistyping their password must not lock
+// out colleagues on the same office network. The per-IP cap still stops password spraying.
+const loginFailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `${rateLimit.ipKeyGenerator(req.ip)}|${String(req.body?.email || '').toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
+});
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => rateLimit.ipKeyGenerator(req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many failed login attempts from this network. Please try again in 15 minutes.' },
+});
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 120,
@@ -122,13 +141,13 @@ const generalLimiter = rateLimit({
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  app.use('/api/auth/login', authLimiter);
+  // /login is limited after the body parsers below (it needs req.body.email).
+  // /refresh and /logout are deliberately not limited: every expired access token (15 min)
+  // triggers a refresh, so counting them would lock out active users behind a shared IP.
   app.use('/api/auth/register', authLimiter);
   app.use('/api/auth/forgot-password', authLimiter);
   app.use('/api/auth/reset-password', authLimiter);
   app.use('/api/auth/resend-verification', authLimiter);
-  app.use('/api/auth/refresh', authLimiter);
-  app.use('/api/auth/logout', authLimiter);
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
@@ -141,6 +160,9 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(wafBodyCheck);
 app.use(cookieParser());
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/auth/login', loginIpLimiter, loginFailLimiter);
+}
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
 // or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.

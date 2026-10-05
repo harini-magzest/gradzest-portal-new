@@ -105,4 +105,4 @@ function startDeadlineReminders(io, userSockets, mailer) {
   console.log('[deadline-reminders] Scheduled — runs daily at 09:00');
 }
 
-module.exports = { startDeadlineReminders, runDeadlineCheck };
+module.exports = { startDeadlineReminders, runDeadlineCheck, parseIntakeDate };
