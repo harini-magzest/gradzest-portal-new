@@ -13,7 +13,7 @@ const ZestQueryLog = require('../models/ZestQueryLog');
 const { executeTool, escapeRegex } = require('../lib/zestTools');
 const { withRetry, isTransient } = require('../lib/zestRetry');
 const { createZestLimiter } = require('../lib/zestLimiter');
-const { buildSystemPrompt } = require('../lib/anthropicClient');
+const { buildSystemPrompt, askZest: anthropicAskZest, setAnthropicClientForTests } = require('../lib/anthropicClient');
 const { askZest, setGeminiClientForTests } = require('../lib/geminiClient');
 
 let n = 0;
@@ -256,5 +256,86 @@ describe('system prompt', () => {
     const p = buildSystemPrompt('admin', { today: 'Friday, 3 October 2026', name: 'Hameed' });
     expect(p).toContain("Today's date is Friday, 3 October 2026");
     expect(p).toContain('Hameed');
+  });
+});
+
+describe('streaming retries never repeat text the user already saw', () => {
+  const overloaded = () => Object.assign(new Error('The model is overloaded. Please try again later.'), { status: 503 });
+  const textChunk = (text) => ({ candidates: [{ content: { role: 'model', parts: [{ text }] } }] });
+  const prevKey = process.env.GEMINI_API_KEY;
+  beforeEach(() => { process.env.GEMINI_API_KEY = 'fake-key-client-is-mocked'; });
+  afterEach(() => {
+    setGeminiClientForTests(null);
+    setAnthropicClientForTests(null);
+    if (prevKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = prevKey;
+  });
+
+  it('gemini: retries a stream that failed before any text was sent', async () => {
+    let calls = 0;
+    setGeminiClientForTests({ models: { generateContentStream: async () => {
+      calls++;
+      if (calls < 2) throw overloaded();
+      return (async function* () { yield textChunk('Hello '); yield textChunk('there.'); })();
+    } } });
+    const got = [];
+    const r = await askZest('hi', [], [], 'student', '', { id: 'x', role: 'student' }, (t) => got.push(t));
+    expect(r.text).toBe('Hello there.');
+    expect(got).toEqual(['Hello ', 'there.']);
+    expect(calls).toBe(2);
+  });
+
+  it('gemini: does NOT retry once text has reached the user', async () => {
+    let calls = 0;
+    setGeminiClientForTests({ models: { generateContentStream: async () => {
+      calls++;
+      return (async function* () { yield textChunk('Partial answer '); throw overloaded(); })();
+    } } });
+    const got = [];
+    await expect(askZest('hi', [], [], 'student', '', { id: 'x', role: 'student' }, (t) => got.push(t))).rejects.toThrow(/overloaded/);
+    expect(calls).toBe(1);
+    expect(got).toEqual(['Partial answer ']);
+  });
+
+  it('anthropic: does NOT retry once text has reached the user', async () => {
+    let calls = 0;
+    setAnthropicClientForTests({ messages: { stream: () => {
+      calls++;
+      const handlers = [];
+      return {
+        on: (event, cb) => { if (event === 'text') handlers.push(cb); },
+        finalMessage: async () => { handlers.forEach(h => h('Partial answer ')); throw overloaded(); },
+      };
+    } } });
+    process.env.ANTHROPIC_API_KEY = 'fake-key-client-is-mocked';
+    const got = [];
+    try {
+      await expect(anthropicAskZest('hi', [], [], 'student', '', { id: 'x', role: 'student' }, (t) => got.push(t))).rejects.toThrow(/overloaded/);
+    } finally { process.env.ANTHROPIC_API_KEY = ''; }
+    expect(calls).toBe(1);
+    expect(got).toEqual(['Partial answer ']);
+  });
+
+  it('anthropic: retries a stream that failed before any text was sent', async () => {
+    let calls = 0;
+    setAnthropicClientForTests({ messages: { stream: () => {
+      calls++;
+      const handlers = [];
+      return {
+        on: (event, cb) => { if (event === 'text') handlers.push(cb); },
+        finalMessage: async () => {
+          if (calls < 2) throw overloaded();
+          handlers.forEach(h => h('All good.'));
+          return { stop_reason: 'end_turn', content: [{ type: 'text', text: 'All good.' }] };
+        },
+      };
+    } } });
+    process.env.ANTHROPIC_API_KEY = 'fake-key-client-is-mocked';
+    const got = [];
+    let r;
+    try { r = await anthropicAskZest('hi', [], [], 'student', '', { id: 'x', role: 'student' }, (t) => got.push(t)); }
+    finally { process.env.ANTHROPIC_API_KEY = ''; }
+    expect(r.text).toBe('All good.');
+    expect(got).toEqual(['All good.']);
+    expect(calls).toBe(2);
   });
 });

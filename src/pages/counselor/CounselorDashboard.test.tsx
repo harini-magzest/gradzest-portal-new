@@ -20,6 +20,15 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+// App.tsx provides CallContext around every page; this test renders the dashboard on its own, so supply the bits
+// the page's presence indicators read. MyCallPerformance has its own loading/error handling and API call, which
+// are not what this test is about.
+vi.mock('../../context/CallContext', () => ({
+  useCallContext: () => ({ isOnline: () => false, lastSeenOf: () => null, lastMessageTime: 0 }),
+}));
+vi.mock('../../components/MyCallPerformance', () => ({ default: () => null }));
+vi.mock('../../components/dashboards/FollowupQueue', () => ({ default: () => null }));
+
 import { api } from '../../api';
 
 function renderDashboard() {

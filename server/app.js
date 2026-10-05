@@ -189,7 +189,6 @@ const mailer = nodemailer.createTransport({
 require('./lib/emailLog').withEmailLog(mailer);
 app.set('mailer', mailer);
 require('./lib/criticalAlert').initCriticalAlert(mailer);
-require('./lib/zestAlert').initZestAlert(mailer);
 markActive('critical_alert', 'server/lib/criticalAlert.js — emails admins on new critical-severity incidents');
 
 // Public email subscription / free registration

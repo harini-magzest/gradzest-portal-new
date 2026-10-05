@@ -17,10 +17,9 @@ const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { retrieveChunks } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
-const { notifyZestFailure } = require('../lib/zestAlert');
 
-const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ZEST_PROVIDER=ollama (free, self-hosted), ANTHROPIC_API_KEY or GEMINI_API_KEY.';
-const UNAVAILABLE = "Zest's AI is unavailable right now and the team has been notified. Please try again later.";
+const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
+const UNAVAILABLE = "Zest's AI is unavailable right now. Please try again later.";
 
 // The model failed and there was nothing to fall back to — routes turn this into a 503
 class ZestUnavailable extends Error {}
@@ -34,11 +33,6 @@ function knowledgeBaseFallback(matches) {
     return `From "${m.documentTitle}":\n${text.length > 600 ? `${text.slice(0, 600).trimEnd()}…` : text}`;
   });
   return `Zest's AI is unavailable right now, so here is what Gradzest's knowledge base says:\n\n${passages.join('\n\n')}`;
-}
-
-// Stop on the first failure (no retry), email the team, and say which route/role hit it — never the question
-function reportFailure(err, req, route) {
-  notifyZestFailure({ kind: err.kind || 'error', message: err.message }, { route, role: req.user.role });
 }
 
 const router = express.Router();
@@ -132,7 +126,6 @@ async function answerQuestion(req, question, history, onText) {
       question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req), onText, { ip: req.ip, io: req.app.get('io') },
     ));
   } catch (err) {
-    reportFailure(err, req, onText ? '/api/zest/ask-stream' : '/api/zest/ask');
     const fallback = knowledgeBaseFallback(matches);
     if (!fallback) throw new ZestUnavailable(err.message);
     const log = await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [], degraded: true });
@@ -151,7 +144,6 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
   try {
     res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
   } catch (err) {
-    if (err instanceof ZestUnavailable) return res.status(503).json({ message: UNAVAILABLE });
     console.error('[zest/ask]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
   }
@@ -175,8 +167,8 @@ router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
     const { answer, sources, degraded, logId } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
     send({ type: 'done', answer, sources, logId, ...(degraded ? { degraded } : {}) });
   } catch (err) {
-    if (!(err instanceof ZestUnavailable)) console.error('[zest/ask-stream]', err.message);
-    send({ type: 'error', message: err instanceof ZestUnavailable ? UNAVAILABLE : 'Zest could not answer right now. Please try again.' });
+    console.error('[zest/ask-stream]', err.message);
+    send({ type: 'error', message: 'Zest could not answer right now. Please try again.' });
   } finally {
     res.end();
   }
@@ -212,7 +204,6 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     try {
       ({ text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') }));
     } catch (err) {
-      reportFailure(err, req, '/api/zest/ask-with-file');
       return res.status(503).json({ message: UNAVAILABLE });
     }
     const log = await ZestQueryLog.create({

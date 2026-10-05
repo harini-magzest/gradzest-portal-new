@@ -13,14 +13,13 @@ process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
 // A developer's real model keys live in server/.env, and dotenv does not override variables that are already set —
 // blanking them here guarantees no test can reach a real model API (slow, flaky, and it spends the key's quota).
 // Tests that exercise a model backend inject a fake client or set a dummy key themselves.
+// app.js refuses to load without a MONGODB_URI, and dotenv would otherwise fill it from a developer's real
+// server/.env (the live database). Pin a dummy first: a machine with no .env (a fresh clone, CI) can run the
+// suite, and no test can ever see the real address. beforeAll below swaps in the in-memory server's URI.
+process.env.MONGODB_URI = 'mongodb://127.0.0.1:1/never-used-replaced-in-beforeAll';
 process.env.ANTHROPIC_API_KEY = '';
 process.env.GEMINI_API_KEY = '';
 process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
-// app.js loads the developer's server/.env, and dotenv never overrides a variable that is already
-// set — so pin these empty. Otherwise a local ZEST_PROVIDER=ollama would reroute the Anthropic
-// tests to a real Ollama, and a local ZEST_ALERT_EMAILS would let a test send a real alert email.
-process.env.ZEST_PROVIDER = '';
-process.env.ZEST_ALERT_EMAILS = '';
 // Same for WhatsApp: a developer's real credentials must never let a test message a real phone.
 process.env.WHATSAPP_TOKEN = '';
 process.env.WHATSAPP_PHONE_NUMBER_ID = '';

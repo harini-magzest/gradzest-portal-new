@@ -197,13 +197,15 @@ const MAX_TOOL_ROUNDS = 4;
 // Roomy enough for a full email draft or a multi-step answer; the "short and direct" rule keeps normal replies short.
 const MAX_OUTPUT_TOKENS = 1500;
 
+// A failure after some text has already reached the caller is marked so withRetry does not replay it:
+// a retry would stream the start of the answer a second time.
 function callModel(params, onText) {
   if (!onText) return getClient().messages.create(params);
   let emitted = false;
   const stream = getClient().messages.stream(params);
   stream.on('text', (delta) => { emitted = true; onText(delta); });
   return stream.finalMessage().catch((err) => {
-    if (emitted && err && typeof err === 'object') err.streamedPartial = true;
+    if (emitted && err && typeof err === 'object') err.zestPartial = true;
     throw err;
   });
 }
