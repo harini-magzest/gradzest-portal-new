@@ -562,11 +562,11 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
             )}
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
-            <button type="button" onClick={onBookmark}
+            <button aria-label="Bookmark" type="button" onClick={onBookmark}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${bookmarked ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-300 hover:text-amber-400'}`}>
               <Bookmark className="w-3.5 h-3.5" fill={bookmarked ? 'currentColor' : 'none'} />
             </button>
-            <button type="button" onClick={onToggleNote}
+            <button aria-label="Edit" type="button" onClick={onToggleNote}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${comment || expandNote ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-300 hover:text-blue-400'}`}>
               <PenLine className="w-3.5 h-3.5" />
             </button>

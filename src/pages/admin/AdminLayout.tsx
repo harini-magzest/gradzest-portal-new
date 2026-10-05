@@ -8,6 +8,7 @@ import DashboardTopbar from '../../components/DashboardTopbar';
 import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
+import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
@@ -21,6 +22,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { to: '/admin/meetings', label: 'Meetings', icon: Video },
+  { to: '/admin/events', label: 'Events', icon: Ticket },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { to: '/admin/zest', label: 'Zest AI', icon: ZestIcon },
@@ -92,7 +94,7 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

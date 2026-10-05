@@ -58,7 +58,7 @@ export default function AppTeamLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
           <Outlet />
         </main>
       </div>

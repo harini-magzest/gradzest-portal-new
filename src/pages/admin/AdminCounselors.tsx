@@ -196,7 +196,7 @@ function CounselorFormModal({
               {isEdit ? 'Edit Counselor' : 'New Counselor'}
             </h2>
           </div>
-          <button type="button" onClick={onClose}
+          <button aria-label="Close" type="button" onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
             <X className="w-4 h-4" />
           </button>
@@ -378,7 +378,7 @@ function AppTeamFormModal({
               {isEdit ? 'Edit Application Team Member' : 'New Application Team Member'}
             </h2>
           </div>
-          <button type="button" onClick={onClose}
+          <button aria-label="Close" type="button" onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
             <X className="w-4 h-4" />
           </button>
@@ -473,7 +473,7 @@ function AssignStudentsModal({
             <h2 className="text-lg font-bold text-gray-900">Assign Students</h2>
             <p className="text-sm text-gray-500 mt-0.5">to {counselor.name}</p>
           </div>
-          <button type="button" onClick={onClose}
+          <button aria-label="Close" type="button" onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 transition-all">
             <X className="w-4 h-4" />
           </button>
@@ -552,7 +552,7 @@ function CounselorDetailModal({
                 {counselor.email && <p className="text-purple-300 text-xs mt-0.5">{counselor.email}</p>}
               </div>
             </div>
-            <button type="button" onClick={onClose}
+            <button aria-label="Close" type="button" onClick={onClose}
               className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0">
               <X className="w-5 h-5" />
             </button>
@@ -814,7 +814,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
                 </div>
               </div>
             </div>
-            <button type="button" onClick={onClose}
+            <button aria-label="Close" type="button" onClick={onClose}
               className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0">
               <X className="w-5 h-5" />
             </button>
@@ -1050,7 +1050,7 @@ export function CounselorStatsModal({
             <h2 className="text-lg font-bold text-gray-900">{counselor.name}</h2>
             <p className="text-sm text-gray-400 mt-0.5">{counselor.title || 'Education Counselor'}</p>
           </div>
-          <button type="button" onClick={onClose}
+          <button aria-label="Close" type="button" onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
             <X className="w-4 h-4" />
           </button>

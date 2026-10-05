@@ -1,11 +1,12 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, GraduationCap, User, BookOpen, CalendarDays, FileText, Zap, Globe, Video } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, GraduationCap, User, BookOpen, CalendarDays, FileText, Zap, Globe, Video, Ticket, Scale } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
+import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
@@ -15,9 +16,11 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/counselor/applications', label: 'Applications', icon: FileText },
   { to: '/counselor/countries', label: 'Countries', icon: Globe },
   { to: '/counselor/universities', label: 'Universities', icon: GraduationCap },
+  { to: '/counselor/compare', label: 'Compare & cost', icon: Scale, mobileHide: true },
   { to: '/counselor/courses', label: 'Courses', icon: BookOpen, mobileHide: true },
   { to: '/counselor/activities', label: 'Activities', icon: CalendarDays },
   { to: '/counselor/meetings', label: 'Meetings', icon: Video },
+  { to: '/counselor/events', label: 'Events', icon: Ticket },
   { to: '/counselor/learning', label: 'Learning Hub', icon: Zap, mobileHide: true },
   { to: '/counselor/chat', label: 'Chat', icon: MessageSquare },
   { to: '/counselor/profile', label: 'My Profile', icon: User },
@@ -73,7 +76,7 @@ export default function CounselorLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

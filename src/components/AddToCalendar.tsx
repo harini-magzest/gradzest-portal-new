@@ -5,42 +5,69 @@ import { api } from '../api';
 // Meeting times are entered in India; this must match MEETING_TZ_OFFSET on the server (default +05:30).
 const TZ_OFFSET = '+05:30';
 
-function bounds(m: any): { start: Date; end: Date } | null {
+interface CalendarEntry {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  details: string;
+  location: string;
+  download: () => Promise<void>;
+}
+
+interface EventLike { id: string; title: string; startsAt: string; durationMin: number; link?: string; description?: string }
+
+function fromMeeting(m: any): CalendarEntry | null {
   const start = new Date(`${m.scheduledDate}T${m.scheduledTime}:00${TZ_OFFSET}`);
   if (isNaN(start.getTime())) return null;
-  return { start, end: new Date(start.getTime() + (m.duration || 60) * 60000) };
+  const id = (m._id || m.id || '').toString();
+  return {
+    id, title: m.title || 'Meeting', start, end: new Date(start.getTime() + (m.duration || 60) * 60000),
+    details: [m.notes, m.meetingLink && `Join: ${m.meetingLink}`].filter(Boolean).join('\n'), location: m.meetingLink || '',
+    download: () => api.meetings.downloadIcs(id),
+  };
+}
+
+function fromEvent(e: EventLike): CalendarEntry | null {
+  const start = new Date(e.startsAt);
+  if (isNaN(start.getTime())) return null;
+  return {
+    id: e.id, title: e.title, start, end: new Date(start.getTime() + (e.durationMin || 60) * 60000),
+    details: [e.description, e.link && `Join: ${e.link}`].filter(Boolean).join('\n'), location: e.link || '',
+    download: () => api.events.downloadIcs(e.id),
+  };
 }
 
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
-export function googleCalendarUrl(m: any): string | null {
-  const b = bounds(m);
-  if (!b) return null;
-  const q = new URLSearchParams({
-    action: 'TEMPLATE', text: m.title || 'Meeting', dates: `${stamp(b.start)}/${stamp(b.end)}`,
-    details: [m.notes, m.meetingLink && `Join: ${m.meetingLink}`].filter(Boolean).join('\n'), location: m.meetingLink || '',
-  });
+function googleUrl(c: CalendarEntry): string {
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: c.title, dates: `${stamp(c.start)}/${stamp(c.end)}`, details: c.details, location: c.location });
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
+export function googleCalendarUrl(m: any): string | null {
+  const c = fromMeeting(m);
+  return c ? googleUrl(c) : null;
+}
+
 // "Add to Google Calendar" opens a pre-filled event; the .ics file works with Apple, Outlook and any other calendar.
-export default function AddToCalendar({ meeting }: { meeting: any }) {
+// Pass a `meeting` or an `event`.
+export default function AddToCalendar({ meeting, event }: { meeting?: any; event?: EventLike }) {
   const [error, setError] = useState('');
-  const url = googleCalendarUrl(meeting);
-  const id = (meeting._id || meeting.id || '').toString();
-  if (!url) return null;
+  const entry = meeting ? fromMeeting(meeting) : event ? fromEvent(event) : null;
+  if (!entry) return null;
 
   const download = async () => {
     setError('');
-    try { await api.meetings.downloadIcs(id); } catch { setError('Could not download the calendar file.'); }
+    try { await entry.download(); } catch { setError('Could not download the calendar file.'); }
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
-      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+      <a href={googleUrl(entry)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
         <CalendarPlus className="w-3.5 h-3.5" /> Google Calendar
       </a>
-      {id && (
+      {entry.id && (
         <button type="button" onClick={download} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
           <Download className="w-3.5 h-3.5" /> .ics file
         </button>
