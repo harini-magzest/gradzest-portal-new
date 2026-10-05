@@ -41,7 +41,7 @@ describe('GET /api/soc/posture — dynamic code analysis', () => {
     // (regression test for the self-match bug found and fixed this session).
     const selfFlags = res.body.codeAnalysis.codeFlags.filter((f) => f.file.includes('lib/codeScan.js'));
     expect(selfFlags.length).toBe(0);
-  });
+  }, 90000); // refresh=1 runs a real `npm audit` plus a source scan; under load that exceeds the 20s default
 
   it('still returns dependency audit data alongside the new sections', async () => {
     const token = await makeAdmin('posture-admin2');

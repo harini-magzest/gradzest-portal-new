@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const Country = require('../models/Country');
 const { fetchCountryData } = require('../lib/enrichCountry');
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
     const countries = await Country.find({}).sort({ name: 1 });
     res.json(countries);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 

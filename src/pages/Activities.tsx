@@ -4,12 +4,13 @@ import { api } from '../api';
 import {
   Calendar, CheckSquare, Star, Phone, Plus, ChevronLeft, ChevronRight,
   Check, Clock, Video, PhoneCall, PhoneOff, Trash2, X, Bell, BellOff, Users,
-  MessageCircle, Send,
+  History,
 } from 'lucide-react';
 import MeetingPanel from '../components/MeetingPanel';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import CallHistory from '../components/CallHistory';
+import { TaskStatusPill, TaskTimeline, LatestTaskUpdate, taskUpdateCount } from '../components/TaskProgress';
 
 const DEPT_LABEL: Record<string, string> = {
   student: 'Student', counselor: 'Counselor', appteam: 'Application Team', admin: 'Admin',
@@ -193,8 +194,6 @@ export default function Activities() {
   const [newTask, setNewTask]             = useState({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: '' });
   const [showAddTask, setShowAddTask]     = useState(false);
   const [expandedTask, setExpandedTask]   = useState<string | null>(null);
-  const [commentTexts, setCommentTexts]   = useState<Record<string, string>>({});
-  const [commentSaving, setCommentSaving] = useState<string | null>(null);
   const [taskFilter, setTaskFilter]       = useState<'all' | 'mine' | 'created'>('all');
   const [taskError, setTaskError]         = useState('');
   const [assignees, setAssignees]         = useState<{ _id: string; name: string; dept: string }[]>([]);
@@ -227,6 +226,13 @@ export default function Activities() {
     setTasksLoading(true);
     api.tasks.list().then(setApiTasks).catch(() => {}).finally(() => setTasksLoading(false));
   }, [role]);
+
+  // Someone else posted progress on one of our tasks — pull the fresh list
+  useEffect(() => {
+    const refresh = () => { api.tasks.list().then(setApiTasks).catch(() => {}); };
+    window.addEventListener('task:updated', refresh);
+    return () => window.removeEventListener('task:updated', refresh);
+  }, []);
 
   // Track meeting IDs already added so we never duplicate them
   const addedMeetingIds = useRef(new Set<string>());
@@ -412,8 +418,7 @@ export default function Activities() {
   const toggleApiTask = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     try {
-      const updated = await api.tasks.update(taskId, { status: newStatus });
-      setApiTasks(ts => ts.map(t => t._id === taskId ? updated : t));
+      replaceTask(await api.tasks.update(taskId, { status: newStatus }));
     } catch {}
   };
 
@@ -460,17 +465,9 @@ export default function Activities() {
     );
   };
 
-  const submitComment = async (taskId: string) => {
-    const text = (commentTexts[taskId] || '').trim();
-    if (!text) return;
-    setCommentSaving(taskId);
-    try {
-      const updated = await api.tasks.addComment(taskId, text);
-      setApiTasks(ts => ts.map(t => t._id === taskId ? updated : t));
-      setCommentTexts(prev => ({ ...prev, [taskId]: '' }));
-    } catch {}
-    setCommentSaving(null);
-  };
+  const replaceTask = (updated: any) => setApiTasks(ts => ts.map(t => t._id === updated._id ? updated : t));
+  // Mirrors the server: the assignee, the creator or an admin can move a task along
+  const canUpdateTask = (task: any) => isMineTask(task) || isCreatedTask(task) || role === 'admin';
 
   const toggleMeetingTask = (id: number) => setMeetingTasks(ts => ts.map(mt => mt.id === id ? { ...mt, done: !mt.done } : mt));
   const deleteMeetingTask = (id: number) => setMeetingTasks(ts => ts.filter(mt => mt.id !== id));
@@ -856,7 +853,7 @@ export default function Activities() {
           {isStudent && (
             <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-4">
               <CheckSquare className="w-3.5 h-3.5 flex-shrink-0" />
-              Tasks assigned to you by your counselor or admin appear here. Use comments to update your progress.
+              Tasks assigned to you by your counselor or admin appear here. Open a task to post progress updates or change its status.
             </div>
           )}
 
@@ -917,7 +914,7 @@ export default function Activities() {
                   <div className={`flex items-center gap-3 bg-white border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 transition-all ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
                     <button type="button" title="Mark complete" onClick={() => toggleApiTask(task._id, task.status)}
                       className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center flex-shrink-0 hover:border-gray-500 transition-colors" />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
                       <p className="text-sm font-medium text-gray-900">{task.title}</p>
                       {task.description && (
                         <p className={`text-xs text-gray-500 mt-0.5 ${expandedTask === task._id ? 'whitespace-pre-line' : 'truncate'}`}>{task.description}</p>
@@ -929,14 +926,16 @@ export default function Activities() {
                           <span className="text-xs text-gray-400">by {task.assignedByName}</span>
                         )}
                       </div>
+                      {expandedTask !== task._id && <LatestTaskUpdate task={task} />}
                     </div>
+                    <TaskStatusPill status={task.status} />
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLOR[task.priority]}`}>{task.priority}</span>
-                    <button type="button" title="Comments" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}
+                    <button type="button" title="Progress & updates" aria-expanded={expandedTask === task._id} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}
                       className={`relative p-1.5 rounded-lg transition-colors ${expandedTask === task._id ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
-                      <MessageCircle className="w-4 h-4" />
-                      {task.comments?.length > 0 && (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
-                          {task.comments.length}
+                      <History className="w-4 h-4" />
+                      {taskUpdateCount(task) > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-0.5 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                          {taskUpdateCount(task)}
                         </span>
                       )}
                     </button>
@@ -947,50 +946,7 @@ export default function Activities() {
                       </button>
                     )}
                   </div>
-
-                  {/* Comments panel */}
-                  {expandedTask === task._id && (
-                    <div className="bg-gray-50 border border-gray-100 border-t-0 rounded-b-xl px-4 pb-4 pt-3 space-y-3">
-                      {task.comments?.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">No comments yet. Add one below.</p>
-                      ) : (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {task.comments.map((c: any) => (
-                            <div key={c._id} className="bg-white rounded-xl p-3 border border-gray-100">
-                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                <span className="text-xs font-semibold text-gray-800">{c.author}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${
-                                  c.authorRole === 'admin'     ? 'bg-purple-100 text-purple-700' :
-                                  c.authorRole === 'counselor' ? 'bg-green-100 text-green-700' :
-                                  'bg-blue-100 text-blue-700'
-                                }`}>{c.authorRole}</span>
-                                <span className="text-[10px] text-gray-400 ml-auto">
-                                  {new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-700 leading-relaxed">{c.text}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <input
-                          value={commentTexts[task._id] || ''}
-                          onChange={e => setCommentTexts(prev => ({ ...prev, [task._id]: e.target.value }))}
-                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(task._id); } }}
-                          placeholder="Add a comment or update..."
-                          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 text-gray-900 placeholder-gray-400 bg-white"
-                        />
-                        <button type="button" onClick={() => submitComment(task._id)}
-                          disabled={commentSaving === task._id || !commentTexts[task._id]?.trim()}
-                          className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5">
-                          {commentSaving === task._id
-                            ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                            : <Send className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {expandedTask === task._id && <TaskTimeline task={task} canUpdate={canUpdateTask(task)} onChanged={replaceTask} />}
                 </div>
               ))}
 
@@ -1029,27 +985,28 @@ export default function Activities() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 pt-3 pb-1">Completed</p>
                   {visibleTasks.filter(task => task.status === 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
                     <div key={task._id}>
-                      <div className={`flex items-center gap-3 bg-gray-50 border border-gray-100 px-4 py-3 opacity-60 ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
+                      <div className={`flex items-center gap-3 bg-gray-50 border border-gray-100 px-4 py-3 ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl opacity-60'}`}>
                         <button type="button" title="Mark incomplete" onClick={() => toggleApiTask(task._id, task.status)}
                           className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
                           <Check className="w-3 h-3 text-white" />
                         </button>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
                           <p className="text-sm text-gray-400 line-through">{task.title}</p>
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             {assigneeChip(task, true)}
                             {!isCreatedTask(task) && task.assignedByName && <span className="text-xs text-gray-400">by {task.assignedByName}</span>}
                           </div>
+                          <LatestTaskUpdate task={task} />
                         </div>
-                        <button type="button" title="Comments" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}
-                          className={`relative p-1.5 rounded-lg transition-colors ${expandedTask === task._id ? 'bg-blue-100 text-blue-600' : 'text-gray-300 hover:text-gray-500'}`}>
-                          <MessageCircle className="w-4 h-4" />
-                          {task.comments?.length > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
-                              {task.comments.length}
-                            </span>
-                          )}
-                        </button>
+                        <button type="button" title="Progress & updates" aria-expanded={expandedTask === task._id} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}
+                      className={`relative p-1.5 rounded-lg transition-colors ${expandedTask === task._id ? 'bg-blue-100 text-blue-600' : 'text-gray-300 hover:text-gray-500'}`}>
+                      <History className="w-4 h-4" />
+                      {taskUpdateCount(task) > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-0.5 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                          {taskUpdateCount(task)}
+                        </span>
+                      )}
+                    </button>
                         {canDeleteTask(task) && (
                           <button type="button" onClick={() => deleteApiTask(task._id)} title="Delete task"
                             className="p-1 text-gray-300 hover:text-red-400 transition-colors">
@@ -1057,32 +1014,7 @@ export default function Activities() {
                           </button>
                         )}
                       </div>
-                      {expandedTask === task._id && (
-                        <div className="bg-gray-50 border border-gray-100 border-t-0 rounded-b-xl px-4 pb-4 pt-3 space-y-3 opacity-80">
-                          {task.comments?.length === 0 ? (
-                            <p className="text-xs text-gray-400 text-center py-2">No comments.</p>
-                          ) : (
-                            <div className="space-y-2 max-h-36 overflow-y-auto">
-                              {task.comments.map((c: any) => (
-                                <div key={c._id} className="bg-white rounded-xl p-3 border border-gray-100">
-                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span className="text-xs font-semibold text-gray-700">{c.author}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${
-                                      c.authorRole === 'admin'     ? 'bg-purple-100 text-purple-700' :
-                                      c.authorRole === 'counselor' ? 'bg-green-100 text-green-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }`}>{c.authorRole}</span>
-                                    <span className="text-[10px] text-gray-400 ml-auto">
-                                      {new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-600">{c.text}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {expandedTask === task._id && <TaskTimeline task={task} canUpdate={canUpdateTask(task)} onChanged={replaceTask} />}
                     </div>
                   ))}
                   {meetingTasks.filter(mt => mt.done).map(task => (

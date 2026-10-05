@@ -32,14 +32,18 @@ const { startTaskReminders } = require('./jobs/taskReminders');
 const { startApplicationFollowups } = require('./jobs/applicationFollowups');
 const { startChatEscalation } = require('./jobs/chatEscalation');
 const { startWeeklyDigest } = require('./jobs/weeklyDigest');
+const { startZestDailyAnalytics } = require('./jobs/zestDailyAnalytics');
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
 
 connectDB().then(async () => {
+  await require('./lib/migrateEmailIndex').migrateEmailIndex();
   await autoSeedIfEmpty();
+  await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
+  require('./jobs/incidentEscalation').startIncidentEscalation();
   initAutomation({ io, userSockets, mailer });
   await seedStarterTemplates();
   startAutomationScheduler();
@@ -48,6 +52,7 @@ connectDB().then(async () => {
   startApplicationFollowups(io, userSockets);
   startChatEscalation(io, userSockets);
   startWeeklyDigest(mailer);
+  startZestDailyAnalytics(mailer);
 }).catch((err) => {
   console.error('[Startup] Fatal DB error:', err.message);
   process.exit(1);

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Building2, User, Lock, Bell, GitBranch,
-  ShieldCheck, MessageCircle, CalendarDays, Download, AlertTriangle,
-  ChevronRight, Save, Eye, EyeOff, GripVertical, Check,
+  Building2, User, Lock, CalendarDays, Download, AlertTriangle,
+  ChevronRight, Save, Eye, EyeOff, Check,
   Smartphone, Globe, Users, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -11,13 +10,13 @@ import { api } from '../../api';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import AdminUsersControls from './AdminUsersControls';
 import AdminAutomation from './AdminAutomation';
+import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SectionKey =
-  | 'company' | 'profile' | 'password'
-  | 'notifications' | 'automation' | 'app-stages'
-  | 'users' | 'permissions' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
+  | 'company' | 'profile' | 'password' | 'automation'
+  | 'users' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
 
@@ -25,11 +24,8 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'company',         label: 'Company Profile',      icon: Building2 },
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
-  { key: 'notifications',   label: 'Notifications',        icon: Bell },
   { key: 'users',           label: 'Users and Controls',   icon: Users },
   { key: 'automation',      label: 'Automation',           icon: Zap },
-  { key: 'app-stages',      label: 'Application Stages',   icon: GitBranch },
-  { key: 'permissions',     label: 'App Team',             icon: ShieldCheck },
   { key: 'whatsapp',        label: 'WhatsApp / SMS',       icon: Smartphone },
   { key: 'google-cal',      label: 'Google Calendar',      icon: CalendarDays },
   { key: 'export',          label: 'Export & Backup',      icon: Download },
@@ -227,145 +223,6 @@ function PasswordSecurity() {
   );
 }
 
-function NotificationsSection() {
-  const [prefs, setPrefs] = useState({
-    newStudent: true, newApplication: true, meetingReminder: true,
-    visaUpdate: true, documentReview: false, counselorReport: true,
-    emailDigest: false, smsAlerts: false,
-  });
-  const toggle = (k: keyof typeof prefs) => setPrefs(p => ({ ...p, [k]: !p[k] }));
-  return (
-    <SectionCard title="Notification Preferences">
-      <div className="divide-y divide-gray-100">
-        <Toggle checked={prefs.newStudent} onChange={() => toggle('newStudent')} label="New student registered" />
-        <Toggle checked={prefs.newApplication} onChange={() => toggle('newApplication')} label="New application submitted" />
-        <Toggle checked={prefs.meetingReminder} onChange={() => toggle('meetingReminder')} label="Meeting reminders (30 min before)" />
-        <Toggle checked={prefs.visaUpdate} onChange={() => toggle('visaUpdate')} label="Visa status updates" />
-        <Toggle checked={prefs.documentReview} onChange={() => toggle('documentReview')} label="Document review requests" />
-        <Toggle checked={prefs.counselorReport} onChange={() => toggle('counselorReport')} label="Weekly counselor performance report" />
-        <Toggle checked={prefs.emailDigest} onChange={() => toggle('emailDigest')} label="Daily email digest" />
-        <Toggle checked={prefs.smsAlerts} onChange={() => toggle('smsAlerts')} label="SMS alerts for critical events" />
-      </div>
-    </SectionCard>
-  );
-}
-
-function ApplicationStages() {
-  const [stages, setStages] = useState([
-    { id: 'draft', label: 'Incomplete', color: '#6b7280' },
-    { id: 'submitted', label: 'Submitted', color: '#3b82f6' },
-    { id: 'under_review', label: 'Under Review', color: '#f59e0b' },
-    { id: 'offer_received', label: 'Offer Received', color: '#10b981' },
-    { id: 'accepted', label: 'Visa Applied', color: '#6366f1' },
-    { id: 'enrolled', label: 'Visa Approved', color: '#8b5cf6' },
-    { id: 'rejected', label: 'Rejected', color: '#ef4444' },
-  ]);
-  const moveUp = (i: number) => {
-    if (i === 0) return;
-    const n = [...stages]; [n[i-1], n[i]] = [n[i], n[i-1]]; setStages(n);
-  };
-  const moveDown = (i: number) => {
-    if (i === stages.length - 1) return;
-    const n = [...stages]; [n[i], n[i+1]] = [n[i+1], n[i]]; setStages(n);
-  };
-  return (
-    <SectionCard title="Application Stages">
-      <p className="text-xs text-gray-400 mb-4">Drag to reorder stages in the application pipeline.</p>
-      <div className="space-y-2">
-        {stages.map((s, i) => (
-          <div key={s.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
-            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
-            <span className="text-sm font-medium text-gray-800 flex-1">{s.label}</span>
-            <div className="flex gap-1 flex-shrink-0">
-              <button type="button" onClick={() => moveUp(i)} disabled={i === 0}
-                className="px-2 py-1 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-30">↑</button>
-              <button type="button" onClick={() => moveDown(i)} disabled={i === stages.length - 1}
-                className="px-2 py-1 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-30">↓</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-function RolesPermissions() {
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [saving, setSaving] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.admin.appteamUsers().then(setAdminUsers).catch(() => {});
-  }, []);
-
-  const toggleAppTeam = async (user: any) => {
-    setSaving(user.id || user._id);
-    try {
-      const updated = await api.admin.markAppTeam(user.id || user._id, !user.isAppTeam);
-      setAdminUsers(prev => prev.map(u => (u.id || u._id) === (updated.id || updated._id) ? updated : u));
-    } catch {} finally {
-      setSaving(null);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="App Team Users">
-        <p className="text-sm text-gray-500 mb-1.5">
-          Reclassify an <strong>existing</strong> admin account between Admin Team and Application Team. This also controls how their chat rooms appear to counselors ("Admin Team" vs "Application Team").
-        </p>
-        <p className="text-sm text-gray-500 mb-4">
-          To add a brand-new Application Team member, use{' '}
-          <Link to="/admin/counselors" className="text-orange-600 font-medium hover:underline">
-            Team → Application Team → New Application Team Member
-          </Link>{' '}
-          instead — this list only relabels accounts that already exist.
-        </p>
-        {adminUsers.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No admin users found.</p>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {adminUsers.map(u => {
-              const uid = u.id || u._id;
-              return (
-                <div key={uid} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{u.name}</p>
-                    <p className="text-xs text-gray-400">{u.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.isAppTeam ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
-                      {u.isAppTeam ? 'Application Team' : 'Admin Team'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleAppTeam(u)}
-                      disabled={saving === uid}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 transition-colors"
-                    >
-                      {saving === uid ? 'Saving…' : u.isAppTeam ? 'Set as Admin Team' : 'Set as Application Team'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-xs text-gray-400 mt-4">Changes take effect immediately — counselor chat rooms will be relabeled on next load.</p>
-      </SectionCard>
-
-      <SectionCard title="Permissions">
-        <p className="text-sm text-gray-500">
-          Counselor permissions are now set with editable profiles in{' '}
-          <Link to="/admin/settings?section=users&tab=profiles" className="text-purple-600 font-medium hover:underline">
-            Users and Controls → Profiles
-          </Link>. Admin accounts always have full access.
-        </p>
-      </SectionCard>
-    </div>
-  );
-}
-
 function WhatsAppSMS() {
   const [waToken, setWaToken] = useState('');
   const [phoneId, setPhoneId] = useState('');
@@ -461,6 +318,25 @@ function ExportBackup() {
 
 function DangerZone() {
   const [confirm, setConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const deleteAll = async () => {
+    if (confirm !== 'DELETE') return;
+    if (!window.confirm('Really delete ALL student data? This cannot be undone.')) return;
+    setErr(''); setMsg(''); setDeleting(true);
+    try {
+      const { deletedCount } = await api.admin.deleteAllStudents(confirm);
+      setMsg(`Deleted ${deletedCount} student${deletedCount === 1 ? '' : 's'} and their applications and documents.`);
+      setConfirm('');
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to delete student data.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <SectionCard title="Danger Zone">
       <div className="space-y-4">
@@ -474,18 +350,13 @@ function DangerZone() {
           </div>
           <div className="mt-4 space-y-3">
             <InputField label={'Type "DELETE" to confirm'} value={confirm} onChange={setConfirm} placeholder="DELETE" />
-            <button type="button" disabled={confirm !== 'DELETE'}
+            {err && <p className="text-sm text-red-600 bg-white border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
+            {msg && <p className="text-sm text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-xl flex items-center gap-1.5"><Check className="w-4 h-4" />{msg}</p>}
+            <button type="button" onClick={deleteAll} disabled={confirm !== 'DELETE' || deleting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <AlertTriangle className="w-4 h-4" />Permanently Delete
+              {deleting ? <><Spinner white />Deleting…</> : <><AlertTriangle className="w-4 h-4" />Permanently Delete</>}
             </button>
           </div>
-        </div>
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <p className="text-sm font-bold text-orange-800">Reset to Default Settings</p>
-          <p className="text-xs text-orange-600 mt-0.5">Resets all notification preferences, and email templates to factory defaults.</p>
-          <button type="button" className="mt-3 px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-xl hover:bg-orange-700 transition-colors">
-            Reset Settings
-          </button>
         </div>
       </div>
     </SectionCard>
@@ -495,6 +366,7 @@ function DangerZone() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminSettings() {
+  const { portal } = usePortalName();
   // The open section lives in ?section= so it survives reloads and can be linked to
   const [params, setParams] = useSearchParams();
   const raw = params.get('section');
@@ -511,11 +383,8 @@ export default function AdminSettings() {
       case 'company':         return <CompanyProfile />;
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
-      case 'notifications':   return <NotificationsSection />;
       case 'users':           return <AdminUsersControls />;
       case 'automation':      return <AdminAutomation />;
-      case 'app-stages':      return <ApplicationStages />;
-      case 'permissions':     return <RolesPermissions />;
       case 'whatsapp':        return <WhatsAppSMS />;
       case 'google-cal':      return <GoogleCalendar />;
       case 'export':          return <ExportBackup />;
@@ -533,7 +402,7 @@ export default function AdminSettings() {
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-gray-300 text-xs font-medium uppercase tracking-wide">Admin Portal</p>
+            <p className="text-gray-300 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Settings</h1>
           </div>
         </div>

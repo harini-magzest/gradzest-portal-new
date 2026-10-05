@@ -1,5 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"/>
-  <line x1="2" y1="12" x2="22" y2="12"/>
-  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+  <text
+    x="0" y="38"
+    font-family="Inter,ui-sans-serif,system-ui,sans-serif"
+    font-weight="800" font-size="42"
+    fill="#0d1b4b">Grad</text>
+  <text
+    x="100" y="38"
+    font-family="Inter,ui-sans-serif,system-ui,sans-serif"
+    font-weight="800" font-size="42"
+    fill="#3b82f6">zest</text>
 </svg>

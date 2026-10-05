@@ -1,12 +1,13 @@
 import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useRef, useState } from 'react';
-import { User, GraduationCap, BookOpen, Upload, Edit3, Save, X, FileText, Trash2, ExternalLink, CheckCircle, AlertCircle, Plus, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { User, GraduationCap, BookOpen, Upload, Edit3, Save, X, FileText, Trash2, ExternalLink, CheckCircle, AlertCircle, Plus, ArrowUp, ArrowDown, Eye, Heart } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
-import { Student } from '../../types';
+import { Student, YesNo } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
+import NotificationPreferences from '../../components/NotificationPreferences';
 
 const EDUCATION_LEVELS = ['10th Grade', '12th Grade / Intermediate', 'Diploma', "Bachelor's Degree", "Master's Degree", 'PhD', 'Other'];
 type AcadDoc = { name: string; url: string; docId: string; docType: string };
@@ -108,6 +109,12 @@ function AcadDocUpload({ docType, onUploaded }: { docType: string; onUploaded: (
 const DOC_TYPES = ['Passport', '10th Certificate', 'Intermediate Certificate', 'Diploma Certificate', 'Degree Certificate', 'Transcript', 'English Test Certificate', 'SOP', 'LOR', 'Bank Statement', 'Other'];
 const ALL_COUNTRIES = ['Australia', 'Canada', 'France', 'Germany', 'Ireland', 'Netherlands', 'New Zealand', 'Singapore', 'United Kingdom', 'United States', 'Other'];
 const ALL_COURSES = ['Arts & Humanities', 'Business', 'Computer Science', 'Data Science', 'Engineering', 'Finance', 'Law', 'Medicine', 'MBA', 'Pharmacy', 'Psychology', 'Other'];
+
+const PREF_COURSE_LEVELS = ['Foundation', 'Diploma', "Bachelor's", 'PG Diploma', "Master's", 'PhD', 'Certificate'];
+const PREF_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const PREF_INTAKES = [0, 1, 2].flatMap(d => PREF_MONTHS.map(m => `${m} ${new Date().getFullYear() + d}`));
+const YES_NO: { value: YesNo; label: string }[] = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'not_sure', label: 'Not sure' }];
+const yesNoLabel = (v?: string) => YES_NO.find(o => o.value === v)?.label || '';
 
 function ordinal(n: number) {
   if (n === 1) return '1st'; if (n === 2) return '2nd'; if (n === 3) return '3rd'; return `${n}th`;
@@ -221,6 +228,13 @@ export default function StudentProfile() {
   const [saving, setSaving] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if ((student?.documents?.length || 0) > 0 && !(student as any)?.onboarding?.documentUploaded) {
+      api.onboarding.markStep('documentUploaded').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.documents?.length]);
   const [academicEntries, setAcademicEntries] = useState<AcademicEntry[]>(
     (student?.academicDetails || []).map((e: any) => ({ status: '', yearOfStudying: '', yearOfPassing: '', backlogs: '', attempts: '', course: '', docs: [], ...e, id: e.id || crypto.randomUUID() }))
   );
@@ -298,6 +312,17 @@ export default function StudentProfile() {
       profTestScore: s?.englishProficiencyTest?.score || '',
       profTestInstitution: s?.englishProficiencyTest?.institution || '',
       budget: s?.budget ?? '',
+      altPhone: s?.altPhone || '',
+      secondaryEmail: s?.secondaryEmail || '',
+      universityName: s?.universityName || '',
+      preferredCourseLevel: s?.preferredCourseLevel || '',
+      preferredIntake: s?.preferredIntake || '',
+      preferredUniversities: s?.preferredUniversities || '',
+      preferredCities: s?.preferredCities || '',
+      needsScholarship: (s?.needsScholarship || '') as YesNo,
+      needsLoan: (s?.needsLoan || '') as YesNo,
+      needsAccommodation: (s?.needsAccommodation || '') as YesNo,
+      preferenceNote: s?.preferenceNote || '',
       preferredCountries: (s?.preferredCountries || []) as string[],
       interestedCourses: (s?.interestedCourses || []) as string[],
     };
@@ -343,6 +368,12 @@ export default function StudentProfile() {
     { label: 'Annual Budget', filled: !!student.budget },
   ];
   const completion = Math.round((profileFields.filter(f => f.filled).length / profileFields.length) * 100);
+  useEffect(() => {
+    if (completion === 100 && !(student as any)?.onboarding?.profileComplete) {
+      api.onboarding.markStep('profileComplete').then(refreshUser).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completion]);
   const filledCount = profileFields.filter(f => f.filled).length;
   const scoreColor = completion === 100 ? 'text-green-500' : completion >= 67 ? 'text-blue-400' : completion >= 34 ? 'text-amber-300' : 'text-red-300';
   const barColor = completion === 100 ? 'bg-green-400' : completion >= 67 ? 'bg-blue-300' : completion >= 34 ? 'bg-amber-300' : 'bg-red-300';
@@ -370,6 +401,11 @@ export default function StudentProfile() {
         moi: form.englishTestType === 'Not Attempted' && form.moiInstitution ? { institution: form.moiInstitution, program: form.moiProgram, year: form.moiYear } : undefined,
         englishProficiencyTest: form.englishTestType === 'Not Attempted' && form.profTestName ? { name: form.profTestName, score: form.profTestScore, institution: form.profTestInstitution } : undefined,
         budget: form.budget !== '' ? Number(form.budget) : undefined,
+        altPhone: form.altPhone, secondaryEmail: form.secondaryEmail, universityName: form.universityName,
+        preferredCourseLevel: form.preferredCourseLevel, preferredIntake: form.preferredIntake,
+        preferredUniversities: form.preferredUniversities, preferredCities: form.preferredCities,
+        needsScholarship: form.needsScholarship, needsLoan: form.needsLoan, needsAccommodation: form.needsAccommodation,
+        preferenceNote: form.preferenceNote,
         preferredCountries: form.preferredCountries.map(c => c === 'Other' && otherCountry.trim() ? otherCountry.trim() : c),
         interestedCourses: form.interestedCourses.map(c => c === 'Other' && otherCourse.trim() ? otherCourse.trim() : c),
         academicDetails: academicEntries.map(({ id, ...rest }) => rest),
@@ -479,6 +515,22 @@ export default function StudentProfile() {
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
                 <p className="text-gray-900 font-medium">{student.email}</p>
               </div>
+              {([
+                { label: 'Alternate Phone', key: 'altPhone', type: 'tel', placeholder: 'Another number we can reach you on' },
+                { label: 'Secondary Email', key: 'secondaryEmail', type: 'email', placeholder: 'Another email address' },
+                { label: 'Current University / College', key: 'universityName', type: 'text', placeholder: 'Where you study or last studied' },
+              ] as { label: string; key: 'altPhone' | 'secondaryEmail' | 'universityName'; type: string; placeholder: string }[]).map(field => (
+                <div key={field.key}>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+                  {editing ? (
+                    <input aria-label={field.label} type={field.type} value={form[field.key]} placeholder={field.placeholder}
+                      onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  ) : (
+                    <p className="text-gray-900 font-medium break-words">{student[field.key] || '—'}</p>
+                  )}
+                </div>
+              ))}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Date of Birth</label>
                 {editing ? (
@@ -1067,6 +1119,81 @@ export default function StudentProfile() {
             </div>
           </div>
 
+          {/* 3b. My Preferences — the student's own words, shown to their counselor */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2"><Heart className="w-5 h-5 text-rose-500" /> My Preferences</h3>
+            <p className="text-sm text-gray-500 mb-5">Tell your counselor what you're looking for. They'll see this on your profile.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label htmlFor="pref-level" className="block text-xs font-medium text-gray-500 mb-1.5">Preferred Course Level</label>
+                {editing ? (
+                  <select id="pref-level" value={form.preferredCourseLevel} onChange={e => setForm(f => ({ ...f, preferredCourseLevel: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">Select</option>
+                    {form.preferredCourseLevel && !PREF_COURSE_LEVELS.includes(form.preferredCourseLevel) && <option>{form.preferredCourseLevel}</option>}
+                    {PREF_COURSE_LEVELS.map(l => <option key={l}>{l}</option>)}
+                  </select>
+                ) : <p className="text-gray-900 font-medium">{student.preferredCourseLevel || '—'}</p>}
+              </div>
+              <div>
+                <label htmlFor="pref-intake" className="block text-xs font-medium text-gray-500 mb-1.5">When do you want to start?</label>
+                {editing ? (
+                  <>
+                    <input id="pref-intake" list="pref-intakes" value={form.preferredIntake} placeholder="e.g. September 2026"
+                      onChange={e => setForm(f => ({ ...f, preferredIntake: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <datalist id="pref-intakes">{PREF_INTAKES.map(i => <option key={i} value={i} />)}</datalist>
+                  </>
+                ) : <p className="text-gray-900 font-medium">{student.preferredIntake || '—'}</p>}
+              </div>
+              {([
+                { label: 'Universities you have in mind', key: 'preferredUniversities', placeholder: 'e.g. University of Toronto, Monash' },
+                { label: 'Preferred cities', key: 'preferredCities', placeholder: 'e.g. Toronto, London, Melbourne' },
+              ] as { label: string; key: 'preferredUniversities' | 'preferredCities'; placeholder: string }[]).map(field => (
+                <div key={field.key}>
+                  <label htmlFor={`pref-${field.key}`} className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+                  {editing ? (
+                    <input id={`pref-${field.key}`} value={form[field.key]} placeholder={field.placeholder}
+                      onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  ) : <p className="text-gray-900 font-medium break-words">{student[field.key] || '—'}</p>}
+                </div>
+              ))}
+              {([
+                { label: 'Do you need a scholarship?', key: 'needsScholarship' },
+                { label: 'Do you need an education loan?', key: 'needsLoan' },
+                { label: 'Do you need help with accommodation?', key: 'needsAccommodation' },
+              ] as { label: string; key: 'needsScholarship' | 'needsLoan' | 'needsAccommodation' }[]).map(field => (
+                <div key={field.key}>
+                  <p id={`pref-${field.key}`} className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</p>
+                  {editing ? (
+                    <div role="radiogroup" aria-labelledby={`pref-${field.key}`} className="inline-flex rounded-xl border border-gray-200 overflow-hidden">
+                      {YES_NO.map(o => {
+                        const on = form[field.key] === o.value;
+                        return (
+                          <button key={o.value} type="button" role="radio" aria-checked={on}
+                            onClick={() => setForm(f => ({ ...f, [field.key]: on ? '' : o.value }))}
+                            className={`px-4 py-2 text-sm font-medium border-r border-gray-200 last:border-r-0 transition-colors ${on ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                            {o.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : <p className="text-gray-900 font-medium">{yesNoLabel(student[field.key]) || '—'}</p>}
+                </div>
+              ))}
+              <div className="md:col-span-2">
+                <label htmlFor="pref-note" className="block text-xs font-medium text-gray-500 mb-1.5">Anything else we should know?</label>
+                {editing ? (
+                  <textarea id="pref-note" rows={4} maxLength={2000} value={form.preferenceNote}
+                    onChange={e => setForm(f => ({ ...f, preferenceNote: e.target.value }))}
+                    placeholder="Your goals, career plans, family or budget constraints, a university you dream of — anything that helps us guide you."
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
+                ) : <p className="text-gray-900 whitespace-pre-wrap break-words">{student.preferenceNote || <span className="text-gray-400">Nothing added yet</span>}</p>}
+              </div>
+            </div>
+          </div>
+
           {/* 4. Work Experience */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
             <div className="flex items-center justify-between mb-5">
@@ -1501,6 +1628,7 @@ export default function StudentProfile() {
             </div>
           </div>
 
+          <NotificationPreferences />
           <ActiveSessionsPanel />
         </div>
       </div>

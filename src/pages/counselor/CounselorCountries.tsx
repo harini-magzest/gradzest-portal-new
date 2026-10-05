@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, ChevronUp, Clock, DollarSign, FileCheck2, CreditCard, Check, GraduationCap, Globe } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Clock, DollarSign, FileCheck2, CreditCard, Check, GraduationCap, Globe, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { CountryFlag } from '../../components/CountryFlag';
+import { usePortalName } from '../../hooks/usePortalName';
 
 function UniMiniCard({ uni }: { uni: any }) {
   return (
@@ -194,18 +195,24 @@ function CountryCard({ country, unis }: { country: any; unis: any[] }) {
 }
 
 export default function CounselorCountries() {
+  const { portal } = usePortalName();
   const [countries, setCountries] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const loadCountries = () => {
+    setLoading(true);
+    setLoadError('');
     Promise.all([api.countries.list(), api.universities.list()])
       .then(([c, u]) => { setCountries(c); setUniversities(u); })
-      .catch(() => {})
+      .catch(() => setLoadError('Failed to load countries.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadCountries(); }, []);
 
   const regions = [...new Set(countries.map((c: any) => c.region).filter(Boolean))].sort() as string[];
 
@@ -226,7 +233,7 @@ export default function CounselorCountries() {
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">Counselor Portal</p>
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
             <h1 className="text-2xl font-bold leading-tight">Study Destinations</h1>
           </div>
         </div>
@@ -249,6 +256,11 @@ export default function CounselorCountries() {
       {loading ? (
         <div className="flex justify-center py-16">
           <span className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : loadError ? (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCountries} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
         </div>
       ) : (
         <>

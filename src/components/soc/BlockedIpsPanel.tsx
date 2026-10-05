@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Ban, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { api } from '../../api';
+import { errorText } from './ui';
 
 interface BlockedRow { _id: string; ip: string; reason: string; expiresAt?: string | null; createdAt: string; blockedBy?: { name: string } | null }
 
@@ -18,10 +19,11 @@ export default function BlockedIpsPanel() {
   const [reason, setReason] = useState('');
   const [hours, setHours] = useState(24);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [result, setResult] = useState<{ blocked: string[]; rejected: { ip: string; reason: string }[] } | null>(null);
 
   const load = useCallback(async () => {
-    try { setRows((await api.soc.blockedIps()).blockedIps || []); } catch { /* ignore */ }
+    try { setRows((await api.soc.blockedIps()).blockedIps || []); setLoadError(''); } catch (e) { setLoadError(errorText(e)); }
   }, []);
   useEffect(() => { if (open) load(); }, [open, load]);
 
@@ -69,6 +71,7 @@ export default function BlockedIpsPanel() {
               {result.rejected.map(r => <p key={r.ip} className="text-red-600"><span className="font-mono">{r.ip}</span> — {r.reason}</p>)}
             </div>
           )}
+          {loadError && <p className="text-sm text-red-600 mb-2">{loadError} <button type="button" onClick={load} className="underline font-semibold">Retry</button></p>}
           {rows.length === 0 ? <p className="text-sm text-gray-400 italic">Nothing is blocked.</p> : (
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {rows.map(r => (

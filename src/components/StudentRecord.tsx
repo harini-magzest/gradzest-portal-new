@@ -4,10 +4,14 @@ import {
   MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, Trash2, UserPlus, Video,
   AlertCircle, Download, Clock, XCircle, Plus, CheckSquare, Square, ChevronLeft,
 } from 'lucide-react';
+import { TaskStatusPill, TASK_STATUS, type TaskStatus } from './TaskProgress';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { uploadUrl } from '../utils/uploadUrl';
-import LeadStageSelect, { LEAD_STAGES, leadStageOf } from './LeadStageSelect';
+import LeadStageSelect, { PIPELINE_STAGES, leadStageOf } from './LeadStageSelect';
+import StudentNotes from './StudentNotes';
+import ApplicationTimeline from './dashboards/ApplicationTimeline';
+import DocumentChecklist from './dashboards/DocumentChecklist';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export type RecordTab = 'timeline' | 'notes' | 'messages' | 'activities' | 'emails' | 'pipelines' | 'files';
@@ -23,7 +27,7 @@ export const RECORD_TABS: { key: RecordTab; label: string }[] = [
 
 /** Item count shown as a badge next to a tab label (null = no badge). */
 export function recordTabCount(tab: string, student: any, record: any): number | null {
-  if (tab === 'notes') return student?.counselorNotes?.length || null;
+  if (tab === 'notes') return record?.notesCount || null; // notes this viewer can see (public + their private)
   if (tab === 'files') return student?.documents?.length || null;
   if (!record) return null;
   if (tab === 'activities') return ((record.tasks || []).filter((t: any) => t.status !== 'completed').length + (record.activities || []).length) || null;
@@ -146,57 +150,6 @@ function TimelinePanel({ record }: { record: any }) {
               );
             })}
           </ol>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Notes ────────────────────────────────────────────────────────────────────
-function NotesPanel({ student, canEdit, onStudentChange }: { student: any; canEdit: boolean; onStudentChange: (s: any) => void }) {
-  const { user } = useAuth();
-  const [text, setText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const notes = [...(student.counselorNotes || [])].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
-  const add = async () => {
-    if (!text.trim()) return;
-    setSaving(true); setError('');
-    try { onStudentChange(await api.students.addNote(sid(student), text.trim())); setText(''); }
-    catch (err: any) { setError(err.message || 'Could not save note.'); }
-    finally { setSaving(false); }
-  };
-  const remove = async (noteId: string) => {
-    if (!window.confirm('Delete this note?')) return;
-    try { onStudentChange(await api.students.deleteNote(sid(student), noteId)); } catch {}
-  };
-
-  return (
-    <div className="space-y-4">
-      {canEdit && (
-        <div className="space-y-2">
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={3} placeholder="Add a note…" className={`${inputCls} resize-none`} />
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <div className="flex justify-end">
-            <button type="button" onClick={add} disabled={saving || !text.trim()} className={btnPrimary}>
-              {saving ? <Spinner /> : <StickyNote className="w-4 h-4" />} Add note
-            </button>
-          </div>
-        </div>
-      )}
-      {notes.length === 0 ? <Empty icon={StickyNote} text="No notes yet." /> : notes.map((n: any) => (
-        <div key={n._id || n.id} className="border border-amber-100 bg-amber-50/50 rounded-xl p-4">
-          <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{n.text}</p>
-          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-            <span className="font-medium text-gray-700">{n.counselorName || 'Staff'}</span>
-            {n.createdAt && <span>· {fmtDate(n.createdAt)} {fmtTime(n.createdAt)}</span>}
-            {canEdit && (user?.role === 'admin' || String(n.counselorId) === String(user?.id)) && (
-              <button type="button" onClick={() => remove(n._id || n.id)} aria-label="Delete note" className="ml-auto p-1 text-gray-400 hover:text-red-600">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
       ))}
     </div>
@@ -394,9 +347,9 @@ function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<voi
                 </td>
                 <td className={`px-3 py-3 whitespace-nowrap ${overdue ? 'text-red-600 font-medium' : ''}`}>{t.dueDate ? fmtDate(`${t.dueDate}T00:00`) : '—'}</td>
                 <td className="px-3 py-3 whitespace-nowrap">
-                  <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${done ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {done ? 'Completed' : overdue ? 'Overdue' : 'Open'}
-                  </span>
+                  {overdue
+                    ? <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">Overdue · {TASK_STATUS[t.status as TaskStatus]?.label || 'Pending'}</span>
+                    : <TaskStatusPill status={t.status} />}
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap">{t.assignedToName || '—'}</td>
                 <td className="px-3 py-3 max-w-[16rem]"><p className="truncate" title={t.description}>{t.description || '—'}</p></td>
@@ -585,7 +538,7 @@ function Stepper({ steps, current, failed }: { steps: { key: string; label: stri
 }
 
 function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEdit: boolean; onLeadStage: (stage: string) => Promise<unknown> }) {
-  const stageIdx = LEAD_STAGES.findIndex(s => s.value === leadStageOf(student).value);
+  const stageIdx = PIPELINE_STAGES.findIndex(s => s.value === leadStageOf(student).value);
   const apps = student.applications || [];
   return (
     <div className="space-y-6">
@@ -594,7 +547,7 @@ function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEd
           <h4 className="text-sm font-semibold text-gray-900">Lead pipeline</h4>
           <LeadStageSelect value={student.leadStage} editable={canEdit} onSave={onLeadStage} />
         </div>
-        <Stepper steps={LEAD_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
+        <Stepper steps={PIPELINE_STAGES.map(s => ({ key: s.value, label: s.label }))} current={stageIdx} />
       </section>
       <section>
         <h4 className="text-sm font-semibold text-gray-900 mb-3">Applications ({apps.length})</h4>
@@ -625,6 +578,17 @@ function PipelinesPanel({ student, canEdit, onLeadStage }: { student: any; canEd
 
 // ── Files ────────────────────────────────────────────────────────────────────
 function FilesPanel({ student }: { student: any }) {
+  const id = String(student._id || student.id || '');
+  return (
+    <div className="space-y-5">
+      {id && <ApplicationTimeline studentId={id} />}
+      {id && <DocumentChecklist studentId={id} />}
+      <FilesList student={student} />
+    </div>
+  );
+}
+
+function FilesList({ student }: { student: any }) {
   const docs = student.documents || [];
   if (!docs.length) return <Empty icon={FileText} text="No documents yet." />;
   const badge: Record<string, string> = { verified: 'bg-green-50 text-green-700', rejected: 'bg-red-50 text-red-700', pending: 'bg-amber-50 text-amber-700' };
@@ -664,7 +628,7 @@ export function StudentRecordPanel({ tab, loading, error, ...p }: RecordProps & 
     p.onStudentChange({ ...p.student, leadStage: u.leadStage });
     p.reload();
   };
-  if (tab === 'notes') return <NotesPanel student={p.student} canEdit={p.canEdit} onStudentChange={s => { p.onStudentChange(s); p.reload(); }} />;
+  if (tab === 'notes') return <StudentNotes studentId={sid(p.student)} canAdd={p.canEdit} onChange={p.reload} />;
   if (tab === 'pipelines') return <PipelinesPanel student={p.student} canEdit={p.canEdit} onLeadStage={onLeadStage} />;
   if (tab === 'files') return <FilesPanel student={p.student} />;
   if (error) return <p className="text-sm text-red-600 flex items-center gap-1.5 py-6"><AlertCircle className="w-4 h-4" />{error}</p>;

@@ -10,7 +10,17 @@ export const LEAD_STAGES = [
   { value: 'visa_process',  label: 'Visa Process',  className: 'bg-orange-100 text-orange-700 border-orange-200' },
   { value: 'visa_approved', label: 'Visa Approved', className: 'bg-teal-100 text-teal-700 border-teal-200' },
   { value: 'enrolment',     label: 'Enrolment',     className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { value: 'future_lead',   label: 'Future Lead',   className: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  { value: 'other_agent',   label: 'Other Agent',   className: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200' },
+  { value: 'dropped_plans', label: 'Dropped Plans', className: 'bg-red-100 text-red-700 border-red-200' },
+  { value: 'test_prep',     label: 'Test Prep',     className: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { value: 'dnd',           label: 'DND',           className: 'bg-rose-100 text-rose-700 border-rose-200' },
+  { value: 'not_responding',label: 'Not Responding',className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  { value: 'other',         label: 'Other',         className: 'bg-gray-100 text-gray-700 border-gray-200' },
 ] as const;
+
+/** The forward-moving stages shown as the pipeline stepper; the rest (DND, Dropped Plans, …) are side outcomes. */
+export const PIPELINE_STAGES = LEAD_STAGES.slice(0, 8);
 
 export const leadStageOf = (student: any) =>
   LEAD_STAGES.find(s => s.value === student?.leadStage) ?? LEAD_STAGES[0];
@@ -66,12 +76,14 @@ export default function LeadStageSelect({ value, onSave, editable = true, size =
       if (!listRef.current?.contains(t) && !triggerRef.current?.contains(t)) setOpen(false);
     };
     const close = () => setOpen(false);
+    // Scrolling the option list itself must not close it
+    const onScroll = (e: Event) => { if (!listRef.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', onDown);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', close);
     return () => {
       document.removeEventListener('mousedown', onDown);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', close);
     };
   }, [open]);

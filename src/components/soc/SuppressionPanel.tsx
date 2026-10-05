@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BellOff, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
+import { errorText } from './ui';
 import { TYPE_LABEL } from './incidentShared';
 
 interface Suppression {
@@ -27,7 +28,7 @@ export default function SuppressionPanel() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    try { setRules((await api.soc.suppressions()).suppressions || []); } catch { /* ignore */ }
+    try { setRules((await api.soc.suppressions()).suppressions || []); setError(''); } catch (e) { setError(errorText(e)); }
   }, []);
   useEffect(() => { if (open) load(); }, [open, load]);
 
