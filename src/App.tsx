@@ -5,6 +5,7 @@ import { CallProvider } from './context/CallContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
@@ -46,6 +47,7 @@ const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'))
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
 const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
+const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
@@ -134,6 +136,7 @@ function PageSpinner() {
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <ToastProvider>
     <AuthProvider>
       <CallProvider>
@@ -182,6 +185,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<StudentMeetings />} />
               <Route path="events" element={<StudentEvents />} />
+              <Route path="shortlist" element={<StudentShortlist />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
@@ -265,6 +269,7 @@ export default function App() {
       </CallProvider>
     </AuthProvider>
     </ToastProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }

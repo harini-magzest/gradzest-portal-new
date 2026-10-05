@@ -2,6 +2,7 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
+import SkipLink from '../../components/SkipLink';
 
 // Deliberately separate from AdminLayout — its own route tree at /soc, not
 // nested under /admin and not listed in the admin sidebar. Also does NOT
@@ -25,6 +26,7 @@ export default function SOCLayout() {
 
   return (
     <div className="min-h-screen bg-gray-950">
+      <SkipLink />
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -46,7 +48,7 @@ export default function SOCLayout() {
           </div>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto p-6">
+      <main id="main-content" tabIndex={-1} className="max-w-6xl mx-auto p-6">
         <Outlet />
       </main>
     </div>

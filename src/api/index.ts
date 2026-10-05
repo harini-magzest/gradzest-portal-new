@@ -92,6 +92,18 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   return res.json();
 }
 
+export interface ShortlistData {
+  courses: {
+    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
+    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
+    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
+    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
+  }[];
+  cheapest: string | null;
+  bestRanked: string | null;
+  max: number;
+}
+
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
@@ -177,6 +189,13 @@ export const api = {
     myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
     checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
+    nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
+    dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
+    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
+    addToShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
+    removeFromShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
     timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
@@ -732,6 +751,10 @@ export const api = {
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
+    addToKnowledge: (question: string, answer: string) =>
+      req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
+    draftReply: (roomId: string) =>
+      req<{ draft: string }>('/zest/draft-reply', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {

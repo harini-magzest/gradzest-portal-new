@@ -37,7 +37,7 @@ function Tag({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="inline-flex items-center gap-1 bg-sky-50 text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-100">
       {label}
-      <button type="button" onClick={onRemove} className="text-blue-400 hover:text-blue-700 ml-0.5"><X className="w-3 h-3" /></button>
+      <button aria-label="Close" type="button" onClick={onRemove} className="text-blue-400 hover:text-blue-700 ml-0.5"><X className="w-3 h-3" /></button>
     </span>
   );
 }
