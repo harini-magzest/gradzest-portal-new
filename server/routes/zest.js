@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const User = require('../models/User');
 const KnowledgeDocument = require('../models/KnowledgeDocument');
@@ -134,12 +135,12 @@ async function answerQuestion(req, question, history, onText) {
     reportFailure(err, req, onText ? '/api/zest/ask-stream' : '/api/zest/ask');
     const fallback = knowledgeBaseFallback(matches);
     if (!fallback) throw new ZestUnavailable(err.message);
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [] });
-    return { answer: fallback, sources, degraded: true };
+    const log = await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [], degraded: true });
+    return { answer: fallback, sources, degraded: true, logId: String(log._id) };
   }
 
-  await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-  return { answer, sources };
+  const log = await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
+  return { answer, sources, logId: String(log._id) };
 }
 
 router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
@@ -171,8 +172,8 @@ router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
   const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 
   try {
-    const { answer, sources, degraded } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
-    send({ type: 'done', answer, sources, ...(degraded ? { degraded } : {}) });
+    const { answer, sources, degraded, logId } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    send({ type: 'done', answer, sources, logId, ...(degraded ? { degraded } : {}) });
   } catch (err) {
     if (!(err instanceof ZestUnavailable)) console.error('[zest/ask-stream]', err.message);
     send({ type: 'error', message: err instanceof ZestUnavailable ? UNAVAILABLE : 'Zest could not answer right now. Please try again.' });
@@ -214,17 +215,69 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
       reportFailure(err, req, '/api/zest/ask-with-file');
       return res.status(503).json({ message: UNAVAILABLE });
     }
-    await ZestQueryLog.create({
+    const log = await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
       question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
     });
-    res.json({ answer, sources: [] });
+    res.json({ answer, sources: [], logId: String(log._id) });
   } catch (err) {
     console.error('[zest/ask-with-file]', err.message);
     res.status(502).json({ message: 'Zest could not answer right now. Please try again.' });
   } finally {
     fs.unlink(req.file.path, () => {});
   }
+});
+
+/* ── Answer feedback + analytics ─────────────────────────────────────────── */
+
+// The person who was answered rates that answer. Only their own log row can be rated, and re-rating replaces
+// the earlier rating, so a mis-click can be corrected.
+router.post('/feedback', authMiddleware, async (req, res) => {
+  const { logId, rating } = req.body || {};
+  if (!mongoose.isValidObjectId(logId)) return res.status(400).json({ message: 'logId is required' });
+  if (rating !== 'up' && rating !== 'down') return res.status(400).json({ message: "rating must be 'up' or 'down'" });
+  const comment = typeof req.body.comment === 'string' ? req.body.comment.trim().slice(0, 500) : '';
+  const updated = await ZestQueryLog.findOneAndUpdate(
+    { _id: logId, userId: req.user.id },
+    { $set: { 'feedback.rating': rating, 'feedback.comment': comment, 'feedback.at': new Date() } },
+    { new: true },
+  ).select('_id');
+  if (!updated) return res.status(404).json({ message: 'Answer not found' });
+  res.json({ ok: true });
+});
+
+const normaliseQuestion = (q) => q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+
+// What to improve in the knowledge base: how often answers were rated up/down, the questions that matched no
+// knowledge-base document and used no live-data tool (Zest had nothing to ground them in), and the most recent
+// thumbs-down answers. Question text is encrypted at rest, so grouping happens here after decryption.
+router.get('/analytics', authMiddleware, adminOnly, async (req, res) => {
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
+  const since = new Date(Date.now() - days * 86400000);
+  const logs = await ZestQueryLog.find({ createdAt: { $gte: since } })
+    .select('question answer sourceDocIds toolsUsed degraded feedback createdAt')
+    .sort({ createdAt: -1 }).limit(3000).lean();
+
+  let up = 0, down = 0;
+  const groups = new Map();
+  const downvoted = [];
+  for (const l of logs) {
+    if (l.feedback?.rating === 'up') up++;
+    if (l.feedback?.rating === 'down') {
+      down++;
+      if (downvoted.length < 20) downvoted.push({ id: String(l._id), question: l.question, answer: l.answer, comment: l.feedback.comment || '', at: l.feedback.at || l.createdAt });
+    }
+    const ungrounded = !(l.sourceDocIds || []).length && !(l.toolsUsed || []).length;
+    if (!ungrounded || l.question.startsWith('[attached:')) continue;
+    const key = normaliseQuestion(l.question);
+    if (!key) continue;
+    const g = groups.get(key) || { question: l.question, count: 0, lastAsked: l.createdAt };
+    g.count++;
+    groups.set(key, g);
+  }
+  const unanswered = [...groups.values()].sort((a, b) => b.count - a.count || new Date(b.lastAsked) - new Date(a.lastAsked)).slice(0, 15);
+
+  res.json({ days, total: logs.length, rated: up + down, up, down, unanswered, downvoted });
 });
 
 /* ── Daily lead alerts (admin only) ──────────────────────────────────────── */

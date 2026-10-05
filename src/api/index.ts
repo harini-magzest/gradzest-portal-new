@@ -174,6 +174,10 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
+    checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
+    myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
+    timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ subject, body }),
@@ -575,6 +579,7 @@ export const api = {
     teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
     funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
     trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
+    leadScores: () => req<{ leads: { studentId: string; name: string; email: string; leadStage: string; score: number; band: 'hot' | 'warm' | 'cool' | 'cold'; reasons: { text: string; points: number }[] }[]; bands: { hot: number; warm: number; cool: number; cold: number }; total: number }>('/dashboards/leads/scores', { headers: authHeaders() }),
     search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 
@@ -585,7 +590,7 @@ export const api = {
 
   zest: {
     ask: (question: string, history?: { role: 'user' | 'assistant'; text: string }[]) =>
-      req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
+      req<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
     // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
@@ -593,7 +598,7 @@ export const api = {
       question: string,
       history: { role: 'user' | 'assistant'; text: string }[] | undefined,
       onDelta: (text: string) => void,
-    ): Promise<{ answer: string; sources: { documentId: string; title: string }[] }> => {
+    ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
       const res = await fetch(`${BASE}/zest/ask-stream`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -606,7 +611,7 @@ export const api = {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let final: { answer: string; sources: { documentId: string; title: string }[] } | null = null;
+      let final: { answer: string; sources: { documentId: string; title: string }[]; logId?: string } | null = null;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -618,7 +623,7 @@ export const api = {
           if (!line.startsWith('data:')) continue;
           const event = JSON.parse(line.slice(5));
           if (event.type === 'delta') onDelta(event.text);
-          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources };
+          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources, logId: event.logId };
           else if (event.type === 'error') throw new Error(event.message);
         }
       }
@@ -631,8 +636,11 @@ export const api = {
       fd.append('file', file);
       fd.append('question', question);
       if (history) fd.append('history', JSON.stringify(history));
-      return upload<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask-with-file', fd);
+      return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
+    feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
+      req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
+    analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {

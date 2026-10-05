@@ -5,6 +5,8 @@ const LeadAlert = require('../models/LeadAlert');
 const authMiddleware = require('../middleware/auth');
 const { LEAD_STAGES } = require('../lib/automation');
 const { daysSinceStageChange } = require('../lib/leadRisk');
+const { scoreLead } = require('../lib/leadScore');
+const Meeting = require('../models/Meeting');
 
 const router = express.Router();
 
@@ -145,6 +147,45 @@ router.get('/search', authMiddleware, async (req, res) => {
   };
   const students = await User.find(filter).select('name email phone leadStage').limit(10).lean();
   res.json({ students: students.map(s => ({ id: String(s._id), name: s.name, email: s.email || '', phone: s.phone || '', leadStage: s.leadStage || 'new_enquiry' })) });
+});
+
+/* ── Lead scores: who to call first (admin: everyone; counselor: their own students) ─────────── */
+
+router.get('/leads/scores', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
+  const filter = { role: 'student', ...(req.user.role === 'counselor' ? { counselorId: String(req.user.id) } : {}) };
+  const students = await User.find(filter)
+    .select('name email phone leadStage leadStageChangedAt createdAt applications documents preferredCountries budget educationLevel gpa englishScore sessions counselorId')
+    .lean();
+
+  const ids = students.map(s => String(s._id));
+  const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const meetings = ids.length
+    ? await Meeting.find({ 'participants.userId': { $in: ids }, scheduledDate: { $gte: since }, status: { $ne: 'cancelled' } }).select('participants').lean()
+    : [];
+  const idSet = new Set(ids);
+  const meetingCount = new Map();
+  for (const m of meetings) {
+    for (const p of m.participants || []) {
+      if (idSet.has(String(p.userId))) meetingCount.set(String(p.userId), (meetingCount.get(String(p.userId)) || 0) + 1);
+    }
+  }
+
+  const scored = students
+    .map(s => ({ s, result: scoreLead(s, { meetingsLast30d: meetingCount.get(String(s._id)) || 0 }) }))
+    .filter(x => x.result.band !== 'closed');
+  const bands = { hot: 0, warm: 0, cool: 0, cold: 0 };
+  scored.forEach(x => { bands[x.result.band]++; });
+
+  const leads = scored
+    .sort((a, b) => b.result.score - a.result.score)
+    .slice(0, 25)
+    .map(({ s, result }) => ({
+      studentId: String(s._id), name: s.name, email: s.email || '', leadStage: s.leadStage || 'new_enquiry',
+      score: result.score, band: result.band, reasons: result.reasons,
+    }));
+
+  res.json({ leads, bands, total: scored.length });
 });
 
 module.exports = router;

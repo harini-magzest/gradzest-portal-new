@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
 import { api } from '../../api';
 import { useNotifications } from '../../context/NotificationContext';
+import ZestInsights from '../../components/zest/ZestInsights';
 
 interface KbDocument {
   _id: string;
@@ -163,6 +164,8 @@ export default function AdminZest() {
           </div>
         )}
       </div>
+
+      <ZestInsights />
 
       {/* Daily lead alerts */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">

@@ -10,6 +10,10 @@ import StatusBadge from '../../components/StatusBadge';
 import ActivityFeed from '../../components/ActivityFeed';
 import MeetingPanel from '../../components/MeetingPanel';
 import { usePortalName } from '../../hooks/usePortalName';
+import TeamWorkload from '../../components/dashboards/TeamWorkload';
+import Funnel from '../../components/dashboards/Funnel';
+import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
+import LeadScores from '../../components/dashboards/LeadScores';
 
 const SPECIALIZATIONS = [
   'UK Universities', 'Canada Universities', 'Australia Universities',
@@ -980,6 +984,7 @@ export default function AdminDashboard() {
           <Funnel />
         </div>
         <WeeklyTrends />
+        <LeadScores studentsPath="/admin/students" />
 
         {/* Tab bar */}
         {!loading && (
