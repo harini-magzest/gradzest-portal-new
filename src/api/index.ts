@@ -154,6 +154,7 @@ export const api = {
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
+    compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
     autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
@@ -186,6 +187,8 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    bulk: (data: { ids: string[]; action: 'set_stage' | 'add_tag' | 'create_task' | 'reassign'; value: unknown }) =>
+      req<{ action: string; requested: number; updated: number; unchanged: number; skipped: { id: string; name: string; reason: string }[] }>('/students/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
     checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
@@ -309,6 +312,12 @@ export const api = {
     uploadDocument: (formData: FormData) => upload<any>('/counselors/me/documents', formData),
     deleteDocument: (docId: string) =>
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  shortlist: {
+    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
+    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
+    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   parentLinks: {
@@ -748,6 +757,8 @@ export const api = {
       if (history) fd.append('history', JSON.stringify(history));
       return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
+    followupDraft: (studentId: string, channel: 'email' | 'whatsapp') =>
+      req<{ subject: string; body: string; channel: 'email' | 'whatsapp'; source: 'ai' | 'template'; studentName: string; email: string; phone: string; daysIdle: number }>('/zest/followup-draft', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId, channel }) }),
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),

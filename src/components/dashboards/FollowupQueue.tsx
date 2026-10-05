@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ListChecks, AlertTriangle } from 'lucide-react';
 import { api } from '../../api';
+import FollowupDraftModal from './FollowupDraftModal';
 
 type Data = Awaited<ReturnType<typeof api.dashboards.counselorFollowups>>;
 
@@ -10,6 +11,7 @@ type Data = Awaited<ReturnType<typeof api.dashboards.counselorFollowups>>;
 export default function FollowupQueue() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
+  const [drafting, setDrafting] = useState<{ studentId: string; name: string } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -37,7 +39,7 @@ export default function FollowupQueue() {
             <p className="text-xs font-medium text-gray-500 mb-2">Stalled for {data.staleDays}+ days</p>
             <ul className="space-y-1.5 text-sm">
               {data.stale.slice(0, 8).map(s => (
-                <li key={s.studentId}><Link className="text-blue-700 hover:underline" to={`/counselor/students?lead=${s.studentId}`}>{s.name}</Link> <span className="text-gray-400">· {s.days}d</span></li>
+                <li key={s.studentId}><Link className="text-blue-700 hover:underline" to={`/counselor/students?lead=${s.studentId}`}>{s.name}</Link> <span className="text-gray-400">· {s.days}d</span> <button type="button" onClick={() => setDrafting({ studentId: s.studentId, name: s.name })} className="ml-1 text-xs text-blue-700 hover:underline">Draft message</button></li>
               ))}
               {data.stale.length === 0 && <li className="text-gray-400">None</li>}
             </ul>
@@ -62,6 +64,7 @@ export default function FollowupQueue() {
           </div>
         </div>
       )}
+      {drafting && <FollowupDraftModal studentId={drafting.studentId} name={drafting.name} onClose={() => setDrafting(null)} />}
     </section>
   );
 }

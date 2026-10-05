@@ -17,6 +17,7 @@ import { RECORD_TABS, RecordTab, StudentRecordPanel, useStudentRecord } from '..
 import { notifyLeadsChanged } from '../../hooks/useNewLeadCount';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import BulkActionBar from '../../components/BulkActionBar';
 import { usePortalName } from '../../hooks/usePortalName';
 import { useToast } from '../../context/ToastContext';
 import { exportRowsToCsv } from '../../utils/exportCsv';
@@ -1448,6 +1449,8 @@ export default function AdminStudents() {
             )}
           </div>
         </div>
+
+        <BulkActionBar ids={[...selectedIds]} counselors={counselors} onClear={() => setSelectedIds(new Set())} onDone={loadData} />
 
         {/* ── Table ── */}
         {loading ? (
