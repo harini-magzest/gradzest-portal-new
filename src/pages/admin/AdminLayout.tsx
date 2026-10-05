@@ -1,5 +1,5 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles } from 'lucide-react';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
@@ -9,8 +9,7 @@ import { useNewLeadCount } from '../../hooks/useNewLeadCount';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
-// appTeamHidden: the backend blocks Application Team accounts from Zest's admin routes, so hide the link here too.
-const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTeamHidden?: boolean }[] = [
+const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/counselors', label: 'Team', icon: UserCog },
   { to: '/admin/students', label: 'Students', icon: Users },
@@ -22,7 +21,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTe
   { to: '/admin/meetings', label: 'Meetings', icon: Video },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
-  { to: '/admin/zest', label: 'Zest', icon: Sparkles, appTeamHidden: true },
+  { to: '/admin/zest', label: 'Zest', icon: Sparkles },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
@@ -44,9 +43,7 @@ export default function AdminLayout() {
   if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
   if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
-  const visibleItems = navItems.filter(item => !(item.appTeamHidden && user?.isAppTeam));
-
-  const sidebarItems = visibleItems.map(item => ({
+  const sidebarItems = navItems.map(item => ({
     to: item.to, label: item.label, end: item.end,
     icon: item.icon as React.ComponentType<{ className?: string }>,
     badge: item.label === 'Chat' ? unreadCount : item.label === 'Students' ? newLeads : undefined,
@@ -59,7 +56,7 @@ export default function AdminLayout() {
         <DashboardSidebar navItems={sidebarItems} />
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
-          {visibleItems.map(item => (
+          {navItems.map(item => (
             <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-purple-600' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />

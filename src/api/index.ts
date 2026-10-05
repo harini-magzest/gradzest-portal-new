@@ -588,6 +588,43 @@ export const api = {
       req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
+    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    askStream: async (
+      question: string,
+      history: { role: 'user' | 'assistant'; text: string }[] | undefined,
+      onDelta: (text: string) => void,
+    ): Promise<{ answer: string; sources: { documentId: string; title: string }[] }> => {
+      const res = await fetch(`${BASE}/zest/ask-stream`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ question, history }),
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Zest couldn't answer that right now. Please try again.");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let final: { answer: string; sources: { documentId: string; title: string }[] } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let end: number;
+        while ((end = buffer.indexOf('\n\n')) !== -1) {
+          const line = buffer.slice(0, end).trim();
+          buffer = buffer.slice(end + 2);
+          if (!line.startsWith('data:')) continue;
+          const event = JSON.parse(line.slice(5));
+          if (event.type === 'delta') onDelta(event.text);
+          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources };
+          else if (event.type === 'error') throw new Error(event.message);
+        }
+      }
+      if (!final) throw new Error('Zest stopped before finishing. Please try again.');
+      return final;
+    },
     // One-off document Q&A: file is analyzed for this question only, never added to the KB.
     askWithFile: (question: string, file: File, history?: { role: 'user' | 'assistant'; text: string }[]) => {
       const fd = new FormData();
@@ -622,8 +659,6 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    queryLogs: (params: { limit?: number; skip?: number } = {}) =>
-      req<{ logs: any[]; total: number }>(`/zest/query-logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

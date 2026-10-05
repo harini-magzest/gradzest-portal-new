@@ -120,15 +120,6 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
 });
-// Each call is a real, paid Gemini API request — the general 120/min limit is far too
-// generous for an endpoint that costs money per hit, so it gets its own tighter one.
-const zestAskLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many questions to Zest. Please wait a minute and try again.' },
-});
 
 if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/login', authLimiter);
@@ -141,12 +132,9 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
-  app.use('/api/zest/ask', zestAskLimiter);
-  app.use('/api/zest/ask-with-file', zestAskLimiter);
   app.use('/api', generalLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
   markActive('rate_limit_general', '120 req / min on /api');
-  markActive('rate_limit_zest', '20 req / min on Zest ask endpoints');
 }
 
 app.use(express.json({ limit: '2mb' }));
@@ -299,6 +287,7 @@ app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
+ app.use('/api/dashboards',    require('./routes/dashboards'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');
