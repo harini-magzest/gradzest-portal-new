@@ -295,6 +295,28 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  privacy: {
+    myRequest: () => req<{ request: { id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string } | null; hasPassword: boolean }>('/privacy/deletion-request', { headers: authHeaders() }),
+    requestDeletion: (data: { reason?: string; password?: string; confirmEmail?: string }) =>
+      req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>('/privacy/deletion-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    cancelRequest: () => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>('/privacy/deletion-request', { method: 'DELETE', headers: authHeaders() }),
+    adminList: () => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }[]>('/privacy/deletion-requests', { headers: authHeaders() }),
+    complete: (id: string, note?: string) => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>(`/privacy/deletion-requests/${id}/complete`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm: true, note }) }),
+    decline: (id: string, note: string) => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>(`/privacy/deletion-requests/${id}/decline`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ note }) }),
+    downloadExport: async () => {
+      const res = await fetch(`${BASE}/privacy/export`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-gradzest-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  },
+
   shortlist: {
     list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
     add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),

@@ -47,6 +47,7 @@ const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
 const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
 const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
+const AdminPrivacy        = lazy(() => import('./pages/admin/AdminPrivacy'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
@@ -219,6 +220,7 @@ export default function App() {
               <Route path="live-feed" element={<AdminActivityFeed />} />
               <Route path="meetings" element={<AdminMeetings />} />
               <Route path="events" element={<StaffEvents />} />
+              <Route path="privacy" element={<AdminPrivacy />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />

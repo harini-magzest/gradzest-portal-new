@@ -196,6 +196,8 @@ const UserSchema = new mongoose.Schema({
   profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', default: null },
   // Staff: deactivated users cannot log in
   active: { type: Boolean, default: true },
+  // Set when the student's personal data was erased at their request (see lib/studentData.js)
+  deletedAt: Date,
   // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
   smartfloAgent: { type: String, default: '' },
   avatar: String,
