@@ -29,6 +29,7 @@ const { initAutomation, seedStarterTemplates } = require('./lib/automation');
 const { startAutomationScheduler } = require('./jobs/automationScheduler');
 const { startMeetingReminders } = require('./jobs/meetingReminders');
 const { startEventReminders } = require('./jobs/eventReminders');
+const { startCounselorDailyBrief } = require('./jobs/counselorDailyBrief');
 const { startTaskReminders } = require('./jobs/taskReminders');
 const { startApplicationFollowups } = require('./jobs/applicationFollowups');
 const { startChatEscalation } = require('./jobs/chatEscalation');
@@ -50,6 +51,7 @@ connectDB().then(async () => {
   startAutomationScheduler();
   startMeetingReminders(io, userSockets, mailer);
   startEventReminders(io, userSockets, mailer);
+  startCounselorDailyBrief(io, userSockets);
   startTaskReminders(io, userSockets);
   startApplicationFollowups(io, userSockets);
   startChatEscalation(io, userSockets);

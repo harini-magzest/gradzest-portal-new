@@ -17,6 +17,8 @@ const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { retrieveChunks } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
+const ChatRoom = require('../models/ChatRoom');
+const zestDraft = require('../lib/zestDraft');
 
 const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
 const UNAVAILABLE = "Zest's AI is unavailable right now. Please try again later.";
@@ -235,6 +237,48 @@ router.post('/feedback', authMiddleware, async (req, res) => {
   ).select('_id');
   if (!updated) return res.status(404).json({ message: 'Answer not found' });
   res.json({ ok: true });
+});
+
+// Admin turns a weak answer, or a question Zest had nothing to ground, into knowledge: the question and the corrected
+// answer become a small knowledge-base entry that retrieval can find next time. No file is stored for these.
+router.post('/documents/from-answer', authMiddleware, adminOnly, async (req, res) => {
+  const question = typeof req.body?.question === 'string' ? req.body.question.trim().slice(0, 1000) : '';
+  const answer = typeof req.body?.answer === 'string' ? req.body.answer.trim().slice(0, 4000) : '';
+  if (!question || !answer) return res.status(400).json({ message: 'question and answer are required' });
+  const title = (typeof req.body.title === 'string' && req.body.title.trim() ? req.body.title.trim() : question).slice(0, 120);
+
+  const chunks = chunkText(`Question: ${question}\n\nAnswer: ${answer}`);
+  const doc = await KnowledgeDocument.create({
+    title, originalFilename: '', storagePath: 'manual-entry', uploadedBy: req.user.id, mimeType: 'text/plain',
+    fileSize: question.length + answer.length, status: 'ready', chunkCount: chunks.length,
+  });
+  await KnowledgeChunk.insertMany(chunks.map((text, order) => ({ documentId: doc._id, documentTitle: doc.title, text, order })));
+  res.status(201).json(doc.toObject());
+});
+
+// Staff only: Zest suggests a reply to the student's latest message in one of the staff member's own chats. It
+// only drafts; the staff member edits and sends it, so nothing reaches the student without a person approving it.
+router.post('/draft-reply', authMiddleware, askLimiter, async (req, res) => {
+  if (req.user.role !== 'counselor' && req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+  const { roomId } = req.body || {};
+  if (!mongoose.isValidObjectId(roomId)) return res.status(400).json({ message: 'roomId is required' });
+  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
+
+  const room = await ChatRoom.findOne({ _id: roomId, participants: String(req.user.id) });
+  if (!room) return res.status(404).json({ message: 'Chat not found' });
+
+  const lines = zestDraft.recentTranscript(room.messages);
+  if (!zestDraft.needsReply(lines)) return res.status(400).json({ message: 'There is no new student message to reply to.' });
+
+  try {
+    const { text } = await askZest(zestDraft.DRAFT_INSTRUCTION, [], [], req.user.role, zestDraft.transcriptText(lines), await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
+    const draft = String(text || '').trim();
+    if (!draft) return res.status(502).json({ message: 'Zest could not write a draft. Please try again.' });
+    res.json({ draft });
+  } catch (err) {
+    console.error('[zest/draft-reply]', err.message);
+    res.status(503).json({ message: UNAVAILABLE });
+  }
 });
 
 const normaliseQuestion = (q) => q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
