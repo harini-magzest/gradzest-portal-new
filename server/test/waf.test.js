@@ -58,7 +58,7 @@ describe('WAF signature filter', () => {
     // Detection runs fire-and-forget after the response. Match THIS request's event by its
     // unique marker: the newest waf_block overall may belong to an earlier test in this file,
     // and a fixed sleep can return before this one is written.
-    const event = await waitUntil(() => SecurityEvent.findOne({ type: 'waf_block', message: /evidence-marker/ }));
+    const event = await waitUntil(() => SecurityEvent.find({ type: 'waf_block' }).then(events => events.find(e => /evidence-marker/.test(e.message))));
     expect(event).toBeTruthy();
     expect(event.meta.category).toBe('xss');
 

@@ -44,11 +44,32 @@ function toGeminiTools(role) {
 
 const MAX_TOOL_ROUNDS = 4;
 
+// Without onText this is a plain generateContent call. With it, the turn is streamed and its
+// parts are reassembled into the same shape generateContent returns, so the tool loop below is
+// identical either way.
+async function runTurn(params, onText) {
+  if (!onText) return getClient().models.generateContent(params);
+  const stream = await getClient().models.generateContentStream(params);
+  const parts = [];
+  for await (const chunk of stream) {
+    for (const part of chunk.candidates?.[0]?.content?.parts || []) {
+      parts.push(part);
+      if (typeof part.text === 'string' && !part.thought && !part.functionCall) onText(part.text);
+    }
+  }
+  const functionCalls = parts.filter(p => p.functionCall).map(p => p.functionCall);
+  return {
+    text: parts.filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join(''),
+    functionCalls: functionCalls.length ? functionCalls : undefined,
+    candidates: [{ content: { role: 'model', parts } }],
+  };
+}
+
 /**
  * Same signature and return shape as anthropicClient.js's askZest — see that file for param docs.
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
-async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, ctx = {}) {
+async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null, ctx = {}) {
   if (!isZestConfigured()) throw new Error('Zest is not configured (missing GEMINI_API_KEY)');
 
   const context = chunks.length
@@ -80,11 +101,11 @@ async function askZest(question, chunks, history = [], role = 'student', attache
 
   const generate = async () => {
     try {
-      return await withRetry(() => getClient().models.generateContent({ model, contents, config }));
+      return await withRetry(() => runTurn({ model, contents, config }, onText));
     } catch (err) {
       if (model === primaryModel && fallbackModel && fallbackModel !== primaryModel && isTransient(err)) {
         model = fallbackModel;
-        return withRetry(() => getClient().models.generateContent({ model, contents, config }));
+        return withRetry(() => runTurn({ model, contents, config }, onText));
       }
       throw err;
     }

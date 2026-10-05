@@ -16,14 +16,35 @@ const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { retrieveChunks } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
+const { notifyZestFailure } = require('../lib/zestAlert');
+
+const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ZEST_PROVIDER=ollama (free, self-hosted), ANTHROPIC_API_KEY or GEMINI_API_KEY.';
+const UNAVAILABLE = "Zest's AI is unavailable right now and the team has been notified. Please try again later.";
+
+// The model failed and there was nothing to fall back to — routes turn this into a 503
+class ZestUnavailable extends Error {}
+
+// When the AI fails, answer with the knowledge-base passages retrieval already found rather than
+// nothing — plain text, since the chat widget renders answers as-is.
+function knowledgeBaseFallback(matches) {
+  if (!matches.length) return null;
+  const passages = matches.slice(0, 3).map(m => {
+    const text = m.text.trim();
+    return `From "${m.documentTitle}":\n${text.length > 600 ? `${text.slice(0, 600).trimEnd()}…` : text}`;
+  });
+  return `Zest's AI is unavailable right now, so here is what Gradzest's knowledge base says:\n\n${passages.join('\n\n')}`;
+}
+
+// Stop on the first failure (no retry), email the team, and say which route/role hit it — never the question
+function reportFailure(err, req, route) {
+  notifyZestFailure({ kind: err.kind || 'error', message: err.message }, { route, role: req.user.role });
+}
 
 const router = express.Router();
 
 // Per-user cap (see lib/zestLimiter.js). Off in the test env, like the other limiters, so tests can ask freely;
 // the limiter itself has its own test.
 const askLimiter = process.env.NODE_ENV === 'test' ? (_req, _res, next) => next() : createZestLimiter();
-
-const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.';
 
 // The signed token carries id/role/email but not the name; Zest uses the name to address the person.
 async function callerFor(req) {
@@ -98,26 +119,36 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
 
 /* ── Chat (any authenticated role) ───────────────────────────────────────── */
 
+async function answerQuestion(req, question, history, onText) {
+  const matches = await retrieveChunks(question, history);
+
+  const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
+  const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
+
+  let answer, toolsUsed;
+  try {
+    ({ text: answer, toolsUsed } = await askZest(
+      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req), onText, { ip: req.ip, io: req.app.get('io') },
+    ));
+  } catch (err) {
+    reportFailure(err, req, onText ? '/api/zest/ask-stream' : '/api/zest/ask');
+    const fallback = knowledgeBaseFallback(matches);
+    if (!fallback) throw new ZestUnavailable(err.message);
+    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [] });
+    return { answer: fallback, sources, degraded: true };
+  }
+
+  await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
+  return { answer, sources };
+}
+
 router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
 
-  const history = sanitizeHistory(req.body.history);
-
   try {
-    const matches = await retrieveChunks(question, history);
-
-    const { text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req),
-      { ip: req.ip, io: req.app.get('io') },
-    );
-    const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
-
-    await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-
-    const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
-    res.json({ answer, sources });
+    res.json(await answerQuestion(req, question, sanitizeHistory(req.body.history)));
   } catch (err) {
     if (err instanceof ZestUnavailable) return res.status(503).json({ message: UNAVAILABLE });
     console.error('[zest/ask]', err.message);
@@ -128,7 +159,7 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
 // Same answer as /ask, delivered as server-sent events so the first words appear while the rest
 // is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
 // or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
-router.post('/ask-stream', authMiddleware, async (req, res) => {
+router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
@@ -176,7 +207,13 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    const { text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), { ip: req.ip, io: req.app.get('io') });
+    let answer, toolsUsed;
+    try {
+      ({ text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') }));
+    } catch (err) {
+      reportFailure(err, req, '/api/zest/ask-with-file');
+      return res.status(503).json({ message: UNAVAILABLE });
+    }
     await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
       question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,

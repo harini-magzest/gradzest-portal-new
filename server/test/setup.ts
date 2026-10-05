@@ -16,6 +16,11 @@ process.env.DATA_ENCRYPTION_KEY = 'a'.repeat(64);
 process.env.ANTHROPIC_API_KEY = '';
 process.env.GEMINI_API_KEY = '';
 process.env.ZEST_RETRY_BASE_MS = '1'; // retries are exercised in tests; don't make them wait
+// app.js loads the developer's server/.env, and dotenv never overrides a variable that is already
+// set — so pin these empty. Otherwise a local ZEST_PROVIDER=ollama would reroute the Anthropic
+// tests to a real Ollama, and a local ZEST_ALERT_EMAILS would let a test send a real alert email.
+process.env.ZEST_PROVIDER = '';
+process.env.ZEST_ALERT_EMAILS = '';
 
 let mongod: MongoMemoryServer;
 

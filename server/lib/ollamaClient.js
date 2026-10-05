@@ -19,7 +19,7 @@ function isZestConfigured() {
  * The answer is generated in one piece, so a streaming caller receives it as a single delta.
  * @returns {Promise<{ text: string, toolsUsed: string[] }>}
  */
-async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null) {
+async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null, ctx = {}) {
   if (!isZestConfigured()) throw new Error('Zest is not configured for Ollama (set ZEST_PROVIDER=ollama)');
 
   const context = chunks.length
@@ -35,7 +35,7 @@ async function askZest(question, chunks, history = [], role = 'student', attache
 
   const result = await askOllama(
     { system: buildSystemPrompt(role), messages, tools: getToolsForRole(role), maxTokens: 800, maxToolRounds: MAX_TOOL_ROUNDS },
-    (name, input) => executeTool(name, input, user),
+    (name, input) => executeTool(name, input, user, ctx),
   );
   if (onText) onText(result.text);
   return result;
