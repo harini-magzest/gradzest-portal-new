@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
