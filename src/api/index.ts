@@ -47,8 +47,23 @@ export interface StudentNote {
   createdAt?: string; updatedAt?: string;
 }
 
+// Skyload caps in-flight requests per IP, and a dashboard load can briefly exceed it. Those 429s say "concurrent"
+// and only mean "try again in a moment", so reads wait and retry instead of failing; other 429s (real rate limits) don't.
+const CONCURRENCY_RETRY_DELAYS = [300, 800, 1500];
+
+async function fetchWithConcurrencyRetry(input: string, init: RequestInit): Promise<Response> {
+  const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status !== 429 || !isRead || attempt >= CONCURRENCY_RETRY_DELAYS.length) return res;
+    const body = await res.clone().json().catch(() => null);
+    if (!/concurrent/i.test(body?.message || '')) return res;
+    await new Promise(r => setTimeout(r, CONCURRENCY_RETRY_DELAYS[attempt] + Math.random() * 200));
+  }
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
+  const res = await fetchWithConcurrencyRetry(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
