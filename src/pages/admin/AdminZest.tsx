@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import ZestIcon from '../../components/zest/ZestIcon';
-import { Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Trash2, Pencil, Download, CheckCircle2, AlertTriangle, Clock, RefreshCw, X, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
 import { useNotifications } from '../../context/NotificationContext';
-import ZestInsights from '../../components/zest/ZestInsights';
+
+interface QueryLogRow {
+  id: string; question: string; answer: string; userRole: string;
+  userName: string; userEmail: string; sourceDocCount: number; createdAt: string;
+}
 
 interface KbDocument {
   _id: string;
@@ -44,18 +47,43 @@ export default function AdminZest() {
   const [alerts, setAlerts] = useState<LeadAlertRow[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
+  const [docsError, setDocsError] = useState('');
+  const [alertsError, setAlertsError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { notifications } = useNotifications();
 
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logs, setLogs] = useState<QueryLogRow[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logsError, setLogsError] = useState('');
+
+  const loadLogs = async () => {
+    setLoadingLogs(true); setLogsError('');
+    try {
+      const data = await api.zest.queryLogs({ limit: 50 });
+      setLogs(data.logs); setLogsTotal(data.total);
+    } catch (err: any) {
+      setLogsError(err.message || 'Could not load the query log.');
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+  useEffect(() => { if (logsOpen && logs.length === 0 && !loadingLogs) loadLogs(); }, [logsOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadDocs = async () => {
-    setLoadingDocs(true);
-    try { setDocs(await api.zest.documents()); } finally { setLoadingDocs(false); }
+    setLoadingDocs(true); setDocsError('');
+    try { setDocs(await api.zest.documents()); }
+    catch (err: any) { setDocsError(err.message || 'Could not load the knowledge base.'); }
+    finally { setLoadingDocs(false); }
   };
   const loadAlerts = async () => {
-    setLoadingAlerts(true);
-    try { setAlerts(await api.zest.alerts()); } finally { setLoadingAlerts(false); }
+    setLoadingAlerts(true); setAlertsError('');
+    try { setAlerts(await api.zest.alerts()); }
+    catch (err: any) { setAlertsError(err.message || 'Could not load lead alerts.'); }
+    finally { setLoadingAlerts(false); }
   };
 
   useEffect(() => { loadDocs(); loadAlerts(); }, []);
@@ -84,30 +112,42 @@ export default function AdminZest() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Remove this document from the knowledge base?')) return;
-    await api.zest.deleteDocument(id);
-    setDocs(prev => prev.filter(d => d._id !== id));
+    try {
+      await api.zest.deleteDocument(id);
+      setDocs(prev => prev.filter(d => d._id !== id));
+    } catch (err: any) {
+      alert(err?.message || 'Could not delete this document.');
+    }
   };
 
   const handleRename = async () => {
     if (!renaming) return;
-    const updated = await api.zest.renameDocument(renaming.id, renaming.title);
-    setDocs(prev => prev.map(d => d._id === updated._id ? updated : d));
-    setRenaming(null);
+    try {
+      const updated = await api.zest.renameDocument(renaming.id, renaming.title);
+      setDocs(prev => prev.map(d => d._id === updated._id ? updated : d));
+      setRenaming(null);
+    } catch (err: any) {
+      alert(err?.message || 'Could not rename this document.');
+    }
   };
 
   const handleResolve = async (id: string) => {
-    await api.zest.resolveAlert(id);
-    setAlerts(prev => prev.filter(a => a.id !== id));
+    try {
+      await api.zest.resolveAlert(id);
+      setAlerts(prev => prev.filter(a => a.id !== id));
+    } catch (err: any) {
+      alert(err?.message || 'Could not resolve this alert.');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#0d1b4b] flex items-center justify-center">
-          <ZestIcon className="w-5 h-5" />
+          <GraduationCap className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Zest AI</h1>
+          <h1 className="text-xl font-bold text-gray-900">Zest</h1>
           <p className="text-sm text-gray-500">Manage the knowledge base Zest answers from, and review today's lead alerts.</p>
         </div>
       </div>
@@ -123,10 +163,11 @@ export default function AdminZest() {
           </label>
         </div>
 
+        {docsError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{docsError}</p>}
         {loadingDocs ? (
           <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>
         ) : docs.length === 0 ? (
-          <p className="text-sm text-gray-400 py-6 text-center">No documents yet — upload a PDF to get started.</p>
+          <p className="text-sm text-gray-400 py-6 text-center">{docsError ? 'Could not load the knowledge base.' : 'No documents yet — upload a PDF to get started.'}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -166,14 +207,12 @@ export default function AdminZest() {
         )}
       </div>
 
-      <ZestInsights />
-
       {/* Daily lead alerts */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">Daily lead alerts</h2>
           <div className="flex items-center gap-2">
-            <button aria-label="Refresh" type="button" onClick={loadAlerts} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
+            <button type="button" aria-label="Refresh alerts" onClick={loadAlerts} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
               <RefreshCw className="w-4 h-4" />
             </button>
             <button type="button" onClick={() => api.zest.downloadAlerts()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">
@@ -182,10 +221,11 @@ export default function AdminZest() {
           </div>
         </div>
 
+        {alertsError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{alertsError}</p>}
         {loadingAlerts ? (
           <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>
         ) : alerts.length === 0 ? (
-          <p className="text-sm text-gray-400 py-6 text-center">No open alerts — the daily analytics job runs at 08:00.</p>
+          <p className="text-sm text-gray-400 py-6 text-center">{alertsError ? 'Could not load lead alerts.' : 'No open alerts — the daily analytics job runs at 08:00.'}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -223,6 +263,40 @@ export default function AdminZest() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Query log — every question Zest was asked and the answer it gave */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <button type="button" onClick={() => setLogsOpen(o => !o)} className="w-full flex items-center justify-between text-left">
+          <span className="flex items-center gap-2 font-semibold text-gray-900">
+            <MessageCircle className="w-4 h-4 text-gray-400" /> Query log
+            {logsTotal > 0 && <span className="text-xs font-normal text-gray-400">({logsTotal} total)</span>}
+          </span>
+          {logsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        </button>
+        {logsOpen && (
+          <div className="mt-4">
+            {logsError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">{logsError}</p>}
+            {loadingLogs ? (
+              <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>
+            ) : logs.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">{logsError ? 'Could not load the query log.' : 'No questions asked yet.'}</p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {logs.map(l => (
+                  <div key={l.id} className="border border-gray-100 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-xs font-medium text-gray-500">{l.userName} <span className="text-gray-400">({l.userRole})</span></p>
+                      <p className="text-xs text-gray-400 whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</p>
+                    </div>
+                    <p className="text-sm text-gray-800 font-medium">{l.question}</p>
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{l.answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
