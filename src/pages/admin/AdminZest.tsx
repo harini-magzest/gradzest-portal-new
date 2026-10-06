@@ -212,7 +212,7 @@ export default function AdminZest() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">Daily lead alerts</h2>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={loadAlerts} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
+            <button type="button" aria-label="Refresh alerts" onClick={loadAlerts} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
               <RefreshCw className="w-4 h-4" />
             </button>
             <button type="button" onClick={() => api.zest.downloadAlerts()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">

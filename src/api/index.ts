@@ -796,6 +796,8 @@ export const api = {
       method: 'DELETE', headers: authHeaders(),
     }),
     alerts: () => req<any[]>('/zest/alerts', { headers: authHeaders() }),
+    queryLogs: (params?: Record<string, string | number | undefined>) =>
+      req<{ logs: any[]; total: number }>(`/zest/query-logs?${toQueryString(params || {})}`, { headers: authHeaders() }),
     resolveAlert: (id: string) => req<any>(`/zest/alerts/${id}/resolve`, {
       method: 'PUT', headers: authHeaders(),
     }),

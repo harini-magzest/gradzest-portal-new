@@ -181,6 +181,7 @@ export default function ZestWidget() {
             />
             <button
               type="button"
+              aria-label="Send message"
               onClick={send}
               disabled={loading || !input.trim()}
               className="w-10 h-10 flex-shrink-0 rounded-xl bg-[#0d1b4b] hover:bg-[#152258] disabled:opacity-40 flex items-center justify-center text-white"
