@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
+const { MongoRateLimitStore } = require('./lib/mongoRateLimitStore');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
 const path = require('path');
@@ -30,7 +31,7 @@ const { initSecurityLogger } = require('./middleware/logSecurityEvent');
 const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
-const { skyload } = require('./middleware/skyload');
+const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -105,15 +106,41 @@ app.use('/api', requestLogger);
 // make many sequential auth calls from the same "IP") don't trip each other's quota.
 // Rate-limiter behavior itself is covered by its own dedicated test instead.
 const authLimiter = rateLimit({
+  store: new MongoRateLimitStore('auth'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many attempts. Please try again in 15 minutes.' },
 });
+// Login counts only failed attempts, so a correct password never uses up the budget.
+// Failures are counted per IP + email: one person mistyping their password must not lock
+// out colleagues on the same office network. The per-IP cap still stops password spraying.
+const loginFailLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-fail'),
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `${rateLimit.ipKeyGenerator(req.ip)}|${String(req.body?.email || '').toLowerCase()}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
+});
+const loginIpLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-ip'),
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => rateLimit.ipKeyGenerator(req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many failed login attempts from this network. Please try again in 15 minutes.' },
+});
 const generalLimiter = rateLimit({
+  store: new MongoRateLimitStore('general'),
   windowMs: 60 * 1000, // 1 minute
   max: 120,
+  skip: isTrustedSocAdmin,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
@@ -129,13 +156,13 @@ const zestAskLimiter = rateLimit({
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  app.use('/api/auth/login', authLimiter);
+  // /login is limited after the body parsers below (it needs req.body.email).
+  // /refresh and /logout are deliberately not limited: every expired access token (15 min)
+  // triggers a refresh, so counting them would lock out active users behind a shared IP.
   app.use('/api/auth/register', authLimiter);
   app.use('/api/auth/forgot-password', authLimiter);
   app.use('/api/auth/reset-password', authLimiter);
   app.use('/api/auth/resend-verification', authLimiter);
-  app.use('/api/auth/refresh', authLimiter);
-  app.use('/api/auth/logout', authLimiter);
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
@@ -151,6 +178,9 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(wafBodyCheck);
 app.use(cookieParser());
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/auth/login', loginIpLimiter, loginFailLimiter);
+}
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
 // or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.
@@ -284,12 +314,16 @@ app.use('/api/applications', require('./routes/applications'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/meetings', require('./routes/meetings'));
+app.use('/api/events',   require('./routes/events'));
+app.use('/api/referrals', require('./routes/referrals'));
+app.use('/api/parent-links', require('./routes/parent').manage);
+app.use('/api/parent', require('./routes/parent').view);
 app.use('/api/favicon', require('./routes/favicon'));
 app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/ui-trail', require('./routes/uiTrail'));
-app.use('/api/soc-auth', require('./routes/socAuth'));
 app.use('/api/soc', require('./routes/soc'));
+app.use('/api/soc', require('./routes/socExtras'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));
@@ -335,14 +369,33 @@ io.use(async (socket, next) => {
   }
 });
 
+// Room membership is decided when a socket connects, so an owner who is later demoted, deactivated, locked or removed from
+// SOC_OWNER_EMAILS would keep receiving live security events and PII until the tab closed. Re-check the members of
+// admin-room regularly and drop anyone who is no longer an owner.
+const OWNER_RECHECK_MS = Math.max(200, parseInt(process.env.SOC_OWNER_RECHECK_MS || '60000', 10) || 60000);
+const ownerRecheck = setInterval(async () => {
+  try {
+    const sockets = await io.in('admin-room').fetchSockets();
+    if (!sockets.length) return;
+    const { isSocOwnerEmail } = require('./lib/socOwners');
+    const { isBlocked } = require('./lib/accountState');
+    const users = await require('./models/User').find({ _id: { $in: [...new Set(sockets.map((s) => s.data.userId))] } }).select('email').lean();
+    const emailOf = new Map(users.map((u) => [String(u._id), u.email]));
+    for (const s of sockets) {
+      const uid = String(s.data.userId);
+      if (!isSocOwnerEmail(emailOf.get(uid)) || await isBlocked(uid)) s.leave('admin-room');
+    }
+  } catch { /* try again next tick */ }
+}, OWNER_RECHECK_MS);
+if (ownerRecheck.unref) ownerRecheck.unref();
+
 // WebRTC signaling
 io.on('connection', (socket) => {
-  socket.on('register', async () => {
+  // Rooms are joined on connection, not only on 'register': the SOC tabs open their own socket and never send
+  // 'register', so without this their live feeds would say "Live" but never receive an event.
+  const doJoinRooms = async () => {
     const uid = socket.data.userId;
-    if (!uid) return;
-    const wasOffline = !userSockets.has(uid);
-    if (wasOffline) userSockets.set(uid, new Set());
-    userSockets.get(uid).add(socket.id);
+    if (!uid) return true;
     // Rooms decide who is pushed what:
     //   user:<id>        one person (targeted activity)
     //   activity-room    admins + Application Team (the business activity feed)
@@ -357,12 +410,27 @@ io.on('connection', (socket) => {
         socket.join('full-admin-room');
         try {
           const me = await require('./models/User').findById(uid).select('email').lean();
-          // Owner AND (when two-factor is required) currently stepped-up: the live feed follows the same rule as the REST API.
-          const mfa = require('./lib/socMfa');
-          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email) && (!mfa.required() || mfa.liveActive(uid))) socket.join('admin-room');
-        } catch { /* no owner room on a lookup failure: fail closed */ }
+          if (me && require('./lib/socOwners').isSocOwnerEmail(me.email)) socket.join('admin-room');
+        } catch { return false; /* no owner room on a lookup failure: fail closed (a later 'register' retries) */ }
       }
     }
+    return true;
+  };
+  // Runs once per connection (it is called on connect and again on 'register'); only a failed owner lookup is retried.
+  let joining = null;
+  const joinRooms = () => {
+    if (!joining) joining = doJoinRooms().then((ok) => { if (!ok) joining = null; });
+    return joining;
+  };
+  void joinRooms();
+
+  socket.on('register', async () => {
+    const uid = socket.data.userId;
+    if (!uid) return;
+    const wasOffline = !userSockets.has(uid);
+    if (wasOffline) userSockets.set(uid, new Set());
+    userSockets.get(uid).add(socket.id);
+    await joinRooms();
     // Presence: first open connection -> online
     if (wasOffline) io.emit('presence:update', { userId: uid, online: true });
   });

@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../api';
+import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -336,8 +337,6 @@ export default function AdminChat() {
             setRooms(prev => prev.map((r: any) => r.id === newRoom.id ? newRoom : r).concat(prev.some((r: any) => r.id === newRoom.id) ? [] : [newRoom]));
             setSelectedRoom(newRoom);
           }
-        } else if (roomList.length > 0) {
-          setSelectedRoom(roomList[0]);
         }
       } catch {
         toast.error('Failed to load conversations.');
@@ -372,15 +371,7 @@ export default function AdminChat() {
     return () => clearInterval(id);
   }, [user, selectedRoom?.id]);
 
-  useEffect(() => {
-    if (!selectedRoom?.id) return;
-    api.chat.markRead(selectedRoom.id).catch(() => {});
-    setRooms(prev => prev.map(r =>
-      r.id === selectedRoom.id
-        ? { ...r, messages: r.messages?.map((m: any) => ({ ...m, read: true })) }
-        : r
-    ));
-  }, [selectedRoom?.id]);
+  useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -552,7 +543,7 @@ export default function AdminChat() {
                 </div>
               ) : filteredGroups.map((g: any) => {
                 const isActive = selectedRoom?.id === g.id;
-                const unread = g.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+                const unread = unreadCount(g, String(user?.id));
                 const lastMsg = g.messages?.[g.messages.length - 1];
                 return (
                   <button type="button" key={g.id} onClick={() => setSelectedRoom(g)}
@@ -568,7 +559,7 @@ export default function AdminChat() {
                           {unread > 0 && <span className="bg-purple-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{unread}</span>}
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400 truncate mt-0.5">
+                      <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>
                         {lastMsg ? `${lastMsg.senderName}: ${lastMsg.content || lastMsg.fileName || ''}` : `${g.participants.length} members`}
                       </p>
                     </div>
@@ -590,7 +581,7 @@ export default function AdminChat() {
               const pid = String(person._id || person.id);
               const existingRoom = directRooms.find((r: any) => r.participants?.map(String).includes(pid));
               const isActive = !!(existingRoom && selectedRoom?.id === existingRoom.id);
-              const unread = existingRoom?.messages?.filter((m: any) => !m.read && m.senderId !== String(user?.id)).length || 0;
+              const unread = unreadCount(existingRoom, String(user?.id));
               const lastMsg = existingRoom?.messages?.[existingRoom.messages.length - 1];
               const preview = lastMsg?.type === 'call' ? '📞 Voice call'
                 : lastMsg?.type === 'file' ? `📎 ${lastMsg.fileName || 'Document'}`
@@ -620,7 +611,7 @@ export default function AdminChat() {
                       </div>
                     </div>
                     {preview
-                      ? <p className="text-xs text-gray-400 truncate mt-0.5">{preview}</p>
+                      ? <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{preview}</p>
                       : <p className="text-xs text-gray-300 mt-0.5">No messages yet</p>
                     }
                   </div>

@@ -15,12 +15,15 @@ const crypto = require('crypto');
 
 const PREFIX = 'enc:v1:';
 let keys = null;
+let warnedUndecryptable = false;
 
 function getKeys() {
   if (keys) return keys;
   let raw = process.env.DATA_ENCRYPTION_KEY;
   if (!raw) {
-    if (process.env.NODE_ENV === 'production') throw new Error('DATA_ENCRYPTION_KEY is required in production');
+    // Fail closed: only an explicit development/test run may fall back, so a staging box or a one-off script started
+    // without NODE_ENV can never silently encrypt with a key derived from a guessable value.
+    if (!['development', 'test'].includes(process.env.NODE_ENV)) throw new Error('DATA_ENCRYPTION_KEY is required (set NODE_ENV=development to use a derived dev key)');
     // Dev/test only: derive a key so the app still runs. Set DATA_ENCRYPTION_KEY for any real data.
     raw = crypto.createHash('sha256').update(`dev-only:${process.env.JWT_SECRET || 'unset'}`).digest('hex');
   }
@@ -35,8 +38,28 @@ function getKeys() {
 
 const isEncrypted = (v) => typeof v === 'string' && v.startsWith(PREFIX);
 
+// The AES key derived from a 64-hex master key, as getKeys() does. Exposed so the migration can read values written
+// under a different (legacy) key.
+const deriveEncKey = (masterHex) => crypto.createHmac('sha256', Buffer.from(masterHex, 'hex')).update('enc').digest();
+
+// Returns the plaintext, or null if `value` is not a ciphertext that authenticates under `encKey` (default: the current key).
+function decryptStrict(value, encKey) {
+  try {
+    const buf = Buffer.from(value.slice(PREFIX.length), 'base64url');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', encKey || getKeys().enc, buf.subarray(0, 12));
+    decipher.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
 function encrypt(value) {
-  if (typeof value !== 'string' || value === '' || isEncrypted(value)) return value;
+  if (typeof value !== 'string' || value === '') return value;
+  // Already-encrypted values pass through (idempotent), but only if they really are ours: a user-supplied string that
+  // merely starts with the prefix (a User-Agent, an email typed into a login form) must be encrypted like any other,
+  // otherwise it is stored in the clear and reads back as '' - an easy way to blank a log line.
+  if (isEncrypted(value) && decryptStrict(value) !== null) return value;
   const { enc, siv } = getKeys();
   const iv = crypto.createHmac('sha256', siv).update(value, 'utf8').digest().subarray(0, 12);
   const cipher = crypto.createCipheriv('aes-256-gcm', enc, iv);
@@ -46,25 +69,35 @@ function encrypt(value) {
 
 function decrypt(value) {
   if (!isEncrypted(value)) return value;
-  try {
-    const buf = Buffer.from(value.slice(PREFIX.length), 'base64url');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', getKeys().enc, buf.subarray(0, 12));
-    decipher.setAuthTag(buf.subarray(12, 28));
-    return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
-  } catch {
-    return ''; // wrong key or tampered value: never hand ciphertext to a caller
+  const plain = decryptStrict(value);
+  if (plain !== null) return plain;
+  // Wrong key or tampered value: never hand ciphertext to a caller, but do not fail silently either.
+  if (!warnedUndecryptable) {
+    warnedUndecryptable = true;
+    console.error('[fieldCrypto] a stored value could not be decrypted (wrong DATA_ENCRYPTION_KEY or tampered data); it is returned as empty');
   }
+  return '';
 }
 
 const isPlainObject = (v) => v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype;
 
 // Decrypts every encrypted string inside plain objects / arrays, in place. Used for lean() results and
-// aggregation output, which bypass Mongoose documents.
+// aggregation output, which bypass Mongoose documents. Only slots whose value actually changed are written: on a
+// hydrated document, re-assigning an array element (even to the same value) marks the whole array modified, so the
+// next save() would rewrite it and bump __v.
 function decryptDeep(value) {
   if (typeof value === 'string') return decrypt(value);
-  if (Array.isArray(value)) { for (let i = 0; i < value.length; i++) value[i] = decryptDeep(value[i]); return value; }
-  if (isPlainObject(value)) { for (const k of Object.keys(value)) value[k] = decryptDeep(value[k]); return value; }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) { const d = decryptDeep(value[i]); if (d !== value[i]) value[i] = d; }
+    return value;
+  }
+  // A Mongoose subdocument (an element of a document array): its raw data lives in _doc.
+  if (value && typeof value === 'object' && isPlainObject(value._doc)) { decryptDeep(value._doc); return value; }
+  if (isPlainObject(value)) {
+    for (const k of Object.keys(value)) { const d = decryptDeep(value[k]); if (d !== value[k]) value[k] = d; }
+    return value;
+  }
   return value;
 }
 
-module.exports = { encrypt, decrypt, decryptDeep, isEncrypted, PREFIX };
+module.exports = { encrypt, decrypt, decryptDeep, decryptStrict, deriveEncKey, isEncrypted, PREFIX };

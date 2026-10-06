@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { MousePointerClick, FileText, Download, FileUp, Send, Compass, Search, Loader2, LogIn, LogOut, Laptop } from 'lucide-react';
-import { api, getApiToken } from '../../api';
+import { api } from '../../api';
+import { useSocSocket } from './SocketContext';
+import { ErrorBanner, errorText } from './ui';
 import SavedFilters from './SavedFilters';
 import FeatureUsage from './FeatureUsage';
-import { Mask } from './Mask';
 
 interface UiRow {
   _id: string; userId: string; email: string; name?: string; role: string; kind: string; page: string; routePattern?: string; file?: string;
@@ -50,13 +50,15 @@ const matches = (r: UiRow, f: Filters) =>
 // Who did what, where: every page opened, button/link clicked, file picked or
 // downloaded and form submitted by tracked staff, with the source file of the page.
 function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => void }) {
+  const { socket, isLive } = useSocSocket();
   const [rows, setRows] = useState<UiRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [tracked, setTracked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [live, setLive] = useState(false);
+  const [error, setError] = useState('');
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
@@ -67,11 +69,11 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
   });
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const d = await api.soc.uiActivity(params(filters, 0));
-      setRows(d.activity || []); setTotal(d.total || 0); setTracked(d.trackedRoles || []);
-    } catch { /* ignore */ }
+      setRows(d.activity || []); setTotal(d.total || 0); setTruncated(!!d.truncated); setTracked(d.trackedRoles || []);
+    } catch (e) { setError(errorText(e)); }
     setLoading(false);
   }, [filters]);
 
@@ -86,26 +88,23 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
     try {
       const d = await api.soc.uiActivity(params(filters, rows.length));
       setRows(prev => [...prev, ...(d.activity || [])]); setTotal(d.total || 0);
-    } catch { /* ignore */ }
+    } catch (e) { setError(errorText(e)); }
     setLoadingMore(false);
   };
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
-    });
-    socket.on('connect', () => setLive(true));
-    socket.on('disconnect', () => setLive(false));
-    socket.on('ui_activity', (batch: UiRow[]) => {
+    if (!socket) return;
+    const onActivity = (batch: UiRow[]) => {
       const fresh = batch.filter(r => matches(r, filtersRef.current)).reverse();
       if (fresh.length) { setRows(prev => [...fresh, ...prev].slice(0, 1000)); setTotal(t => t + fresh.length); }
-    });
-    return () => { socket.disconnect(); };
-  }, []);
+    };
+    socket.on('ui_activity', onActivity);
+    return () => { socket.off('ui_activity', onActivity); };
+  }, [socket]);
 
   const exportCsv = () => {
     const p = new URLSearchParams(Object.entries(params(filters, 0)).filter(([k, v]) => v && k !== 'limit' && k !== 'skip') as [string, string][]);
-    api.soc.download(`/ui-activity/export.csv?${p}`, 'soc-ui-activity.csv').catch(() => {});
+    api.soc.download(`/ui-activity/export.csv?${p}`, 'soc-ui-activity.csv').catch(e => setError(errorText(e)));
   };
 
   const input = 'px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500';
@@ -118,7 +117,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
           Only metadata is recorded — never what is typed into a field, and never file contents. Kept 90 days.
           Student activity is not recorded unless enabled with <span className="font-mono">SOC_UI_TRACK_ROLES</span>.
         </p>
-        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${live ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{live ? 'Live' : 'Offline'}</span>
+        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${isLive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{isLive ? 'Live' : 'Offline'}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -139,7 +138,9 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
       <SavedFilters storageKey="soc.activityFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
+        ) : loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -155,8 +156,8 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-900">
-                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || <Mask value={r.email} fallback="Unknown" />}</button>
-                  {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5"><Mask value={r.email} /></span>}
+                  <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || r.email || 'Signed-out visitor'}</button>
+                  {r.name && r.email && <span className="text-xs text-gray-400 ml-1.5">{r.email}</span>}
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 capitalize ml-1.5">{r.role}</span>
                   <span className="text-gray-500"> {meta.label.toLowerCase()} </span>
                   <span className="font-medium">{describe(r)}</span>
@@ -178,6 +179,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
             </div>
           );
         })}
+        {truncated && <p className="p-3 text-center text-xs text-amber-700 bg-amber-50 border-t border-amber-100">Search looked at the newest 5,000 records only. Narrow the filters or date range to find older matches.</p>}
         {!loading && rows.length < total && (
           <div className="p-3 text-center border-t border-gray-50">
             <button onClick={loadMore} disabled={loadingMore} className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50 rounded-lg disabled:opacity-50">

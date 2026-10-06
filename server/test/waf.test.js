@@ -55,9 +55,10 @@ describe('WAF signature filter', () => {
     const res = await request(app).get('/api/countries?search=<script>evidence-marker</script>');
     expect(res.status).toBe(403);
 
-    // Detection runs fire-and-forget after the response — poll for it rather than guess how long it takes under load.
-    // Wait for THIS request's event (an earlier test in the file may already have created other waf_block events).
-    const event = await waitUntil(async () => SecurityEvent.findOne({ type: 'waf_block', 'meta.category': 'xss' }).sort({ createdAt: -1 }));
+    // Detection runs fire-and-forget after the response. Match THIS request's event by its
+    // unique marker: the newest waf_block overall may belong to an earlier test in this file,
+    // and a fixed sleep can return before this one is written.
+    const event = await waitUntil(() => SecurityEvent.find({ type: 'waf_block' }).then(events => events.find(e => /evidence-marker/.test(e.message))));
     expect(event).toBeTruthy();
     expect(event.meta.category).toBe('xss');
 
@@ -66,7 +67,8 @@ describe('WAF signature filter', () => {
     // per IP (see detectIncidents.test.js), so it reuses that open incident rather
     // than creating a duplicate. What matters here is that THIS event is linked to
     // an incident, not whether a brand-new incident document was created.
-    const incident = await waitUntil(async () => SecurityIncident.findOne({ type: 'waf_block', sourceEventIds: event._id }));
+    // The incident is raised by the detection rule after the event is saved, so it can lag too.
+    const incident = await waitUntil(() => SecurityIncident.findOne({ type: 'waf_block', sourceEventIds: event._id }));
     expect(incident).toBeTruthy();
   });
 });

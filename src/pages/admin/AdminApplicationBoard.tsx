@@ -163,7 +163,7 @@ function DetailPanel({
           <h2 className="text-sm font-bold text-gray-900 truncate">{app.studentName}</h2>
           <p className="text-xs text-gray-500 truncate">{app.universityName} · {app.courseName}</p>
         </div>
-        <button
+        <button aria-label="Close"
           type="button"
           onClick={onClose}
           className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-all flex-shrink-0"

@@ -14,7 +14,8 @@ function fetchRoleName(userId: string) {
 
 /**
  * The staff member's role from Settings → Users and Controls → Roles (e.g. "Associate Counsellor HO"),
- * falling back to their account type (Admin / Application Team / Counselor) when no role is set.
+ * falling back to their account type (Admin / Counselor) when no role is set. Application Team
+ * accounts always show "Application Team".
  * `portal` is for page headers ("Associate Counsellor HO Portal"), `workspace` for the top bar.
  */
 export function usePortalName() {
@@ -30,6 +31,7 @@ export function usePortalName() {
 
   const fallback = user?.role === 'admin' ? (user.isAppTeam ? 'Application Team' : 'Admin')
     : user?.role === 'counselor' ? 'Counselor' : 'Student';
-  const name = roleName || fallback;
+  // Application Team keeps its own portal name whatever role it's given
+  const name = user?.isAppTeam ? 'Application Team' : (roleName || fallback);
   return { name, portal: `${name} Portal`, workspace: `${name} workspace` };
 }

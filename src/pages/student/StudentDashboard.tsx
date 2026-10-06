@@ -1,3 +1,10 @@
+import StudentDeadlines from '../../components/dashboards/StudentDeadlines';
+import ApplicationTimeline from '../../components/dashboards/ApplicationTimeline';
+import DocumentChecklist from '../../components/dashboards/DocumentChecklist';
+import NextStepCard from '../../components/dashboards/NextStepCard';
+import DataAccessLog from '../../components/dashboards/DataAccessLog';
+import ReferralCard from '../../components/dashboards/ReferralCard';
+import ParentAccessCard from '../../components/dashboards/ParentAccessCard';
 import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -273,8 +280,6 @@ export default function StudentDashboard() {
         />
       )}
 
-      <OnboardingChecklist />
-
       {/* Welcome header */}
       <div className="bg-gradient-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
         <div className="flex items-start justify-between">
@@ -316,6 +321,20 @@ export default function StudentDashboard() {
           <Link to="/student/applications" className="text-green-700 font-medium text-sm hover:underline whitespace-nowrap">View offers</Link>
         </div>
       )}
+
+      <NextStepCard />
+
+      <StudentDeadlines />
+
+      <ApplicationTimeline />
+
+      <DocumentChecklist />
+
+      <ReferralCard />
+
+      <ParentAccessCard />
+
+      <DataAccessLog />
 
       {/* Profile Completion + Upload Documents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -710,6 +729,9 @@ export default function StudentDashboard() {
           </div>
         )}
       </div>
+
+      {/* Getting-started checklist — last, collapsed to its progress line; the cards above cover the first steps */}
+      <OnboardingChecklist defaultCollapsed />
     </div>
   );
 }

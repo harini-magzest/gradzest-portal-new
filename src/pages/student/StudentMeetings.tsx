@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, CalendarCheck, CalendarX } from 'lucide-react';
 import { api } from '../../api';
+import AddToCalendar from '../../components/AddToCalendar';
+import BookCall from '../../components/BookCall';
 
 function Spinner() {
   return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
@@ -106,6 +108,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
             {active ? <>Join {meta.label} Meeting<ExternalLink className="w-3.5 h-3.5 opacity-70" /></> : 'Session Ended'}
           </button>
         )}
+        {upcoming && <div className="mt-3"><AddToCalendar meeting={meeting} /></div>}
       </div>
     </div>
   );
@@ -153,7 +156,7 @@ export default function StudentMeetings() {
               <h1 className="text-2xl font-bold leading-tight">My Meetings</h1>
             </div>
           </div>
-          <button type="button" onClick={load} disabled={loading}
+          <button aria-label="Refresh" type="button" onClick={load} disabled={loading}
             className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -177,6 +180,8 @@ export default function StudentMeetings() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">{error}</div>
       )}
+
+      <BookCall onBooked={load} />
 
       {/* Tabs & search */}
       <div className="flex flex-wrap items-center gap-3">

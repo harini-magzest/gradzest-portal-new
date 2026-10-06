@@ -9,6 +9,7 @@ const University = require('../models/University');
 const authMiddleware = require('../middleware/auth');
 const notifyAdminsOfNewLead = require('../lib/notifyAdminsOfNewLead');
 const { assignNextCounselor } = require('../lib/assignCounselor');
+const { fireEvent } = require('../lib/automation');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 const { recordSignInActivity } = require('../lib/recordSignIn');
 const { isAdminLocked, invalidate: invalidateAccountState } = require('../lib/accountState');
@@ -263,7 +264,7 @@ async function sendVerificationEmail(user, mailer, frontendUrl) {
 }
 
 router.post('/register', async (req, res) => {
-  const { name, email, password, phone, nationality } = req.body;
+  const { name, email, password, phone, nationality, ref } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   const pwError = validatePasswordStrength(password);
   if (pwError) return res.status(400).json({ message: pwError });
@@ -280,9 +281,12 @@ router.post('/register', async (req, res) => {
       leadStatus: 'new',
     });
     await user.save();
+    if (ref) await require('../lib/referrals').recordReferral(ref, user); // never fails the sign-up
     const assignedCounselor = await assignNextCounselor(user);
     if (assignedCounselor) await user.save();
     notifyAdminsOfNewLead(req.app, user, assignedCounselor); // fire-and-forget; never blocks or fails sign-up
+    fireEvent('student.created', { studentId: user._id });
+    if (assignedCounselor) fireEvent('counselor.assigned', { studentId: user._id });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     const accessToken = issueAccessToken(user);
@@ -293,7 +297,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ token: accessToken, user: userObj });
   } catch (err) {
     console.error('[auth/register]', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

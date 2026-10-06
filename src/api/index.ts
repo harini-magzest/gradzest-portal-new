@@ -32,24 +32,23 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
-// SOC two-factor step-up token. Kept for the browser tab only (sessionStorage) so a reload doesn't re-prompt within its
-// lifetime; it is useless without the signed-in session and is bound server-side to this browser.
-const SOC_TOKEN_KEY = 'gz_soc_token';
-let _socToken: string | null = null;
-try { _socToken = sessionStorage.getItem(SOC_TOKEN_KEY); } catch { /* storage unavailable */ }
-export function setSocToken(token: string | null) {
-  _socToken = token;
-  try { if (token) sessionStorage.setItem(SOC_TOKEN_KEY, token); else sessionStorage.removeItem(SOC_TOKEN_KEY); } catch { /* ignore */ }
+// An error that remembers the HTTP status, so screens can say "rate-limited" or "not authorised" instead of a bare message.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  data?: any;
+  constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
 }
-export function getSocToken(): string | null { return _socToken; }
-// /soc-auth/status also gets the token: the server answers "verified" only when it is present and valid.
-const socHeader = (url: string): Record<string, string> => ((url.startsWith('/soc/') || url === '/soc-auth/status') && _socToken ? { 'X-SOC-Token': _socToken } : {});
+
+export type NoteVisibility = 'public' | 'private';
+export interface StudentNote {
+  id: string; text: string; visibility: NoteVisibility;
+  authorId: string; authorName: string; mine: boolean;
+  createdAt?: string; updatedAt?: string;
+}
 
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    credentials: 'include', ...options,
-    headers: { ...(options?.headers as Record<string, string> || {}), ...socHeader(url) },
-  });
+  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -67,11 +66,8 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    // The step-up expired or was never done: tell the SOC gate to ask for a code again instead of just failing.
-    if (res.status === 403 && typeof err.code === 'string' && err.code.startsWith('SOC_MFA_')) {
-      window.dispatchEvent(new CustomEvent('soc:mfa', { detail: err.code }));
-    }
-    throw new Error(err.message || 'Request failed');
+    // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
+    throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
   return res.json();
 }
@@ -96,15 +92,19 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   return res.json();
 }
 
+export interface ShortlistData {
+  courses: {
+    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
+    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
+    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
+    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
+  }[];
+  cheapest: string | null;
+  bestRanked: string | null;
+  max: number;
+}
+
 export const api = {
-  // SOC two-factor (authenticator app). Reachable by the SOC owner only; not behind the step-up token itself.
-  socAuth: {
-    status: () => req<{ required: boolean; enrolled: boolean; verified: boolean; lockedUntil: string | null; ttlMinutes: number; recoveryCodesLeft: number }>('/soc-auth/status', { headers: authHeaders() }),
-    setup: (password: string) => req<{ secret: string; otpauthUrl: string }>('/soc-auth/setup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password }) }),
-    confirm: (code: string) => req<{ recoveryCodes: string[]; socToken: string; expiresAt: string }>('/soc-auth/confirm', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code }) }),
-    verify: (body: { code?: string; recoveryCode?: string }) => req<{ socToken: string; expiresAt: string; recoveryCodesLeft: number }>('/soc-auth/verify', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }),
-    logout: () => req<{ ok: boolean }>('/soc-auth/logout', { method: 'POST', headers: authHeaders() }),
-  },
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
     send: (sessionKey: string, events: unknown[], device?: unknown) =>
@@ -120,7 +120,7 @@ export const api = {
         body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
-    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
+    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
       req<{ token: string; user: any }>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,6 +154,7 @@ export const api = {
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
+    compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
     autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
@@ -186,6 +187,19 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    bulk: (data: { ids: string[]; action: 'set_stage' | 'add_tag' | 'create_task' | 'reassign'; value: unknown }) =>
+      req<{ action: string; requested: number; updated: number; unchanged: number; skipped: { id: string; name: string; reason: string }[] }>('/students/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
+    checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
+    myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
+    nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
+    dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
+    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
+    addToShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
+    removeFromShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
+    timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ subject, body }),
@@ -198,16 +212,19 @@ export const api = {
       req<any>(`/students/${studentId}/meta`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
-    addNote: (studentId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }),
+    // Staff notes: public (every staff member who can open the student) or private (author only)
+    notes: (studentId: string) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, { headers: authHeaders() }),
+    addNote: (studentId: string, text: string, visibility: NoteVisibility) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text, visibility }),
       }),
-    editNote: (studentId: string, noteId: string, text: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
-        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ text }),
+    editNote: (studentId: string, noteId: string, data: { text?: string; visibility?: NoteVisibility }) =>
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
       }),
     deleteNote: (studentId: string, noteId: string) =>
-      req<any>(`/students/${studentId}/notes/${noteId}`, {
+      req<{ notes: StudentNote[] }>(`/students/${studentId}/notes/${noteId}`, {
         method: 'DELETE', headers: authHeaders(),
       }),
   },
@@ -267,9 +284,13 @@ export const api = {
       fd.append('recording', blob, `call-${messageId}.${blob.type.includes('ogg') ? 'ogg' : 'webm'}`);
       return upload<{ recordingUrl: string }>(`/chat/calls/${messageId}/recording`, fd);
     },
-    callHistory: (days: number, userId?: string) =>
+    callHistory: (days: number, userId?: string, since?: string) =>
       req<{ calls: any[]; smartflo: { configured: boolean; error: string }; canSeeAll: boolean }>(
-        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}`, { headers: authHeaders() }),
+        `/chat/calls/history?days=${days}${userId ? `&userId=${userId}` : ''}${since ? `&since=${encodeURIComponent(since)}` : ''}`, { headers: authHeaders() }),
+    saveCallSummary: (callId: string, summary: string, extra: { otherPartyName?: string; startedAt?: string } = {}) =>
+      req<{ callId: string; summary: string; summaryBy: string; summaryAt: string }>(`/chat/calls/${encodeURIComponent(callId)}/summary`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify({ summary, ...extra }),
+      }),
     scheduleMeeting: (roomId: string, data: { senderName: string; meetingDate: string; meetingTime: string; meetingNotes: string }) =>
       req<any>(`/chat/rooms/${roomId}/meetings`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
@@ -283,6 +304,7 @@ export const api = {
   counselors: {
     me: () => req<any>('/counselors/me', { headers: authHeaders() }),
     myStudents: () => req<any[]>('/counselors/me/students', { headers: authHeaders() }),
+    myPerformance: (days: number) => req<any>(`/counselors/me/performance?days=${days}`, { headers: authHeaders() }),
     updateMe: (data: any) => req<any>('/counselors/me', {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -290,6 +312,71 @@ export const api = {
     uploadDocument: (formData: FormData) => upload<any>('/counselors/me/documents', formData),
     deleteDocument: (docId: string) =>
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  shortlist: {
+    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
+    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
+    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  parentLinks: {
+    list: () => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }[]>('/parent-links', { headers: authHeaders() }),
+    create: (data: { label?: string; days?: number }) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean } & { url: string }>('/parent-links', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    revoke: (id: string) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }>(`/parent-links/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  // Public: no sign-in, the secret in the link is the credential
+  parent: {
+    view: (token: string) => req<{ studentName: string; counselorName: string; applications: { universityName: string; courseName: string; intake: string; status: string; rejected: boolean; steps: { label: string; state: 'done' | 'current' | 'upcoming' }[]; daysInStage: number | null; daysToIntake: number | null; intakePassed: boolean; next: string }[]; documents: { total: number; verified: number; uploaded: number; missing: number; percent: number; stillNeeded: string[] } | null; upcomingMeetings: { title: string; date: string; time: string; durationMin: number }[]; expiresAt: string }>(`/parent/${encodeURIComponent(token)}`),
+  },
+
+  referrals: {
+    mine: () => req<{ code: string; link: string; rewardText: string; referrals: { name: string; status: 'signed_up' | 'applied' | 'offer' | 'enrolled'; rewardEarned: boolean; rewardPaid: boolean; joinedAt: string }[]; stats: { total: number; enrolled: number; paid: number } }>('/referrals/me', { headers: authHeaders() }),
+    all: () => req<{ referrals: { id: string; referrerName: string; referrerEmail: string; referredName: string; status: string; rewardEarned: boolean; paid: boolean; paidAt: string | null; paidNote: string; createdAt: string }[]; stats: { total: number; earned: number; owed: number } }>('/referrals', { headers: authHeaders() }),
+    setPaid: (id: string, paid: boolean, note?: string) => req<{ id: string; paid: boolean }>(`/referrals/${id}/paid`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ paid, note }) }),
+  },
+
+  events: {
+    list: () => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }[]>('/events', { headers: authHeaders() }),
+    create: (data: { title: string; startsAt: string; description?: string; link?: string; durationMin?: number; capacity?: number }) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>('/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/events/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    register: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'POST', headers: authHeaders() }),
+    unregister: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'DELETE', headers: authHeaders() }),
+    registrations: (id: string) => req<{ name: string; email: string; registeredAt: string }[]>(`/events/${id}/registrations`, { headers: authHeaders() }),
+    registrationsCsv: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/registrations?format=csv`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'event-registrations.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    downloadIcs: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-event.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  },
+
+  notificationPrefs: {
+    get: () => req<{ email: boolean; whatsapp: boolean; whatsappAvailable: boolean; hasPhone: boolean; warning?: string }>('/notifications/preferences', { headers: authHeaders() }),
+    update: (data: { email?: boolean; whatsapp?: boolean }) =>
+      req<{ email: boolean; whatsapp: boolean; whatsappAvailable: boolean; hasPhone: boolean; warning?: string }>('/notifications/preferences', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
   },
 
   meetings: {
@@ -303,6 +390,23 @@ export const api = {
     delete: (id: string) => req<any>(`/meetings/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+    availability: (date: string) =>
+      req<{ date: string; open: boolean; reason?: string; slots: { time: string; available: boolean }[] }>(`/meetings/availability?date=${encodeURIComponent(date)}`, { headers: authHeaders() }),
+    book: (data: { date: string; time: string; notes?: string }) =>
+      req<any>('/meetings/book', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    // One meeting's .ics file, or every upcoming meeting when no id is given.
+    downloadIcs: async (id?: string) => {
+      const res = await fetch(`${BASE}/meetings/${id ? `${id}/` : ''}ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = id ? 'gradzest-meeting.ics' : 'gradzest-meetings.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   admin: {
@@ -414,7 +518,6 @@ export const api = {
   },
 
   soc: {
-    owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
     events: (params: { limit?: number; skip?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
@@ -445,6 +548,11 @@ export const api = {
       req<any>(`/soc/investigate/user/${userId}/sessions/${sessionId}`, { method: 'DELETE', headers: authHeaders() }),
     forcePasswordReset: (userId: string) =>
       req<{ emailSent: boolean; message: string }>(`/soc/investigate/user/${userId}/force-password-reset`, { method: 'POST', headers: authHeaders() }),
+    attention: () => req<any>('/soc/attention', { headers: authHeaders() }),
+    incidentDetail: (id: string) => req<any>(`/soc/incidents/${id}/detail`, { headers: authHeaders() }),
+    search: (q: string) => req<any>(`/soc/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    bulkUpdateIncidents: (ids: string[], data: Record<string, unknown>) =>
+      req<{ updated: string[]; failed: { id: string; message: string }[] }>('/soc/incidents/bulk', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ ids, ...data }) }),
     verifyAuditTrail: () => req<any>('/soc/audit-trail/verify', { headers: authHeaders() }),
     alertStatus: () => req<any>('/soc/alerts/status', { headers: authHeaders() }),
     testAlert: () => req<any>('/soc/alerts/test', { method: 'POST', headers: authHeaders() }),
@@ -463,7 +571,7 @@ export const api = {
       req<any>(`/soc/ui-activity?${toQueryString(params)}`, { headers: authHeaders() }),
     // Authenticated file download (CSV / PDF): a plain <a href> can't send the bearer token.
     download: async (path: string, filename: string) => {
-      const res = await fetch(`${BASE}/soc${path}`, { headers: { ...authHeaders(), ...socHeader('/soc/') } });
+      const res = await fetch(`${BASE}/soc${path}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Download failed');
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
@@ -568,6 +676,36 @@ export const api = {
     }),
     logs: (params: { ruleId?: string; status?: string; limit?: number } = {}) =>
       req<any[]>(`/automation/logs?${toQueryString(params)}`, { headers: authHeaders() }),
+  },
+
+  dashboards: {
+    counselorFollowups: () => req<{ stale: { studentId: string; name: string; days: number }[]; stuck: { studentId: string; name: string; universityName: string; status: string; days: number }[]; overdueTasks: { id: string; title: string; dueDate: string; studentId: string; studentName: string }[]; staleDays: number }>('/dashboards/counselor/followups', { headers: authHeaders() }),
+    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
+    funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
+    trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
+    leadScores: () => req<{ leads: { studentId: string; name: string; email: string; leadStage: string; score: number; band: 'hot' | 'warm' | 'cool' | 'cold'; reasons: { text: string; points: number }[] }[]; bands: { hot: number; warm: number; cool: number; cold: number }; total: number }>('/dashboards/leads/scores', { headers: authHeaders() }),
+    conversion: (p: { groupBy: string; from?: string; to?: string }) =>
+      req<{ groupBy: string; rows: { group: string; leads: number; applied: number; offers: number; enrolled: number; leadToApplied: number; appliedToOffer: number; leadToEnrolled: number }[]; totals: { group: string; leads: number; applied: number; offers: number; enrolled: number; leadToApplied: number; appliedToOffer: number; leadToEnrolled: number } }>(`/dashboards/admin/conversion?${new URLSearchParams(Object.entries(p).filter(([, v]) => v) as [string, string][])}`, { headers: authHeaders() }),
+    conversionCsv: async (p: { groupBy: string; from?: string; to?: string }) => {
+      const q = new URLSearchParams({ ...(Object.fromEntries(Object.entries(p).filter(([, v]) => v)) as Record<string, string>), format: 'csv' });
+      const res = await fetch(`${BASE}/dashboards/admin/conversion?${q}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conversion-by-${p.groupBy}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    search: (q: string) => req<{
+      students: { id: string; name: string; email: string; phone: string; leadStage: string }[];
+      // Staff workspaces; team is empty for counselors
+      team?: { id: string; name: string; email: string; kind: 'counselor' | 'appteam' }[];
+      universities?: { id: string; name: string; city: string; country: string }[];
+      courses?: { id: string; name: string; level: string; universityId: string; universityName: string }[];
+    }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 
   onboarding: {

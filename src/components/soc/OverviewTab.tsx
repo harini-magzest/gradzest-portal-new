@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import {
   AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
   KeyRound, Lock, ShieldAlert, Globe2, RefreshCw, AlertCircle, Pause, Play, Trash2, Wifi, WifiOff,
-  LogIn, LogOut, Download, Search,
+  LogIn, LogOut, Download, Search, Loader2,
 } from 'lucide-react';
-import { api, API_ORIGIN, getApiToken } from '../../api';
+import { api, API_ORIGIN } from '../../api';
+import { useSocSocket } from './SocketContext';
 import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';
 import SavedFilters from './SavedFilters';
 import DeviceDetails from './DeviceDetails';
-import { Mask } from './Mask';
+import { formatBucket } from './ui';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -66,15 +66,23 @@ function StatCard({ icon: Icon, label, value, sub, color, delta }: { icon: any; 
   );
 }
 
+// Below this, a stats refresh triggered by a live event is throttled rather than firing
+// on every single one — an active incident can produce many events a second, and the
+// KPI cards don't need to track that closely to stop looking stale.
+const STATS_LIVE_REFRESH_MS = 8000;
+
 export default function OverviewTab() {
+  const { socket, isLive } = useSocSocket();
   const [period, setPeriod] = useState<Period>('24h');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   // Live feed state — mirrors the pattern previously used for useActivityFeed.
   const [events, setEvents] = useState<SecurityEvent[]>([]);
-  const [isLive, setIsLive] = useState(false);
+  const [eventsTotal, setEventsTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -85,27 +93,49 @@ export default function OverviewTab() {
   const pendingRef = useRef<SecurityEvent[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => { pauseRef.current = isPaused; }, [isPaused]);
+  const periodRef = useRef(period);
+  useEffect(() => { periodRef.current = period; }, [period]);
+  const lastStatsRefresh = useRef(0);
 
-  const loadStats = useCallback(async (p: Period) => {
-    setLoading(true); setError('');
-    try { setStats(await api.soc.stats(p)); }
-    catch (err: any) { setError(err.message || 'Failed to load stats.'); }
-    setLoading(false);
+  // silent = background refresh: no spinner, and a failed refresh keeps the numbers already on screen.
+  const loadStats = useCallback(async (p: Period, opts: { silent?: boolean } = {}) => {
+    if (!opts.silent) { setLoading(true); setError(''); }
+    try { setStats(await api.soc.stats(p)); setUpdatedAt(new Date()); setError(''); }
+    catch (err: any) { if (!opts.silent) setError(err.message || 'Failed to load stats.'); }
+    if (!opts.silent) setLoading(false);
   }, []);
 
   useEffect(() => { loadStats(period); }, [loadStats, period]);
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) loadStats(period, { silent: true }); }, 60000);
+    return () => clearInterval(t);
+  }, [loadStats, period]);
+
+  const fetchEvents = useCallback((skip: number) => api.soc.events({
+    limit: 50, skip, q: feedFilters.q.trim() || undefined, type: feedFilters.type, severity: feedFilters.severity,
+  }), [feedFilters]);
 
   useEffect(() => {
     setFeedLoading(true);
     // Debounced so typing in the search box doesn't fire a request per keystroke.
     const timer = setTimeout(() => {
-      api.soc.events({ limit: 50, q: feedFilters.q.trim() || undefined, type: feedFilters.type, severity: feedFilters.severity })
-        .then(data => setEvents(data.events || []))
+      fetchEvents(0)
+        .then(data => { setEvents(data.events || []); setEventsTotal(data.total ?? (data.events || []).length); })
         .catch(() => {})
         .finally(() => setFeedLoading(false));
     }, 250);
     return () => clearTimeout(timer);
-  }, [feedFilters]);
+  }, [fetchEvents]);
+
+  const loadMoreEvents = async () => {
+    setLoadingMore(true);
+    try {
+      const data = await fetchEvents(events.length);
+      setEvents(prev => [...prev, ...(data.events || [])]);
+      setEventsTotal(data.total ?? events.length);
+    } catch { /* ignore */ }
+    setLoadingMore(false);
+  };
 
   // Live events must respect the active filters too, or a filtered view would fill up with non-matches.
   const matchesFilters = (e: SecurityEvent) => {
@@ -117,14 +147,17 @@ export default function OverviewTab() {
   };
 
   useEffect(() => {
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      auth: (cb: (data: object) => void) => cb({ token: getApiToken() }),
-      reconnectionAttempts: 10, reconnectionDelay: 2000, reconnectionDelayMax: 10000,
-    });
-    socket.on('connect', () => setIsLive(true));
-    socket.on('disconnect', () => setIsLive(false));
-    socket.on('connect_error', () => setIsLive(false));
-    socket.on('security_event', (event: SecurityEvent) => {
+    if (!socket) return;
+    const onSecurityEvent = (event: SecurityEvent) => {
+      // The KPI cards above (failed logins, blocked/unauthorized, series, severity
+      // pie) are a separate fetch from this feed — without this they'd only refresh
+      // on a manual click or a period change, going stale during the exact spike an
+      // analyst is watching scroll by below.
+      const now = Date.now();
+      if (now - lastStatsRefresh.current > STATS_LIVE_REFRESH_MS) {
+        lastStatsRefresh.current = now;
+        loadStats(periodRef.current, { silent: true });
+      }
       if (!matchesFilters(event)) return;
       if (pauseRef.current) {
         pendingRef.current = [event, ...pendingRef.current];
@@ -132,9 +165,11 @@ export default function OverviewTab() {
       } else {
         setEvents(prev => [event, ...prev].slice(0, 200));
       }
-    });
-    return () => { socket.disconnect(); };
-  }, []);
+      setEventsTotal(t => t + 1);
+    };
+    socket.on('security_event', onSecurityEvent);
+    return () => { socket.off('security_event', onSecurityEvent); };
+  }, [socket, loadStats]);
 
   const togglePause = () => {
     setIsPaused(was => {
@@ -168,8 +203,9 @@ export default function OverviewTab() {
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => loadStats(period)} disabled={loading}
-          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50">
+        {updatedAt && <span className="ml-auto mr-2 text-[11px] text-gray-400 self-center" title="Refreshes automatically every minute">Updated {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+        <button type="button" onClick={() => loadStats(period)} disabled={loading} aria-label="Refresh"
+          className={`p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 ${updatedAt ? '' : 'ml-auto'}`}>
           <RefreshCw className={`w-4 h-4 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -203,9 +239,9 @@ export default function OverviewTab() {
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={stats.series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatBucket} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip />
+                    <Tooltip labelFormatter={(l: any) => formatBucket(String(l))} />
                     <Area type="monotone" dataKey="count" name="Events" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.15} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -283,12 +319,12 @@ export default function OverviewTab() {
               <input value={feedFilters.q} onChange={e => setFeedFilters(f => ({ ...f, q: e.target.value }))} placeholder="Search email, IP or message…"
                 className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
-            <select value={feedFilters.type} onChange={e => setFeedFilters(f => ({ ...f, type: e.target.value }))}
+            <select value={feedFilters.type} onChange={e => setFeedFilters(f => ({ ...f, type: e.target.value }))} aria-label="Event type"
               className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
               <option value="all">All types</option>
               {Object.entries(TYPE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
             </select>
-            <select value={feedFilters.severity} onChange={e => setFeedFilters(f => ({ ...f, severity: e.target.value }))}
+            <select value={feedFilters.severity} onChange={e => setFeedFilters(f => ({ ...f, severity: e.target.value }))} aria-label="Severity"
               className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
               <option value="all">All severities</option>
               {Object.entries(SEVERITY_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -323,11 +359,11 @@ export default function OverviewTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-sm font-semibold text-gray-900 truncate"><Mask value={e.email} fallback="Unknown" /></span>
+                    <span className="text-sm font-semibold text-gray-900 truncate">{e.email || 'Unknown'}</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
                     <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                   </div>
-                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? ` — ${e.message}` : ''}</p>
+                  <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? <> — {e.message}</> : ''}</p>
                   {e.userAgent && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{e.userAgent}</p>}
                 </div>
                 <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums pt-0.5">{time}</span>
@@ -336,6 +372,15 @@ export default function OverviewTab() {
               </div>
             );
           })}
+          {!feedLoading && events.length < eventsTotal && (
+            <div className="p-3 text-center border-t border-gray-50">
+              <button onClick={loadMoreEvents} disabled={loadingMore}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50 rounded-lg disabled:opacity-50">
+                {loadingMore ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                {loadingMore ? 'Loading…' : `Load more (${events.length} of ${eventsTotal})`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -11,10 +11,12 @@ import { api } from '../../api';
 import { Counselor } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import LeadStageSelect, { LEAD_STAGES, leadStageOf } from '../../components/LeadStageSelect';
+import BulkActionBar from '../../components/BulkActionBar';
 import { RecordTab, StudentRecordPanel, useStudentRecord } from '../../components/StudentRecord';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import RecordNavArrows from '../../components/RecordNavArrows';
 import StudentEditForm, { StudentProfileFields } from '../../components/StudentEditForm';
+import StudentNotes from '../../components/StudentNotes';
 import { usePermissions } from '../../hooks/usePermissions';
 import { usePortalName } from '../../hooks/usePortalName';
 import { exportRowsToCsv } from '../../utils/exportCsv';
@@ -212,7 +214,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
 
           {!isEdit && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 text-xs text-blue-700">
-              A default password <strong>student123</strong> will be set. The student can change it after first login.
+              A random temporary password is emailed to the student and shown to you once, in case the email doesn't arrive. The student can change it after first login.
             </div>
           )}
 
@@ -370,6 +372,7 @@ function StudentsList() {
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const loadStudents = useCallback(async () => {
     setLoading(true); setLoadError('');
@@ -599,6 +602,8 @@ function StudentsList() {
         </div>
       </div>
 
+      <BulkActionBar ids={[...selectedIds]} onClear={() => setSelectedIds(new Set())} onDone={loadStudents} />
+
       {/* ── Table ── */}
       {loading && allStudents.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
@@ -610,6 +615,11 @@ function StudentsList() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="w-10 px-4 py-3.5">
+                    <input type="checkbox" aria-label="Select all students on this page" checked={paginated.length > 0 && paginated.every((s: any) => selectedIds.has(normalId(s)))}
+                      onChange={() => setSelectedIds(prev => { const n = new Set(prev); const all = paginated.every((s: any) => n.has(normalId(s))); paginated.forEach((s: any) => (all ? n.delete(normalId(s)) : n.add(normalId(s)))); return n; })}
+                      className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                  </th>
                   {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
                     <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
                   ))}
@@ -617,7 +627,7 @@ function StudentsList() {
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-16">
+                  <tr><td colSpan={9} className="text-center py-16">
                     <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                     <p className="text-sm text-gray-500">{activeTags.length ? 'No students match your filters.' : 'No students yet.'}</p>
                   </td></tr>
@@ -629,6 +639,11 @@ function StudentsList() {
                   const offer = (s.applications || []).some((a: any) => a.status === 'offer_received');
                   return (
                     <tr key={id} className="border-b border-gray-50 hover:bg-green-50/30 transition-colors">
+                      <td className="w-10 px-4 py-3.5">
+                        <input type="checkbox" aria-label={`Select ${s.name}`} checked={selectedIds.has(id)}
+                          onChange={() => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
+                          className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                      </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</div>
@@ -755,9 +770,6 @@ function StudentDetail() {
   const [showRequestDoc, setShowRequestDoc] = useState(false);
   const [universities, setUniversities] = useState<any[]>([]);
   const [eligFilter, setEligFilter] = useState('');
-  const [noteText, setNoteText] = useState('');
-  const [editingNote, setEditingNote] = useState<{ id: string; text: string } | null>(null);
-  const [notesSaving, setNotesSaving] = useState(false);
   const [countryFilter, setCountryFilter] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
   const { user: counselor } = useAuth();
@@ -776,8 +788,6 @@ function StudentDetail() {
     setStudent(null);
     setStudentLoadError('');
     setCounselorName(null);
-    setNoteText('');
-    setEditingNote(null);
     api.students.get(studentId).then(s => {
       if (cancelled) return;
       setStudent(s);
@@ -1146,124 +1156,12 @@ function StudentDetail() {
         </div>
       )}
 
-      {activeTab === 'notes' && (() => {
-        const myNotes = (student.counselorNotes || []).filter((n: any) => n.counselorId === ((counselor as any)?._id || counselor?.id));
-
-        const handleAddNote = async () => {
-          if (!noteText.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.addNote(studentId, noteText.trim());
-            setStudent(updated);
-            setNoteText('');
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleSaveEdit = async () => {
-          if (!editingNote || !editingNote.text.trim() || !studentId) return;
-          setNotesSaving(true);
-          try {
-            const updated = await api.students.editNote(studentId, editingNote.id, editingNote.text.trim());
-            setStudent(updated);
-            setEditingNote(null);
-          } catch {}
-          setNotesSaving(false);
-        };
-
-        const handleDelete = async (noteId: string) => {
-          if (!studentId) return;
-          try {
-            const updated = await api.students.deleteNote(studentId, noteId);
-            setStudent(updated);
-          } catch {}
-        };
-
-        return (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <StickyNote className="w-4 h-4 text-yellow-500" />
-                <h3 className="font-bold text-gray-900">My Notes</h3>
-                <span className="text-xs text-gray-400 ml-auto">Only visible to you</span>
-              </div>
-
-              <div className="flex gap-2 mb-5">
-                <textarea
-                  value={noteText}
-                  onChange={e => setNoteText(e.target.value)}
-                  placeholder="Add a private note about this student…"
-                  rows={3}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
-                />
-                <button
-                  type="button"
-                  disabled={!noteText.trim() || notesSaving}
-                  onClick={handleAddNote}
-                  className="self-end px-4 py-2.5 bg-yellow-500 text-white rounded-xl text-sm font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50 whitespace-nowrap"
-                >
-                  {notesSaving ? 'Saving…' : 'Add Note'}
-                </button>
-              </div>
-
-              {myNotes.length === 0 ? (
-                <div className="text-center py-8">
-                  <StickyNote className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No notes yet. Add your first note above.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[...myNotes].reverse().map((note: any) => {
-                    const noteId = note._id || note.id;
-                    const isEditing = editingNote?.id === noteId;
-                    return (
-                      <div key={noteId} className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={editingNote!.text}
-                              onChange={e => setEditingNote({ id: editingNote!.id, text: e.target.value })}
-                              rows={3}
-                              className="w-full px-3 py-2 border border-yellow-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none bg-white"
-                            />
-                            <div className="flex gap-2 justify-end">
-                              <button type="button" onClick={() => setEditingNote(null)}
-                                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                                Cancel
-                              </button>
-                              <button type="button" disabled={!editingNote!.text.trim() || notesSaving} onClick={handleSaveEdit}
-                                className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50">
-                                {notesSaving ? 'Saving…' : 'Save'}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-3">
-                            <p className="flex-1 text-sm text-gray-800 whitespace-pre-wrap">{note.text}</p>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                              <button type="button" onClick={() => setEditingNote({ id: noteId, text: note.text })}
-                                className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors" title="Edit note">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button type="button" onClick={() => handleDelete(noteId)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete note">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {activeTab === 'notes' && studentId && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-4">Notes</h3>
+          <StudentNotes studentId={studentId} />
+        </div>
+      )}
         </div>
       </div>
     </div>

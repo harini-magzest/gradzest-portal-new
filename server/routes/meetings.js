@@ -1,11 +1,17 @@
 const crypto = require('crypto');
+const { sendServerError } = require('../lib/httpError');
 const express = require('express');
+const { logError } = require('../lib/logError');
 const router = express.Router();
 const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
 const { can } = require('../lib/access');
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const { computeSlots } = require('../lib/meetingSlots');
+const { buildIcs } = require('../lib/ics');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -28,7 +34,109 @@ router.get('/', auth, async (req, res) => {
     }).sort({ scheduledDate: 1, scheduledTime: 1 });
     res.json(meetings);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
+  }
+});
+
+const ACTIVE_STATUSES = ['scheduled', 'ongoing'];
+
+// Whose calendar the caller may look at: a student's own counselor, a counselor themself, or (admin) any counselor.
+async function counselorIdFor(req) {
+  if (req.user.role === 'student') {
+    const me = await User.findById(req.user.id).select('counselorId').lean();
+    return me?.counselorId ? String(me.counselorId) : null;
+  }
+  if (req.user.role === 'counselor') return String(req.user.id);
+  return mongoose.isValidObjectId(req.query.counselorId) ? String(req.query.counselorId) : null;
+}
+
+const busyOn = (counselorId, date) =>
+  Meeting.find({ 'participants.userId': counselorId, scheduledDate: date, status: { $in: ACTIVE_STATUSES } }).select('scheduledTime duration').lean();
+
+// Free hourly slots on a day. Only availability is returned, never what the counselor is busy with.
+router.get('/availability', auth, async (req, res) => {
+  try {
+    const counselorId = await counselorIdFor(req);
+    if (!counselorId) return res.status(400).json({ message: req.user.role === 'student' ? 'No counselor is assigned to you yet' : 'counselorId is required' });
+    const date = String(req.query.date || '');
+    const result = computeSlots(date, /^\d{4}-\d{2}-\d{2}$/.test(date) ? await busyOn(counselorId, date) : []);
+    res.json({ date, counselorId, ...result });
+  } catch (err) {
+    sendServerError(res, err);
+  }
+});
+
+// A student books a call with their own counselor in one of the free slots.
+router.post('/book', auth, async (req, res) => {
+  if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const { date, time } = req.body || {};
+    const student = await User.findById(req.user.id).select('name email counselorId').lean();
+    const counselor = student?.counselorId ? await User.findOne({ _id: student.counselorId, role: 'counselor' }).select('name email').lean() : null;
+    if (!counselor) return res.status(400).json({ message: 'No counselor is assigned to you yet' });
+
+    const slots = computeSlots(String(date || ''), /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? await busyOn(String(counselor._id), date) : []);
+    const slot = slots.slots.find((x) => x.time === time);
+    if (!slot || !slot.available) return res.status(409).json({ message: 'That time is no longer available. Please pick another.' });
+
+    const meeting = await Meeting.create({
+      title: `Call with ${student.name}`, scheduledDate: date, scheduledTime: time, duration: 60,
+      platform: 'jitsi', meetingLink: generateJitsiLink(),
+      participants: [
+        { userId: String(counselor._id), name: counselor.name, role: 'counselor', email: counselor.email },
+        { userId: String(student._id), name: student.name, role: 'student', email: student.email },
+      ],
+      notes: typeof req.body.notes === 'string' ? req.body.notes.trim().slice(0, 500) : '',
+      createdBy: String(student._id), createdByName: student.name,
+    });
+
+    await Notification.create({
+      userId: counselor._id, type: 'meeting', priority: 'normal',
+      title: `New call booked: ${student.name}`, message: `${date} at ${time}`, link: meeting.meetingLink,
+    });
+    const io = req.app.get('io');
+    const sids = req.app.get('userSockets')?.get(String(counselor._id));
+    if (io && sids) sids.forEach((sid) => io.to(sid).emit('meeting:scheduled', {
+      _id: meeting._id, title: meeting.title, scheduledDate: date, scheduledTime: time, platform: 'jitsi',
+      meetingLink: meeting.meetingLink, duration: 60, createdByName: student.name,
+    }));
+
+    res.status(201).json(meeting);
+  } catch (err) {
+    sendServerError(res, err);
+  }
+});
+
+function sendIcs(res, filename, meetings) {
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buildIcs(meetings));
+}
+
+// Every upcoming meeting of the caller, to import into a calendar in one go.
+router.get('/ics', auth, async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const meetings = await Meeting.find({
+      ...(req.user.role === 'admin' ? {} : { 'participants.userId': req.user.id }),
+      scheduledDate: { $gte: since }, status: { $ne: 'cancelled' },
+    }).sort({ scheduledDate: 1, scheduledTime: 1 }).limit(500).lean();
+    sendIcs(res, 'gradzest-meetings.ics', meetings);
+  } catch (err) {
+    sendServerError(res, err);
+  }
+});
+
+router.get('/:id/ics', auth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Meeting not found' });
+    const meeting = await Meeting.findById(req.params.id).lean();
+    if (!meeting) return res.status(404).json({ message: 'Meeting not found' });
+    const isParticipant = (meeting.participants || []).some((p) => String(p.userId) === String(req.user.id));
+    if (req.user.role !== 'admin' && !isParticipant) return res.status(403).json({ message: 'Forbidden' });
+    sendIcs(res, 'gradzest-meeting.ics', [meeting]);
+  } catch (err) {
+    sendServerError(res, err);
   }
 });
 
@@ -163,7 +271,9 @@ router.post('/', auth, can('meetings.create'), async (req, res) => {
             }));
           });
         }
-      } catch {}
+      } catch (err) {
+        logError('meetings', err);
+      }
 
       if (mailer) {
         const staffUsers = await require('../models/User')
@@ -196,7 +306,7 @@ router.post('/', auth, can('meetings.create'), async (req, res) => {
 
     res.status(201).json(meeting);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -239,7 +349,7 @@ router.put('/:id', auth, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 
@@ -272,7 +382,7 @@ router.delete('/:id', auth, async (req, res) => {
 
     res.json({ message: 'Deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    sendServerError(res, err);
   }
 });
 

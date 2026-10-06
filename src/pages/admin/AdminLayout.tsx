@@ -1,10 +1,14 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings } from 'lucide-react';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
+import ZestIcon from '../../components/zest/ZestIcon';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
+import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
@@ -20,12 +24,30 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTe
   { to: '/admin/universities', label: 'Universities', icon: GraduationCap },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
+  { to: '/admin/meetings', label: 'Meetings', icon: Video },
+  { to: '/admin/events', label: 'Events', icon: Ticket },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
   { to: '/admin/zest', label: 'Zest', icon: GraduationCap, appTeamHidden: true },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings, appTeamHidden: true },
 ];
+
+// Everything the top search can open: students, team, universities, courses, the sidebar pages and each Settings section
+const search: SearchConfig = {
+  basePath: '/admin/students',
+  teamLink: t => t.kind === 'counselor' ? `/admin/counselors/${t.id}/performance` : `/admin/counselors?view=${t.id}`,
+  pages: [
+    ...navItems.map(item => ({ label: item.label, to: item.to })),
+    ...[
+      ['company', 'Company Profile'], ['profile', 'My Profile'], ['password', 'Password & Security'],
+      ['users', 'Users and Controls'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
+      ['google-cal', 'Google Calendar'], ['export', 'Export & Backup'], ['danger', 'Danger Zone'],
+    ].map(([key, label]) => ({ label, to: `/admin/settings?section=${key}`, hint: 'Settings' })),
+    { label: 'Roles', to: '/admin/settings?section=users&tab=roles', hint: 'Settings · Users and Controls' },
+    { label: 'Application Board', to: '/admin/application-board', hint: 'Applications' },
+  ],
+};
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
   if (typeof icon === 'string') {
@@ -37,11 +59,12 @@ function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
 
 export default function AdminLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
   const unreadCount = useUnreadMessages();
   const newLeads = useNewLeadCount();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (user?.role !== 'admin') return <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
   const visibleItems = navItems.filter(item => !(item.appTeamHidden && user?.isAppTeam));
 
@@ -53,7 +76,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-purple-50">
-      <DashboardTopbar workspaceLabel="Admin workspace" />
+      <DashboardTopbar workspaceLabel="Admin workspace" search={search} />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
 
@@ -76,7 +99,7 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

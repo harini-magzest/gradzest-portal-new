@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
 
 const REMIND_DAYS = [30, 7, 1];
 
@@ -21,7 +22,7 @@ function parseIntakeDate(intake) {
 async function runDeadlineCheck(io, userSockets, mailer) {
   const now = new Date();
   const students = await User.find({ role: 'student', 'applications.0': { $exists: true } })
-    .select('name email applications onboarding');
+    .select('name email phone notificationPrefs applications onboarding');
 
   for (const student of students) {
     for (const app of student.applications) {
@@ -67,7 +68,9 @@ async function runDeadlineCheck(io, userSockets, mailer) {
       }
 
       // Email
-      if (mailer && student.email) {
+      sendExtraChannels(student, `${title}. ${message}`);
+
+      if (mailer && student.email && wantsEmail(student)) {
         mailer.sendMail({
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: student.email,
@@ -102,4 +105,4 @@ function startDeadlineReminders(io, userSockets, mailer) {
   console.log('[deadline-reminders] Scheduled — runs daily at 09:00');
 }
 
-module.exports = { startDeadlineReminders, runDeadlineCheck };
+module.exports = { startDeadlineReminders, runDeadlineCheck, parseIntakeDate };

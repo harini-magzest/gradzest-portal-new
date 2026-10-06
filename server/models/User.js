@@ -165,10 +165,14 @@ const AcademicDetailSchema = new mongoose.Schema({
   docs: [AcadDocSchema],
 }, { _id: false });
 
+// A staff note on a student. counselorId/counselorName are the author (any staff role).
+// public: every staff member who can open the student sees it; private: only the author.
+// Notes written before visibility existed have no value and count as private.
 const CounselorNoteSchema = new mongoose.Schema({
   text: { type: String, required: true },
   counselorId: String,
   counselorName: String,
+  visibility: { type: String, enum: ['public', 'private'], default: 'private' },
 }, { timestamps: true });
 
 const UserSchema = new mongoose.Schema({
@@ -220,6 +224,8 @@ const UserSchema = new mongoose.Schema({
   academicDetails: [AcademicDetailSchema],
   experienceDetails: [ExperienceSchema],
   applications: [ApplicationSchema],
+  // Courses the student has saved to compare (see lib/shortlist.js)
+  shortlist: { type: [new mongoose.Schema({ universityId: String, courseId: String, addedAt: Date }, { _id: false })], default: undefined },
   documents: [DocumentSchema],
   counselorNotes: [CounselorNoteSchema],
   counselorId: String,
@@ -277,6 +283,22 @@ const UserSchema = new mongoose.Schema({
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
 
+  // Universities the student has saved to compare (see GET /api/students/me/shortlist). `universityId` is the
+  // university's short id (or _id); capped at 20 by the route.
+  shortlist: {
+    type: [{ _id: false, universityId: { type: String, required: true }, addedAt: { type: Date, default: Date.now } }],
+    default: undefined,
+  },
+
+  // Short code a student shares so friends can sign up as their referral (see lib/referrals.js). Created on first use.
+  referralCode: { type: String, unique: true, sparse: true },
+
+  // How this person wants reminders. Email is on unless turned off; WhatsApp is opt-in (see lib/notificationChannels.js).
+  notificationPrefs: {
+    email: { type: Boolean, default: true },
+    whatsapp: { type: Boolean, default: false },
+  },
+
   // Active login sessions — one per device, each with its own refresh token
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },
@@ -314,6 +336,12 @@ const UserSchema = new mongoose.Schema({
 // Unique only among accounts that have an email, so any number of phone-only leads can coexist
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } });
 
-UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toJSON', {
+  virtuals: true,
+  // Staff notes never travel inside a user object — that would hand them to the student and
+  // every private note to every colleague. They're served only by GET /api/students/:id/notes,
+  // which applies public/private visibility (lib/studentNotes.js).
+  transform: (doc, ret) => { delete ret.counselorNotes; return ret; },
+});
 
 module.exports = mongoose.model('User', UserSchema);

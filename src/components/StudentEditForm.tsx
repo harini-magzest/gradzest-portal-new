@@ -44,6 +44,9 @@ function initialForm(s: any) {
     courses: (s?.interestedCourses || []).join(', '),
     preferredCourseLevel: s?.preferredCourseLevel || '', preferredIntake: s?.preferredIntake || '',
     qualification: s?.qualification || '', workSummary: s?.workSummary || '', branch: s?.branch || '',
+    preferredUniversities: s?.preferredUniversities || '', preferredCities: s?.preferredCities || '',
+    needsScholarship: s?.needsScholarship || '', needsLoan: s?.needsLoan || '', needsAccommodation: s?.needsAccommodation || '',
+    preferenceNote: s?.preferenceNote || '',
   };
 }
 type Form = ReturnType<typeof initialForm>;
@@ -117,6 +120,9 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
       englishScore: form.englishType ? { type: form.englishType, score: form.englishScore === '' ? undefined : Number(form.englishScore) } : null,
       preferredCourseLevel: form.preferredCourseLevel, preferredIntake: form.preferredIntake,
       qualification: form.qualification, workSummary: form.workSummary, branch: form.branch,
+      preferredUniversities: form.preferredUniversities, preferredCities: form.preferredCities,
+      needsScholarship: form.needsScholarship, needsLoan: form.needsLoan, needsAccommodation: form.needsAccommodation,
+      preferenceNote: form.preferenceNote,
       allowDuplicatePhone,
     };
     // Email is the login ID: send it only when adding one (the server refuses to change an existing one)
@@ -245,6 +251,20 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
             </Field>
             {text('branch', 'Branch', { placeholder: 'Unassigned' })}
           </section>
+
+          {/* ── Student's Preferences (the student can also fill these in from their own profile) ── */}
+          <section className="space-y-4">
+            <h3 className={h3}>Student's Preferences</h3>
+            {text('preferredUniversities', 'Preferred Universities', { placeholder: 'e.g. University of Toronto, Monash' })}
+            {text('preferredCities', 'Preferred Cities', { placeholder: 'e.g. Toronto, Melbourne' })}
+            {select('needsScholarship', 'Needs Scholarship', YES_NO_OPTIONS)}
+            {select('needsLoan', 'Needs Education Loan', YES_NO_OPTIONS)}
+            {select('needsAccommodation', 'Needs Accommodation', YES_NO_OPTIONS)}
+            <Field label="Notes" htmlFor="sef-preferenceNote" stacked={inline}>
+              <textarea id="sef-preferenceNote" value={form.preferenceNote} onChange={set('preferenceNote')} rows={3} maxLength={2000}
+                placeholder="Goals, constraints, anything the student told you" className={`${inputCls} resize-y`} />
+            </Field>
+          </section>
         </div>
 
         {(error || duplicate) && (
@@ -339,3 +359,4 @@ export function StudentProfileFields({ student }: { student: any }) {
 }
 
 const YES_NO_LABEL: Record<string, string> = { yes: 'Yes', no: 'No', not_sure: 'Not sure' };
+const YES_NO_OPTIONS = Object.entries(YES_NO_LABEL).map(([value, label]) => ({ value, label }));

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, Search, ShieldCheck, Lock, Trash2, Pencil, Users as UsersIcon, Network } from 'lucide-react';
+import { Plus, X, Search, ShieldCheck, Lock, Trash2, Pencil, Users as UsersIcon, Network, KeyRound } from 'lucide-react';
 import { api } from '../../api';
 import { useToast } from '../../context/ToastContext';
 import AdminRoles from './AdminRoles';
+import AdminProfiles from './AdminProfiles';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500';
 
@@ -14,11 +15,6 @@ interface StaffUser {
   address?: { street?: string; city?: string; state?: string; country?: string; postalCode?: string };
 }
 interface Named { _id: string; name: string; isSystem?: boolean; isDefault?: boolean }
-
-function userType(u: StaffUser) {
-  if (u.role === 'counselor') return { label: 'Counselor', cls: 'bg-teal-50 text-teal-700' };
-  return u.isAppTeam ? { label: 'Application Team', cls: 'bg-orange-50 text-orange-700' } : { label: 'Admin', cls: 'bg-purple-50 text-purple-700' };
-}
 
 /* ── Users tab ─────────────────────────────────────────────────────────────── */
 
@@ -56,17 +52,34 @@ function UserModal({ user, roles, profiles, onClose, onSaved }: {
   const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
   const setAddr = (patch: Partial<typeof form.address>) => setForm(f => ({ ...f, address: { ...f.address, ...patch } }));
   const isCounselor = form.type === 'counselor';
+  const custom = profiles.filter(p => !p.isSystem);
+  const [profileName, setProfileName] = useState(custom.find(p => p._id === form.profileId)?.name || def?.name || '');
+
+  // The profile is typed, not picked: an existing name is reused, a new name creates that
+  // profile with the default profile's permissions (adjustable later in the Profiles tab)
+  const resolveProfileId = async () => {
+    const typed = profileName.trim();
+    if (!isCounselor || !typed) return form.profileId;
+    const match = custom.find(p => p.name.trim().toLowerCase() === typed.toLowerCase());
+    if (match) return match._id;
+    const { profiles: full } = await api.users.profiles();
+    const permissions = full.find((p: any) => p.isDefault)?.permissions || [];
+    const created = await api.users.createProfile({ name: typed, permissions });
+    toast.success(`New profile "${typed}" created`);
+    return created._id as string;
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const profileId = await resolveProfileId();
       if (user) {
         const { password, type, ...patch } = form;
-        await api.users.update(user._id, patch);
+        await api.users.update(user._id, { ...patch, profileId });
         toast.success('User updated');
       } else {
-        await api.users.create(form);
+        await api.users.create({ ...form, profileId });
         toast.success(`${`${form.firstName} ${form.lastName}`.trim()} added`);
       }
       onSaved();
@@ -105,11 +118,10 @@ function UserModal({ user, roles, profiles, onClose, onSaved }: {
                   </select>
                 </Field>
               )}
-              <Field label="Profile" required>
+              <Field label="Profile">
                 {isCounselor ? (
-                  <select value={form.profileId} onChange={e => set({ profileId: e.target.value })} className={inputCls}>
-                    {profiles.filter(p => !p.isSystem).map(p => <option key={p._id} value={p._id}>{p.name}{p.isDefault ? ' (default)' : ''}</option>)}
-                  </select>
+                  <input value={profileName} onChange={e => setProfileName(e.target.value)} className={inputCls}
+                    placeholder="Type a profile, e.g. Visa Counselor" />
                 ) : (
                   <p className="text-sm text-gray-600 py-2 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Administrator (full access)</p>
                 )}
@@ -265,11 +277,10 @@ function UsersTab() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 border-b">
             <tr className="text-left text-xs font-semibold text-gray-500 uppercase">
               <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Profile</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3 text-center">Active</th>
@@ -278,11 +289,10 @@ function UsersTab() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Loading…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No users found.</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">No users found.</td></tr>
             ) : shown.map(u => {
-              const t = userType(u);
               return (
                 <tr key={u._id} className={u.active === false ? 'opacity-60' : ''}>
                   <td className="px-4 py-3">
@@ -296,14 +306,10 @@ function UsersTab() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-1 rounded-full ${t.cls}`}>{t.label}</span></td>
                   <td className="px-4 py-3">
-                    {u.role === 'counselor' ? (
-                      <select value={u.profileId || defaultProfile?._id || ''} onChange={e => update(u, { profileId: e.target.value })}
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm max-w-[180px]">
-                        {profiles.filter(p => !p.isSystem).map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                      </select>
-                    ) : <span className="text-gray-600 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Administrator</span>}
+                    {u.role === 'counselor'
+                      ? <span className="text-gray-700">{profiles.find(p => p._id === u.profileId)?.name || defaultProfile?.name || '—'}</span>
+                      : <span className="text-gray-600 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Administrator</span>}
                   </td>
                   <td className="px-4 py-3">
                     <select value={u.hierarchyRole || ''} onChange={e => update(u, { roleId: e.target.value || null })}
@@ -347,9 +353,10 @@ function UsersTab() {
 
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 
-type Tab = 'users' | 'roles';
+type Tab = 'users' | 'profiles' | 'roles';
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'users', label: 'Users', icon: UsersIcon },
+  { key: 'profiles', label: 'Profiles', icon: KeyRound },
   { key: 'roles', label: 'Roles', icon: Network },
 ];
 
@@ -374,6 +381,7 @@ export default function AdminUsersControls() {
         ))}
       </div>
       {tab === 'users' && <UsersTab />}
+      {tab === 'profiles' && <AdminProfiles />}
       {tab === 'roles' && <AdminRoles />}
     </div>
   );

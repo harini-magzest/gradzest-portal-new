@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { errorText } from './ui';
+import NeedsAttention from './NeedsAttention';
 import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X, Lock, Unlock, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../api';
 import { type Incident, SEVERITY_STYLE as INCIDENT_SEVERITY_STYLE, STATUS_STYLE, TYPE_LABEL } from './incidentShared';
@@ -7,7 +9,6 @@ import BlockedIpsPanel, { BLOCK_DURATIONS } from './BlockedIpsPanel';
 import ReviewBadge from './ReviewBadge';
 import FeatureUsage from './FeatureUsage';
 import { parseUserAgent } from './DeviceDetails';
-import { Mask } from './Mask';
 
 type Mode = 'user' | 'ip';
 
@@ -57,7 +58,7 @@ function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke
         {sessions.map(sess => (
           <div key={sess.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
             <div className="min-w-0 text-sm">
-              <p className="text-gray-800 truncate">{sess.userAgent || 'Unknown device'}</p>
+              <p className="text-gray-800 truncate" title={sess.userAgent}>{shortUa(sess.userAgent)}</p>
               <p className="text-[11px] text-gray-400">
                 <span className="font-mono">{sess.ip || 'unknown IP'}</span> · signed in {new Date(sess.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 {' '}· last used {new Date(sess.lastUsedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -95,7 +96,7 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
         {p.isAppTeam && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">App team</span>}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" /><Mask value={data.user.email} /></a></Field>
+        <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" />{data.user.email}</a></Field>
         <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-400">Not on file</span>}</Field>
         <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-400"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
         <Field label="Joined">{when(p.joined)}</Field>
@@ -126,13 +127,29 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
 }
 
 function TimelineList({ timeline }: { timeline: any[] }) {
+  const [source, setSource] = useState('all');
   if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-400">No activity found.</div>;
+  const sources = [...new Set(timeline.map(t => String(t.source)))];
+  const shown = source === 'all' ? timeline : timeline.filter(t => t.source === source);
+  const dayOf = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
   return (
+    <div>
+      {sources.length > 1 && (
+        <div className="flex items-center gap-1 flex-wrap px-4 py-2 border-b border-gray-100">
+          {['all', ...sources].map(s => (
+            <button key={s} type="button" onClick={() => setSource(s)}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${source === s ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{s === 'all' ? `All (${timeline.length})` : `${s} (${timeline.filter(t => t.source === s).length})`}</button>
+          ))}
+        </div>
+      )}
     <div className="divide-y divide-gray-50">
-      {timeline.map((item, i) => {
+      {shown.map((item, i) => {
+        const newDay = i === 0 || dayOf(item.createdAt) !== dayOf(shown[i - 1].createdAt);
         const sev = item.severityOrLevel ? SEVERITY_STYLE[item.severityOrLevel] : null;
         return (
-          <div key={i} className="flex items-start justify-between gap-3 px-4 py-3">
+          <div key={i}>
+          {newDay && <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase bg-gray-50">{dayOf(item.createdAt)}</p>}
+          <div className="flex items-start justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">{item.source}</span>
@@ -141,15 +158,17 @@ function TimelineList({ timeline }: { timeline: any[] }) {
               </div>
               {item.detail && <p className="text-xs text-gray-400 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
           </div>
         );
       })}
     </div>
+    </div>
   );
 }
 
-export default function InvestigateTab({ initialUserId }: { initialUserId?: string } = {}) {
+export default function InvestigateTab({ initialUserId, initialIp }: { initialUserId?: string; initialIp?: string } = {}) {
   const [mode, setMode] = useState<Mode>('user');
   const [query, setQuery] = useState('');
   const [ipQuery, setIpQuery] = useState('');
@@ -175,8 +194,10 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
 
   const searchUsers = async () => {
     if (!query.trim()) return;
-    const data = await api.soc.searchUsers(query.trim());
-    setUserResults(data.users || []);
+    try {
+      const data = await api.soc.searchUsers(query.trim());
+      setUserResults(data.users || []); setActionError('');
+    } catch (e) { setActionError(errorText(e)); }
   };
 
   const investigateUser = async (u: any) => {
@@ -186,13 +207,16 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
       setUserData(d);
       setSelectedUser({ id: u.id, ...d.user }); // so actions know the real email/name even when opened from another tab
     }
+    catch (e) { setActionError(errorText(e)); }
     finally { setLoading(false); }
   };
 
-  const investigateIp = async () => {
-    if (!ipQuery.trim()) return;
+  const investigateIp = async (override?: string) => {
+    const target = (override ?? ipQuery).trim();
+    if (!target) return;
     setLoading(true); setActionMsg(''); setActionError(''); setIpData(null);
-    try { setIpData(await api.soc.investigateIp(ipQuery.trim())); }
+    try { setIpData(await api.soc.investigateIp(target)); }
+    catch (e) { setActionError(errorText(e)); }
     finally { setLoading(false); }
   };
 
@@ -209,6 +233,14 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
     void investigateUser({ id: initialUserId, email: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUserId]);
+
+  // Arriving from the global search / attention card with an IP already chosen.
+  useEffect(() => {
+    if (!initialIp) return;
+    setMode('ip'); setShowFeatures(false); setIpQuery(initialIp);
+    void investigateIp(initialIp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialIp]);
 
   const toggleLock = async () => {
     if (!selectedUser || !userData) return;
@@ -297,7 +329,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
               {userResults.map(u => (
                 <button key={u.id} onClick={() => investigateUser(u)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-purple-50' : ''}`}>
-                  <span>{u.name} <span className="text-gray-400">· <Mask value={u.email} /></span></span>
+                  <span>{u.name} <span className="text-gray-400">· {u.email}</span></span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{u.role}</span>
                 </button>
               ))}
@@ -311,7 +343,7 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
               onKeyDown={e => { if (e.key === 'Enter') investigateIp(); }}
               placeholder="Enter an IP address…"
               className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <button onClick={investigateIp} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
+            <button onClick={() => investigateIp()} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
           </div>
         </div>
       )}
@@ -320,12 +352,19 @@ export default function InvestigateTab({ initialUserId }: { initialUserId?: stri
       {actionMsg && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">{actionMsg}</p>}
       {actionError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{actionError}</p>}
 
+      {/* Starting point: instead of an empty search box, the accounts and addresses most worth looking at. */}
+      {!loading && !userData && !ipData && !selectedUser && (
+        <NeedsAttention
+          onOpenUser={id => { setMode('user'); void investigateUser({ id, email: '' }); }}
+          onOpenIp={ip => { setMode('ip'); setIpQuery(ip); void investigateIp(ip); }} />
+      )}
+
       {mode === 'user' && userData && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
               <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
-              <p className="text-xs text-gray-400"><Mask value={userData.user.email} /> · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
+              <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <button onClick={toggleLock}

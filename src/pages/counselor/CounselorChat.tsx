@@ -7,8 +7,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { api } from '../../api';
+import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
+import DraftWithZest from '../../components/zest/DraftWithZest';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -204,7 +206,6 @@ export default function CounselorChat() {
       .then(([roomList, studentList]) => {
         setRooms(roomList);
         setMyStudents(studentList);
-        if (roomList.length > 0) setSelectedRoom(roomList[0]);
       }).catch(() => setChatLoadError('Failed to load conversations.'));
   };
 
@@ -236,15 +237,7 @@ export default function CounselorChat() {
     return () => clearInterval(id);
   }, [user, selectedRoom?.id]);
 
-  useEffect(() => {
-    if (!selectedRoom?.id) return;
-    api.chat.markRead(selectedRoom.id).catch(() => {});
-    setRooms(prev => prev.map(r =>
-      r.id === selectedRoom.id
-        ? { ...r, messages: r.messages?.map((m: any) => ({ ...m, read: true })) }
-        : r
-    ));
-  }, [selectedRoom?.id]);
+  useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
   useEffect(() => {
     const isRoomChange = prevRoomIdRef.current !== (selectedRoom?.id ?? null);
@@ -365,7 +358,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
   const q = search.toLowerCase();
   const groupCount = rooms.filter((r: any) => r.type === 'group').length;
   const groupUnread = rooms.filter((r: any) => r.type === 'group')
-    .reduce((n: number, r: any) => n + (r.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0), 0);
+    .reduce((n: number, r: any) => n + (unreadCount(r, String(user?.id))), 0);
   const filteredRooms = rooms
     // Chats tab = 1:1 conversations; Groups tab = counselling groups (created by admins)
     .filter((room: any) => (listTab === 'groups') === (room.type === 'group'))
@@ -435,7 +428,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                 {filteredRooms.map((room: any) => {
                   const partnerName = getStudentName(room);
                   const roleLabel = getRoleLabel(room);
-                  const unread = room.messages?.filter((m: any) => !m.read && m.senderId !== user?.id).length || 0;
+                  const unread = unreadCount(room, String(user?.id));
                   const lastMsg = room.messages?.[room.messages.length - 1];
                   const lastMsgPreview = lastMsg?.type === 'call'
                     ? `📞 ${lastMsg.callStatus === 'answered' ? 'Voice call' : lastMsg.callStatus === 'no_answer' ? 'Missed call' : 'Call declined'}`
@@ -459,7 +452,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                           </div>
                         </div>
                         <p className={`text-[10px] font-medium mt-0.5 ${getRoleBadgeClass(roleLabel)} inline-block px-1.5 py-0.5 rounded-full`}>{roleLabel}</p>
-                        {lastMsgPreview && <p className="text-xs text-gray-400 truncate mt-0.5">{lastMsgPreview}</p>}
+                        {lastMsgPreview && <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{lastMsgPreview}</p>}
                       </div>
                     </button>
                   );
@@ -608,6 +601,7 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                   className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors flex-shrink-0">
                   <CalendarDays className="w-4 h-4" />
                 </button>
+                {selectedRoom.type !== 'group' && <DraftWithZest roomId={selectedRoom.id} onDraft={setInput} />}
                 <div className="w-px h-6 bg-gray-200 mx-0.5 flex-shrink-0" />
                 <input type="text" value={input} onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { pendingFile ? sendFile() : send(); } }}

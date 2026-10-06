@@ -1,7 +1,10 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const University = require('../models/University');
 const { fetchEnrichmentData } = require('../lib/enrichUniversity');
+const { findUniversity } = require('../lib/findUniversity');
+const { summarise, compare } = require('../lib/universityCompare');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -27,6 +30,20 @@ router.get('/autofill', async (req, res) => {
   }
 });
 
+// Side-by-side comparison of up to four universities: /api/universities/compare?ids=a,b,c
+router.get('/compare', async (req, res) => {
+  if (!dbReady(res)) return;
+  const ids = [...new Set(String(req.query.ids || '').split(',').map(s => s.trim()).filter(Boolean))];
+  if (ids.length < 2 || ids.length > 4) return res.status(400).json({ message: 'Pick between 2 and 4 universities to compare' });
+  try {
+    const found = await Promise.all(ids.map(findUniversity));
+    if (found.some(u => !u)) return res.status(404).json({ message: 'One of those universities was not found' });
+    res.json(compare(found.map(summarise)));
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
+  }
+});
+
 router.get('/', async (req, res) => {
   if (!dbReady(res)) return;
   try {
@@ -34,7 +51,7 @@ router.get('/', async (req, res) => {
     res.json(unis);
   } catch (err) {
     console.error('GET /api/universities error:', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -66,7 +83,7 @@ router.put('/:id/courses/:courseId/custom', authMiddleware, async (req, res) => 
     await uni.save();
     res.json(course);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -83,7 +100,7 @@ router.get('/:id', async (req, res) => {
     res.json(uni);
   } catch (err) {
     console.error('GET /api/universities/:id error:', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 

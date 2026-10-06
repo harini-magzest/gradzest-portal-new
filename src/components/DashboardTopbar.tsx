@@ -1,20 +1,25 @@
+import GlobalSearch, { type SearchConfig } from './dashboards/GlobalSearch';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { usePortalName } from '../hooks/usePortalName';
+import { LanguageSwitcher } from '../i18n/LanguageContext';
 
 const ICON_BTN = 'w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors flex-shrink-0';
 
 export default function DashboardTopbar({
   workspaceLabel,
+  search,
 }: {
   workspaceLabel: string;
+  /** Workspace search: student, team, university, course and page results (staff workspaces) */
+  search?: SearchConfig;
 }) {
   const { user, logout } = useAuth();
   // Staff see their role from the Roles tree (e.g. "Associate Counsellor HO workspace")
-  const { workspace } = usePortalName();
+  const { workspace, name: roleName } = usePortalName();
   const label = user?.role === 'counselor' || user?.role === 'admin' ? workspace : workspaceLabel;
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -52,6 +57,16 @@ export default function DashboardTopbar({
       {/* Right cell */}
       <div className="flex-1 flex items-center px-4 md:px-6 min-w-0">
         <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+          {search ? (
+            <div className="hidden md:block w-80 mr-2">
+              <GlobalSearch {...search} />
+            </div>
+          ) : (user?.role === 'admin' || user?.role === 'counselor') && (
+            <div className="hidden md:block w-64 mr-2">
+              <GlobalSearch basePath={user.role === 'counselor' ? '/counselor/students' : '/admin/students'} />
+            </div>
+          )}
+          <LanguageSwitcher />
           <NotificationBell buttonClassName={`relative ${ICON_BTN}`} />
 
           <div className="relative" ref={profileRef}>
@@ -70,7 +85,7 @@ export default function DashboardTopbar({
               <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
                 <div className="px-4 py-2.5 border-b border-gray-100">
                   <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                  <p className="text-xs text-gray-400 capitalize mt-0.5">{user?.role}</p>
+                  <p className="text-xs text-gray-400 capitalize mt-0.5">{user?.role === 'counselor' || user?.role === 'admin' ? roleName : user?.role}</p>
                 </div>
                 {user?.role === 'student' && (
                   <Link to="/student/profile" onClick={() => setProfileOpen(false)}

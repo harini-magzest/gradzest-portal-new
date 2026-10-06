@@ -5,6 +5,7 @@ import { CallProvider } from './context/CallContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
@@ -37,12 +38,17 @@ const Activities = lazy(() => import('./pages/Activities'));
 const StudentLayout       = lazy(() => import('./pages/student/StudentLayout'));
 const StudentDashboard    = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentUniversities = lazy(() => import('./pages/student/StudentUniversities'));
+const CompareCosts = lazy(() => import('./components/CompareCosts'));
 const StudentApplications = lazy(() => import('./pages/student/StudentApplications'));
 const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'));
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
+const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
+const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
+const ParentView          = lazy(() => import('./pages/ParentView'));
+const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
 // Counselor module
@@ -129,6 +135,7 @@ function PageSpinner() {
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <ToastProvider>
     <AuthProvider>
       <CallProvider>
@@ -136,6 +143,7 @@ export default function App() {
       <AuthModalProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <ReferralCapture />
         <ActivityTracker />
         <ToastLayer />
         <FlashToast />
@@ -144,6 +152,8 @@ export default function App() {
         <ZestWidget />
         <Suspense fallback={<PageSpinner />}>
           <Routes>
+            {/* Read-only progress page a student shares with a parent; no account, no site chrome */}
+            <Route path="/parent/:token" element={<ParentView />} />
             {/* Public routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
@@ -165,6 +175,7 @@ export default function App() {
             <Route path="/student" element={<StudentLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="universities" element={<StudentUniversities />} />
+              <Route path="compare" element={<CompareCosts />} />
               <Route path="applications" element={<StudentApplications />} />
               <Route path="chat" element={<StudentChat />} />
               <Route path="profile" element={<StudentProfile />} />
@@ -172,6 +183,8 @@ export default function App() {
               <Route path="countries" element={<StudentCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<StudentMeetings />} />
+              <Route path="events" element={<StudentEvents />} />
+              <Route path="shortlist" element={<StudentShortlist />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
@@ -181,11 +194,13 @@ export default function App() {
               <Route path="students/*" element={<CounselorStudents />} />
               <Route path="chat" element={<CounselorChat />} />
               <Route path="universities" element={<CounselorUniversities />} />
+              <Route path="compare" element={<CompareCosts />} />
               <Route path="profile" element={<CounselorProfile />} />
               <Route path="courses" element={<CounselorCourses />} />
               <Route path="countries" element={<CounselorCountries />} />
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<CounselorMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="applications" element={<CounselorApplications />} />
               <Route path="learning" element={<CounselorLearning />} />
             </Route>
@@ -204,6 +219,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="live-feed" element={<AdminActivityFeed />} />
               <Route path="meetings" element={<AdminMeetings />} />
+              <Route path="events" element={<StaffEvents />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
@@ -252,6 +268,7 @@ export default function App() {
       </CallProvider>
     </AuthProvider>
     </ToastProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }

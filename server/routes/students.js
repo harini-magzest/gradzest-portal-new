@@ -13,6 +13,9 @@ const { recordStaffActivity } = require('../lib/staffActivity');
 const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 const { assignNextCounselor } = require('../lib/assignCounselor');
+const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
+const { checklistFor, timelineFor } = require('../lib/studentProgress');
+const { validateBulk } = require('../lib/bulkActions');
 
 const router = express.Router();
 
@@ -26,7 +29,8 @@ router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
     const io = req.app.get('io');
     students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
     res.json(students.map(s => s.toJSON()));
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -80,8 +84,234 @@ router.put('/me', authMiddleware, async (req, res) => {
     res.json(user.toJSON());
   } catch (err) {
     console.error('[PUT /students/me]', err);
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
+});
+
+// Bulk actions: change the stage, add a tag, create a follow-up task or (admin) reassign the counselor for many students at
+// once. Each student is checked on its own against the caller's access, so one student the caller may not change never
+// blocks the rest; the response says exactly what happened to each. Declared before the /:id routes.
+router.post('/bulk', authMiddleware, async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  const checked = validateBulk(req.body, req.user, LEAD_STAGES);
+  if (checked.error) return res.status(checked.status || 400).json({ message: checked.error });
+  const { ids, action, value } = checked;
+
+  try {
+    const access = req.user.role === 'admin' ? { admin: true, permissions: new Set(['students.stage']) } : await loadAccess(req);
+    if (action === 'set_stage' && !access.admin && !access.permissions.has('students.stage')) {
+      return res.status(403).json({ message: 'Your profile does not allow changing lead stages' });
+    }
+
+    let counselor = null;
+    if (action === 'reassign' && value) {
+      counselor = await User.findOne({ _id: value, role: 'counselor' }).select('name');
+      if (!counselor) return res.status(400).json({ message: 'Counselor not found' });
+    }
+
+    const students = await User.find({ _id: { $in: ids }, role: 'student' });
+    const byId = new Map(students.map((s) => [String(s._id), s]));
+    const result = { action, requested: ids.length, updated: 0, unchanged: 0, skipped: [] };
+    const actor = req.user.role === 'counselor' ? await User.findById(req.user.id).select('name') : null;
+
+    for (const id of ids) {
+      const student = byId.get(id);
+      if (!student) { result.skipped.push({ id, name: '', reason: 'not_found' }); continue; }
+      if (!canManage(access, student)) { result.skipped.push({ id, name: student.name, reason: 'forbidden' }); continue; }
+
+      if (action === 'set_stage') {
+        const from = student.leadStage || 'new_enquiry';
+        if (from === value) { result.unchanged++; continue; }
+        student.leadStage = value;
+        student.leadStageChangedAt = new Date();
+        await student.save();
+        recordStaffActivity(req, { kind: 'stage', title: 'Lead Stage updated (bulk)', detail: `'${LEAD_STAGES[from]}' to '${LEAD_STAGES[value]}'`, studentId: student._id, studentName: student.name });
+        fireEvent('student.stageChanged', { studentId: student._id, fromStage: from });
+      } else if (action === 'add_tag') {
+        const tags = student.tags || [];
+        if (tags.some((t) => t.toLowerCase() === value.toLowerCase())) { result.unchanged++; continue; }
+        if (tags.length >= 20) { result.skipped.push({ id, name: student.name, reason: 'too_many_tags' }); continue; }
+        student.tags = [...tags, value];
+        await student.save();
+        recordStaffActivity(req, { kind: 'student', title: 'Tag added (bulk)', detail: value, studentId: student._id, studentName: student.name });
+      } else if (action === 'create_task') {
+        const Task = require('../models/Task');
+        await Task.create({
+          title: value.title, priority: value.priority, dueDate: value.dueDate,
+          studentId: student._id, studentName: student.name,
+          assignedTo: req.user.id, assignedToName: actor?.name || '', assignedToRole: req.user.role,
+          assignedBy: req.user.id, assignedByName: actor?.name || '',
+        });
+        recordStaffActivity(req, { kind: 'task', title: 'Task created (bulk)', detail: `${value.title}${value.dueDate ? ` · due ${value.dueDate}` : ''}`, studentId: student._id, studentName: student.name });
+      } else {
+        // reassign (admin only). Students are not emailed one by one here: a mass move should not send a wave of mail.
+        const prev = student.counselorId ? String(student.counselorId) : '';
+        if (prev === (value || '')) { result.unchanged++; continue; }
+        if (prev) await User.findByIdAndUpdate(prev, { $pull: { assignedStudents: id } });
+        student.counselorId = value || undefined;
+        if (value && student.leadStatus === 'new') student.leadStatus = 'contacted';
+        await student.save();
+        if (value) {
+          await User.findByIdAndUpdate(value, { $addToSet: { assignedStudents: id } });
+          fireEvent('counselor.assigned', { studentId: id });
+        }
+        recordStaffActivity(req, { kind: 'student', title: 'Counselor reassigned (bulk)', detail: counselor ? `to ${counselor.name}` : 'unassigned', studentId: student._id, studentName: student.name });
+      }
+      result.updated++;
+    }
+    res.json(result);
+  } catch (err) {
+    logError('students', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Document checklist and application timeline, for the student themself (/me/...) or for staff viewing a student they
+// are allowed to see (/:id/...). `me` routes are declared first so "me" is never read as a student id.
+const asStudent = (req, res, next) => (req.user.role === 'student' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+// Universities a student has saved to compare. Capped so the list stays a shortlist.
+const SHORTLIST_MAX = 20;
+
+router.get('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const { findUniversity } = require('../lib/findUniversity');
+    const { summarise } = require('../lib/universityCompare');
+    const me = await User.findById(req.user.id).select('shortlist').lean();
+    const unis = await Promise.all((me?.shortlist || []).map((s) => findUniversity(s.universityId)));
+    // A university deleted since it was saved just drops out of the list
+    res.json(unis.filter(Boolean).map(summarise));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const { findUniversity } = require('../lib/findUniversity');
+    const uni = await findUniversity(req.body?.universityId);
+    if (!uni) return res.status(404).json({ message: 'University not found' });
+    const universityId = uni.id || String(uni._id);
+    const me = await User.findById(req.user.id).select('shortlist').lean();
+    const list = me?.shortlist || [];
+    if (list.some((s) => s.universityId === universityId)) return res.json({ universityId, saved: true, count: list.length });
+    if (list.length >= SHORTLIST_MAX) return res.status(409).json({ message: `Your shortlist is full (${SHORTLIST_MAX}). Remove one to add another.` });
+    await User.updateOne({ _id: req.user.id, 'shortlist.universityId': { $ne: universityId } }, { $push: { shortlist: { universityId, addedAt: new Date() } } });
+    res.status(201).json({ universityId, saved: true, count: list.length + 1 });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.delete('/me/shortlist/:universityId', authMiddleware, asStudent, async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.user.id }, { $pull: { shortlist: { universityId: req.params.universityId } } });
+    res.json({ universityId: req.params.universityId, saved: false });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/me/checklist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await checklistFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/me/timeline', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const result = await timelineFor(req.user.id);
+    if (!result) return res.status(404).json({ message: 'Student not found' });
+    res.json(result);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// ── Shortlist: courses the student has saved to compare side by side ────────────────────────────
+// Entries point at a university + course; the details are looked up fresh each time so fees stay current.
+async function shortlistRows(entries) {
+  const ids = [...new Set(entries.map((e) => e.universityId))];
+  const unis = ids.length ? await University.find({ id: { $in: ids } }).lean() : [];
+  const byId = new Map(unis.map((u) => [String(u.id), u]));
+  const rows = [];
+  for (const e of entries) {
+    const uni = byId.get(e.universityId);
+    const course = uni?.courses?.find((c) => String(c.id || c._id) === e.courseId);
+    if (uni && course) rows.push(shortlistLib.describeEntry(uni, course, e.addedAt)); // silently skips courses that have since been removed
+  }
+  return { courses: rows, ...shortlistLib.highlights(rows), max: shortlistLib.MAX_SHORTLIST };
+}
+
+router.get('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('shortlist').lean();
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    res.json(await shortlistRows(user.shortlist || []));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
+  const universityId = String(req.body?.universityId || '').trim();
+  const courseId = String(req.body?.courseId || '').trim();
+  if (!universityId || !courseId) return res.status(400).json({ message: 'universityId and courseId are required' });
+  try {
+    const uni = await University.findOne({ id: universityId }).select('courses.id courses._id').lean();
+    if (!uni || !uni.courses?.some((c) => String(c.id || c._id) === courseId)) return res.status(404).json({ message: 'Course not found' });
+    const user = await User.findById(req.user.id).select('shortlist');
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    const next = shortlistLib.addEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), universityId, courseId);
+    if (!next) return res.status(400).json({ message: `You can compare up to ${shortlistLib.MAX_SHORTLIST} courses. Remove one first.` });
+    user.shortlist = next;
+    await user.save();
+    res.status(201).json(await shortlistRows(next));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.delete('/me/shortlist/:universityId/:courseId', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('shortlist');
+    if (!user) return res.status(404).json({ message: 'Student not found' });
+    user.shortlist = shortlistLib.removeEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), req.params.universityId, req.params.courseId);
+    await user.save();
+    res.json(await shortlistRows(user.shortlist));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// The one thing the student should do next, for the card at the top of their dashboard.
+router.get('/me/next-step', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const step = await nextStepForStudent(req.user.id);
+    if (!step) return res.status(404).json({ message: 'Student not found' });
+    res.json(step);
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// Who has looked at this student's personal details: the PII audit trail, shown back to the person it is about.
+// Staff are shown by name and role; the technical details (IP, field list) stay in the SOC view.
+router.get('/me/data-access', authMiddleware, asStudent, async (req, res) => {
+  try {
+    const rows = await PiiAccessLog.find({ applicantId: req.user.id }).sort({ createdAt: -1 }).limit(100);
+    const ids = [...new Set(rows.map((r) => String(r.accessorId)))];
+    const users = ids.length ? await User.find({ _id: { $in: ids } }).select('name').lean() : [];
+    const names = new Map(users.map((u) => [String(u._id), u.name]));
+    res.json({
+      accesses: rows.map((r) => ({
+        id: String(r._id), at: r.createdAt, role: r.accessorRole || 'staff',
+        name: names.get(String(r.accessorId)) || '', kind: r.accessType,
+      })),
+    });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/checklist', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await checklistFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.get('/:id/timeline', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    res.json(await timelineFor(req.params.id));
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
@@ -97,7 +327,8 @@ router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('fil
     const newDoc = user.documents[user.documents.length - 1];
     fireEvent('document.uploaded', { studentId: user._id, document: newDoc });
     res.json(newDoc.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -114,7 +345,8 @@ router.delete('/me/documents/:docId', authMiddleware, async (req, res) => {
     const removed = owner?.documents?.[0];
     if (removed) deleteStoredFile(removed.url);
     res.json({ message: 'Document deleted' });
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -125,7 +357,11 @@ const TEXT_FIELDS = [
   'name', 'firstName', 'lastName', 'title', 'secondaryEmail', 'universityName', 'phone', 'altPhone',
   'dateOfBirth', 'gender', 'nationality', 'socialLeadId', 'educationLevel', 'status',
   'preferredCourseLevel', 'preferredIntake', 'qualification', 'workSummary', 'branch',
+  'preferredUniversities', 'preferredCities', 'preferenceNote',
 ];
+const LONG_TEXT_FIELDS = new Set(['workSummary', 'preferenceNote']);
+const YES_NO_VALUES = ['yes', 'no', 'not_sure', ''];
+const STAFF_YES_NO_FIELDS = ['needsScholarship', 'needsLoan', 'needsAccommodation'];
 const LIST_FIELDS = ['preferredCountries', 'interestedCourses'];
 const NUMBER_FIELDS = ['gpa', 'budget'];
 const ADDRESS_KEYS = ['street', 'city', 'state', 'country', 'postalCode'];
@@ -135,7 +371,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function cleanProfile(body) {
   const out = {};
   for (const f of TEXT_FIELDS) {
-    if (body[f] !== undefined) out[f] = String(body[f] ?? '').trim().slice(0, f === 'workSummary' ? 2000 : 300);
+    if (body[f] !== undefined) out[f] = String(body[f] ?? '').trim().slice(0, LONG_TEXT_FIELDS.has(f) ? 2000 : 300);
   }
   for (const f of LIST_FIELDS) {
     if (Array.isArray(body[f])) out[f] = body[f].map(v => String(v).trim()).filter(Boolean).slice(0, 30);
@@ -154,6 +390,9 @@ function cleanProfile(body) {
     for (const k of ADDRESS_KEYS) {
       if (body.address[k] !== undefined) out[`address.${k}`] = String(body.address[k] ?? '').trim().slice(0, 200);
     }
+  }
+  for (const f of STAFF_YES_NO_FIELDS) {
+    if (body[f] !== undefined && YES_NO_VALUES.includes(body[f])) out[f] = body[f];
   }
   if (out.status === '') delete out.status; // enum field — blank means "leave as is"
   return out;
@@ -266,7 +505,7 @@ router.post('/', authMiddleware, can('students.create'), async (req, res) => {
     // Return tempPassword so staff can share it manually if the email doesn't arrive
     res.status(201).json(tempPassword ? { ...obj, tempPassword } : obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -278,12 +517,9 @@ router.get('/:id', authMiddleware, attachUserEmail, async (req, res) => {
     const student = await User.findById(req.params.id).select('-password');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     logPiiAccess({ accessor: req.user, applicant: student, accessType: 'view', ip: req.ip, io: req.app.get('io') });
-    // Include the assigned counselor's name so the profile can show it
-    const counselor = student.counselorId
-      ? await User.findById(student.counselorId).select('name').lean().catch(() => null)
-      : null;
-    res.json({ ...student.toJSON(), counselorName: counselor?.name || null });
-  } catch {
+    res.json(student.toJSON());
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -296,6 +532,9 @@ const FIELD_LABELS = {
   interestedCourses: 'Preferred Courses', preferredCourseLevel: 'Preferred Course Level',
   preferredIntake: 'Preferred Intake', qualification: 'Qualification and YOP', workSummary: 'Work',
   branch: 'Branch', educationLevel: 'Education Level', gpa: 'GPA', budget: 'Budget', status: 'Status',
+  preferredUniversities: 'Preferred Universities', preferredCities: 'Preferred Cities',
+  needsScholarship: 'Scholarship', needsLoan: 'Education Loan', needsAccommodation: 'Accommodation',
+  preferenceNote: "Student's notes",
 };
 
 // Update a student's profile (admin, Application Team, or the student's counselor / team lead)
@@ -343,7 +582,7 @@ router.put('/:id', authMiddleware, can('students.edit'), async (req, res) => {
     delete obj.password;
     res.json(obj);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -390,7 +629,8 @@ router.post('/:id/documents', authMiddleware, can('documents.request'), async (r
     }
 
     res.json(newDoc.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -417,7 +657,8 @@ router.put('/:id/documents/:docId', authMiddleware, can('documents.verify'), asy
     if (io && sids && doc) sids.forEach(sid => io.to(sid).emit('document:status_updated', { name: doc.name, status }));
 
     res.json(user.toJSON());
-  } catch {
+  } catch (err) {
+    logError('students', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -427,14 +668,14 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-  } catch { return res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); return res.status(500).json({ message: 'Server error' }); }
   const StaffActivity = require('../models/StaffActivity');
   const ActivityLog = require('../models/ActivityLog');
   const EmailLog = require('../models/EmailLog');
   const Meeting = require('../models/Meeting');
   const ChatRoom = require('../models/ChatRoom');
   try {
-    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents counselorId');
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents counselorId counselorNotes');
     if (!student) return res.status(404).json({ message: 'Student not found' });
     const sid = String(student._id);
     const me = String(req.user.id);
@@ -460,7 +701,8 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
     const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor' };
     const timeline = [];
     timeline.push({ id: 'joined', at: student.createdAt || student.joinedDate, kind: 'student', title: 'Student created', detail: SOURCE[student.source] || '' });
-    staffActs.forEach(a => timeline.push({ id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, by: a.actorName, detail: a.detail }));
+    // Note text never goes in the shared timeline (older entries stored a snippet, which may be from a private note)
+    staffActs.forEach(a => timeline.push({ id: String(a._id), at: a.createdAt, kind: a.kind, title: a.title, by: a.actorName, detail: a.kind === 'note' ? '' : a.detail }));
     studentActs.forEach(a => timeline.push({ id: String(a._id), at: a.createdAt, kind: a.type, title: a.action, detail: a.detail }));
     (student.applications || []).forEach(a => a.submittedDate && timeline.push({
       id: `app-${a._id}`, at: a.submittedDate, kind: 'application', title: 'Application submitted', detail: `${a.universityName} – ${a.courseName}`,
@@ -496,6 +738,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
 
     res.json({
       timeline: timeline.slice(0, 400),
+      notesCount: notesFor(student, me).length,
       activities,
       tasks: tasks.map(t => ({ ...t, id: String(t._id) })),
       owner: owner ? { id: String(owner._id), name: owner.name, title: owner.title || '' } : null,
@@ -506,7 +749,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
       })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -600,11 +843,12 @@ router.put('/:id/meta', authMiddleware, async (req, res) => {
   } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
-// POST /api/students/:id/notes — add a note
+// POST /api/students/:id/notes — add a note ({ text, visibility }; private unless told otherwise)
 router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
-  const { text } = req.body;
-  if (!text?.trim()) return res.status(400).json({ message: 'Note text is required' });
+  const text = noteText(req.body.text);
+  const visibility = req.body.visibility === 'public' ? 'public' : 'private';
+  if (!text) return res.status(400).json({ message: 'Note text is required' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
     const author = await User.findById(req.user.id).select('name');
@@ -619,11 +863,15 @@ router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) 
   } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
-// PUT /api/students/:id/notes/:noteId — edit a note
+// PUT /api/students/:id/notes/:noteId — the author edits the text and/or switches public ↔ private
 router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
-  const { text } = req.body;
-  if (!text?.trim()) return res.status(400).json({ message: 'Note text is required' });
+  const text = req.body.text !== undefined ? noteText(req.body.text) : undefined;
+  const { visibility } = req.body;
+  if (text === '') return res.status(400).json({ message: 'Note text is required' });
+  if (visibility !== undefined && !NOTE_VISIBILITY.includes(visibility)) {
+    return res.status(400).json({ message: 'Visibility must be public or private' });
+  }
   try {
     if (await denyStudent(req, res, req.params.id)) return;
     const user = await User.findOneAndUpdate(
@@ -636,7 +884,7 @@ router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req
   } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
 });
 
-// DELETE /api/students/:id/notes/:noteId — delete a note
+// DELETE /api/students/:id/notes/:noteId — the author, or an admin for a public note
 router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (req, res) => {
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {

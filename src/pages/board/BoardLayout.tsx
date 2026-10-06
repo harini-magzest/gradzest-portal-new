@@ -1,9 +1,11 @@
 import React from 'react';
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Layers, Users, UserCog, FolderOpen, CalendarDays } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import SkipLink from '../../components/SkipLink';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
   { to: '/board', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -16,17 +18,19 @@ const navItems: { to: string; label: string; icon: React.ComponentType<{ classNa
 
 export default function BoardLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (user?.role !== 'admin') return <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Board workspace" />
       <div className="flex">
         <DashboardSidebar navItems={navItems} />
@@ -41,7 +45,7 @@ export default function BoardLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
           <Outlet />
         </main>
       </div>

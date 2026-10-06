@@ -1,9 +1,11 @@
 import React from 'react';
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Layers, Users, UserCog, CalendarDays, Activity, MessageSquare, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
   { to: '/appteam',              label: 'Dashboard',    icon: LayoutDashboard, end: true },
@@ -16,20 +18,28 @@ const navItems: { to: string; label: string; icon: React.ComponentType<{ classNa
   { to: '/appteam/learning',     label: 'Learning Hub', icon: GraduationCap },
 ];
 
+// Top search: students, counselors, universities, courses and the sidebar pages
+const search: SearchConfig = {
+  basePath: '/appteam/students',
+  teamLink: t => t.kind === 'counselor' ? `/appteam/counselors?view=${t.id}` : null,
+  pages: navItems.map(item => ({ label: item.label, to: item.to })),
+};
+
 export default function AppTeamLayout() {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to="/login?redirect=/appteam" />;
-  if (user?.role !== 'admin') return <Navigate to="/login?redirect=/appteam" />;
+  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
+  if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <DashboardTopbar workspaceLabel="Application Team workspace" />
+      <DashboardTopbar workspaceLabel="Application Team workspace" search={search} />
       <div className="flex">
 
         {/* Sidebar */}
@@ -48,7 +58,7 @@ export default function AppTeamLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
           <Outlet />
         </main>
       </div>
