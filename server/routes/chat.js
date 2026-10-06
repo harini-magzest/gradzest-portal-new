@@ -1,5 +1,6 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const ChatRoom = require('../models/ChatRoom');
 const User = require('../models/User');
 const CallSummary = require('../models/CallSummary');

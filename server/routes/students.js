@@ -14,7 +14,10 @@ const { fireEvent } = require('../lib/automation');
 const { can, loadAccess, studentFilter, canView, canManage, denyStudent } = require('../lib/access');
 const { assignNextCounselor } = require('../lib/assignCounselor');
 const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
-const { checklistFor, timelineFor } = require('../lib/studentProgress');
+const { checklistFor, timelineFor, nextStepForStudent } = require('../lib/studentProgress');
+const PiiAccessLog = require('../models/PiiAccessLog');
+const University = require('../models/University');
+const shortlistLib = require('../lib/shortlist');
 const { validateBulk } = require('../lib/bulkActions');
 
 const router = express.Router();

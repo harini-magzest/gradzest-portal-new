@@ -47,8 +47,23 @@ export interface StudentNote {
   createdAt?: string; updatedAt?: string;
 }
 
+// Skyload caps in-flight requests per IP, and a dashboard load can briefly exceed it. Those 429s say "concurrent"
+// and only mean "try again in a moment", so reads wait and retry instead of failing; other 429s (real rate limits) don't.
+const CONCURRENCY_RETRY_DELAYS = [300, 800, 1500];
+
+async function fetchWithConcurrencyRetry(input: string, init: RequestInit): Promise<Response> {
+  const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status !== 429 || !isRead || attempt >= CONCURRENCY_RETRY_DELAYS.length) return res;
+    const body = await res.clone().json().catch(() => null);
+    if (!/concurrent/i.test(body?.message || '')) return res;
+    await new Promise(r => setTimeout(r, CONCURRENCY_RETRY_DELAYS[attempt] + Math.random() * 200));
+  }
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
+  const res = await fetchWithConcurrencyRetry(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -715,17 +730,63 @@ export const api = {
 
   zest: {
     ask: (question: string, history?: { role: 'user' | 'assistant'; text: string }[]) =>
-      req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
+      req<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
+    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    askStream: async (
+      question: string,
+      history: { role: 'user' | 'assistant'; text: string }[] | undefined,
+      onDelta: (text: string) => void,
+    ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
+      const res = await fetch(`${BASE}/zest/ask-stream`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ question, history }),
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Zest couldn't answer that right now. Please try again.");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let final: { answer: string; sources: { documentId: string; title: string }[]; logId?: string } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let end: number;
+        while ((end = buffer.indexOf('\n\n')) !== -1) {
+          const line = buffer.slice(0, end).trim();
+          buffer = buffer.slice(end + 2);
+          if (!line.startsWith('data:')) continue;
+          const event = JSON.parse(line.slice(5));
+          if (event.type === 'delta') onDelta(event.text);
+          else if (event.type === 'done') final = { answer: event.answer, sources: event.sources, logId: event.logId };
+          else if (event.type === 'error') throw new Error(event.message);
+        }
+      }
+      if (!final) throw new Error('Zest stopped before finishing. Please try again.');
+      return final;
+    },
     // One-off document Q&A: file is analyzed for this question only, never added to the KB.
     askWithFile: (question: string, file: File, history?: { role: 'user' | 'assistant'; text: string }[]) => {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('question', question);
       if (history) fd.append('history', JSON.stringify(history));
-      return upload<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask-with-file', fd);
+      return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
+    followupDraft: (studentId: string, channel: 'email' | 'whatsapp') =>
+      req<{ subject: string; body: string; channel: 'email' | 'whatsapp'; source: 'ai' | 'template'; studentName: string; email: string; phone: string; daysIdle: number }>('/zest/followup-draft', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId, channel }) }),
+    feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
+      req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
+    analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
+    addToKnowledge: (question: string, answer: string) =>
+      req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
+    draftReply: (roomId: string) =>
+      req<{ draft: string }>('/zest/draft-reply', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
@@ -752,8 +813,6 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    queryLogs: (params: { limit?: number; skip?: number } = {}) =>
-      req<{ logs: any[]; total: number }>(`/zest/query-logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>
