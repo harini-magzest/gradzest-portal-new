@@ -5,6 +5,7 @@ const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
 const ZestQueryLog = require('../models/ZestQueryLog');
+const KnowledgeChunk = require('../models/KnowledgeChunk');
 const { setGeminiClientForTests } = require('../lib/geminiClient');
 
 let n = 0;
@@ -20,6 +21,10 @@ const events = (text) => text.split('\n\n').filter(Boolean).map(b => JSON.parse(
 const chunk = (text) => ({ candidates: [{ content: { role: 'model', parts: [{ text }] } }] });
 
 const prevKey = process.env.GEMINI_API_KEY;
+// The client is mocked, so a dummy key is enough to make Zest count as configured (same as geminiStream.test.js).
+beforeEach(() => { process.env.GEMINI_API_KEY = 'fake-key-client-is-mocked'; });
+// Retrieval runs a $text search, which needs the text index built first (as zest.test.js does).
+beforeAll(async () => { await KnowledgeChunk.init(); });
 afterEach(() => {
   setGeminiClientForTests(null);
   if (prevKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = prevKey;

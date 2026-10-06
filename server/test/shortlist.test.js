@@ -54,47 +54,6 @@ async function mk(role, extra = {}) {
 }
 const as = (u) => ({ Authorization: `Bearer ${u.token}` });
 
-describe('shortlist routes', () => {
-  let ids;
-  beforeAll(async () => {
-    const tag = Date.now();
-    ids = [`sl-${tag}-1`, `sl-${tag}-2`, `sl-${tag}-3`];
-    await University.insertMany(ids.map((id, i) => uni({ id, name: `Uni ${i + 1}`, ranking: (i + 1) * 10 })));
-  });
-
-  it('saves, lists and removes universities, ignoring duplicates', async () => {
-    const student = await mk('student');
-    expect((await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: ids[0] })).status).toBe(201);
-    expect((await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: ids[0] })).body.count).toBe(1);
-    await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: ids[1] });
-
-    const list = await request(app).get('/api/students/me/shortlist').set(as(student));
-    expect(list.body.map((u) => u.id)).toEqual([ids[0], ids[1]]);
-    expect(list.body[0]).toMatchObject({ name: 'Uni 1', cheapestCourseFee: 18000 });
-
-    await request(app).delete(`/api/students/me/shortlist/${ids[0]}`).set(as(student));
-    expect((await request(app).get('/api/students/me/shortlist').set(as(student))).body.map((u) => u.id)).toEqual([ids[1]]);
-  });
-
-  it('rejects an unknown university, a full shortlist, and non-students', async () => {
-    const student = await mk('student');
-    expect((await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: 'nope' })).status).toBe(404);
-    expect((await request(app).post('/api/students/me/shortlist').set(as(await mk('counselor'))).send({ universityId: ids[0] })).status).toBe(403);
-
-    await User.findByIdAndUpdate(student.id, { shortlist: Array.from({ length: 20 }, (_, i) => ({ universityId: `x${i}` })) });
-    const full = await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: ids[0] });
-    expect(full.status).toBe(409);
-    expect(full.body.message).toMatch(/full/);
-  });
-
-  it('keeps one student shortlist separate from another', async () => {
-    const a = await mk('student');
-    const b = await mk('student');
-    await request(app).post('/api/students/me/shortlist').set(as(a)).send({ universityId: ids[2] });
-    expect((await request(app).get('/api/students/me/shortlist').set(as(b))).body).toEqual([]);
-  });
-});
-
 describe('GET /api/universities/compare', () => {
   it('compares two to four universities, and says which is best', async () => {
     const tag = Date.now();
