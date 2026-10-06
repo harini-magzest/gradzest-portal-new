@@ -1,5 +1,6 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');
@@ -560,7 +561,7 @@ router.get('/universities', authMiddleware, adminOnly, blockAppTeam, async (req,
   try {
     const unis = await University.find({});
     res.json(unis);
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -706,7 +707,7 @@ router.delete('/universities/:id', authMiddleware, adminOnly, blockAppTeam, asyn
   try {
     await University.findByIdAndDelete(req.params.id);
     res.json({ message: 'University deleted' });
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Course CRUD within a university
@@ -749,7 +750,7 @@ router.get('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, re
   try {
     const countries = await Country.find({}).sort({ name: 1 });
     res.json(countries);
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -775,7 +776,7 @@ router.delete('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (
   try {
     await Country.findByIdAndDelete(req.params.id);
     res.json({ message: 'Country deleted' });
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Analytics overview
@@ -885,7 +886,7 @@ router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, 
   try {
     const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
     res.json(subscribers);
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -907,7 +908,7 @@ router.get('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (
   try {
     const me = await User.findById(req.user.id).select('subscribersSeenAt');
     res.json({ seenAt: me?.subscribersSeenAt || null });
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
@@ -915,7 +916,7 @@ router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async 
     const seenAt = new Date();
     await User.updateOne({ _id: req.user.id }, { subscribersSeenAt: seenAt });
     res.json({ seenAt });
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // Assign a subscriber to a counselor as a follow-up task
@@ -974,7 +975,7 @@ router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async
     const sub = await Subscriber.findByIdAndDelete(req.params.id);
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json({ message: 'Subscriber deleted' });
-  } catch (err) { logError("admin", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

@@ -8,7 +8,6 @@ const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { MongoRateLimitStore } = require('./lib/mongoRateLimitStore');
 const cookieParser = require('cookie-parser');
-const multer = require('multer');
 const path = require('path');
 // Load env file: .env.production or .env.development first, fall back to .env
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production'
@@ -145,15 +144,6 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
 });
-// Each call is a real, paid Claude API request — the general 120/min limit is far too
-// generous for an endpoint that costs money per hit, so it gets its own tighter one.
-const zestAskLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many questions to Zest. Please wait a minute and try again.' },
-});
 
 if (process.env.NODE_ENV !== 'test') {
   // /login is limited after the body parsers below (it needs req.body.email).
@@ -166,12 +156,9 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
-  app.use('/api/zest/ask', zestAskLimiter);
-  app.use('/api/zest/ask-with-file', zestAskLimiter);
   app.use('/api', generalLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
   markActive('rate_limit_general', '120 req / min on /api');
-  markActive('rate_limit_zest', '20 req / min on Zest ask endpoints');
 }
 
 app.use(express.json({ limit: '2mb' }));
@@ -331,6 +318,7 @@ app.use('/api/automation',    require('./routes/automation'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
+ app.use('/api/dashboards',    require('./routes/dashboards'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');
@@ -498,13 +486,6 @@ io.on('connection', (socket) => {
 
 // Global error handler — catches anything thrown in routes
 app.use((err, req, res, next) => {
-  // Multer errors (file too large, too many files, unexpected field, etc.) don't set
-  // .status/.statusCode, so without this they fall through as a generic 500 and hide
-  // the actually-useful message ("File too large") behind "Internal server error".
-  if (err instanceof multer.MulterError) {
-    const message = err.code === 'LIMIT_FILE_SIZE' ? 'File is too large.' : err.message;
-    return res.status(400).json({ message });
-  }
   const status = err.status || err.statusCode || 500;
   const message = status < 500 ? err.message : 'Internal server error';
   if (status >= 500) console.error(`[error] ${req.method} ${req.path}`, err);

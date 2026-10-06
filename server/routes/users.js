@@ -1,5 +1,6 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -42,16 +43,9 @@ router.get('/me/permissions', authMiddleware, async (req, res) => {
   if (req.user.role === 'student') return res.json({ permissions: [], restricted: false, hasTeam: false });
   try {
     const access = await loadAccess(req);
-    // roleName: their place in the Roles tree (e.g. "Associate Counsellor HO") — names the portal
-    const role = access.me?.hierarchyRole && await Role.findById(access.me.hierarchyRole).select('name').lean();
-    // hasTeam: the role hierarchy gives them other staff's students to see (users in roles
-    // below theirs, or peers when their role has Peer Data Visibility on)
-    res.json({
-      permissions: [...access.permissions], restricted: !!access.teamIds,
-      hasTeam: (access.teamIds?.length || 0) > 1, roleName: role?.name || null,
-    });
+    res.json({ permissions: [...access.permissions], restricted: !!access.teamIds });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -86,7 +80,7 @@ router.get('/profiles', async (req, res) => {
       defaultId: def?._id || null,
     });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -101,7 +95,7 @@ router.post('/profiles', async (req, res) => {
     });
     res.status(201).json(profile);
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -125,7 +119,7 @@ router.put('/profiles/:id', async (req, res) => {
     await profile.save();
     res.json(profile);
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -141,7 +135,7 @@ router.delete('/profiles/:id', async (req, res) => {
     await profile.deleteOne();
     res.json({ message: 'Profile deleted' });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -157,7 +151,7 @@ router.get('/', async (req, res) => {
     ]);
     res.json({ users, roles, profiles });
   } catch (err) {
-    logError("users", err);
+    logError('users', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -253,8 +247,7 @@ router.delete('/:id', async (req, res) => {
       await User.updateMany({ role: 'student', counselorId: String(target._id) }, { $unset: { counselorId: 1 } });
     }
     res.json({ message: 'User deleted' });
-  } catch (err) {
-    logError("users", err);
+  } catch {
     res.status(500).json({ message: 'Server error' });
   }
 });

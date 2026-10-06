@@ -1,5 +1,6 @@
 const express = require('express');
-const { logError } = require("../lib/logError");
+const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -816,7 +817,7 @@ router.put('/:id/lead-stage', authMiddleware, can('students.stage'), async (req,
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/meta — tags and short summary (admin, or the assigned counselor)
@@ -843,7 +844,34 @@ router.put('/:id/meta', authMiddleware, async (req, res) => {
     const obj = student.toJSON();
     delete obj.password;
     res.json(obj);
-  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// ── Staff notes: public (all staff who can open the student) or private (author only) ──
+const NOTE_VISIBILITY = ['public', 'private'];
+const MAX_NOTE_LENGTH = 5000;
+const noteText = v => String(v ?? '').trim().slice(0, MAX_NOTE_LENGTH);
+
+/** Loads the student and the note, 404ing when either is missing or the note isn't visible to the caller. */
+async function loadNote(req, res) {
+  const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name role counselorNotes');
+  const note = student?.counselorNotes.id(req.params.noteId);
+  if (!student || !note || !canSee(note, req.user.id)) {
+    res.status(404).json({ message: 'Note not found' });
+    return {};
+  }
+  return { student, note };
+}
+
+// GET /api/students/:id/notes — public notes plus the caller's own private ones
+router.get('/:id/notes', authMiddleware, can('students.view'), async (req, res) => {
+  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  try {
+    if (await denyStudent(req, res, req.params.id)) return;
+    const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('counselorNotes').lean();
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    res.json({ notes: notesFor(student, req.user.id) });
+  } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
 // POST /api/students/:id/notes — add a note ({ text, visibility }; private unless told otherwise)
@@ -854,16 +882,20 @@ router.post('/:id/notes', authMiddleware, can('notes.create'), async (req, res) 
   if (!text) return res.status(400).json({ message: 'Note text is required' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const author = await User.findById(req.user.id).select('name');
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $push: { counselorNotes: { text: text.trim(), counselorId: req.user.id, counselorName: author?.name || 'Counselor' } } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Student not found' });
-    recordStaffActivity(req, { kind: 'note', title: 'Note added', detail: text.trim().slice(0, 140), studentId: user._id, studentName: user.name });
-    res.json(user.toJSON());
-  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
+    const author = await User.findById(req.user.id).select('name').lean();
+    const student = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'student' },
+      { $push: { counselorNotes: { text, visibility, counselorId: String(req.user.id), counselorName: author?.name || 'Staff' } } },
+      { new: true, projection: { name: 1, counselorNotes: 1 } },
+    ).lean();
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    // The activity log is shared with other staff, so it records that a note was added, never its text
+    recordStaffActivity(req, {
+      kind: 'note', title: visibility === 'public' ? 'Public note added' : 'Private note added',
+      studentId: student._id, studentName: student.name,
+    });
+    res.status(201).json({ notes: notesFor(student, req.user.id) });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // PUT /api/students/:id/notes/:noteId — the author edits the text and/or switches public ↔ private
@@ -877,14 +909,14 @@ router.put('/:id/notes/:noteId', authMiddleware, can('notes.create'), async (req
   }
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const user = await User.findOneAndUpdate(
-      { _id: req.params.id, 'counselorNotes._id': req.params.noteId },
-      { $set: { 'counselorNotes.$.text': text.trim() } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Not found' });
-    res.json(user.toJSON());
-  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
+    const { student, note } = await loadNote(req, res);
+    if (!note) return;
+    if (!isAuthor(note, req.user.id)) return res.status(403).json({ message: 'Only the author can edit this note' });
+    if (text !== undefined) note.text = text;
+    if (visibility !== undefined) note.visibility = visibility;
+    await student.save();
+    res.json({ notes: notesFor(student, req.user.id) });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 // DELETE /api/students/:id/notes/:noteId — the author, or an admin for a public note
@@ -892,14 +924,15 @@ router.delete('/:id/notes/:noteId', authMiddleware, can('notes.delete'), async (
   if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
   try {
     if (await denyStudent(req, res, req.params.id)) return;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $pull: { counselorNotes: { _id: req.params.noteId } } },
-      { new: true }
-    ).select('-password');
-    if (!user) return res.status(404).json({ message: 'Not found' });
-    res.json(user.toJSON());
-  } catch (err) { logError("students", err); res.status(500).json({ message: 'Server error' }); }
+    const { student, note } = await loadNote(req, res);
+    if (!note) return;
+    if (!isAuthor(note, req.user.id) && !(req.user.role === 'admin' && isPublic(note))) {
+      return res.status(403).json({ message: 'Only the author can delete this note' });
+    }
+    student.counselorNotes.pull(note._id);
+    await student.save();
+    res.json({ notes: notesFor(student, req.user.id) });
+  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

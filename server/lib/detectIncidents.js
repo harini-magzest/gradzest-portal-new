@@ -68,21 +68,15 @@ async function createIncident(io, doc) {
 
 // Reuses the open incident matching `query` (refreshing its title and, if
 // given, appending the triggering event ids), or creates one from `doc`.
-//
-// Uses an atomic findOneAndUpdate rather than load-mutate-save: concurrent
-// triggers on the same open incident (e.g. a burst of failed logins firing
-// the brute-force rule many times within milliseconds) would otherwise race
-// on Mongoose's optimistic-concurrency version check, and the loser's
-// .save() throws a VersionError — silently dropping that event's id from
-// sourceEventIds and losing the title update, with nothing but a
-// console.error to show for it. An atomic update has no version to race on.
+// One atomic update rather than load → push → save: events that arrive together
+// (a burst of failed logins, WAF hits) used to load the same incident and race,
+// and every save after the first failed with a VersionError — dropping those
+// events from the incident and logging "No matching document found" each time.
 async function raiseIncident(io, query, doc, eventIds = []) {
   const update = { $set: { title: doc.title } };
-  if (eventIds.length) update.$push = { sourceEventIds: { $each: eventIds } };
+  if (eventIds.length) update.$addToSet = { sourceEventIds: { $each: eventIds } };
   const existing = await SecurityIncident.findOneAndUpdate(
-    { ...query, status: 'open' },
-    update,
-    { new: true, sort: { createdAt: -1 } },
+    { ...query, status: 'open' }, update, { sort: { createdAt: -1 }, new: true },
   );
   if (!existing) return createIncident(io, doc);
   emitIncident(io, 'incident_updated', existing);
