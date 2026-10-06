@@ -56,6 +56,7 @@ export default function CounselorLayout() {
 
   return (
     <div className="min-h-screen bg-green-50">
+      <SkipLink />
       <DashboardTopbar workspaceLabel="Counselor workspace" search={search} />
       <div className="flex">
         {/* Sidebar */}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import ZestIcon from './ZestIcon';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
