@@ -8,7 +8,10 @@ import { useNewLeadCount } from '../../hooks/useNewLeadCount';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
-const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = [
+// appTeamHidden: the backend already blocks Application Team accounts (role 'admin' with
+// isAppTeam) from these routes (see adminOnly in automation.js/roles.js/zest.js) — hidden here
+// too so the sidebar doesn't offer a link that just 403s for them.
+const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTeamHidden?: boolean }[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/counselors', label: 'Team', icon: UserCog },
   { to: '/admin/students', label: 'Students', icon: Users },
@@ -18,9 +21,10 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+  { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
+  { to: '/admin/zest', label: 'Zest', icon: GraduationCap, appTeamHidden: true },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
-  { to: '/admin/settings', label: 'Settings', icon: Settings },
+  { to: '/admin/settings', label: 'Settings', icon: Settings, appTeamHidden: true },
 ];
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
@@ -39,7 +43,9 @@ export default function AdminLayout() {
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (user?.role !== 'admin') return <Navigate to="/login" />;
 
-  const sidebarItems = navItems.map(item => ({
+  const visibleItems = navItems.filter(item => !(item.appTeamHidden && user?.isAppTeam));
+
+  const sidebarItems = visibleItems.map(item => ({
     to: item.to, label: item.label, end: item.end,
     icon: item.icon as React.ComponentType<{ className?: string }>,
     badge: item.label === 'Chat' ? unreadCount : item.label === 'Students' ? newLeads : undefined,
@@ -52,7 +58,7 @@ export default function AdminLayout() {
         <DashboardSidebar navItems={sidebarItems} />
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
-          {navItems.map(item => (
+          {visibleItems.map(item => (
             <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-purple-600' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />

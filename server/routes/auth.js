@@ -1,4 +1,5 @@
 const express = require('express');
+const { logError } = require("../lib/logError");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -307,7 +308,8 @@ router.get('/verify-email', async (req, res) => {
     await User.findByIdAndUpdate(user._id, { emailVerified: true, emailVerifyToken: undefined, emailVerifyExpires: undefined });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/login?verified=1`);
-  } catch {
+  } catch (err) {
+    logError("auth", err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -322,7 +324,8 @@ router.post('/resend-verification', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     await sendVerificationEmail(user, createMailer(), frontendUrl);
     res.json({ message: 'Verification email sent.' });
-  } catch {
+  } catch (err) {
+    logError("auth", err);
     res.status(500).json({ message: 'Server error' });
   }
 });

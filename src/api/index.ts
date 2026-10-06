@@ -417,10 +417,11 @@ export const api = {
     owners: () => req<{ emails: string[] }>('/soc/owners', { headers: authHeaders() }),
     stats: (period: string) => req<any>(`/soc/stats?period=${period}`, { headers: authHeaders() }),
     statsGeo: (period: string) => req<any>(`/soc/stats/geo?period=${period}`, { headers: authHeaders() }),
-    events: (params: { limit?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
+    events: (params: { limit?: number; skip?: number; since?: string; type?: string; severity?: string; q?: string } = {}) =>
       req<any>(`/soc/events?${toQueryString(params)}`, { headers: authHeaders() }),
-    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; limit?: number; skip?: number } = {}) =>
+    incidents: (params: { status?: string; severity?: string; type?: string; q?: string; assignedTo?: string; limit?: number; skip?: number } = {}) =>
       req<any>(`/soc/incidents?${toQueryString(params)}`, { headers: authHeaders() }),
+    incident: (id: string) => req<any>(`/soc/incidents/${id}`, { headers: authHeaders() }),
     analysts: () => req<{ analysts: { _id: string; name: string; email: string }[] }>('/soc/analysts', { headers: authHeaders() }),
     updateIncident: (id: string, data: { status?: string; assignedTo?: string | null; resolutionReason?: string; resolutionComment?: string }) =>
       req<any>(`/soc/incidents/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -572,6 +573,49 @@ export const api = {
   onboarding: {
     markStep: (step: 'profileComplete' | 'documentUploaded' | 'counselorViewed' | 'universityBrowsed') =>
       req<any>(`/onboarding/${step}`, { method: 'PUT', headers: authHeaders() }),
+  },
+
+  zest: {
+    ask: (question: string, history?: { role: 'user' | 'assistant'; text: string }[]) =>
+      req<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
+      }),
+    // One-off document Q&A: file is analyzed for this question only, never added to the KB.
+    askWithFile: (question: string, file: File, history?: { role: 'user' | 'assistant'; text: string }[]) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('question', question);
+      if (history) fd.append('history', JSON.stringify(history));
+      return upload<{ answer: string; sources: { documentId: string; title: string }[] }>('/zest/ask-with-file', fd);
+    },
+    documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
+    uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
+    renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ title }),
+    }),
+    deleteDocument: (id: string) => req<{ message: string }>(`/zest/documents/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    alerts: () => req<any[]>('/zest/alerts', { headers: authHeaders() }),
+    resolveAlert: (id: string) => req<any>(`/zest/alerts/${id}/resolve`, {
+      method: 'PUT', headers: authHeaders(),
+    }),
+    // Authenticated file download (xlsx): a plain <a href> can't send the bearer token.
+    downloadAlerts: async () => {
+      const res = await fetch(`${BASE}/zest/alerts/export`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zest-lead-alerts-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    queryLogs: (params: { limit?: number; skip?: number } = {}) =>
+      req<{ logs: any[]; total: number }>(`/zest/query-logs?${toQueryString(params)}`, { headers: authHeaders() }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

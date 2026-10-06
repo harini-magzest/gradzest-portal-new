@@ -68,12 +68,23 @@ async function createIncident(io, doc) {
 
 // Reuses the open incident matching `query` (refreshing its title and, if
 // given, appending the triggering event ids), or creates one from `doc`.
+//
+// Uses an atomic findOneAndUpdate rather than load-mutate-save: concurrent
+// triggers on the same open incident (e.g. a burst of failed logins firing
+// the brute-force rule many times within milliseconds) would otherwise race
+// on Mongoose's optimistic-concurrency version check, and the loser's
+// .save() throws a VersionError — silently dropping that event's id from
+// sourceEventIds and losing the title update, with nothing but a
+// console.error to show for it. An atomic update has no version to race on.
 async function raiseIncident(io, query, doc, eventIds = []) {
-  const existing = await SecurityIncident.findOne({ ...query, status: 'open' }).sort({ createdAt: -1 });
+  const update = { $set: { title: doc.title } };
+  if (eventIds.length) update.$push = { sourceEventIds: { $each: eventIds } };
+  const existing = await SecurityIncident.findOneAndUpdate(
+    { ...query, status: 'open' },
+    update,
+    { new: true, sort: { createdAt: -1 } },
+  );
   if (!existing) return createIncident(io, doc);
-  if (eventIds.length) existing.sourceEventIds.push(...eventIds);
-  existing.title = doc.title;
-  await existing.save();
   emitIncident(io, 'incident_updated', existing);
   return existing;
 }
@@ -383,7 +394,7 @@ async function checkImpossibleTravelRule(event, io, intelFn = getIpIntel) {
   const prior = await SecurityEvent.findOne({
     type: 'login_success',
     userId: event.userId,
-    ip: { $ne: event.ip, $ne: '' },
+    ip: { $nin: [event.ip, ''] },
     createdAt: { $gte: since, $lt: event.createdAt },
   }).sort({ createdAt: -1 });
   if (!prior) return;
