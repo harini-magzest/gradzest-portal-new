@@ -45,7 +45,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
               <Download className="w-3.5 h-3.5" />
               Download
             </a>
-            <button
+            <button aria-label="Close"
               onClick={onClose}
               className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >

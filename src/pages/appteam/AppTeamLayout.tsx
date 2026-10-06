@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import SkipLink from '../../components/SkipLink';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
   { to: '/appteam',              label: 'Dashboard',    icon: LayoutDashboard, end: true },
@@ -16,6 +18,13 @@ const navItems: { to: string; label: string; icon: React.ComponentType<{ classNa
   { to: '/appteam/live-feed',    label: 'Live Feed',    icon: Activity },
   { to: '/appteam/learning',     label: 'Learning Hub', icon: GraduationCap },
 ];
+
+// Top search: students, counselors, universities, courses and the sidebar pages
+const search: SearchConfig = {
+  basePath: '/appteam/students',
+  teamLink: t => t.kind === 'counselor' ? `/appteam/counselors?view=${t.id}` : null,
+  pages: navItems.map(item => ({ label: item.label, to: item.to })),
+};
 
 export default function AppTeamLayout() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -31,7 +40,8 @@ export default function AppTeamLayout() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <DashboardTopbar workspaceLabel="Application Team workspace" />
+      <SkipLink />
+      <DashboardTopbar workspaceLabel="Application Team workspace" search={search} />
       <div className="flex">
 
         {/* Sidebar */}
@@ -50,7 +60,7 @@ export default function AppTeamLayout() {
           ))}
         </nav>
 
-        <main className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-6 pb-24 md:pb-8">
           <Outlet />
         </main>
       </div>

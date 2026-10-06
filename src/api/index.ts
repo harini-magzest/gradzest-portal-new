@@ -47,8 +47,23 @@ export interface StudentNote {
   createdAt?: string; updatedAt?: string;
 }
 
+// Skyload caps in-flight requests per IP, and a dashboard load can briefly exceed it. Those 429s say "concurrent"
+// and only mean "try again in a moment", so reads wait and retry instead of failing; other 429s (real rate limits) don't.
+const CONCURRENCY_RETRY_DELAYS = [300, 800, 1500];
+
+async function fetchWithConcurrencyRetry(input: string, init: RequestInit): Promise<Response> {
+  const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status !== 429 || !isRead || attempt >= CONCURRENCY_RETRY_DELAYS.length) return res;
+    const body = await res.clone().json().catch(() => null);
+    if (!/concurrent/i.test(body?.message || '')) return res;
+    await new Promise(r => setTimeout(r, CONCURRENCY_RETRY_DELAYS[attempt] + Math.random() * 200));
+  }
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
+  const res = await fetchWithConcurrencyRetry(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -92,6 +107,18 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   return res.json();
 }
 
+export interface ShortlistData {
+  courses: {
+    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
+    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
+    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
+    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
+  }[];
+  cheapest: string | null;
+  bestRanked: string | null;
+  max: number;
+}
+
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
@@ -108,7 +135,7 @@ export const api = {
         body: JSON.stringify({ email, password, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
-    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string }) =>
+    register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
       req<{ token: string; user: any }>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,6 +169,7 @@ export const api = {
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
+    compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
     autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
@@ -174,9 +202,18 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     record: (studentId: string) => req<any>(`/students/${studentId}/record`, { headers: authHeaders() }),
+    bulk: (data: { ids: string[]; action: 'set_stage' | 'add_tag' | 'create_task' | 'reassign'; value: unknown }) =>
+      req<{ action: string; requested: number; updated: number; unchanged: number; skipped: { id: string; name: string; reason: string }[] }>('/students/bulk', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     myChecklist: () => req<any>('/students/me/checklist', { headers: authHeaders() }),
     checklist: (studentId: string) => req<any>(`/students/${studentId}/checklist`, { headers: authHeaders() }),
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
+    nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
+    dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
+    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
+    addToShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
+    removeFromShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
     timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
@@ -290,6 +327,65 @@ export const api = {
     uploadDocument: (formData: FormData) => upload<any>('/counselors/me/documents', formData),
     deleteDocument: (docId: string) =>
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  shortlist: {
+    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
+    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
+    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  parentLinks: {
+    list: () => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }[]>('/parent-links', { headers: authHeaders() }),
+    create: (data: { label?: string; days?: number }) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean } & { url: string }>('/parent-links', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    revoke: (id: string) => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }>(`/parent-links/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  // Public: no sign-in, the secret in the link is the credential
+  parent: {
+    view: (token: string) => req<{ studentName: string; counselorName: string; applications: { universityName: string; courseName: string; intake: string; status: string; rejected: boolean; steps: { label: string; state: 'done' | 'current' | 'upcoming' }[]; daysInStage: number | null; daysToIntake: number | null; intakePassed: boolean; next: string }[]; documents: { total: number; verified: number; uploaded: number; missing: number; percent: number; stillNeeded: string[] } | null; upcomingMeetings: { title: string; date: string; time: string; durationMin: number }[]; expiresAt: string }>(`/parent/${encodeURIComponent(token)}`),
+  },
+
+  referrals: {
+    mine: () => req<{ code: string; link: string; rewardText: string; referrals: { name: string; status: 'signed_up' | 'applied' | 'offer' | 'enrolled'; rewardEarned: boolean; rewardPaid: boolean; joinedAt: string }[]; stats: { total: number; enrolled: number; paid: number } }>('/referrals/me', { headers: authHeaders() }),
+    all: () => req<{ referrals: { id: string; referrerName: string; referrerEmail: string; referredName: string; status: string; rewardEarned: boolean; paid: boolean; paidAt: string | null; paidNote: string; createdAt: string }[]; stats: { total: number; earned: number; owed: number } }>('/referrals', { headers: authHeaders() }),
+    setPaid: (id: string, paid: boolean, note?: string) => req<{ id: string; paid: boolean }>(`/referrals/${id}/paid`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ paid, note }) }),
+  },
+
+  events: {
+    list: () => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }[]>('/events', { headers: authHeaders() }),
+    create: (data: { title: string; startsAt: string; description?: string; link?: string; durationMin?: number; capacity?: number }) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>('/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/events/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    register: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'POST', headers: authHeaders() }),
+    unregister: (id: string) => req<{ id: string; title: string; description: string; startsAt: string; durationMin: number; link: string; capacity: number; status: 'scheduled' | 'cancelled'; recordingUrl: string; registeredCount: number; spotsLeft: number | null; registered: boolean; createdByName: string; canManage: boolean }>(`/events/${id}/register`, { method: 'DELETE', headers: authHeaders() }),
+    registrations: (id: string) => req<{ name: string; email: string; registeredAt: string }[]>(`/events/${id}/registrations`, { headers: authHeaders() }),
+    registrationsCsv: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/registrations?format=csv`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'event-registrations.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    downloadIcs: async (id: string) => {
+      const res = await fetch(`${BASE}/events/${id}/ics`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradzest-event.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
   },
 
   notificationPrefs: {
@@ -618,7 +714,13 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    search: (q: string) => req<{
+      students: { id: string; name: string; email: string; phone: string; leadStage: string }[];
+      // Staff workspaces; team is empty for counselors
+      team?: { id: string; name: string; email: string; kind: 'counselor' | 'appteam' }[];
+      universities?: { id: string; name: string; city: string; country: string }[];
+      courses?: { id: string; name: string; level: string; universityId: string; universityName: string }[];
+    }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 
   onboarding: {
@@ -676,9 +778,15 @@ export const api = {
       if (history) fd.append('history', JSON.stringify(history));
       return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
+    followupDraft: (studentId: string, channel: 'email' | 'whatsapp') =>
+      req<{ subject: string; body: string; channel: 'email' | 'whatsapp'; source: 'ai' | 'template'; studentName: string; email: string; phone: string; daysIdle: number }>('/zest/followup-draft', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId, channel }) }),
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
+    addToKnowledge: (question: string, answer: string) =>
+      req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
+    draftReply: (roomId: string) =>
+      req<{ draft: string }>('/zest/draft-reply', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {

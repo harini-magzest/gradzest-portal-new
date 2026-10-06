@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  /* Keyboard focus is always visible; mouse clicks don't trigger it (:focus-visible) */
+  :focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
   * {
     box-sizing: border-box;
   }

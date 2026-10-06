@@ -4,6 +4,7 @@ import { X, GraduationCap, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'luc
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { api, setApiToken } from '../api';
+import { getReferral, clearReferral } from '../lib/referral';
 import PasswordStrengthBar from './PasswordStrengthBar';
 import { checkPasswordStrength } from '../utils/passwordStrength';
 
@@ -70,7 +71,8 @@ export default function AuthModal() {
     if (regPassword !== regConfirm) { setRegError('Passwords do not match.'); return; }
     setRegLoading(true);
     try {
-      const { token } = await api.auth.register({ name: regName, email: regEmail, password: regPassword });
+      const { token } = await api.auth.register({ name: regName, email: regEmail, password: regPassword, ref: getReferral() });
+      clearReferral();
       setApiToken(token);
       await refreshUser();
       close();
@@ -98,7 +100,7 @@ export default function AuthModal() {
               <span className="text-[#0d1b4b]">Grad</span><span className="text-blue-500">zest</span>
             </span>
           </div>
-          <button
+          <button aria-label="Close"
             type="button"
             onClick={close}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"

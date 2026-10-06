@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Circle, Clock, Upload, XCircle, FileQuestion } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, Clock, Upload, XCircle, FileQuestion } from 'lucide-react';
 import { api } from '../../api';
 
 interface ChecklistItem {
@@ -9,6 +9,7 @@ interface ChecklistItem {
   uploadType: string;
   status: 'verified' | 'uploaded' | 'rejected' | 'requested' | 'missing';
   docName: string | null;
+  warning?: { level: 'expired' | 'soon'; message: string };
 }
 interface Checklist {
   items: ChecklistItem[];
@@ -95,6 +96,12 @@ export default function DocumentChecklist({ studentId }: { studentId?: string })
                   {item.scope !== 'all' && <span className="ml-2 text-[11px] font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.scope}</span>}
                 </p>
                 <p className={`text-xs ${s.cls}`}>{s.label}{item.docName && item.status !== 'missing' ? ` · ${item.docName}` : ''}</p>
+                {item.warning && (
+                  <p className={`mt-1 flex items-start gap-1.5 text-xs ${item.warning.level === 'expired' ? 'text-red-700' : 'text-amber-700'}`}>
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                    <span>{item.warning.message}</span>
+                  </p>
+                )}
               </div>
               {!studentId && needsUpload && (
                 <button

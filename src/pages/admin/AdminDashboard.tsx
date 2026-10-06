@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Users, UserCog, FileText, Activity, Plus, Trash2, X, Shield,
-  Eye, EyeOff, Check, UserPlus, Search,
-  ToggleLeft, ToggleRight, Info, GraduationCap, RefreshCw, AlertTriangle, UserCheck, MessageSquare,
+  Users, UserCog, FileText, Plus, Trash2, X,
+  Eye, EyeOff, Check, UserPlus, Search, ArrowRight,
+  ToggleLeft, ToggleRight, GraduationCap, RefreshCw, AlertTriangle, UserCheck, MessageSquare,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
@@ -15,6 +15,7 @@ import Funnel from '../../components/dashboards/Funnel';
 import WeeklyTrends from '../../components/dashboards/WeeklyTrends';
 import LeadScores from '../../components/dashboards/LeadScores';
 import ConversionReport from '../../components/dashboards/ConversionReport';
+import ReferralsAdmin from '../../components/dashboards/ReferralsAdmin';
 
 const SPECIALIZATIONS = [
   'UK Universities', 'Canada Universities', 'Australia Universities',
@@ -77,36 +78,6 @@ function BtnGhost({ children, onClick, type = 'button', className = '' }: {
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
         ${className}`}>
       {children}
-    </button>
-  );
-}
-
-function BtnDanger({ children, onClick, disabled, className = '' }: {
-  children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string;
-}) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-        text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 hover:text-red-700
-        active:scale-[0.97] transition-all duration-150
-        disabled:opacity-40 disabled:cursor-not-allowed
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1
-        ${className}`}>
-      {children}
-    </button>
-  );
-}
-
-function BtnView({ onClick, color = 'purple' }: { onClick: () => void; color?: 'purple' | 'blue' }) {
-  const s = color === 'blue'
-    ? 'text-purple-600 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300 focus-visible:ring-purple-400'
-    : 'text-purple-600 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300 focus-visible:ring-purple-400';
-  return (
-    <button type="button" onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-        active:scale-[0.97] transition-all duration-150
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${s}`}>
-      <Info className="w-3.5 h-3.5" />Details
     </button>
   );
 }
@@ -764,6 +735,74 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
   );
 }
 
+// ── Dashboard layout primitives ──────────────────────────────────────────────
+
+// Rows shown in the Team / Students list before pointing to the full page
+const ROW_LIMIT = 8;
+const OFFER_STATUSES = ['offer_received', 'accepted', 'enrolled'];
+
+function Section({ title, description, children }: {
+  title: string; description?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function StatCard({ label, value, hint, icon: Icon, to, loading, warn = false }: {
+  label: string; value: React.ReactNode; hint: string; icon: React.ComponentType<{ className?: string }>;
+  to: string; loading: boolean; warn?: boolean;
+}) {
+  return (
+    <Link to={to}
+      className="group bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+          ${warn ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'}`}>
+          <Icon className="w-4 h-4" />
+        </span>
+      </div>
+      {loading
+        ? <div className="h-8 w-16 bg-gray-100 rounded-md animate-pulse mt-1" />
+        : <p className="text-3xl font-bold tracking-tight text-gray-900 mt-1">{value}</p>}
+      <p className={`text-xs mt-2 ${warn ? 'text-amber-700 font-medium' : 'text-gray-500'}`}>{loading ? ' ' : hint}</p>
+    </Link>
+  );
+}
+
+function IconBtn({ label, onClick, disabled, danger = false, children }: {
+  label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={label} aria-label={label}
+      className={`w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-400 transition-colors
+        disabled:opacity-40 disabled:cursor-not-allowed
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
+        ${danger ? 'hover:text-red-600 hover:bg-red-50' : 'hover:text-purple-700 hover:bg-purple-50'}`}>
+      {children}
+    </button>
+  );
+}
+
+function ViewBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 border border-purple-200 bg-white
+        hover:bg-purple-50 hover:border-purple-300 transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400">
+      View
+    </button>
+  );
+}
+
 // ── Main dashboard ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
@@ -877,6 +916,20 @@ export default function AdminDashboard() {
     c.email?.toLowerCase().includes(counselorSearch.toLowerCase())
   ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+  // Summary figures for the stat cards
+  const activeStudents = stats?.activeStudents ?? students.filter(s => s.status === 'active').length;
+  const totalStudents = stats?.totalStudents ?? students.length;
+  const totalCounselors = stats?.totalCounselors ?? counselors.length;
+  const unassignedCount = students.filter(s => !s.counselorId).length;
+  const offerCount = students.flatMap(s => s.applications || []).filter((a: any) => OFFER_STATUSES.includes(a.status)).length;
+  const studentsPerMember = totalCounselors > 0 ? (students.length - unassignedCount) / totalCounselors : 0;
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const isStudentsTab = activeTab === 'students';
+  const listTotal = isStudentsTab ? filteredStudents.length : filteredCounselors.length;
+  const visibleStudents = filteredStudents.slice(0, ROW_LIMIT);
+  const visibleCounselors = filteredCounselors.slice(0, ROW_LIMIT);
+
   // Open the same full record pages the Students and Team pages use
   const openStudent = (id: string) => navigate(`/admin/students/${id}`, { state: { ids: filteredStudents.map(normalId) } });
   const openCounselor = (id: string) => navigate(`/admin/counselors/${id}/performance`);
@@ -921,39 +974,28 @@ export default function AdminDashboard() {
           onSaved={() => { setAssigningCounselor(null); loadData(); }}
         />
       )}
-      <div className="space-y-6">
+      <div className="space-y-8">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal}</p>
-                <h1 className="text-2xl font-bold text-white leading-tight">Dashboard</h1>
-              </div>
-            </div>
-            <button type="button" onClick={loadData} disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm text-gray-500">{portal} · {today}</p>
+            <h1 className="text-2xl font-bold text-gray-900 mt-1">Admin Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">A summary of your students, team and applications.</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Total Students', value: stats?.totalStudents ?? '—', icon: Users, to: '/admin/students' },
-              { label: 'Team', value: stats?.totalCounselors ?? '—', icon: UserCog, to: '/admin/counselors' },
-              { label: 'Applications', value: stats?.totalApplications ?? '—', icon: FileText, to: '/admin/applications' },
-              { label: 'Active Students', value: stats?.activeStudents ?? '—', icon: Activity, to: '/admin/students' },
-            ].map(s => (
-              <Link key={s.label} to={s.to} className="bg-white rounded-xl p-4 hover:bg-purple-50 hover:shadow-md transition-all shadow-sm">
-                <s.icon className="w-5 h-5 text-purple-500 mb-2" />
-                <div className="text-3xl font-extrabold tracking-tight text-purple-700">{loading ? '…' : s.value}</div>
-                <div className="text-xs font-semibold text-gray-500 mt-0.5">{s.label}</div>
-              </Link>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={loadData} disabled={loading} title="Reload all figures"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200
+                hover:bg-gray-50 transition-colors disabled:opacity-50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+            </button>
+            <BtnGhost onClick={() => setShowNewCounselor(true)}>
+              <UserPlus className="w-4 h-4" />New Counselor
+            </BtnGhost>
+            <BtnPrimary onClick={() => setShowNewStudent(true)}>
+              <Plus className="w-4 h-4" />New Student
+            </BtnPrimary>
           </div>
         </div>
 
@@ -972,242 +1014,224 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Loading skeleton */}
-        {loading && !loadError && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex items-center justify-center gap-3 text-gray-400">
-            <Spinner size={5} />
-            <span className="text-sm">Loading data…</span>
-          </div>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <TeamWorkload />
-          <Funnel />
+        {/* Key figures */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard label="Students" value={totalStudents} icon={Users} to="/admin/students" loading={loading}
+            hint={`${activeStudents} active · ${Math.max(totalStudents - activeStudents, 0)} inactive`} />
+          <StatCard label="Applications" value={stats?.totalApplications ?? 0} icon={FileText} to="/admin/applications" loading={loading}
+            hint={`${offerCount} with an offer or acceptance`} />
+          <StatCard label="Team members" value={totalCounselors} icon={UserCog} to="/admin/counselors" loading={loading}
+            hint={totalCounselors > 0 ? `${studentsPerMember.toFixed(1)} students per member on average` : 'No team members yet'} />
+          <StatCard label="Unassigned students" value={unassignedCount} icon={AlertTriangle} to="/admin/students" loading={loading}
+            warn={unassignedCount > 0}
+            hint={unassignedCount > 0 ? 'Need a counselor assigned' : 'Every student has a counselor'} />
         </div>
-        <WeeklyTrends />
-        <ConversionReport />
-        <LeadScores studentsPath="/admin/students" />
 
-        {/* Tab bar */}
-        {!loading && (
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
-            {([
-              { key: 'counselors', label: 'Team', count: counselors.length, icon: UserCog },
-              { key: 'students', label: 'Students', count: students.length, icon: Users },
-            ] as const).map(tab => (
-              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-150
-                  ${activeTab === tab.key ? 'bg-white text-purple-700 shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                <span className={`text-xs px-2 py-0.5 rounded-full font-bold
-                  ${activeTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+        <Section title="Pipeline" description="How leads move towards offers, and how that has changed recently.">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Funnel />
+            <WeeklyTrends />
           </div>
-        )}
+          <ConversionReport />
+        </Section>
 
-        {/* Counselors tab */}
-        {!loading && activeTab === 'counselors' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 gap-3 flex-wrap bg-gray-50/60">
-              <div className="relative flex-1 min-w-0 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input value={counselorSearch} onChange={e => setCounselorSearch(e.target.value)}
-                  placeholder="Search team…"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-              </div>
-              <BtnPrimary onClick={() => setShowNewCounselor(true)}>
-                <Plus className="w-4 h-4" />New Counselor
-              </BtnPrimary>
-            </div>
-
-            <div className="divide-y divide-gray-50">
-              {filteredCounselors.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 text-gray-400">
-                  <UserCog className="w-8 h-8 mb-2 opacity-40" />
-                  <p className="text-sm">{counselorSearch ? 'No team members match your search.' : 'No team members yet. Create one above.'}</p>
-                </div>
-              ) : filteredCounselors.map(c => {
-                const id = normalId(c);
-                const perf = counselorPerf(c, students);
-                return (
-                  <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/40 transition-colors">
-                    <button type="button" onClick={() => openCounselor(id)} aria-label={`Open ${c.name}'s profile`}
-                      className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
-                      {c.name?.charAt(0)}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <button type="button" onClick={() => openCounselor(id)}
-                        className="font-semibold text-gray-900 text-sm text-left hover:text-purple-700 hover:underline transition-colors">
-                        {c.name}
-                      </button>
-                      <p className="text-xs text-gray-500">{c.email}</p>
-                      {c.specialization?.length > 0 && (
-                        <p className="text-xs text-purple-600 mt-0.5 truncate">{c.specialization.join(' · ')}</p>
-                      )}
-                    </div>
-                    <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
-                      <div className="text-center">
-                        <p className="text-sm font-bold text-gray-900">{c.assignedStudents?.length ?? 0}</p>
-                        <p className="text-xs text-gray-400">students</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-bold text-gray-900">{c.experience ?? 0}y</p>
-                        <p className="text-xs text-gray-400">exp</p>
-                      </div>
-                      <div className={`text-center px-2.5 py-1 rounded-lg border ${perf.bg}`}>
-                        <p className={`text-sm font-bold ${perf.color}`}>{perf.score}</p>
-                        <p className={`text-xs font-medium ${perf.color}`}>{perf.tier}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button type="button" title={`Chat with ${c.name}`}
-                        onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-                          text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300
-                          active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1">
-                        <MessageSquare className="w-3.5 h-3.5" />Chat
-                      </button>
-                      <button type="button" onClick={() => setAssigningCounselor(c)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-                          text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300
-                          active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1">
-                        <UserCheck className="w-3.5 h-3.5" />Assign
-                      </button>
-                      <BtnView onClick={() => openCounselor(id)} color="purple" />
-                      <BtnDanger onClick={() => handleDeleteCounselor(id)} disabled={deletingId === id}>
-                        {deletingId === id ? <><Spinner size={3} />Deleting…</> : <><Trash2 className="w-3.5 h-3.5" />Delete</>}
-                      </BtnDanger>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <Section title="Team & leads" description="Who is handling what, and which leads to follow up first.">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <TeamWorkload />
+            <LeadScores studentsPath="/admin/students" />
           </div>
-        )}
+          <ReferralsAdmin />
+        </Section>
 
-        {/* Students tab */}
-        {!loading && activeTab === 'students' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 gap-3 flex-wrap bg-gray-50/60">
-              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-                <div className="relative flex-1 min-w-0 max-w-xs">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                    placeholder="Search by name, email or nationality…"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                </div>
-                <input
-                  type="date"
-                  value={studentDateFilter}
-                  onChange={e => setStudentDateFilter(e.target.value)}
-                  title="Filter by join date"
-                  className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                {studentDateFilter && (
-                  <button type="button" onClick={() => setStudentDateFilter('')}
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
-                    Clear
+        <Section title="People" description="The newest team members and students. Use View all for the full list.">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Tabs + search */}
+            <div className="flex flex-col gap-3 px-5 py-4 border-b border-gray-100 md:flex-row md:items-center md:justify-between">
+              <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit" role="tablist">
+                {([
+                  { key: 'counselors', label: 'Team', count: counselors.length },
+                  { key: 'students', label: 'Students', count: students.length },
+                ] as const).map(tab => (
+                  <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}
+                    className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors
+                      ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                    {tab.label}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-md ${activeTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
+                      {loading ? '…' : tab.count}
+                    </span>
                   </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  {isStudentsTab ? (
+                    <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                      placeholder="Search name, email or nationality" aria-label="Search students"
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                  ) : (
+                    <input value={counselorSearch} onChange={e => setCounselorSearch(e.target.value)}
+                      placeholder="Search name or email" aria-label="Search team"
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                  )}
+                </div>
+                {isStudentsTab && (
+                  <>
+                    <input type="date" value={studentDateFilter} onChange={e => setStudentDateFilter(e.target.value)}
+                      title="Filter by join date" aria-label="Filter by join date"
+                      className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                    {studentDateFilter && (
+                      <button type="button" onClick={() => setStudentDateFilter('')}
+                        className="text-xs font-medium text-gray-500 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
+                        Clear date
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
-              <BtnPrimary onClick={() => setShowNewStudent(true)}>
-                <Plus className="w-4 h-4" />New Student
-              </BtnPrimary>
             </div>
 
-            <div className="divide-y divide-gray-50">
-              {filteredStudents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 text-gray-400">
-                  <Users className="w-8 h-8 mb-2 opacity-40" />
-                  <p className="text-sm">{studentSearch ? 'No students match your search.' : 'No students yet.'}</p>
-                </div>
-              ) : filteredStudents.map(s => {
-                const id = normalId(s);
-                const isActive = s.status === 'active';
-                const isToggling = togglingId === id;
-                return (
-                  <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/40 transition-colors">
-                    <button type="button" onClick={() => openStudent(id)} aria-label={`Open ${s.name}'s record`}
-                      className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm text-lg">
-                      {s.name?.charAt(0)}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <button type="button" onClick={() => openStudent(id)}
-                        className="font-semibold text-gray-900 text-sm text-left hover:text-purple-700 hover:underline transition-colors">
-                        {s.name}
-                      </button>
-                      <p className="text-xs text-gray-500">{s.email}</p>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                        {s.nationality && <span className="text-xs text-gray-400">{s.nationality}</span>}
-                        {s.educationLevel && <span className="text-xs text-gray-400">{s.educationLevel}</span>}
-                        {s.gpa && <span className="text-xs text-purple-600 font-semibold">GPA {s.gpa}</span>}
-                        {s.englishScore?.score && (
-                          <span className="text-xs text-indigo-600 font-semibold">{s.englishScore.type} {s.englishScore.score}</span>
-                        )}
-                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 font-medium" title="Assigned counselor">
-                          <UserCog className="w-3 h-3" />{counselorNameById[s.counselorId] || 'Unassigned'}
-                        </span>
+            {/* Rows */}
+            {loading ? (
+              <div className="p-8 flex items-center justify-center gap-3 text-gray-400">
+                <Spinner size={5} /><span className="text-sm">Loading…</span>
+              </div>
+            ) : listTotal === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 text-gray-400">
+                {isStudentsTab ? <Users className="w-8 h-8 mb-2 opacity-40" /> : <UserCog className="w-8 h-8 mb-2 opacity-40" />}
+                <p className="text-sm">
+                  {isStudentsTab
+                    ? (studentSearch || studentDateFilter ? 'No students match your filters.' : 'No students yet.')
+                    : (counselorSearch ? 'No team members match your search.' : 'No team members yet.')}
+                </p>
+              </div>
+            ) : isStudentsTab ? (
+              <ul className="divide-y divide-gray-100">
+                {visibleStudents.map(s => {
+                  const id = normalId(s);
+                  const isActive = s.status === 'active';
+                  const isToggling = togglingId === id;
+                  const counselorName = counselorNameById[s.counselorId];
+                  return (
+                    <li key={id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                        {s.name?.charAt(0)}
                       </div>
-                    </div>
-                    <div className="hidden sm:block text-center flex-shrink-0">
-                      <p className="text-sm font-bold text-gray-900">{s.applications?.length ?? 0}</p>
-                      <p className="text-xs text-gray-400">apps</p>
-                    </div>
-                    <StatusBadge status={s.status} />
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button type="button" title={`Chat with ${s.name}`}
-                        onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-                          text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300
-                          active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1">
-                        <MessageSquare className="w-3.5 h-3.5" />Chat
-                      </button>
-                      <button type="button" onClick={() => setAssigningStudent(s)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-                          text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300
-                          active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1">
-                        <UserCheck className="w-3.5 h-3.5" />Assign
-                      </button>
-                      <button type="button" onClick={() => handleToggleStudentStatus(s)} disabled={isToggling}
-                        aria-label={isActive ? 'Deactivate student' : 'Activate student'}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border
-                          active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
-                          ${isActive
-                            ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100 hover:border-amber-300 focus-visible:ring-amber-400'
-                            : 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 focus-visible:ring-green-400'}`}>
-                        {isToggling
-                          ? <Spinner size={3} />
-                          : isActive ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
-                        {isToggling ? '…' : isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <BtnView onClick={() => openStudent(id)} color="blue" />
-                      <BtnDanger onClick={() => handleDeleteStudent(id)} disabled={deletingId === id}>
-                        {deletingId === id ? <><Spinner size={3} />Deleting…</> : <><Trash2 className="w-3.5 h-3.5" />Delete</>}
-                      </BtnDanger>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                      <div className="flex-1 min-w-0">
+                        <button type="button" onClick={() => openStudent(id)}
+                          className="font-medium text-gray-900 text-sm text-left hover:text-purple-700 truncate max-w-full">
+                          {s.name}
+                        </button>
+                        <p className="text-xs text-gray-500 truncate">
+                          {[s.email, s.nationality, s.educationLevel].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <div className="hidden lg:block w-40 flex-shrink-0">
+                        <p className="text-xs text-gray-400">Counselor</p>
+                        <p className={`text-sm truncate ${counselorName ? 'text-gray-700' : 'text-amber-700 font-medium'}`}>
+                          {counselorName || 'Unassigned'}
+                        </p>
+                      </div>
+                      <div className="hidden md:block w-20 flex-shrink-0">
+                        <p className="text-xs text-gray-400">Applications</p>
+                        <p className="text-sm text-gray-700">{s.applications?.length ?? 0}</p>
+                      </div>
+                      <div className="hidden sm:block w-24 flex-shrink-0"><StatusBadge status={s.status} /></div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <IconBtn label={`Chat with ${s.name}`}
+                          onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })}>
+                          <MessageSquare className="w-4 h-4" />
+                        </IconBtn>
+                        <IconBtn label="Assign counselor" onClick={() => setAssigningStudent(s)}>
+                          <UserCheck className="w-4 h-4" />
+                        </IconBtn>
+                        <IconBtn label={isActive ? 'Deactivate student' : 'Activate student'} onClick={() => handleToggleStudentStatus(s)} disabled={isToggling}>
+                          {isToggling ? <Spinner size={3} /> : isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                        </IconBtn>
+                        <IconBtn label="Delete student" danger onClick={() => handleDeleteStudent(id)} disabled={deletingId === id}>
+                          {deletingId === id ? <Spinner size={3} /> : <Trash2 className="w-4 h-4" />}
+                        </IconBtn>
+                        <ViewBtn onClick={() => openStudent(id)} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {visibleCounselors.map(c => {
+                  const id = normalId(c);
+                  const perf = counselorPerf(c, students);
+                  return (
+                    <li key={id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                        {c.name?.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <button type="button" onClick={() => openCounselor(id)}
+                          className="font-medium text-gray-900 text-sm text-left hover:text-purple-700 truncate max-w-full">
+                          {c.name}
+                        </button>
+                        <p className="text-xs text-gray-500 truncate">
+                          {[c.email, c.specialization?.length ? c.specialization.join(', ') : null].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <div className="hidden md:block w-20 flex-shrink-0">
+                        <p className="text-xs text-gray-400">Students</p>
+                        <p className="text-sm text-gray-700">{c.assignedStudents?.length ?? 0}</p>
+                      </div>
+                      <div className="hidden md:block w-20 flex-shrink-0">
+                        <p className="text-xs text-gray-400">Experience</p>
+                        <p className="text-sm text-gray-700">{c.experience ?? 0} yrs</p>
+                      </div>
+                      <div className="hidden lg:block w-36 flex-shrink-0" title="Based on offer rate, document review rate and caseload">
+                        <p className="text-xs text-gray-400">Performance</p>
+                        <p className={`text-sm font-medium ${perf.color}`}>{perf.score}/100 · {perf.tier}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <IconBtn label={`Chat with ${c.name}`}
+                          onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}>
+                          <MessageSquare className="w-4 h-4" />
+                        </IconBtn>
+                        <IconBtn label="Assign students" onClick={() => setAssigningCounselor(c)}>
+                          <UserCheck className="w-4 h-4" />
+                        </IconBtn>
+                        <IconBtn label="Delete team member" danger onClick={() => handleDeleteCounselor(id)} disabled={deletingId === id}>
+                          {deletingId === id ? <Spinner size={3} /> : <Trash2 className="w-4 h-4" />}
+                        </IconBtn>
+                        <ViewBtn onClick={() => openCounselor(id)} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-        {/* Activity feed + Meeting panel — always visible below tab content */}
-        {!loading && (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            {/* Footer */}
+            {!loading && listTotal > 0 && (
+              <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50/60 text-sm">
+                <span className="text-gray-500">
+                  Showing {Math.min(ROW_LIMIT, listTotal)} of {listTotal} {isStudentsTab ? 'students' : 'team members'}
+                </span>
+                <Link to={isStudentsTab ? '/admin/students' : '/admin/counselors'}
+                  className="inline-flex items-center gap-1 font-semibold text-purple-700 hover:text-purple-800">
+                  View all <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="Activity" description="What is happening across the portal right now, and upcoming meetings.">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2">
               <ActivityFeed />
             </div>
             <div>
-              <MeetingPanel theme="purple" meetingsPagePath="/admin/meetings" />
+              <MeetingPanel theme="purple" meetingsPagePath="/admin/activities" />
             </div>
           </div>
-        )}
+        </Section>
       </div>
     </>
   );

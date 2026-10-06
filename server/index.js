@@ -24,10 +24,13 @@ async function autoSeedIfEmpty() {
 }
 
 const { startDeadlineReminders } = require('./jobs/deadlineReminders');
+const { startDocumentReminders } = require('./jobs/documentReminders');
 const { startSecurityDigest } = require('./jobs/securityDigest');
 const { initAutomation, seedStarterTemplates } = require('./lib/automation');
 const { startAutomationScheduler } = require('./jobs/automationScheduler');
 const { startMeetingReminders } = require('./jobs/meetingReminders');
+const { startEventReminders } = require('./jobs/eventReminders');
+const { startCounselorDailyBrief } = require('./jobs/counselorDailyBrief');
 const { startTaskReminders } = require('./jobs/taskReminders');
 const { startApplicationFollowups } = require('./jobs/applicationFollowups');
 const { startChatEscalation } = require('./jobs/chatEscalation');
@@ -42,12 +45,15 @@ connectDB().then(async () => {
   await autoSeedIfEmpty();
   await require('./lib/access').seedProfiles();
   startDeadlineReminders(io, userSockets, mailer);
+  startDocumentReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
   require('./jobs/incidentEscalation').startIncidentEscalation();
   initAutomation({ io, userSockets, mailer });
   await seedStarterTemplates();
   startAutomationScheduler();
   startMeetingReminders(io, userSockets, mailer);
+  startEventReminders(io, userSockets, mailer);
+  startCounselorDailyBrief(io, userSockets);
   startTaskReminders(io, userSockets);
   startApplicationFollowups(io, userSockets);
   startChatEscalation(io, userSockets);
