@@ -47,6 +47,14 @@ access /admin, /appteam, /board or /soc, or manage the Zest knowledge base. If t
 something outside their own data or access, tell them plainly and suggest contacting their
 counselor via Chat.`;
 
+const GUEST_GUIDE = `Portal guide — this user is a VISITOR who is not signed in (on the public website):
+- They can browse Universities (/universities), Resources (/resources) and Search (/search) without an account.
+- Signing in or registering (/login) gives them a student dashboard with applications, counselor chat,
+  meetings and a profile for their documents.
+You know nothing about who they are and have no access to any account or personal records. If they
+ask about their own application, documents or counselor, tell them to sign in, or to register to get
+started with a Gradzest counselor.`;
+
 const STAFF_GUIDE = `Portal guide — this user is STAFF (counselor or admin):
 - Counselor (/counselor/...): own dashboard, assigned Students (incl. lead stage, tasks),
   Applications, Chat with their students, Meetings, Universities/Courses/Countries reference,
@@ -184,12 +192,14 @@ const ANSWER_QUALITY = `How to answer well:
 // `today` is injected per request: without it the model cannot tell whether a deadline has passed or a
 // task is overdue, and will guess from its training data. `name` makes replies feel addressed to the person.
 function buildSystemPrompt(role, { today, name } = {}) {
-  const audienceGuide = role === 'student' ? STUDENT_GUIDE : STAFF_GUIDE;
+  const guest = role === 'guest';
+  const audienceGuide = guest ? GUEST_GUIDE : role === 'student' ? STUDENT_GUIDE : STAFF_GUIDE;
   const context = [
     today ? `Today's date is ${today} (India time).` : '',
     name ? `You are talking to ${String(name).slice(0, 60)} (${role}).` : '',
   ].filter(Boolean).join(' ');
-  return `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${EMAIL_AUTOMATION_GUIDE}\n\n${role === 'student' ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}${context ? `\n\n${context}` : ''}`;
+  const emailGuide = guest ? '' : `${EMAIL_AUTOMATION_GUIDE}\n\n`;
+  return `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${emailGuide}${role === 'student' || guest ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}${context ? `\n\n${context}` : ''}`;
 }
 
 function todayIST() {
@@ -217,7 +227,7 @@ function callModel(params, onText) {
  * @param {string} question
  * @param {{ title: string, text: string }[]} chunks  top-matching knowledge-base chunks for this turn
  * @param {{ role: 'user'|'assistant', text: string }[]} history  prior turns in this conversation, oldest first
- * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin')
+ * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin'), or 'guest' when signed out
  * @param {string} [attachedDocText]  text of a one-off document the user attached to this turn, if any
  * @param {{ id: string, role: string }} [user]  the authenticated caller, for tool scoping (required if role !== 'student')
  * @param {(delta: string) => void} [onText]  if given, receives answer text as it is generated
