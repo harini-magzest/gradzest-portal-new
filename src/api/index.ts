@@ -734,12 +734,14 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
     // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    // guest: a signed-out visitor on the public site — uses the unauthenticated, IP-limited endpoint.
     askStream: async (
       question: string,
       history: { role: 'user' | 'assistant'; text: string }[] | undefined,
       onDelta: (text: string) => void,
+      guest = false,
     ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
-      const res = await fetch(`${BASE}/zest/ask-stream`, {
+      const res = await fetch(`${BASE}/zest/${guest ? 'public/ask-stream' : 'ask-stream'}`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ question, history }),

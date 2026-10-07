@@ -75,3 +75,29 @@ describe('POST /api/zest/ask-stream', () => {
     expect(res.body.answer).toBe('Plain answer.');
   });
 });
+
+describe('POST /api/zest/public/ask-stream (signed-out visitors)', () => {
+  it('answers a guest with no account, catalogue search as the only tool, and logs it as a guest turn', async () => {
+    process.env.GEMINI_API_KEY = 'fake-key-client-is-mocked';
+    let seen;
+    setGeminiClientForTests({ models: { generateContentStream: async (params) => { seen = params; return (async function* () { yield chunk('Guest answer.'); })(); } } });
+    const res = await request(app).post('/api/zest/public/ask-stream').send({ question: 'Which UK universities offer an MBA?' });
+
+    expect(res.status).toBe(200);
+    const done = events(res.text).pop();
+    expect(done.type).toBe('done');
+    expect(done.answer).toBe('Guest answer.');
+    expect(done.logId).toBeUndefined();
+    const tools = JSON.stringify(seen.config.tools);
+    expect(tools).toMatch(/search_universities/);
+    expect(tools).not.toMatch(/lookup_student_status|list_my_students|pipeline_summary|list_open_lead_alerts/);
+    expect(seen.config.systemInstruction).toMatch(/not signed in/);
+    const log = await ZestQueryLog.findOne({ userRole: 'guest', answer: 'Guest answer.' }).lean();
+    expect(log).toBeTruthy();
+    expect(log.userId).toBeUndefined();
+  });
+
+  it('still validates the question', async () => {
+    expect((await request(app).post('/api/zest/public/ask-stream').send({ question: ' ' })).status).toBe(400);
+  });
+});

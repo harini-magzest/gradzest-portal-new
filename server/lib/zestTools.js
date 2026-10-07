@@ -88,7 +88,8 @@ const TOOL_SCHEMAS = {
 // data anyway, and a model deciding "no tool needed, I already know who's asking" is a worse
 // failure mode than there being nothing to pick.
 function getToolsForRole(role) {
-  if (role === 'student') return [TOOL_SCHEMAS.search_universities];
+  // Guests (signed-out visitors on the public site) get the same catalogue-only toolset.
+  if (role === 'student' || role === 'guest') return [TOOL_SCHEMAS.search_universities];
   return Object.values(TOOL_SCHEMAS);
 }
 
@@ -228,6 +229,8 @@ const HANDLERS = {
 async function executeTool(name, input, user, ctx = {}) {
   const handler = HANDLERS[name];
   if (!handler) return { error: `Unknown tool: ${name}` };
+  // A guest has no account to scope by, so only public reference data is reachable, whatever tool is named.
+  if (!user && name !== 'search_universities') return { error: 'Not available without signing in.' };
   // Scoping is enforced inside each handler (students are refused staff tools even if they name them).
   try {
     return await handler(input || {}, user, ctx);
