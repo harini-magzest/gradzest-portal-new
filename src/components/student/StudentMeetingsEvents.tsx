@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, CalendarCheck, CalendarX, PlayCircle, Ticket } from 'lucide-react';
+import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, CalendarCheck, CalendarX, PlayCircle } from 'lucide-react';
 import { api } from '../../api';
-import AddToCalendar from '../../components/AddToCalendar';
-import BookCall from '../../components/BookCall';
+import AddToCalendar from '../AddToCalendar';
+import BookCall from '../BookCall';
+
+// The student's two "Events" tab panels on the shared Activities page (see src/pages/Activities.tsx):
+// StudentMeetingsPanel — scheduled 1:1 calls with a counselor — and StudentEventsPanel — webinars/open
+// days students register for. Split out of the old standalone student pages so Activities can embed them.
 
 type EventRow = Awaited<ReturnType<typeof api.events.list>>[number];
-type Tab = 'meetings' | 'events';
 
-// ── Meetings: scheduled 1:1 calls with a counselor ───────────────────────────
+// ── Meetings ──────────────────────────────────────────────────────────────────
 
 function Spinner() {
   return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
@@ -120,7 +122,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
   );
 }
 
-function MeetingsPanel() {
+export function StudentMeetingsPanel() {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -247,13 +249,13 @@ function MeetingsPanel() {
   );
 }
 
-// ── Events: webinars, workshops and open days ────────────────────────────────
+// ── Events ────────────────────────────────────────────────────────────────────
 
 function when(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function EventsPanel() {
+export function StudentEventsPanel() {
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -283,9 +285,9 @@ function EventsPanel() {
   const past = (events || []).filter(e => new Date(e.startsAt).getTime() <= now).reverse();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><CalendarDays className="w-5 h-5" /> Events</h1>
+        <h2 className="font-semibold text-gray-900 flex items-center gap-2"><CalendarDays className="w-5 h-5" /> Events</h2>
         <p className="text-sm text-gray-500 mt-1">Webinars, workshops and open days. Register to get the joining link and a reminder.</p>
       </div>
 
@@ -299,7 +301,7 @@ function EventsPanel() {
           const full = e.spotsLeft === 0 && !e.registered;
           return (
             <article key={e.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
-              <h2 className="font-semibold text-gray-900">{e.title}</h2>
+              <h3 className="font-semibold text-gray-900">{e.title}</h3>
               <p className="text-sm text-gray-600 mt-1">{when(e.startsAt)} · {e.durationMin} min</p>
               {e.description && <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{e.description}</p>}
               <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
@@ -328,7 +330,7 @@ function EventsPanel() {
 
       {past.length > 0 && (
         <section>
-          <h2 className="font-semibold text-gray-900 mb-3">Recent events</h2>
+          <h3 className="font-semibold text-gray-900 mb-3">Recent events</h3>
           <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
             {past.map(e => (
               <li key={e.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
@@ -343,38 +345,6 @@ function EventsPanel() {
           </ul>
         </section>
       )}
-    </div>
-  );
-}
-
-// ── Merged page: a single nav item switching between the two panels above ───
-
-export default function StudentEvents() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initial: Tab = searchParams.get('tab') === 'events' ? 'events' : 'meetings';
-  const [tab, setTab] = useState<Tab>(initial);
-
-  const go = (next: Tab) => {
-    setTab(next);
-    setSearchParams(next === 'events' ? { tab: 'events' } : {}, { replace: true });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-        <button type="button" onClick={() => go('meetings')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-            ${tab === 'meetings' ? 'bg-white text-sky-600 shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
-          <Video className="w-4 h-4" /> Meetings
-        </button>
-        <button type="button" onClick={() => go('events')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-            ${tab === 'events' ? 'bg-white text-sky-600 shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
-          <Ticket className="w-4 h-4" /> Events
-        </button>
-      </div>
-
-      {tab === 'meetings' ? <MeetingsPanel /> : <EventsPanel />}
     </div>
   );
 }

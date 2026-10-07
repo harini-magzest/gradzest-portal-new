@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import {
   Calendar, CheckSquare, Star, Phone, Plus, ChevronLeft, ChevronRight,
@@ -7,6 +7,7 @@ import {
   History,
 } from 'lucide-react';
 import MeetingPanel from '../components/MeetingPanel';
+import { StudentMeetingsPanel, StudentEventsPanel } from '../components/student/StudentMeetingsEvents';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import CallHistory from '../components/CallHistory';
@@ -159,8 +160,12 @@ const THEMES: Record<string, DashTheme> = {
   },
 };
 
+const VALID_TABS: Tab[] = ['calendar', 'tasks', 'events', 'calls', 'meetings'];
+
 export default function Activities() {
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') as Tab | null;
   const t: DashTheme =
     pathname.includes('/admin')    ? THEMES.admin :
     pathname.includes('/counselor') ? THEMES.counselor :
@@ -183,7 +188,7 @@ export default function Activities() {
   const canAssignStaff = !isStudent && role !== 'board';
 
   const today = new Date();
-  const [tab, setTab]           = useState<Tab>('calendar');
+  const [tab, setTab]           = useState<Tab>(tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'calendar');
   const [calYear, setCalYear]   = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState(today.getDate());
@@ -580,12 +585,14 @@ export default function Activities() {
     role === 'admin'     ? '/admin/meetings' :
     role === 'appteam'   ? '/admin/meetings' :
     role === 'counselor' ? '/counselor/meetings' :
-    role === 'student'   ? '/student/events?tab=meetings' : '/admin/meetings';
+    role === 'student'   ? '/student/activities?tab=meetings' : '/admin/meetings'; // unused for students — they get the full panel below, not the summary link
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },
     { key: 'tasks',    label: 'Tasks',    icon: <CheckSquare className="w-4 h-4" />, count: apiTasks.filter(at => at.status !== 'completed').length + meetingTasks.filter(mt => !mt.done).length },
-    { key: 'events',   label: 'Events',   icon: <Star className="w-4 h-4" />,        count: events.length },
+    // For students this tab shows the real, registerable events (see StudentEventsPanel), not the
+    // local list below — so the badge shouldn't show that list's count for them.
+    { key: 'events',   label: 'Events',   icon: <Star className="w-4 h-4" />,        count: isStudent ? undefined : events.length },
     { key: 'calls',    label: 'Calls',    icon: <Phone className="w-4 h-4" />,       count: calls.filter(c => c.status === 'scheduled').length },
     { key: 'meetings', label: 'Meetings', icon: <Users className="w-4 h-4" /> },
   ];
@@ -1042,7 +1049,7 @@ export default function Activities() {
       )}
 
       {/* ── EVENTS ── */}
-      {tab === 'events' && (
+      {tab === 'events' && (isStudent ? <StudentEventsPanel /> : (
         <div className="max-w-2xl">
           <div className="flex items-center justify-between mb-5">
             <span className="text-sm text-gray-500"><span className="font-semibold text-gray-800">{events.length}</span> upcoming events</span>
@@ -1054,14 +1061,7 @@ export default function Activities() {
             )}
           </div>
 
-          {isStudent && (
-            <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-4">
-              <Star className="w-3.5 h-3.5 flex-shrink-0" />
-              Events are scheduled for you by your counselor or admin.
-            </div>
-          )}
-
-          {!isStudent && showAddEvent && (
+          {showAddEvent && (
             <div className="bg-white rounded-2xl border border-purple-200 p-5 shadow-md mb-5">
               <h3 className="text-sm font-semibold text-gray-800 mb-4">New Event</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -1140,14 +1140,14 @@ export default function Activities() {
             ))}
           </div>
         </div>
-      )}
+      ))}
 
       {/* ── MEETINGS ── */}
-      {tab === 'meetings' && (
+      {tab === 'meetings' && (isStudent ? <StudentMeetingsPanel /> : (
         <div className="max-w-md">
-          <MeetingPanel theme={meetingTheme} meetingsPagePath={meetingPath} hideSchedule={role === 'student'} />
+          <MeetingPanel theme={meetingTheme} meetingsPagePath={meetingPath} />
         </div>
-      )}
+      ))}
 
       {/* ── CALLS ── */}
       {tab === 'calls' && (

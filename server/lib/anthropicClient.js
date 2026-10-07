@@ -38,10 +38,10 @@ const STUDENT_GUIDE = `Portal guide — this user is a STUDENT (at /student/...)
 - Universities (/student/universities), Courses (/student/courses), Countries (/student/countries): browse options.
 - Applications (/student/applications): track status of each university application they've submitted.
 - Chat (/student/chat): message their assigned counselor directly.
-- Events (/student/events): the Meetings tab has scheduled calls with their counselor; the Events tab has webinars/open days to register for.
 - Profile (/student/profile): their own personal/academic details and documents.
 - Learning (/student/learning): study-abroad learning resources.
-- Activities (/student/activities): their activity/timeline log.
+- Activities (/student/activities): their activity/timeline log, plus two tabs — Meetings
+  (scheduled calls with their counselor) and Events (webinars/open days to register for).
 A student CANNOT: see other students' data, change which counselor they're assigned to,
 access /admin, /appteam, /board or /soc, or manage the Zest knowledge base. If they ask about
 something outside their own data or access, tell them plainly and suggest contacting their

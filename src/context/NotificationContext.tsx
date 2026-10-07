@@ -230,7 +230,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const meetingsLink = () => {
       const r = userRoleRef.current;
       if (r === 'counselor') return '/counselor/meetings';
-      if (r === 'student')   return '/student/events?tab=meetings';
+      if (r === 'student')   return '/student/activities?tab=meetings';
       return '/admin/meetings';
     };
 
@@ -499,10 +499,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     // Role-aware links
-    const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/events?tab=meetings';
+    const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/activities?tab=meetings';
     const activitiesLink = userRole === 'counselor' ? '/counselor/activities'
       : userRole === 'admin' ? ((user as any)?.isAppTeam ? '/appteam/activities' : '/admin/activities')
       : '/student/activities';
+    // meetingsLink may already carry a `?tab=` query string (students), so an id has to be
+    // joined with `&` there instead of a second `?`.
+    const withMeetingId = (id?: string) => (id ? `${meetingsLink}${meetingsLink.includes('?') ? '&' : '?'}id=${id}` : meetingsLink);
 
     if (userRole === 'student') {
       // Student: counselor assigned
@@ -521,7 +524,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           type: 'meeting', priority: 'urgent',
           title: '📅 New Meeting Scheduled',
           message: `"${m.title}" has been scheduled for ${m.scheduledDate} at ${m.scheduledTime} via ${m.platform}.`,
-          link: m._id ? `${meetingsLink}?id=${m._id}` : meetingsLink,
+          link: withMeetingId(m._id),
         });
         window.dispatchEvent(new CustomEvent('meeting:scheduled', { detail: m }));
       });
@@ -610,7 +613,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         type: 'meeting', priority: 'urgent',
         title: '📅 Meeting Rescheduled',
         message: `"${m.title}" has been updated — ${m.scheduledDate} at ${m.scheduledTime} via ${m.platform}.`,
-        link: m._id ? `${meetingsLink}?id=${m._id}` : meetingsLink,
+        link: withMeetingId(m._id),
       });
       window.dispatchEvent(new CustomEvent('meeting:updated', { detail: m }));
     });

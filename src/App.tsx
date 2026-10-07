@@ -45,7 +45,6 @@ const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'))
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
-const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
 const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
@@ -181,11 +180,11 @@ export default function App() {
               <Route path="profile" element={<StudentProfile />} />
               <Route path="courses" element={<StudentCourses />} />
               <Route path="countries" element={<StudentCountries />} />
+              {/* Meetings and Events live inside Activities now (one tab each) — both old routes
+                  redirect there so old notification links and bookmarks still land somewhere. */}
               <Route path="activities" element={<Activities />} />
-              {/* Meetings merged into the Events page (one tab each) — kept as a redirect so old
-                  notification links and bookmarks still land somewhere. */}
-              <Route path="meetings" element={<Navigate to="/student/events?tab=meetings" replace />} />
-              <Route path="events" element={<StudentEvents />} />
+              <Route path="meetings" element={<Navigate to="/student/activities?tab=meetings" replace />} />
+              <Route path="events" element={<Navigate to="/student/activities?tab=events" replace />} />
               <Route path="shortlist" element={<StudentShortlist />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
