@@ -31,6 +31,7 @@ const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
 const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
+const { userIdFromToken, isAssetRequest } = require('./lib/clientKey');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -135,11 +136,28 @@ const loginIpLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many failed login attempts from this network. Please try again in 15 minutes.' },
 });
+// Counted per signed-in user (anonymous: per IP): offices and campuses share one public IP, and a single dashboard
+// load is dozens of requests, so an IP-wide budget locked colleagues out of each other. A forged token earns no key.
+const limiterKey = (req) => {
+  const id = userIdFromToken(req);
+  return id ? `user:${id}` : rateLimit.ipKeyGenerator(req.ip);
+};
 const generalLimiter = rateLimit({
   store: new MongoRateLimitStore('general'),
   windowMs: 60 * 1000, // 1 minute
   max: 120,
-  skip: isTrustedSocAdmin,
+  skip: (req) => isTrustedSocAdmin(req) || isAssetRequest(req), // logo/favicon images have their own limiter below
+  keyGenerator: limiterKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please slow down.' },
+});
+// University logos and favicons: a list page loads one per card, so the cap is generous, but still bounded because
+// these routes fetch from third-party sites on a cache miss.
+const assetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  keyGenerator: limiterKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
@@ -157,6 +175,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
   app.use('/api', generalLimiter);
+  app.use(['/api/unilogo', '/api/favicon'], assetLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
   markActive('rate_limit_general', '120 req / min on /api');
 }

@@ -22,7 +22,8 @@ function recordAndCheckVelocity(ip) {
   return timestamps.length;
 }
 
-function scoreRequest(req) {
+// `key` is who the velocity is counted against: the IP by default, or a signed-in user (see lib/clientKey.js)
+function scoreRequest(req, key = req.ip) {
   let score = 0;
   const reasons = [];
 
@@ -44,7 +45,7 @@ function scoreRequest(req) {
     reasons.push('missing accept');
   }
 
-  const requestCount = recordAndCheckVelocity(req.ip);
+  const requestCount = recordAndCheckVelocity(key);
   if (requestCount > VELOCITY_THRESHOLD) {
     score += 5; // the strongest signal — real browsing humans don't fire 20+ requests in 5s
     reasons.push(`${requestCount} requests in ${VELOCITY_WINDOW_MS / 1000}s`);

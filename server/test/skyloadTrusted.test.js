@@ -28,15 +28,20 @@ describe('Skyload does not treat the SOC owner\'s own dashboard as a bot', () =>
     expect(maxScore()).toBeLessThanOrEqual(scoreBefore + 0.001);
   });
 
-  it('the same burst is NOT exempt for a non-admin token, an Application Team token, or no token — they are still scored', async () => {
+  it('a signed-in student or Application Team burst is not bot-scored (counted per user), but an anonymous burst still is', async () => {
     const student = await login('student');
     const appTeam = await login('admin', { isAppTeam: true });
     const flagsBefore = await botFlags();
     await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${student}` })));
     await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts').set({ Authorization: `Bearer ${appTeam}` })));
+    await new Promise((r) => setTimeout(r, 300));
+    // Signed-in traffic is accounted against the user and never velocity-scored (see lib/clientKey.js): a normal page load
+    // is dozens of requests and must not flag the person's own account. Their volume is still capped per user.
+    expect(await botFlags()).toBe(flagsBefore);
+
     await Promise.all(Array.from({ length: 40 }, () => request(app).get('/api/soc/analysts')));
     await new Promise((r) => setTimeout(r, 400));
-    expect(await botFlags()).toBeGreaterThan(flagsBefore);
+    expect(await botFlags()).toBeGreaterThan(flagsBefore); // anonymous: still scored exactly as before
     expect(maxScore()).toBeGreaterThanOrEqual(5);
   });
 

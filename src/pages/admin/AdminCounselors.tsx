@@ -1478,7 +1478,9 @@ return (
                 icon: <Star className="w-5 h-5 text-purple-500" />,
                 bg: 'bg-purple-50',
                 label: 'Top performer',
-                value: topPerformer?.name?.split(' ')[0] + (topPerformer?.name?.split(' ')[1] ? ' ' + topPerformer.name.split(' ')[1][0] + '.' : '') || '—',
+                value: topPerformer?.name
+                  ? topPerformer.name.split(' ')[0] + (topPerformer.name.split(' ')[1] ? ' ' + topPerformer.name.split(' ')[1][0] + '.' : '')
+                  : '—',
                 sub: topPerformer ? `Score ${metricsMap[normalId(topPerformer)]?.score ?? 0}` : '—',
                 subColor: 'text-green-600',
               },
