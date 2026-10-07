@@ -13,6 +13,7 @@ import NamasteIntro from './components/NamasteIntro';
 import { ReferralCapture } from './lib/referral';
 import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
+import NotificationPermissionPrompt, { NotificationNavigator } from './components/NotificationPermissionPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
 
@@ -145,6 +146,8 @@ export default function App() {
         <ReferralCapture />
         <ActivityTracker />
         <ToastLayer />
+        <NotificationNavigator />
+        <NotificationPermissionPrompt />
         <FlashToast />
         <NamasteIntro />
         <AuthModal />
