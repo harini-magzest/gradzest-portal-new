@@ -177,7 +177,8 @@ export default function App() {
             <Route path="/student" element={<StudentLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="universities" element={<StudentUniversities />} />
-              <Route path="compare" element={<CompareCosts />} />
+              {/* Compare & cost was removed from the student portal; old links land on the dashboard */}
+              <Route path="compare" element={<Navigate to="/student" replace />} />
               <Route path="applications" element={<StudentApplications />} />
               <Route path="chat" element={<StudentChat />} />
               <Route path="profile" element={<StudentProfile />} />
