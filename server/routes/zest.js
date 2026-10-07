@@ -372,6 +372,26 @@ router.get('/analytics', authMiddleware, adminOnly, async (req, res) => {
 
 /* ── Daily lead alerts (admin only) ──────────────────────────────────────── */
 
+// Every question asked of Zest and its answer, so admin can audit what the assistant told
+// staff, students and signed-out guests. Backs the query log panel on /admin/zest.
+router.get('/query-logs', authMiddleware, adminOnly, async (req, res) => {
+  const limit = Math.min(200, Number(req.query.limit) || 50);
+  const skip = Math.max(0, Number(req.query.skip) || 0);
+  const [logs, total] = await Promise.all([
+    ZestQueryLog.find().sort({ createdAt: -1 }).skip(skip).limit(limit)
+      .populate('userId', 'name email').lean(),
+    ZestQueryLog.countDocuments(),
+  ]);
+  res.json({
+    logs: logs.map(l => ({
+      id: l._id, question: l.question, answer: l.answer, userRole: l.userRole,
+      userName: l.userId?.name || (l.userRole === 'guest' ? 'Guest' : 'Unknown'), userEmail: l.userId?.email || '',
+      sourceDocCount: (l.sourceDocIds || []).length, createdAt: l.createdAt,
+    })),
+    total,
+  });
+});
+
 router.get('/alerts', authMiddleware, adminOnly, async (req, res) => {
   const alerts = await LeadAlert.find({ resolved: false }).sort({ flaggedOn: -1, severity: 1 }).limit(500).lean();
   const leadIds = [...new Set(alerts.map(a => String(a.userId)))];
