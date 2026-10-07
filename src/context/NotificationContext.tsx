@@ -185,8 +185,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Each portal's own pages — Application Team accounts are admins whose home is /appteam
     const portal = userRole === 'counselor' ? '/counselor' : userRole === 'student' ? '/student' : isAppTeam ? '/appteam' : '/admin';
-    const meetingsLink = isAppTeam ? '/appteam/activities' : `${portal}/meetings`;
+    // Students' meetings and events are tabs of their Activities page
+    const meetingsLink = isAppTeam ? '/appteam/activities' : userRole === 'student' ? '/student/activities?tab=meetings' : `${portal}/meetings`;
+    const eventsLink = userRole === 'student' ? '/student/activities?tab=events' : `${portal}/events`;
     const activitiesLink = `${portal}/activities`;
+    // meetingsLink may already carry a `?tab=` query string, so an id is joined with `&` there instead of a second `?`
+    const withMeetingId = (id?: string) => (id ? `${meetingsLink}${meetingsLink.includes('?') ? '&' : '?'}id=${id}` : meetingsLink);
 
     // Notifications the server has already saved: show them, don't save them again
     const serverSaved = (type: NotifType, defaultPriority: NotifPriority = 'normal') => (n: any) => {
@@ -239,7 +243,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     if (userRole === 'student') {
       // Webinar / event reminders (server-saved)
-      socket.on('event:reminder', (n: any) => serverSaved('event')({ ...n, link: n.link || '/student/events' }));
+      socket.on('event:reminder', (n: any) => serverSaved('event')({ ...n, link: n.link || eventsLink }));
 
       socket.on('counselor:assigned', (data: any) => {
         addNotif({
@@ -255,7 +259,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           type: 'meeting', priority: 'urgent',
           title: '📅 New Meeting Scheduled',
           message: `"${m.title}" has been scheduled for ${m.scheduledDate} at ${m.scheduledTime} via ${m.platform}.`,
-          link: m._id ? `${meetingsLink}?id=${m._id}` : meetingsLink,
+          link: withMeetingId(m._id),
         });
         window.dispatchEvent(new CustomEvent('meeting:scheduled', { detail: m }));
       });
@@ -333,7 +337,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         type: 'meeting', priority: 'urgent',
         title: '📅 Meeting Rescheduled',
         message: `"${m.title}" has been updated — ${m.scheduledDate} at ${m.scheduledTime} via ${m.platform}.`,
-        link: m._id ? `${meetingsLink}?id=${m._id}` : meetingsLink,
+        link: withMeetingId(m._id),
       });
       window.dispatchEvent(new CustomEvent('meeting:updated', { detail: m }));
     });

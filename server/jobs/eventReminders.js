@@ -23,9 +23,9 @@ async function runEventReminderCheck(io, userSockets, mailer, now = new Date()) 
       const people = await User.find({ _id: { $in: event.registrations.map((r) => r.userId) } }).select('name email phone notificationPrefs').lean();
 
       for (const p of people) {
-        const n = await Notification.create({ userId: p._id, type: 'event', priority: w.priority, title, message, link: '/student/events' });
+        const n = await Notification.create({ userId: p._id, type: 'event', priority: w.priority, title, message, link: '/student/activities?tab=events' });
         const sids = userSockets?.get(String(p._id));
-        if (io && sids) sids.forEach((sid) => io.to(sid).emit('event:reminder', { notificationId: String(n._id), priority: w.priority, title, message, link: '/student/events', eventId: String(event._id) }));
+        if (io && sids) sids.forEach((sid) => io.to(sid).emit('event:reminder', { notificationId: String(n._id), priority: w.priority, title, message, link: n.link, eventId: String(event._id) }));
         sendExtraChannels(p, `${title}. ${message}${event.link ? ` Join: ${event.link}` : ''}`);
         if (mailer && p.email && wantsEmail(p)) {
           mailer.sendMail({

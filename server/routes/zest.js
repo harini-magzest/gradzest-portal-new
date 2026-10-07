@@ -45,6 +45,8 @@ const router = express.Router();
 // Per-user cap (see lib/zestLimiter.js). Off in the test env, like the other limiters, so tests can ask freely;
 // the limiter itself has its own test.
 const askLimiter = process.env.NODE_ENV === 'test' ? (_req, _res, next) => next() : createZestLimiter();
+// Signed-out visitors on the public site: keyed on IP and tighter, since anyone can call it.
+const guestLimiter = process.env.NODE_ENV === 'test' ? (_req, _res, next) => next() : createZestLimiter({ max: 10, byIp: true });
 
 // The signed token carries id/role/email but not the name; Zest uses the name to address the person.
 async function callerFor(req) {
@@ -117,9 +119,12 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
-/* ── Chat (any authenticated role) ───────────────────────────────────────── */
+/* ── Chat (any authenticated role, plus signed-out visitors as 'guest') ───── */
 
+// req.user is absent on the public route: the caller is then a 'guest' with no tools beyond the catalogue.
 async function answerQuestion(req, question, history, onText) {
+  const userId = req.user?.id;
+  const role = req.user ? req.user.role : 'guest';
   const matches = await retrieveChunks(question, history);
 
   const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
@@ -128,17 +133,18 @@ async function answerQuestion(req, question, history, onText) {
   let answer, toolsUsed;
   try {
     ({ text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, req.user.role, '', await callerFor(req), onText, { ip: req.ip, io: req.app.get('io') },
+      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, role, '', req.user ? await callerFor(req) : null, onText, { ip: req.ip, io: req.app.get('io') },
     ));
   } catch (err) {
     const fallback = knowledgeBaseFallback(matches);
     if (!fallback) throw new ZestUnavailable(err.message);
-    const log = await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer: fallback, sourceDocIds, toolsUsed: [], degraded: true });
-    return { answer: fallback, sources, degraded: true, logId: String(log._id) };
+    const log = await ZestQueryLog.create({ userId, userRole: role, question, answer: fallback, sourceDocIds, toolsUsed: [], degraded: true });
+    return { answer: fallback, sources, degraded: true, ...(userId ? { logId: String(log._id) } : {}) };
   }
 
-  const log = await ZestQueryLog.create({ userId: req.user.id, userRole: req.user.role, question, answer, sourceDocIds, toolsUsed });
-  return { answer, sources, logId: String(log._id) };
+  const log = await ZestQueryLog.create({ userId, userRole: role, question, answer, sourceDocIds, toolsUsed });
+  // No logId for guests: feedback needs a signed-in owner, so there is nothing for them to rate against.
+  return { answer, sources, ...(userId ? { logId: String(log._id) } : {}) };
 }
 
 router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
@@ -157,7 +163,7 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
 // Same answer as /ask, delivered as server-sent events so the first words appear while the rest
 // is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
 // or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
-router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
+async function streamAnswer(req, res) {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
   if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
@@ -177,7 +183,13 @@ router.post('/ask-stream', authMiddleware, askLimiter, async (req, res) => {
   } finally {
     res.end();
   }
-});
+}
+
+router.post('/ask-stream', authMiddleware, askLimiter, streamAnswer);
+
+// The same stream for signed-out visitors on the public site (landing page etc.): no auth, IP-limited,
+// knowledge base + catalogue search only. No file upload or feedback — those stay signed-in.
+router.post('/public/ask-stream', guestLimiter, streamAnswer);
 
 // A user handing Zest a document for one question — not added to the shared knowledge base.
 // Reuses the exact same security pipeline as a KB upload (ClamAV scan + deep inspection/audit
@@ -359,6 +371,26 @@ router.get('/analytics', authMiddleware, adminOnly, async (req, res) => {
 });
 
 /* ── Daily lead alerts (admin only) ──────────────────────────────────────── */
+
+// Every question asked of Zest and its answer, so admin can audit what the assistant told
+// staff, students and signed-out guests. Backs the query log panel on /admin/zest.
+router.get('/query-logs', authMiddleware, adminOnly, async (req, res) => {
+  const limit = Math.min(200, Number(req.query.limit) || 50);
+  const skip = Math.max(0, Number(req.query.skip) || 0);
+  const [logs, total] = await Promise.all([
+    ZestQueryLog.find().sort({ createdAt: -1 }).skip(skip).limit(limit)
+      .populate('userId', 'name email').lean(),
+    ZestQueryLog.countDocuments(),
+  ]);
+  res.json({
+    logs: logs.map(l => ({
+      id: l._id, question: l.question, answer: l.answer, userRole: l.userRole,
+      userName: l.userId?.name || (l.userRole === 'guest' ? 'Guest' : 'Unknown'), userEmail: l.userId?.email || '',
+      sourceDocCount: (l.sourceDocIds || []).length, createdAt: l.createdAt,
+    })),
+    total,
+  });
+});
 
 router.get('/alerts', authMiddleware, adminOnly, async (req, res) => {
   const alerts = await LeadAlert.find({ resolved: false }).sort({ flaggedOn: -1, severity: 1 }).limit(500).lean();

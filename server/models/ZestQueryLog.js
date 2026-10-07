@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 // Every question asked of Zest and the answer it gave, so admin can audit what
 // the assistant is telling staff/students.
 const ZestQueryLogSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // Absent only for signed-out visitors asking from the public site (userRole 'guest').
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: function () { return this.userRole !== 'guest'; } },
   userRole: { type: String, default: '' },
   question: { type: String, required: true },
   answer: { type: String, default: '' },

@@ -106,7 +106,7 @@ router.put('/:id', authMiddleware, validId, async (req, res) => {
       const verb = out.status === 'cancelled' ? 'was cancelled' : 'has a new time';
       await Notification.insertMany(event.registrations.map((r) => ({
         userId: r.userId, type: 'event', priority: 'normal', title: `Event ${verb}: ${event.title}`,
-        message: out.status === 'cancelled' ? 'This event will no longer take place.' : `It now starts ${event.startsAt.toISOString()}.`, link: '/student/events',
+        message: out.status === 'cancelled' ? 'This event will no longer take place.' : `It now starts ${event.startsAt.toISOString()}.`, link: '/student/activities?tab=events',
       })));
     }
     res.json(present(event.toObject(), req));
@@ -145,7 +145,7 @@ router.post('/:id/register', authMiddleware, validId, async (req, res) => {
       { new: true },
     ).lean();
     if (updated) {
-      await Notification.create({ userId, type: 'event', priority: 'info', title: `You're registered: ${updated.title}`, message: `Starts ${updated.startsAt.toISOString()}.`, link: '/student/events' });
+      await Notification.create({ userId, type: 'event', priority: 'info', title: `You're registered: ${updated.title}`, message: `Starts ${updated.startsAt.toISOString()}.`, link: '/student/activities?tab=events' });
       return res.status(201).json(present(updated, req));
     }
 
