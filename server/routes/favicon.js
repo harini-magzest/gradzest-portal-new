@@ -1,5 +1,5 @@
 const express = require('express');
-const axios = require('axios');
+const { fetchPublicImage } = require('../lib/safeHttp');
 
 const router = express.Router();
 
@@ -34,16 +34,10 @@ router.get('/:domain', async (req, res) => {
 
   for (const url of sources) {
     try {
-      const resp = await axios.get(url, {
-        responseType: 'arraybuffer',
-        timeout: 4000,
-        validateStatus: s => s === 200,
-      });
-      const ct = resp.headers['content-type'] || 'image/x-icon';
-      // Reject tiny responses that are just placeholder 1×1 pixels from the upstream
-      if (resp.data.length < 50) continue;
+      // Reject non-images (an upstream error page must never be served from our origin) and tiny 1x1 placeholders
+      const { buf, ct } = await fetchPublicImage(url, { timeout: 4000, minBytes: 50, maxBytes: 512 * 1024 });
       res.set('Content-Type', ct);
-      return res.send(resp.data);
+      return res.send(buf);
     } catch {}
   }
 

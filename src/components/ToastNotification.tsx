@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Bell, CheckCircle, AlertTriangle, Info, ExternalLink, ClipboardList, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { AppNotification } from '../context/NotificationContext';
+import { openExternal } from '../lib/safeUrl';
 
 interface ToastProps {
   notification: AppNotification;
@@ -69,7 +70,7 @@ function Toast({ notification: n, onDismiss }: ToastProps) {
   };
 
   const handleView = () => {
-    if (n.link?.startsWith('http')) window.open(n.link, '_blank', 'noopener,noreferrer');
+    if (n.link?.startsWith('http')) openExternal(n.link);
     else if (n.link) navigate(n.link);
     handleDismiss();
   };

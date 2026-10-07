@@ -163,14 +163,14 @@ export const api = {
 
   countries: {
     list: () => req<any[]>('/countries'),
-    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`),
+    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
   },
 
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
     compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
-    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
+    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),

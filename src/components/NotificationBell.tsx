@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, X, CheckCheck, ChevronUp, ChevronDown, Calendar, FileText, Tag, UserPlus } from "lucide-react";
 import { useNotifications, AppNotification } from "../context/NotificationContext";
+import { openExternal } from '../lib/safeUrl';
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -62,7 +63,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
   function handleNotifClick(n: AppNotification) {
     markRead(n.id);
     setNotifOpen(false);
-    if (n.link?.startsWith('http')) window.open(n.link, '_blank', 'noopener,noreferrer');
+    if (n.link?.startsWith('http')) openExternal(n.link);
     else if (n.link) navigate(n.link);
   }
 

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { usePortalName } from '../../hooks/usePortalName';
+import { openExternal } from '../../lib/safeUrl';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -387,7 +388,7 @@ export default function AdminMeetings() {
   };
 
   const handleJoin = (link: string) => {
-    window.open(link, '_blank', 'noopener,noreferrer');
+    openExternal(link);
   };
 
   const filtered = meetings
