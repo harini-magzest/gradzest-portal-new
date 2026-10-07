@@ -580,7 +580,7 @@ export default function Activities() {
     role === 'admin'     ? '/admin/meetings' :
     role === 'appteam'   ? '/admin/meetings' :
     role === 'counselor' ? '/counselor/meetings' :
-    role === 'student'   ? '/student/meetings' : '/admin/meetings';
+    role === 'student'   ? '/student/events?tab=meetings' : '/admin/meetings';
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },

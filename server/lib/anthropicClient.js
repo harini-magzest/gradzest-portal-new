@@ -38,7 +38,7 @@ const STUDENT_GUIDE = `Portal guide — this user is a STUDENT (at /student/...)
 - Universities (/student/universities), Courses (/student/courses), Countries (/student/countries): browse options.
 - Applications (/student/applications): track status of each university application they've submitted.
 - Chat (/student/chat): message their assigned counselor directly.
-- Meetings (/student/meetings): scheduled calls/sessions with their counselor.
+- Events (/student/events): the Meetings tab has scheduled calls with their counselor; the Events tab has webinars/open days to register for.
 - Profile (/student/profile): their own personal/academic details and documents.
 - Learning (/student/learning): study-abroad learning resources.
 - Activities (/student/activities): their activity/timeline log.

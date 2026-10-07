@@ -230,7 +230,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const meetingsLink = () => {
       const r = userRoleRef.current;
       if (r === 'counselor') return '/counselor/meetings';
-      if (r === 'student')   return '/student/meetings';
+      if (r === 'student')   return '/student/events?tab=meetings';
       return '/admin/meetings';
     };
 
@@ -499,7 +499,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     // Role-aware links
-    const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/meetings';
+    const meetingsLink = userRole === 'counselor' ? '/counselor/meetings' : userRole === 'admin' ? '/admin/meetings' : '/student/events?tab=meetings';
     const activitiesLink = userRole === 'counselor' ? '/counselor/activities'
       : userRole === 'admin' ? ((user as any)?.isAppTeam ? '/appteam/activities' : '/admin/activities')
       : '/student/activities';

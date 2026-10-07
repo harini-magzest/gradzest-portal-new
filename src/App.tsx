@@ -45,7 +45,6 @@ const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'))
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
-const StudentMeetings     = lazy(() => import('./pages/student/StudentMeetings'));
 const StudentEvents       = lazy(() => import('./pages/student/StudentEvents'));
 const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
@@ -183,7 +182,9 @@ export default function App() {
               <Route path="courses" element={<StudentCourses />} />
               <Route path="countries" element={<StudentCountries />} />
               <Route path="activities" element={<Activities />} />
-              <Route path="meetings" element={<StudentMeetings />} />
+              {/* Meetings merged into the Events page (one tab each) — kept as a redirect so old
+                  notification links and bookmarks still land somewhere. */}
+              <Route path="meetings" element={<Navigate to="/student/events?tab=meetings" replace />} />
               <Route path="events" element={<StudentEvents />} />
               <Route path="shortlist" element={<StudentShortlist />} />
               <Route path="learning" element={<StudentLearning />} />
