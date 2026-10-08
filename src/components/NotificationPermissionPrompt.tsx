@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   NAVIGATE_EVENT, devicePermission, playNotificationSound, requestDevicePermission, type DevicePermission,
 } from '../lib/deviceNotifications';
+import { openExternal } from '../lib/safeUrl';
 
 const DASHBOARDS = ['/student', '/counselor', '/admin', '/appteam', '/board', '/soc'];
 const SNOOZE_KEY = 'notif_prompt_snoozed_until';
@@ -97,7 +98,7 @@ export function NotificationNavigator() {
     const go = (e: Event) => {
       const link = (e as CustomEvent<string>).detail;
       if (!link) return;
-      if (/^https?:\/\//.test(link)) window.open(link, '_blank', 'noopener,noreferrer');
+      if (/^https?:\/\//.test(link)) openExternal(link);
       else navigate(link);
     };
     window.addEventListener(NAVIGATE_EVENT, go);
