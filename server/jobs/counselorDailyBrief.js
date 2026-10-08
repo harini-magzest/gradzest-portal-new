@@ -18,12 +18,12 @@ async function runCounselorBrief(io, userSockets, now = new Date()) {
     if (!brief) continue;
     if (await Notification.findOne({ userId: c._id, type: 'daily_brief', createdAt: { $gte: startOfDay } })) continue;
 
-    await Notification.create({
+    const n = await Notification.create({
       userId: c._id, type: 'daily_brief', priority: brief.urgent ? 'urgent' : 'normal',
       title: brief.title, message: brief.message, link: LINK,
     });
     const sids = userSockets?.get(String(c._id));
-    if (io && sids) sids.forEach((sid) => io.to(sid).emit('brief:daily', { title: brief.title, message: brief.message, link: LINK }));
+    if (io && sids) sids.forEach((sid) => io.to(sid).emit('brief:daily', { notificationId: String(n._id), priority: n.priority, title: brief.title, message: brief.message, link: LINK }));
     sent++;
   }
   return sent;

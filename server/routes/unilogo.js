@@ -1,6 +1,7 @@
 const express = require('express');
-const axios = require('axios');
+const { fetchPublicImage } = require('../lib/safeHttp');
 const mongoose = require('mongoose');
+const { assertPublicHttpUrl } = require('../lib/ssrfGuard');
 
 const router = express.Router();
 
@@ -12,21 +13,17 @@ const TRANSPARENT_GIF = Buffer.from(
 // In-memory 24h cache: uniId -> { buf, ct, expires }
 const cache = new Map();
 
+// The logo URL is entered by staff (and favicon hosts come from a stored website), so it is never fetched directly: the
+// helper only talks to public internet addresses, follows no redirect to a private one, and only returns real images.
 async function fetchImage(url, extraHeaders = {}) {
-  const resp = await axios.get(url, {
-    responseType: 'arraybuffer',
+  return fetchPublicImage(url, {
     timeout: 8000,
-    validateStatus: s => s === 200,
+    minBytes: 200,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
       ...extraHeaders,
     },
   });
-  if (!resp.data || resp.data.byteLength < 200) return null;
-  // Reject HTML responses (error pages masquerading as images)
-  const ct = resp.headers['content-type'] || '';
-  if (ct.includes('text/html')) return null;
-  return { buf: Buffer.from(resp.data), ct: ct || 'image/png' };
 }
 
 router.get('/:id', async (req, res) => {
@@ -53,8 +50,9 @@ router.get('/:id', async (req, res) => {
 
     // 1. Try stored logo URL (with own domain as referer to bypass hotlink protection)
     if (uni.logo && !uni.logo.includes('clearbit.com')) {
+      const logoOk = await assertPublicHttpUrl(uni.logo).then(() => true).catch(() => false);
       const logoReferer = domain ? `https://www.${domain}/` : 'https://www.google.com/';
-      const result = await fetchImage(uni.logo, { Referer: logoReferer }).catch(() => null);
+      const result = logoOk ? await fetchImage(uni.logo, { Referer: logoReferer }).catch(() => null) : null;
       if (result) {
         cache.set(id, { ...result, expires: now + 24 * 60 * 60 * 1000 });
         res.set('Content-Type', result.ct);

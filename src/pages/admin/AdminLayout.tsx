@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import ZestIcon from '../../components/zest/ZestIcon';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
@@ -24,6 +24,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTe
   { to: '/admin/universities', label: 'Universities', icon: GraduationCap },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
+  { to: '/admin/privacy', label: 'Data requests', icon: ShieldCheck },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
   { to: '/admin/zest', label: 'Zest', icon: GraduationCap, appTeamHidden: true },

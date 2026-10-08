@@ -146,8 +146,13 @@ Staff (counselors, admins) and students ask you questions about visas, universit
 applications, how to use the portal, and general study-abroad topics.
 
 Rules:
-- Default to short and direct: 1-4 sentences, no filler, no "I'd be happy to help" — UNLESS the
-  user is asking you to draft an email (see below), where a full draft is expected.
+- Default to SHORT for every role, staff and students alike: 1-3 sentences, well under 60 words.
+  No filler, no restating the question, no "I'd be happy to help", and don't list every detail
+  that could be relevant — give the single most useful answer and stop. If more is genuinely
+  worth knowing, offer it in a few words ("want the deadline too?") instead of including it
+  unasked. A short answer that gets straight to the point is faster to read and understand than
+  a long one, even a well-organized one — that is the goal, not just a length limit. The only
+  exception is an explicit email-draft request (see below), which may run longer.
 - Knowledge-base reference material (if any is attached to this turn) may contain documents
   admin uploaded that are unrelated to Gradzest or study-abroad counseling. Only use a passage
   if it actually answers the question being asked — never treat an off-topic document as
@@ -215,6 +220,17 @@ function todayIST() {
 const MAX_TOOL_ROUNDS = 4;
 // Roomy enough for a full email draft or a multi-step answer; the "short and direct" rule keeps normal replies short.
 const MAX_OUTPUT_TOKENS = 1500;
+
+// A reply that hits the token cap mid-sentence reads as broken, not just cut short — trim it back
+// to the last complete sentence instead of showing a dangling half-thought. Leaves the text
+// unchanged if no sentence boundary is found, or if trimming would throw away almost everything
+// (near-empty output is a clearer signal of trouble than a lone unfinished sentence).
+function trimIncompleteAnswer(text) {
+  const match = /^[\s\S]*[.!?](?=["')\]]?(?:\s|$))/.exec(text);
+  if (!match) return text;
+  const trimmed = match[0].trim();
+  return trimmed.length >= 20 ? trimmed : text;
+}
 
 // A failure after some text has already reached the caller is marked so withRetry does not replay it:
 // a retry would stream the start of the answer a second time.
@@ -285,8 +301,12 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     message = await create({ ...createParams, messages });
   }
 
-  const text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  let text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  if (message.stop_reason === 'max_tokens') text = trimIncompleteAnswer(text);
   return { text, toolsUsed };
 }
 
-module.exports = { askZest, isZestConfigured, buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, setAnthropicClientForTests };
+module.exports = {
+  askZest, isZestConfigured, buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, setAnthropicClientForTests,
+  trimIncompleteAnswer,
+};

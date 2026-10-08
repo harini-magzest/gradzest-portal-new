@@ -4,24 +4,15 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import NextStepCard from './NextStepCard';
 import DataAccessLog from './DataAccessLog';
-import StudentShortlist from '../../pages/student/StudentShortlist';
 
 vi.mock('../../api', () => ({
   api: {
     students: {
-      nextStep: vi.fn(), dataAccess: vi.fn(), shortlist: vi.fn(),
-      addToShortlist: vi.fn(), removeFromShortlist: vi.fn(),
+      nextStep: vi.fn(), dataAccess: vi.fn(),
     },
   },
 }));
 import { api } from '../../api';
-
-const course = (over: any = {}) => ({
-  universityId: 'u1', courseId: 'c1', universityName: 'Maple University', country: 'Canada', city: 'Toronto', logo: '',
-  ranking: 40, courseName: 'MSc Data Science', level: 'Master', duration: '2 years', tuitionFee: 20000, currency: 'CAD',
-  applicationFee: 100, intake: ['September'], scholarshipAvailable: true, scholarshipAmount: '$2000', minGPA: 3,
-  englishRequirements: [{ test: 'IELTS', minScore: 6.5 }], addedAt: null, ...over,
-});
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -62,33 +53,5 @@ describe('DataAccessLog', () => {
     (api.students.dataAccess as any).mockRejectedValue(new Error('boom'));
     render(<DataAccessLog />);
     expect(await screen.findByRole('alert')).toHaveTextContent('boom');
-  });
-});
-
-describe('StudentShortlist', () => {
-  it('invites the student to save courses when the list is empty', async () => {
-    (api.students.shortlist as any).mockResolvedValue({ courses: [], cheapest: null, bestRanked: null, max: 12 });
-    render(<MemoryRouter><StudentShortlist /></MemoryRouter>);
-    expect(await screen.findByText('Nothing saved yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /browse courses/i })).toHaveAttribute('href', '/student/courses');
-  });
-
-  it('compares saved courses side by side, flags the cheapest and best ranked, and removes one', async () => {
-    const a = course();
-    const b = course({ universityId: 'u2', courseId: 'c2', universityName: 'Oak College', courseName: 'MBA', tuitionFee: 30000, ranking: 10 });
-    (api.students.shortlist as any).mockResolvedValue({ courses: [a, b], cheapest: 'u1:c1', bestRanked: 'u2:c2', max: 12 });
-    (api.students.removeFromShortlist as any).mockResolvedValue({ courses: [b], cheapest: 'u2:c2', bestRanked: 'u2:c2', max: 12 });
-
-    render(<MemoryRouter><StudentShortlist /></MemoryRouter>);
-    expect(await screen.findByText('MSc Data Science')).toBeInTheDocument();
-    expect(screen.getByText('MBA')).toBeInTheDocument();
-    expect(screen.getByText('Lowest fee')).toBeInTheDocument();
-    expect(screen.getByText('Best ranked')).toBeInTheDocument();
-    expect(screen.getByText('CAD 20,000')).toBeInTheDocument();
-    expect(screen.getAllByText('IELTS 6.5')).toHaveLength(2);
-
-    await userEvent.click(screen.getByRole('button', { name: /remove msc data science from shortlist/i }));
-    expect(api.students.removeFromShortlist).toHaveBeenCalledWith('u1', 'c1');
-    await waitFor(() => expect(screen.queryByText('MSc Data Science')).not.toBeInTheDocument());
   });
 });

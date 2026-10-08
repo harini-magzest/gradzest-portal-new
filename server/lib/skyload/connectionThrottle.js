@@ -23,9 +23,10 @@ function currentLimit(ip) {
   return getScore(ip) >= RISK_THRESHOLD ? FLAGGED_LIMIT : NORMAL_LIMIT;
 }
 
-function tryAcquire(ip) {
+// `limit` overrides the reputation-based cap for a pool with its own budget (the logo/favicon image proxies)
+function tryAcquire(ip, limit = null) {
   const count = inFlight.get(ip) || 0;
-  if (count >= currentLimit(ip)) return false;
+  if (count >= (limit ?? currentLimit(ip))) return false;
   inFlight.set(ip, count + 1);
   return true;
 }

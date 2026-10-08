@@ -22,6 +22,7 @@ import { usePortalName } from '../../hooks/usePortalName';
 import { useToast } from '../../context/ToastContext';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
+import { openExternal } from '../../lib/safeUrl';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -153,7 +154,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
         ],
       });
       setCreated({ ...meeting, invited: staff });
-      if (when === 'now' && meeting.meetingLink) window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+      if (when === 'now' && meeting.meetingLink) openExternal(meeting.meetingLink);
     } catch (err: any) {
       setError(err.message || 'Failed to create meeting.');
     } finally { setCreating(false); }
@@ -200,7 +201,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
             </div>
             <div className="flex gap-3 pt-1">
               <BtnGhost onClick={onClose} className="flex-1">Close</BtnGhost>
-              <BtnPrimary variant="blue" className="flex-1" onClick={() => window.open(created.meetingLink, '_blank', 'noopener,noreferrer')}>
+              <BtnPrimary variant="blue" className="flex-1" onClick={() => openExternal(created.meetingLink)}>
                 <Video className="w-4 h-4" /> Join now
               </BtnPrimary>
             </div>

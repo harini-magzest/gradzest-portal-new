@@ -3,6 +3,7 @@ import { CalendarDays, Clock, Users, Video, ExternalLink, Search, RefreshCw, Cal
 import { api } from '../../api';
 import AddToCalendar from '../AddToCalendar';
 import BookCall from '../BookCall';
+import { openExternal } from '../../lib/safeUrl';
 
 // The student's two "Events" tab panels on the shared Activities page (see src/pages/Activities.tsx):
 // StudentMeetingsPanel — scheduled 1:1 calls with a counselor — and StudentEventsPanel — webinars/open
@@ -54,7 +55,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
       setTimeout(() => setShowExpired(false), 3000);
       return;
     }
-    window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+    openExternal(meeting.meetingLink);
   };
 
   return (

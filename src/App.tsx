@@ -13,6 +13,7 @@ import NamasteIntro from './components/NamasteIntro';
 import { ReferralCapture } from './lib/referral';
 import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
+import NotificationPermissionPrompt, { NotificationNavigator } from './components/NotificationPermissionPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import ActivityTracker from './components/ActivityTracker';
 
@@ -45,7 +46,8 @@ const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'))
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
-const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
+const StudentCountryDetail = lazy(() => import('./pages/student/StudentCountryDetail'));
+const AdminPrivacy        = lazy(() => import('./pages/admin/AdminPrivacy'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const PublicForm = lazy(() => import('./pages/PublicForm'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
@@ -110,6 +112,9 @@ function ScrollToTop() {
 
 function ToastLayer() {
   const { toasts, dismissToast } = useNotifications();
+  const { pathname } = useLocation();
+  // The SOC is a standalone analyst tool: business notices ("Applications need attention") don't belong over it.
+  if (pathname === '/soc' || pathname.startsWith('/soc/')) return null;
   return <ToastContainer toasts={toasts} onDismiss={dismissToast} />;
 }
 
@@ -146,6 +151,8 @@ export default function App() {
         <ReferralCapture />
         <ActivityTracker />
         <ToastLayer />
+        <NotificationNavigator />
+        <NotificationPermissionPrompt />
         <FlashToast />
         <NamasteIntro />
         <AuthModal />
@@ -177,18 +184,20 @@ export default function App() {
             <Route path="/student" element={<StudentLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="universities" element={<StudentUniversities />} />
-              <Route path="compare" element={<CompareCosts />} />
+              {/* Compare & cost was removed from the student portal; old links land on the dashboard */}
+              <Route path="compare" element={<Navigate to="/student" replace />} />
               <Route path="applications" element={<StudentApplications />} />
               <Route path="chat" element={<StudentChat />} />
               <Route path="profile" element={<StudentProfile />} />
               <Route path="courses" element={<StudentCourses />} />
               <Route path="countries" element={<StudentCountries />} />
+              <Route path="countries/:countryId" element={<StudentCountryDetail />} />
               {/* Meetings and Events live inside Activities now (one tab each) — both old routes
                   redirect there so old notification links and bookmarks still land somewhere. */}
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<Navigate to="/student/activities?tab=meetings" replace />} />
               <Route path="events" element={<Navigate to="/student/activities?tab=events" replace />} />
-              <Route path="shortlist" element={<StudentShortlist />} />
+              <Route path="shortlist" element={<Navigate to="/student" replace />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
@@ -224,6 +233,7 @@ export default function App() {
               <Route path="live-feed" element={<AdminActivityFeed />} />
               <Route path="meetings" element={<AdminMeetings />} />
               <Route path="events" element={<StaffEvents />} />
+              <Route path="privacy" element={<AdminPrivacy />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />

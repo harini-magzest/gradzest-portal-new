@@ -1288,26 +1288,10 @@ function runNpmAudit(cwd) {
   });
 }
 
-// Static facts about hardening already present in this codebase — hand-maintained,
-// not dynamically inspected, so it can silently go stale if the code changes
-// without this list being updated too.
-const HARDENING_CHECKLIST = [
-  { label: 'Rate limiting on auth endpoints', enabled: true },
-  { label: 'Helmet security headers + CSP', enabled: true },
-  { label: 'NoSQL injection sanitization (express-mongo-sanitize)', enabled: true },
-  { label: 'trust proxy set (correct IP resolution behind a reverse proxy)', enabled: true },
-  { label: 'Per-device session isolation (multi-session support)', enabled: true },
-  { label: 'Account lockout after repeated failed logins', enabled: true },
-  { label: 'Password reset invalidates all existing sessions', enabled: true },
-  { label: 'Password strength policy enforced (8+ chars, upper/number/special)', enabled: true },
-  { label: 'httpOnly + sameSite refresh-token cookie', enabled: true },
-];
-
-// Known-incomplete work — hand-maintained deliberately, same as the checklist
-// above, so it's visible on the dashboard itself rather than only living in
+// Known-incomplete work — hand-maintained deliberately, so it's visible on the
+// dashboard itself rather than only living in
 // chat history. Update/remove an item here the moment it's actually closed
-// out — a stale "known gap" that's secretly fixed is as misleading as a
-// hardening claim that's gone stale the other way.
+// out — a stale "known gap" that's secretly fixed is misleading.
 const KNOWN_GAPS = [
   {
     label: 'Malware scanning: live-fire detection unverified',
@@ -1355,37 +1339,6 @@ router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
-});
-
-// Real PDF export of the old hand-maintained checklist — archived here as a
-// static snapshot rather than shown live, since the live Posture tab now
-// shows genuinely dynamic, code-derived data instead (activeFeatures +
-// codeAnalysis above), which doesn't have the same staleness risk.
-router.get('/posture/checklist-pdf', authMiddleware, adminOnly, (req, res) => {
-  const doc = new PDFDocument({ margin: 50 });
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'attachment; filename="gradzest-hardening-checklist.pdf"');
-  doc.pipe(res);
-
-  doc.fontSize(18).text('Gradzest — Hardening Checklist', { underline: true });
-  doc.moveDown(0.5);
-  doc.fontSize(10).fillColor('#555').text(
-    'Snapshot of hand-verified security facts about this app\'s configuration, archived as a PDF. ' +
-    'This list is NOT dynamically re-checked — see the live Posture tab in the SOC dashboard for ' +
-    'genuinely code-derived, up-to-date status instead.',
-  );
-  doc.moveDown(1);
-  doc.fillColor('#000');
-
-  HARDENING_CHECKLIST.forEach((item, i) => {
-    doc.fontSize(12).text(`${i + 1}. ${item.label}`, { continued: false });
-    doc.moveDown(0.3);
-  });
-
-  doc.moveDown(1);
-  doc.fontSize(9).fillColor('#888').text(`Generated ${new Date().toISOString()}`);
-
-  doc.end();
 });
 
 module.exports = router;

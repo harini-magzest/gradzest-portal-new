@@ -17,8 +17,6 @@ const { assignNextCounselor } = require('../lib/assignCounselor');
 const { notesFor, canSee, isAuthor, isPublic } = require('../lib/studentNotes');
 const { checklistFor, timelineFor, nextStepForStudent } = require('../lib/studentProgress');
 const PiiAccessLog = require('../models/PiiAccessLog');
-const University = require('../models/University');
-const shortlistLib = require('../lib/shortlist');
 const { validateBulk } = require('../lib/bulkActions');
 
 const router = express.Router();
@@ -187,56 +185,6 @@ router.get('/me/timeline', authMiddleware, asStudent, async (req, res) => {
     const result = await timelineFor(req.user.id);
     if (!result) return res.status(404).json({ message: 'Student not found' });
     res.json(result);
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
-// ── Shortlist: courses the student has saved to compare side by side ────────────────────────────
-// Entries point at a university + course; the details are looked up fresh each time so fees stay current.
-async function shortlistRows(entries) {
-  const ids = [...new Set(entries.map((e) => e.universityId))];
-  const unis = ids.length ? await University.find({ id: { $in: ids } }).lean() : [];
-  const byId = new Map(unis.map((u) => [String(u.id), u]));
-  const rows = [];
-  for (const e of entries) {
-    const uni = byId.get(e.universityId);
-    const course = uni?.courses?.find((c) => String(c.id || c._id) === e.courseId);
-    if (uni && course) rows.push(shortlistLib.describeEntry(uni, course, e.addedAt)); // silently skips courses that have since been removed
-  }
-  return { courses: rows, ...shortlistLib.highlights(rows), max: shortlistLib.MAX_SHORTLIST };
-}
-
-router.get('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('shortlist').lean();
-    if (!user) return res.status(404).json({ message: 'Student not found' });
-    res.json(await shortlistRows(user.shortlist || []));
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
-router.post('/me/shortlist', authMiddleware, asStudent, async (req, res) => {
-  const universityId = String(req.body?.universityId || '').trim();
-  const courseId = String(req.body?.courseId || '').trim();
-  if (!universityId || !courseId) return res.status(400).json({ message: 'universityId and courseId are required' });
-  try {
-    const uni = await University.findOne({ id: universityId }).select('courses.id courses._id').lean();
-    if (!uni || !uni.courses?.some((c) => String(c.id || c._id) === courseId)) return res.status(404).json({ message: 'Course not found' });
-    const user = await User.findById(req.user.id).select('shortlist');
-    if (!user) return res.status(404).json({ message: 'Student not found' });
-    const next = shortlistLib.addEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), universityId, courseId);
-    if (!next) return res.status(400).json({ message: `You can compare up to ${shortlistLib.MAX_SHORTLIST} courses. Remove one first.` });
-    user.shortlist = next;
-    await user.save();
-    res.status(201).json(await shortlistRows(next));
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
-router.delete('/me/shortlist/:universityId/:courseId', authMiddleware, asStudent, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('shortlist');
-    if (!user) return res.status(404).json({ message: 'Student not found' });
-    user.shortlist = shortlistLib.removeEntry((user.shortlist || []).map((e) => ({ universityId: e.universityId, courseId: e.courseId, addedAt: e.addedAt })), req.params.universityId, req.params.courseId);
-    await user.save();
-    res.json(await shortlistRows(user.shortlist));
   } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
 });
 

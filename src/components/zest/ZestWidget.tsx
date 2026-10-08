@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, PhoneCall } from 'lucide-react';
 import ZestIcon from './ZestIcon';
@@ -21,6 +22,31 @@ const WELCOME: ZestMessage = {
   id: 'welcome',
   role: 'assistant',
   text: "Hi, I'm Zest. Ask me anything covered in the knowledge base — visa steps, university info, process questions — and I'll give you a short, exact answer.",
+};
+
+// Zest's answers come back with real Markdown (**bold**, `code`, lists, links) — these render it
+// at a size and spacing that fits a chat bubble, instead of showing the raw ** and ` characters.
+// A stable object outside the component so it isn't rebuilt on every render.
+const MARKDOWN_COMPONENTS = {
+  p: ({ children }: { children?: ReactNode }) => <p className="whitespace-pre-wrap mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }: { children?: ReactNode }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }: { children?: ReactNode }) => <em className="italic">{children}</em>,
+  a: ({ href, children }: { href?: string; children?: ReactNode }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{children}</a>
+  ),
+  ul: ({ children }: { children?: ReactNode }) => <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0">{children}</ul>,
+  ol: ({ children }: { children?: ReactNode }) => <ol className="list-decimal pl-5 space-y-1 mb-2 last:mb-0">{children}</ol>,
+  li: ({ children }: { children?: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  pre: ({ children }: { children?: ReactNode }) => (
+    <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-x-auto mb-2 last:mb-0">{children}</pre>
+  ),
+  code: ({ className, children }: { className?: string; children?: ReactNode }) =>
+    /language-/.test(className || '')
+      ? <code className={className}>{children}</code>
+      : <code className="bg-gray-100 text-[13px] px-1 py-0.5 rounded font-mono">{children}</code>,
+  table: ({ children }: { children?: ReactNode }) => <table className="w-full text-xs border-collapse mb-2">{children}</table>,
+  th: ({ children }: { children?: ReactNode }) => <th className="border border-gray-200 px-2 py-1 text-left font-semibold">{children}</th>,
+  td: ({ children }: { children?: ReactNode }) => <td className="border border-gray-200 px-2 py-1">{children}</td>,
 };
 
 const GUEST_WELCOME: ZestMessage = {
@@ -199,7 +225,11 @@ export default function ZestWidget() {
                   ? 'bg-[#0d1b4b] text-white'
                   : m.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-gray-800 border border-gray-100 shadow-sm'
               }`}>
-                <p className="whitespace-pre-wrap">{m.text}</p>
+                {m.role === 'assistant' && !m.error ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{m.text}</ReactMarkdown>
+                ) : (
+                  <p className="whitespace-pre-wrap">{m.text}</p>
+                )}
                 {m.role === 'assistant' && m.logId && !m.error && m.id !== streamingId && (
                   <div className="mt-2 flex items-center gap-1 text-gray-400">
                     <button type="button" onClick={() => rate(m, 'up')} aria-label="Helpful" aria-pressed={m.rating === 'up'}

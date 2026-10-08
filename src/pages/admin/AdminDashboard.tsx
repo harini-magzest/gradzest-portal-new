@@ -4,6 +4,7 @@ import {
   Users, UserCog, FileText, Plus, Trash2, X,
   Eye, EyeOff, Check, UserPlus, Search, ArrowRight,
   ToggleLeft, ToggleRight, GraduationCap, RefreshCw, AlertTriangle, UserCheck, MessageSquare,
+  LayoutDashboard,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
@@ -761,19 +762,19 @@ function StatCard({ label, value, hint, icon: Icon, to, loading, warn = false }:
 }) {
   return (
     <Link to={to}
-      className="group bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+      className="group bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-sm hover:bg-white/20 transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-gray-500">{label}</p>
-        <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
-          ${warn ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'}`}>
+        <p className="text-sm font-medium text-purple-100">{label}</p>
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10
+          ${warn ? 'text-amber-300' : 'text-white'}`}>
           <Icon className="w-4 h-4" />
         </span>
       </div>
       {loading
-        ? <div className="h-8 w-16 bg-gray-100 rounded-md animate-pulse mt-1" />
-        : <p className="text-3xl font-bold tracking-tight text-gray-900 mt-1">{value}</p>}
-      <p className={`text-xs mt-2 ${warn ? 'text-amber-700 font-medium' : 'text-gray-500'}`}>{loading ? ' ' : hint}</p>
+        ? <div className="h-8 w-16 bg-white/20 rounded-md animate-pulse mt-1" />
+        : <p className="text-3xl font-bold tracking-tight text-white mt-1">{value}</p>}
+      <p className={`text-xs mt-2 ${warn ? 'text-amber-300 font-medium' : 'text-purple-200'}`}>{loading ? ' ' : hint}</p>
     </Link>
   );
 }
@@ -977,25 +978,50 @@ export default function AdminDashboard() {
       <div className="space-y-8">
 
         {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm text-gray-500">{portal} · {today}</p>
-            <h1 className="text-2xl font-bold text-gray-900 mt-1">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">A summary of your students, team and applications.</p>
+        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                <LayoutDashboard className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-purple-200 text-xs font-medium uppercase tracking-wide">{portal} · {today}</p>
+                <h1 className="text-2xl font-bold leading-tight">Admin Dashboard</h1>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={loadData} disabled={loading} title="Reload all figures"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-white/20
+                  hover:bg-white/30 transition-colors disabled:opacity-50
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+              </button>
+              <button type="button" onClick={() => setShowNewCounselor(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-white/20
+                  hover:bg-white/30 transition-colors
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                <UserPlus className="w-4 h-4" />New Counselor
+              </button>
+              <button type="button" onClick={() => setShowNewStudent(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-purple-700 bg-white
+                  hover:bg-purple-50 shadow-sm transition-colors
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                <Plus className="w-4 h-4" />New Student
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={loadData} disabled={loading} title="Reload all figures"
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200
-                hover:bg-gray-50 transition-colors disabled:opacity-50
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
-            </button>
-            <BtnGhost onClick={() => setShowNewCounselor(true)}>
-              <UserPlus className="w-4 h-4" />New Counselor
-            </BtnGhost>
-            <BtnPrimary onClick={() => setShowNewStudent(true)}>
-              <Plus className="w-4 h-4" />New Student
-            </BtnPrimary>
+          <p className="text-purple-200 text-sm mb-5">A summary of your students, team and applications.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatCard label="Students" value={totalStudents} icon={Users} to="/admin/students" loading={loading}
+              hint={`${activeStudents} active · ${Math.max(totalStudents - activeStudents, 0)} inactive`} />
+            <StatCard label="Applications" value={stats?.totalApplications ?? 0} icon={FileText} to="/admin/applications" loading={loading}
+              hint={`${offerCount} with an offer or acceptance`} />
+            <StatCard label="Team members" value={totalCounselors} icon={UserCog} to="/admin/counselors" loading={loading}
+              hint={totalCounselors > 0 ? `${studentsPerMember.toFixed(1)} students per member on average` : 'No team members yet'} />
+            <StatCard label="Unassigned students" value={unassignedCount} icon={AlertTriangle} to="/admin/students" loading={loading}
+              warn={unassignedCount > 0}
+              hint={unassignedCount > 0 ? 'Need a counselor assigned' : 'Every student has a counselor'} />
           </div>
         </div>
 
@@ -1013,19 +1039,6 @@ export default function AdminDashboard() {
             </button>
           </div>
         )}
-
-        {/* Key figures */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard label="Students" value={totalStudents} icon={Users} to="/admin/students" loading={loading}
-            hint={`${activeStudents} active · ${Math.max(totalStudents - activeStudents, 0)} inactive`} />
-          <StatCard label="Applications" value={stats?.totalApplications ?? 0} icon={FileText} to="/admin/applications" loading={loading}
-            hint={`${offerCount} with an offer or acceptance`} />
-          <StatCard label="Team members" value={totalCounselors} icon={UserCog} to="/admin/counselors" loading={loading}
-            hint={totalCounselors > 0 ? `${studentsPerMember.toFixed(1)} students per member on average` : 'No team members yet'} />
-          <StatCard label="Unassigned students" value={unassignedCount} icon={AlertTriangle} to="/admin/students" loading={loading}
-            warn={unassignedCount > 0}
-            hint={unassignedCount > 0 ? 'Need a counselor assigned' : 'Every student has a counselor'} />
-        </div>
 
         <Section title="Pipeline" description="How leads move towards offers, and how that has changed recently.">
           <div className="grid gap-6 lg:grid-cols-2">

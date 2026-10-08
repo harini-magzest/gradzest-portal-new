@@ -23,6 +23,11 @@ async function activeBlocklistMatcher() {
   return { matches: buildIpMatcher(rows.map((r) => r.ip)), count: rows.length };
 }
 
+// ── GET /api/soc/access ─────────────────────────────────────────────────
+// "May I be here?" for the SOC page itself. Same owner gate as every other SOC route: 200 for the owner, 403 for any other
+// admin, 401 when signed out. Lets the page send non-owners away instead of drawing an empty SOC around refused requests.
+router.get('/access', authMiddleware, adminOnly, (req, res) => res.json({ ok: true }));
+
 // ── GET /api/soc/attention ────────────────────────────────────────────────────
 // "What needs a human right now": the incidents nobody has picked up, the accounts and IPs behaving worst in the last
 // 24 hours, locked accounts, and uploads waiting for a verdict. Drives the Overview's "Needs attention" card and the

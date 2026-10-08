@@ -1,0 +1,39 @@
+# Weekly dependency update PRs. Minor/patch bumps arrive as one grouped PR per ecosystem so they do not flood the queue;
+# majors stay separate because they need a human look. Security-advisory PRs are separate and immediate once
+# "Dependabot security updates" is on (Settings → Code security).
+version: 2
+updates:
+  # Frontend (repo root)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # API
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Keeps the commit-SHA pins in .github/workflows current
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      actions:
+        patterns: ['*']
