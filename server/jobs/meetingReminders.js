@@ -41,7 +41,7 @@ async function runMeetingReminderCheck(io, userSockets, mailer) {
         if (io && userSockets) {
           const sids = userSockets.get(String(p.userId));
           if (sids) sids.forEach(sid => io.to(sid).emit('meeting:reminder', {
-            notificationId: String(n._id), title, message, link, meetingId: String(meeting._id),
+            notificationId: String(n._id), priority: w.priority, title, message, link, meetingId: String(meeting._id),
           }));
         }
       }

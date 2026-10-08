@@ -8,6 +8,17 @@ export const isUnreadFor = (m: any, me: string) =>
 export const unreadCount = (room: any, me: string): number =>
   (room?.messages || []).filter((m: any) => isUnreadFor(m, me)).length;
 
+/** Unread messages across several conversations — for a chat tab's badge (e.g. all groups). */
+export const unreadInRooms = (rooms: any[], me: string): number =>
+  rooms.reduce((n, r) => n + unreadCount(r, me), 0);
+
+/** Unread messages in the one-to-one chats with these people — for a chat tab's badge. */
+export const unreadWithPeople = (people: any[], rooms: any[], me: string): number =>
+  people.reduce((n, p) => {
+    const pid = String(p._id || p.id);
+    return n + unreadCount(rooms.find(r => r.type !== 'group' && r.participants?.map(String).includes(pid)), me);
+  }, 0);
+
 /** The same room with every message from others marked as read by `me`. */
 export const markedReadBy = (room: any, me: string) => ({
   ...room,

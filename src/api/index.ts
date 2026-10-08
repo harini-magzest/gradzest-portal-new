@@ -329,6 +329,11 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  shortlist: {
+    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
+    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
+    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
+  },
 
   parentLinks: {
     list: () => req<{ id: string; label: string; createdAt: string; expiresAt: string; lastViewedAt: string | null; viewCount: number; active: boolean }[]>('/parent-links', { headers: authHeaders() }),
@@ -717,12 +722,14 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
     // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    // guest: a signed-out visitor on the public site — uses the unauthenticated, IP-limited endpoint.
     askStream: async (
       question: string,
       history: { role: 'user' | 'assistant'; text: string }[] | undefined,
       onDelta: (text: string) => void,
+      guest = false,
     ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
-      const res = await fetch(`${BASE}/zest/ask-stream`, {
+      const res = await fetch(`${BASE}/zest/${guest ? 'public/ask-stream' : 'ask-stream'}`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ question, history }),
