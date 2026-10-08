@@ -1,206 +1,62 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, ChevronUp, Clock, DollarSign, FileCheck2, CreditCard, Check, GraduationCap, AlertCircle } from 'lucide-react';
+import { Search, ChevronRight, Clock, DollarSign, FileCheck2, GraduationCap, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { CountryFlag } from '../../components/CountryFlag';
 import { checkCountryEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
+import { countryKey } from './StudentCountryDetail';
 
-function UniMiniCard({ uni }: { uni: any }) {
-  return (
-    <Link to={`/university/${uni.id || uni._id}`}
-      className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm min-w-0 hover:border-sky-300 hover:shadow-md transition-all cursor-pointer">
-      <img
-        src={`/api/unilogo/${uni.id || uni._id}`}
-        alt=""
-        className="w-8 h-8 rounded-lg object-contain bg-gray-50 border border-gray-100 flex-shrink-0"
-        onError={(e) => {
-          const el = e.currentTarget;
-          const domain = uni.website?.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0];
-          if (domain && !el.src.includes('/api/favicon/')) {
-            el.src = `/api/favicon/${domain}`;
-          } else {
-            el.style.display = 'none';
-            const fb = el.nextElementSibling as HTMLElement | null;
-            if (fb) fb.style.display = 'flex';
-          }
-        }}
-      />
-      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 items-center justify-center flex-shrink-0 hidden">
-        <span className="text-xs font-bold text-blue-600">{uni.name?.charAt(0) || '?'}</span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-gray-800 truncate max-w-[130px]">{uni.name}</p>
-        {uni.city && <p className="text-xs text-gray-400 truncate">{uni.city}</p>}
-      </div>
-      {uni.courses?.length > 0 && (
-        <span className="text-xs bg-sky-50 text-sky-700 font-medium px-2 py-0.5 rounded-full border border-sky-100 flex-shrink-0">
-          {uni.courses.length}
-        </span>
-      )}
-    </Link>
-  );
-}
-
+// One country in the list; the whole card opens that country's page with its universities
 function CountryCard({ country, unis, student }: { country: any; unis: any[]; student: any }) {
-  const [expanded, setExpanded] = useState(false);
   const elig = checkCountryEligibility(student, country);
   const badge = elig.status !== 'unknown' ? ELIGIBILITY_BADGE[elig.status] : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-4 px-5 py-4">
-        <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-20 h-14" rounded="rounded-xl" quality="w160" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-gray-900">{country.name}</p>
-            {badge && (
-              <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${badge.classes}`}>
-                <span className={`w-1 h-1 rounded-full ${badge.dot}`} />{badge.label}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {country.capital && <span className="text-xs text-gray-500">🏛 {country.capital}</span>}
-            {country.region && <span className="text-xs text-gray-500">📍 {country.region}</span>}
-            {country.currency && <span className="text-xs text-gray-400">{country.currency}</span>}
-            {country.language && <span className="text-xs text-gray-400">{country.language}</span>}
-          </div>
-          <div className="flex flex-wrap gap-x-4 mt-1">
-            {country.visa?.type && (
-              <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
-                <FileCheck2 className="w-3 h-3" /> {country.visa.type}
-              </span>
-            )}
-            {country.visa?.processingTime && (
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> {country.visa.processingTime}
-              </span>
-            )}
-            {country.costs?.tuitionRange && (
-              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                <DollarSign className="w-3 h-3" /> {country.costs.tuitionRange}
-              </span>
-            )}
-            {unis.length > 0 && (
-              <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
-                <GraduationCap className="w-3 h-3" /> {unis.length} {unis.length === 1 ? 'university' : 'universities'}
-              </span>
-            )}
-          </div>
-        </div>
-        <button type="button" onClick={() => setExpanded(v => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all flex-shrink-0">
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          {expanded ? 'Hide' : 'Details'}
-        </button>
-      </div>
-
-      {expanded && (
-        <>
-          <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-5 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Visa */}
-            <div>
-              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <FileCheck2 className="w-3.5 h-3.5" /> Student Visa
-              </p>
-              <div className="space-y-1.5 text-xs">
-                {country.visa?.type && <p><span className="text-gray-400">Type:</span> <span className="font-semibold text-gray-800">{country.visa.type}</span></p>}
-                {country.visa?.processingTime && <p><span className="text-gray-400">Processing:</span> <span className="font-medium text-gray-700">{country.visa.processingTime}</span></p>}
-                {country.visa?.cost && <p><span className="text-gray-400">Cost:</span> <span className="font-medium text-gray-700">{country.visa.cost}</span></p>}
-                {country.visa?.validity && <p><span className="text-gray-400">Validity:</span> <span className="font-medium text-gray-700">{country.visa.validity}</span></p>}
-                {country.visa?.documents?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-gray-400 font-medium mb-1">Required Documents:</p>
-                    <ul className="space-y-1">
-                      {country.visa.documents.map((d: string, i: number) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <Check className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-700">{d}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {country.visa?.notes && (
-                  <p className="mt-2 text-indigo-800 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-2 leading-relaxed">
-                    {country.visa.notes}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Passport */}
-            <div>
-              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5" /> Passport Requirements
-              </p>
-              <div className="space-y-1.5 text-xs">
-                {country.passport?.minValidity && (
-                  <p><span className="text-gray-400">Min Validity:</span> <span className="font-semibold text-gray-800">{country.passport.minValidity}</span></p>
-                )}
-                {country.passport?.notes && (
-                  <p className="mt-2 text-purple-800 bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-2 leading-relaxed">
-                    {country.passport.notes}
-                  </p>
-                )}
-              </div>
-              {country.popular?.length > 0 && (
-                <div className="mt-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Popular Programs</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {country.popular.map((p: string, i: number) => (
-                      <span key={i} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-100 font-medium">{p}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Costs */}
-            <div>
-              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" /> Costs & Fees
-              </p>
-              <div className="space-y-1.5 text-xs">
-                {(country.costs?.monthlyLivingMin || country.costs?.monthlyLivingMax) && (
-                  <p>
-                    <span className="text-gray-400">Monthly Living:</span>{' '}
-                    <span className="font-semibold text-gray-800">
-                      {country.costs.currency} {Number(country.costs.monthlyLivingMin).toLocaleString()}–{Number(country.costs.monthlyLivingMax).toLocaleString()} / month
-                    </span>
-                  </p>
-                )}
-                {country.costs?.applicationFee && (
-                  <p><span className="text-gray-400">Application Fee:</span> <span className="font-medium text-gray-700">{country.costs.applicationFee}</span></p>
-                )}
-                {country.costs?.tuitionRange && (
-                  <p><span className="text-gray-400">Tuition Range:</span> <span className="font-semibold text-emerald-700">{country.costs.tuitionRange}</span></p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Universities in this country */}
-          {unis.length > 0 && (
-            <div className="border-t border-gray-100 bg-indigo-50/40 px-5 py-4">
-              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5" /> Universities
-                <span className="ml-1 text-xs bg-white text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 font-medium normal-case tracking-normal">{unis.length} listed</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {unis.slice(0, 6).map((u: any) => <UniMiniCard key={u._id || u.id} uni={u} />)}
-                {unis.length > 6 && (
-                  <div className="flex items-center justify-center px-4 py-2 text-xs text-indigo-400 bg-white border border-dashed border-indigo-200 rounded-xl">
-                    +{unis.length - 6} more
-                  </div>
-                )}
-              </div>
-            </div>
+    <Link to={`/student/countries/${encodeURIComponent(countryKey(country))}`} aria-label={`Open ${country.name}`}
+      className="group flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
+      <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-20 h-14" rounded="rounded-xl" quality="w160" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{country.name}</p>
+          {badge && (
+            <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${badge.classes}`}>
+              <span className={`w-1 h-1 rounded-full ${badge.dot}`} />{badge.label}
+            </span>
           )}
-        </>
-      )}
-    </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+          {country.capital && <span className="text-xs text-gray-500">🏛 {country.capital}</span>}
+          {country.region && <span className="text-xs text-gray-500">📍 {country.region}</span>}
+          {country.currency && <span className="text-xs text-gray-400">{country.currency}</span>}
+          {country.language && <span className="text-xs text-gray-400">{country.language}</span>}
+        </div>
+        <div className="flex flex-wrap gap-x-4 mt-1">
+          {country.visa?.type && (
+            <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+              <FileCheck2 className="w-3 h-3" /> {country.visa.type}
+            </span>
+          )}
+          {country.visa?.processingTime && (
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> {country.visa.processingTime}
+            </span>
+          )}
+          {country.costs?.tuitionRange && (
+            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+              <DollarSign className="w-3 h-3" /> {country.costs.tuitionRange}
+            </span>
+          )}
+          <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+            <GraduationCap className="w-3 h-3" /> {unis.length} {unis.length === 1 ? 'university' : 'universities'}
+          </span>
+        </div>
+      </div>
+      <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 group-hover:bg-blue-100 transition-colors flex-shrink-0">
+        View country <ChevronRight className="w-3.5 h-3.5" />
+      </span>
+      <ChevronRight className="sm:hidden w-5 h-5 text-gray-300 flex-shrink-0" />
+    </Link>
   );
 }
 
@@ -240,7 +96,7 @@ export default function StudentCountries() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Study Destinations</h1>
-        <p className="text-gray-500 mt-1">Visa requirements, costs, and universities by country</p>
+        <p className="text-gray-500 mt-1">Visa requirements, costs, and universities by country. Open a country to see all its universities.</p>
       </div>
 
       <div className="flex gap-3 flex-wrap">
@@ -274,7 +130,7 @@ export default function StudentCountries() {
               <CountryCard
                 key={c.id || c._id || c.code}
                 country={c}
-                unis={universities.filter(u => u.country?.toLowerCase() === c.name?.toLowerCase())}
+                unis={universities.filter(u => u.country?.trim().toLowerCase() === c.name?.trim().toLowerCase())}
                 student={student}
               />
             ))}
