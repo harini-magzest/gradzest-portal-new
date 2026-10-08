@@ -47,6 +47,7 @@ const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'))
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
+const PublicForm = lazy(() => import('./pages/PublicForm'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
@@ -153,6 +154,8 @@ export default function App() {
           <Routes>
             {/* Read-only progress page a student shares with a parent; no account, no site chrome */}
             <Route path="/parent/:token" element={<ParentView />} />
+            {/* Marketing enquiry form from Admin -> Settings -> Forms; no account, no site chrome */}
+            <Route path="/f/:slug" element={<PublicForm />} />
             {/* Public routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />

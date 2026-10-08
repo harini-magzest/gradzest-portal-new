@@ -3,19 +3,20 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Building2, User, Lock, CalendarDays, Download, AlertTriangle,
   ChevronRight, Save, Eye, EyeOff, Check,
-  Smartphone, Globe, Users, Zap,
+  Smartphone, Globe, Users, Zap, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import AdminUsersControls from './AdminUsersControls';
 import AdminAutomation from './AdminAutomation';
+import AdminForms from './AdminForms';
 import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SectionKey =
-  | 'company' | 'profile' | 'password' | 'automation'
+  | 'company' | 'profile' | 'password' | 'automation' | 'forms'
   | 'users' | 'whatsapp' | 'google-cal' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
@@ -25,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
   { key: 'users',           label: 'Users and Controls',   icon: Users },
+  { key: 'forms',           label: 'Forms',                icon: ClipboardList },
   { key: 'automation',      label: 'Automation',           icon: Zap },
   { key: 'whatsapp',        label: 'WhatsApp / SMS',       icon: Smartphone },
   { key: 'google-cal',      label: 'Google Calendar',      icon: CalendarDays },
@@ -384,6 +386,7 @@ export default function AdminSettings() {
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
       case 'users':           return <AdminUsersControls />;
+      case 'forms':           return <AdminForms />;
       case 'automation':      return <AdminAutomation />;
       case 'whatsapp':        return <WhatsAppSMS />;
       case 'google-cal':      return <GoogleCalendar />;

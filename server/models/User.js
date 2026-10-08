@@ -254,7 +254,14 @@ const UserSchema = new mongoose.Schema({
   preferenceNote: String,
 
   // Lead tracking — only self-signups get leadStatus 'new'; existing students are unaffected
-  source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created'] },
+  source: { type: String, enum: ['self_signup', 'admin_created', 'counselor_created', 'web_form', 'zest_chat'] },
+  // Set when a visitor asks Zest to talk to a person (lib/createWebLead.js) — staff should call them back
+  callbackRequestedAt: Date,
+  // Marketing attribution for web_form leads (routes/forms.js): which form, and the link's UTM tags
+  leadForm: String,
+  utmSource: String,
+  utmMedium: String,
+  utmCampaign: String,
   leadStatus: { type: String, enum: ['new', 'contacted'] },
   // Sales pipeline stage, edited by admins/counselors. Unset is shown as 'new_enquiry'.
   leadStage: { type: String, enum: ['new_enquiry', 'interested', 'counselling', 'shortlisting', 'applications', 'visa_process', 'visa_approved', 'enrolment', 'future_lead', 'other_agent', 'dropped_plans', 'test_prep', 'dnd', 'not_responding', 'other'] },

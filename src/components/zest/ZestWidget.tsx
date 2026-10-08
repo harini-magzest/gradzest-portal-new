@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { X, Send, FileText, Settings2, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, PhoneCall } from 'lucide-react';
 import ZestIcon from './ZestIcon';
+import ZestLeadForm from './ZestLeadForm';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
@@ -25,7 +26,7 @@ const WELCOME: ZestMessage = {
 const GUEST_WELCOME: ZestMessage = {
   id: 'welcome',
   role: 'assistant',
-  text: "Hi, I'm Zest, Gradzest's study-abroad assistant. Ask me about universities, courses, visas or how the process works. Sign in to get help with your own application.",
+  text: "Hi, I'm Zest, Gradzest's study-abroad assistant. Ask me about universities, courses, visas or how the process works. Want to speak to a person? Tap \"Talk to a counselor\" below.",
 };
 
 // Global AI assistant, mounted once in App.tsx alongside the other root-level overlays
@@ -43,23 +44,26 @@ export default function ZestWidget() {
   const [loading, setLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [streamingId, setStreamingId] = useState<string | null>(null);
+  // Guest "Talk to a counselor" form: hidden, open, or already sent this conversation
+  const [leadForm, setLeadForm] = useState<'closed' | 'open' | 'sent'>('closed');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const speech = useSpeech();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, open]);
+  }, [messages, open, leadForm]);
 
   // Signing in or out starts a fresh conversation, so a guest chat never carries into an account or back.
   useEffect(() => {
     setMessages([guest ? GUEST_WELCOME : WELCOME]);
     setAttachedFile(null);
+    setLeadForm('closed');
   }, [guest]);
 
   // SOC is deliberately isolated from the rest of the portal (see SOCLayout.tsx) — Zest stays out too, as it
   // does from the token-only parent view.
-  const hidden = location.pathname.startsWith('/soc') || location.pathname.startsWith('/parent/');
+  const hidden = location.pathname.startsWith('/soc') || location.pathname.startsWith('/parent/') || location.pathname.startsWith('/f/');
   if (hidden) return null;
 
   const send = async () => {
@@ -229,9 +233,24 @@ export default function ZestWidget() {
               </div>
             </div>
           )}
+          {guest && leadForm === 'open' && (
+            <ZestLeadForm
+              onClose={() => setLeadForm('closed')}
+              onSent={message => {
+                setLeadForm('sent');
+                setMessages(prev => [...prev, { id: `lead-${Date.now()}`, role: 'assistant', text: message }]);
+              }}
+            />
+          )}
         </div>
 
         <div className="flex-shrink-0 border-t border-gray-100 p-3 bg-white">
+          {guest && leadForm === 'closed' && (
+            <button type="button" onClick={() => setLeadForm('open')}
+              className="w-full mb-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-sm font-semibold hover:bg-blue-100">
+              <PhoneCall className="w-4 h-4" /> Talk to a counselor
+            </button>
+          )}
           {attachedFile && (
             <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs">
               <FileText className="w-3.5 h-3.5 flex-shrink-0" />

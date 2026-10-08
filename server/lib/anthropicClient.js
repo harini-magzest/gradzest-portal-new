@@ -53,7 +53,13 @@ const GUEST_GUIDE = `Portal guide — this user is a VISITOR who is not signed i
   meetings and a profile for their documents.
 You know nothing about who they are and have no access to any account or personal records. If they
 ask about their own application, documents or counselor, tell them to sign in, or to register to get
-started with a Gradzest counselor.`;
+started with a Gradzest counselor.
+
+Talking to a person: under this chat there is a "Talk to a counselor" button. It opens a short form (first name,
+last name, mobile number, email, preferred country) that is saved for the Gradzest team, and a counselor calls them
+back. When a visitor wants personal advice, a callback, fees for their own case, or to talk to a human, point them to
+that button. Do not ask them to type their name, phone number or email into this chat: chat messages are NOT saved
+as their details, so a counselor would never see them. Never say you have saved their details or booked a call.`;
 
 const STAFF_GUIDE = `Portal guide — this user is STAFF (counselor or admin):
 - Counselor (/counselor/...): own dashboard, assigned Students (incl. lead stage, tasks),

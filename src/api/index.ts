@@ -40,6 +40,13 @@ export class ApiError extends Error {
   constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
 }
 
+export type LeadFormField = 'email' | 'preferredCountries' | 'preferredIntake' | 'preferredCourseLevel' | 'qualification' | 'message';
+export interface LeadFormInput { title: string; intro?: string; fields?: LeadFormField[]; thankYouMessage?: string; campaign?: string }
+export interface LeadForm extends Required<LeadFormInput> {
+  id: string; slug: string; active: boolean; submissions: number;
+  lastSubmissionAt: string | null; createdByName: string; createdAt: string;
+}
+
 export type NoteVisibility = 'public' | 'private';
 export interface StudentNote {
   id: string; text: string; visibility: NoteVisibility;
@@ -785,6 +792,9 @@ export const api = {
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
+    // Signed-out visitors: the "Talk to a counselor" form in the chat; saved once as a new lead
+    publicLead: (data: { firstName: string; lastName: string; phone: string; email: string; preferredCountries: string[]; wantsHuman: boolean; website?: string }) =>
+      req<{ message: string }>('/zest/public/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     addToKnowledge: (question: string, answer: string) =>
       req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
     draftReply: (roomId: string) =>
@@ -817,6 +827,21 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
+  },
+
+  // Marketing web forms (Admin → Settings → Forms) and their public pages at /f/:slug
+  forms: {
+    list: () => req<LeadForm[]>('/forms', { headers: authHeaders() }),
+    create: (data: LeadFormInput) => req<LeadForm>('/forms', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<LeadFormInput> & { active?: boolean }) =>
+      req<LeadForm>(`/forms/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/forms/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    publicView: (slug: string) =>
+      req<{ title: string; intro: string; fields: LeadFormField[] }>(`/forms/public/${encodeURIComponent(slug)}`),
+    submit: (slug: string, data: Record<string, unknown>) =>
+      req<{ message: string }>(`/forms/public/${encodeURIComponent(slug)}/submit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+      }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

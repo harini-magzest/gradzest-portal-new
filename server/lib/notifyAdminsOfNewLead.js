@@ -5,12 +5,12 @@ const Notification = require('../models/Notification');
 // so they are excluded explicitly. Change this filter to widen or narrow the audience.
 const RECIPIENT_FILTER = { role: 'admin', isAppTeam: { $ne: true } };
 
-const SOURCE_LABELS = { self_signup: 'email' };
+const SOURCE_LABELS = { self_signup: 'email', web_form: 'a website form', zest_chat: 'the Zest chat' };
 
 // Saves one Notification per admin (so offline admins see it later), pushes it live to any of
 // their open sessions, and emails each admin (so it's seen even if no one is logged in at all).
 // Never throws: an alert failure must not break sign-up.
-async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
+async function notifyAdminsOfNewLead(app, student, assignedCounselor = null, { urgent = false } = {}) {
   try {
     const admins = await User.find(RECIPIENT_FILTER).select('_id email');
     if (!admins.length) return;
@@ -24,17 +24,25 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
     const email = student.email && !student.email.endsWith('@social.gradzest') ? student.email : '';
     const contact = [email, student.phone].filter(Boolean).join(' · ');
     const via = SOURCE_LABELS[student.source] || 'the website';
-    const unverified = student.emailVerified ? '' : ' Email not verified yet.';
+    // Web-form and Zest-chat leads have no account (so nothing to verify) — say what they actually did
+    const fromForm = student.source === 'web_form' || student.source === 'zest_chat';
+    const did = student.source === 'web_form'
+      ? `submitted a website form${student.leadForm ? ` (${student.leadForm.replace(/[<>&"']/g, '')})` : ''}`
+      : student.source === 'zest_chat' ? 'shared their details in the Zest chat' : `created an account via ${via}`;
+    // They asked to talk to a person — staff should call them soon
+    const callback = urgent ? ' 📞 Wants to talk to a counselor — please call them soon.' : '';
+    const unverified = student.emailVerified || fromForm ? '' : ' Email not verified yet.';
     const followUp = assignedCounselor
       ? ` Auto-assigned to ${assignedCounselor.name}.`
       : ' Assign a counselor to follow up.';
     const dupeWarning = duplicate ? ` ⚠️ Shares a phone number with existing student "${duplicate.name}" — possible duplicate lead.` : '';
 
-    const title = duplicate ? `⚠️ New Lead (possible duplicate): ${student.name}` : `🎯 New Lead: ${student.name}`;
-    const message = `${student.name}${contact ? ` (${contact})` : ''} just created an account via ${via}.${unverified}${followUp}${dupeWarning}`;
+    const title = duplicate ? `⚠️ New Lead (possible duplicate): ${student.name}`
+      : urgent ? `📞 New Lead — callback requested: ${student.name}` : `🎯 New Lead: ${student.name}`;
+    const message = `${student.name}${contact ? ` (${contact})` : ''} just ${did}.${unverified}${callback}${followUp}${dupeWarning}`;
     const link = assignedCounselor ? '/admin/students' : '/admin/students?lead=new';
 
-    const priority = duplicate ? 'urgent' : 'normal';
+    const priority = duplicate || urgent ? 'urgent' : 'normal';
     const saved = await Notification.insertMany(
       admins.map(a => ({ userId: a._id, type: 'lead', priority, title, message, link }))
     );
@@ -60,6 +68,7 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
         ['Phone', student.phone || '—'],
         ['Signed up via', via],
         ['Email verified', student.emailVerified ? 'Yes' : 'No'],
+        ...(urgent ? [['Wants a callback', 'Yes — please call them soon']] : []),
         ...(assignedCounselor ? [['Assigned counselor', assignedCounselor.name]] : []),
         ...(duplicate ? [['⚠️ Possible duplicate of', `${duplicate.name} (${duplicate.email || 'no email'})`]] : []),
       ].map(([k, v]) => `
@@ -81,7 +90,7 @@ async function notifyAdminsOfNewLead(app, student, assignedCounselor = null) {
                 <p style="color:#a5b4fc;margin:6px 0 0;font-size:13px;">New Lead Alert</p>
               </div>
               <div style="background:#fff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
-                <p style="font-size:15px;">${assignedCounselor ? `A new student just created an account and has been auto-assigned to ${assignedCounselor.name}.` : 'A new student just created an account and needs a counselor assigned.'}</p>
+                <p style="font-size:15px;">${assignedCounselor ? `A new student just ${did} and has been auto-assigned to ${assignedCounselor.name}.` : `A new student just ${did} and needs a counselor assigned.`}</p>
                 <table style="width:100%;border-collapse:collapse;margin:20px 0;">${rows}</table>
                 <div style="text-align:center;margin:28px 0;">
                   <a href="${studentsUrl}" style="background:#0d1b4b;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">${assignedCounselor ? 'View Student' : 'View New Leads'}</a>

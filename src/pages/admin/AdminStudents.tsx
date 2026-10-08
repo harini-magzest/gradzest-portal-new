@@ -39,7 +39,7 @@ const DEFAULT_STUDENT_FORM = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function normalId(obj: any): string { return (obj?._id || obj?.id)?.toString() ?? ''; }
 
-const LEAD_SOURCE_LABELS: Record<string, string> = { self_signup: 'email' };
+const LEAD_SOURCE_LABELS: Record<string, string> = { self_signup: 'email', web_form: 'website form', zest_chat: 'Zest chat' };
 
 function Spinner({ size = 4, white = false }: { size?: number; white?: boolean }) {
   return <span className={`w-${size} h-${size} border-2 ${white ? 'border-white/40 border-t-white' : 'border-gray-600 border-t-gray-300'} rounded-full animate-spin inline-block`} />;
