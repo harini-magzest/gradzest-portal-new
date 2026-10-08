@@ -110,6 +110,9 @@ function ScrollToTop() {
 
 function ToastLayer() {
   const { toasts, dismissToast } = useNotifications();
+  const { pathname } = useLocation();
+  // The SOC is a standalone analyst tool: business notices ("Applications need attention") don't belong over it.
+  if (pathname === '/soc' || pathname.startsWith('/soc/')) return null;
   return <ToastContainer toasts={toasts} onDismiss={dismissToast} />;
 }
 

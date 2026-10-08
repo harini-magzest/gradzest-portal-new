@@ -16,6 +16,13 @@ class MongoRateLimitStore {
     this.windowMs = options.windowMs;
   }
 
+  // True once the database connection is up. During the first seconds after boot it is not, and the limiter used to
+  // crash every request with a 500 (reading .collection of undefined). Until then requests pass uncounted; counting
+  // starts the moment the connection exists.
+  ready() {
+    return mongoose.connection.readyState === 1 && !!mongoose.connection.db;
+  }
+
   collection() {
     return mongoose.connection.db.collection('ratelimits');
   }
@@ -31,6 +38,7 @@ class MongoRateLimitStore {
   }
 
   async increment(key) {
+    if (!this.ready()) return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
     await this.ensureIndex();
     const now = new Date();
     const resetAt = new Date(now.getTime() + this.windowMs);
@@ -48,19 +56,23 @@ class MongoRateLimitStore {
   }
 
   async get(key) {
+    if (!this.ready()) return undefined;
     const row = await this.collection().findOne({ _id: this.id(key), expiresAt: { $gt: new Date() } });
     return row ? { totalHits: row.count, resetTime: row.expiresAt } : undefined;
   }
 
   async decrement(key) {
+    if (!this.ready()) return;
     await this.collection().updateOne({ _id: this.id(key), expiresAt: { $gt: new Date() } }, { $inc: { count: -1 } });
   }
 
   async resetKey(key) {
+    if (!this.ready()) return;
     await this.collection().deleteOne({ _id: this.id(key) });
   }
 
   async resetAll() {
+    if (!this.ready()) return;
     await this.collection().deleteMany({ _id: { $regex: `^${this.prefix}:` } });
   }
 }

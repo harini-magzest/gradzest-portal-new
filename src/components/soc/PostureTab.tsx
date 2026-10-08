@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, RefreshCw, Package, Construction, FileDown, Activity, Files, Fingerprint, Bug } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Package, Construction, Activity, Bug } from 'lucide-react';
 import { api } from '../../api';
 import AlertChannelsCard from './AlertChannelsCard';
 
@@ -43,19 +43,11 @@ function AuditCard({ title, audit }: { title: string; audit: any }) {
 export default function PostureTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
 
   const load = async (refresh = false) => {
     setLoading(true);
     try { setData(await api.soc.posture(refresh)); }
     finally { setLoading(false); }
-  };
-
-  const downloadPdf = async () => {
-    setDownloadingPdf(true);
-    try { await api.soc.downloadChecklistPdf(); }
-    finally { setDownloadingPdf(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -106,19 +98,6 @@ export default function PostureTab() {
             <AuditCard title="Backend dependencies" audit={data.dependencyAudit.backend} />
           </div>
 
-          {/* Old hand-maintained checklist archived as PDF, not shown live anymore —
-              replaced below by genuinely dynamic, code-derived sections. */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Hardening checklist (archived)</h3>
-              <p className="text-xs text-gray-400 mt-0.5">The old hand-maintained list — now a static PDF snapshot instead of a live claim. The sections below replace it with data pulled from the actual code.</p>
-            </div>
-            <button type="button" onClick={downloadPdf} disabled={downloadingPdf}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
-              <FileDown className="w-4 h-4" /> {downloadingPdf ? 'Generating…' : 'Download PDF'}
-            </button>
-          </div>
-
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Activity className="w-4 h-4" /> Active features (live)</h3>
             <p className="text-xs text-gray-400 mb-4">Marked active at the exact line in server/app.js where each one actually mounted during this server's boot — not a separate hand-typed claim.</p>
@@ -133,51 +112,6 @@ export default function PostureTab() {
               ))}
               {(!data.activeFeatures || data.activeFeatures.length === 0) && (
                 <p className="text-sm text-gray-400 italic">No features marked active yet — server may need a restart.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Files className="w-4 h-4" /> Feature file usage</h3>
-            <p className="text-xs text-gray-400 mb-4">Real grep across server/ at request time — which files reference each feature, and how many times. Click a row to see the files.</p>
-            <div className="space-y-1">
-              {(data.codeAnalysis?.featureFileUsage || []).map((f: any) => (
-                <div key={f.key}>
-                  <button type="button" onClick={() => setExpandedFeature(expandedFeature === f.key ? null : f.key)}
-                    className="w-full flex items-center justify-between py-2 text-left hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors">
-                    <span className="text-sm text-gray-700">{f.label}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${f.fileCount > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                      {f.fileCount} file{f.fileCount !== 1 ? 's' : ''} · {f.totalOccurrences} match{f.totalOccurrences !== 1 ? 'es' : ''}
-                    </span>
-                  </button>
-                  {expandedFeature === f.key && f.files.length > 0 && (
-                    <div className="pl-4 pb-2 space-y-1">
-                      {f.files.map((ff: any) => (
-                        <p key={ff.file} className="text-xs font-mono text-gray-500">{ff.file} <span className="text-gray-400">({ff.occurrences})</span></p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Fingerprint className="w-4 h-4" /> Files touching personal/private data</h3>
-            <p className="text-xs text-gray-400 mb-4">Real scan for known sensitive fields (passport, address, date of birth, funding source, etc.) across server/ — this is where PII actually flows through the code.</p>
-            <div className="space-y-2">
-              {(data.codeAnalysis?.piiFileUsage || []).map((p: any) => (
-                <div key={p.file} className="flex items-start justify-between gap-3 py-1.5 border-b border-gray-50 last:border-0">
-                  <span className="text-xs font-mono text-gray-700">{p.file}</span>
-                  <div className="flex flex-wrap gap-1 justify-end">
-                    {p.fields.map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{field}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {(!data.codeAnalysis?.piiFileUsage || data.codeAnalysis.piiFileUsage.length === 0) && (
-                <p className="text-sm text-gray-400 italic">No files matched known sensitive fields.</p>
               )}
             </div>
           </div>

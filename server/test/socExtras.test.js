@@ -35,6 +35,22 @@ describe('SOC extras: owner-only', () => {
   });
 });
 
+describe('GET /api/soc/access', () => {
+  const saved = process.env.SOC_OWNER_EMAILS;
+  afterEach(() => { if (saved === undefined) delete process.env.SOC_OWNER_EMAILS; else process.env.SOC_OWNER_EMAILS = saved; });
+
+  it('is 200 for the SOC owner, 403 for any other admin, 401 when signed out', async () => {
+    const owner = await makeUser('access-owner');
+    const otherAdmin = await makeUser('access-other');
+    process.env.SOC_OWNER_EMAILS = owner.email;
+    const asOwner = await request(app).get('/api/soc/access').set(auth(owner.token));
+    expect(asOwner.status).toBe(200);
+    expect(asOwner.body).toEqual({ ok: true });
+    expect((await request(app).get('/api/soc/access').set(auth(otherAdmin.token))).status).toBe(403);
+    expect((await request(app).get('/api/soc/access')).status).toBe(401);
+  });
+});
+
 describe('GET /api/soc/attention', () => {
   it('surfaces unacknowledged high-severity incidents and noisy accounts', async () => {
     const admin = await makeUser('extras-admin');
