@@ -22,7 +22,7 @@ async function mk(role, extra = {}, loginBody = {}, headers = {}) {
   let r = request(app).post('/api/auth/login');
   for (const [k, v] of Object.entries(headers)) r = r.set(k, v);
   const res = await r.send({ email, password: 'TestPass123!', ...loginBody });
-  return { token: res.body.token, id: res.body.user.id, email, name: res.body.user.name, cookies: res.headers['set-cookie'] };
+  return { token: res.body.token, fileToken: res.body.fileToken, id: res.body.user.id, email, name: res.body.user.name, cookies: res.headers['set-cookie'] };
 }
 const as = (u) => ({ Authorization: `Bearer ${u.token}` });
 
@@ -186,7 +186,7 @@ describe('uploaded files are only served to people entitled to them', () => {
   afterAll(() => made.forEach((f) => fs.rmSync(f, { force: true })));
   const get = (u, name, how = 'header') => (how === 'header'
     ? request(app).get(`/uploads/${name}`).set(as(u))
-    : request(app).get(`/uploads/${name}`).query({ token: u.token }));
+    : request(app).get(`/uploads/${name}`).query({ token: how === 'query-access' ? u.token : u.fileToken }));
 
   it('a student document: the owner and admins can open it; another student and an unrelated counselor cannot', async () => {
     const owner = await mk('student');
@@ -198,7 +198,9 @@ describe('uploaded files are only served to people entitled to them', () => {
     const ok = await get(owner, name);
     expect(ok.status).toBe(200);
     expect(ok.headers['content-length']).toBe(String('passport scan'.length)); // the real file was served (PDFs aren't exposed as text)
-    expect((await get(owner, name, 'query')).status).toBe(200);       // ?token= still works for <img> links
+    expect((await get(owner, name, 'query')).status).toBe(200);       // ?token=<file token> works for <img> links
+    expect((await get(owner, name, 'query-access')).status).toBe(401); // the API access token is never accepted in a URL
+    expect((await request(app).get('/api/auth/me').set({ Authorization: `Bearer ${owner.fileToken}` })).status).toBe(401); // and a file token can't call the API
     expect((await get(admin, name)).status).toBe(200);
     expect((await get(other, name)).status).toBe(404);
 

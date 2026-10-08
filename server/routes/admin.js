@@ -701,7 +701,7 @@ router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam,
     res.json(updated);
   } catch (err) {
     console.error('Enrich error:', err.message);
-    res.status(500).json({ message: 'Enrichment failed: ' + (err.message || 'Unknown error') });
+    sendServerError(res, err, 'Enrichment failed');
   }
 });
 
@@ -914,7 +914,7 @@ router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (r
     const sub = await Subscriber.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json(sub);
-  } catch (err) { res.status(400).json({ message: err.message || 'Failed to update subscriber' }); }
+  } catch (err) { console.error('[admin/subscribers]', err); res.status(400).json({ message: 'Failed to update subscriber' }); }
 });
 
 // Unread-badge support: when the current admin last viewed the subscriber list

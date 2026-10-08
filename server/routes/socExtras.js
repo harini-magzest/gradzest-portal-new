@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/auth');
+const { sendServerError } = require('../lib/httpError');
 const { adminOnly } = require('./soc'); // the one owner gate every SOC route uses
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');
@@ -114,7 +115,7 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
       locked: locked.map((u) => ({ userId: String(u._id), name: u.name, email: u.email, role: u.role, lockedUntil: u.lockedUntil, byAdmin: new Date(u.lockedUntil).getFullYear() >= ADMIN_LOCK_FROM_YEAR })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err);
   }
 });
 
@@ -153,7 +154,7 @@ router.get('/incidents/:id/detail', authMiddleware, adminOnly, async (req, res) 
       actions: actions.map((a) => ({ _id: a._id, action: a.action, analystEmail: a.analystEmail, reason: a.reason, createdAt: a.createdAt })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err);
   }
 });
 
@@ -192,7 +193,7 @@ router.get('/search', authMiddleware, adminOnly, async (req, res) => {
         .map((u) => ({ _id: u._id, originalName: u.originalName, email: u.email, role: u.role, review: u.review?.status || 'unreviewed', createdAt: u.createdAt })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err);
   }
 });
 

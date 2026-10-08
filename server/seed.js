@@ -166,6 +166,10 @@ const universityData = [
 ];
 
 async function run() {
+  // Wipes every user and creates demo logins with well-known passwords — never against a production database.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production (set ALLOW_DEMO_SEED=true to override).');
+  }
   await User.deleteMany({});
   await University.deleteMany({});
   await ChatRoom.deleteMany({});
