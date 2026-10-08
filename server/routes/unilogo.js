@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
+const { assertPublicHttpUrl } = require('../lib/ssrfGuard');
 
 const router = express.Router();
 
@@ -53,8 +54,9 @@ router.get('/:id', async (req, res) => {
 
     // 1. Try stored logo URL (with own domain as referer to bypass hotlink protection)
     if (uni.logo && !uni.logo.includes('clearbit.com')) {
+      const logoOk = await assertPublicHttpUrl(uni.logo).then(() => true).catch(() => false);
       const logoReferer = domain ? `https://www.${domain}/` : 'https://www.google.com/';
-      const result = await fetchImage(uni.logo, { Referer: logoReferer }).catch(() => null);
+      const result = logoOk ? await fetchImage(uni.logo, { Referer: logoReferer }).catch(() => null) : null;
       if (result) {
         cache.set(id, { ...result, expires: now + 24 * 60 * 60 * 1000 });
         res.set('Content-Type', result.ct);
