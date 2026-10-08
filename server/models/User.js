@@ -196,6 +196,8 @@ const UserSchema = new mongoose.Schema({
   profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', default: null },
   // Staff: deactivated users cannot log in
   active: { type: Boolean, default: true },
+  // Set when the student's personal data was erased at their request (see lib/studentData.js)
+  deletedAt: Date,
   // Counselor: their agent number (or agent name) in Tata Smartflo, used to match call records
   smartfloAgent: { type: String, default: '' },
   avatar: String,
@@ -294,6 +296,19 @@ const UserSchema = new mongoose.Schema({
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },
 
+  // Two-factor sign-in with an authenticator app (see lib/twoFactor.js). Everything secret is `select: false`, so no
+  // query returns it unless a route asks for it by name ('+twoFactor.secret'); toJSON below also cuts the block down to
+  // { enabled }. `secret` is encrypted at rest, `recoveryCodes` holds keyed hashes (never the codes), and `lastStep` is
+  // the last TOTP time step accepted, so one code cannot be used twice.
+  twoFactor: {
+    enabled: { type: Boolean, default: false },
+    enabledAt: Date,
+    secret: { type: String, select: false },
+    pendingSecret: { type: String, select: false },
+    recoveryCodes: { type: [String], select: false, default: undefined },
+    lastStep: { type: Number, select: false },
+  },
+
   // Admin: when this admin last opened the New Subscribers list (drives the unread badge)
   subscribersSeenAt: { type: Date, default: null },
 
@@ -332,7 +347,12 @@ UserSchema.set('toJSON', {
   // Staff notes never travel inside a user object — that would hand them to the student and
   // every private note to every colleague. They're served only by GET /api/students/:id/notes,
   // which applies public/private visibility (lib/studentNotes.js).
-  transform: (doc, ret) => { delete ret.counselorNotes; return ret; },
+  transform: (doc, ret) => {
+    delete ret.counselorNotes;
+    // Whatever was selected, a user object never carries 2FA secrets, only whether it is on.
+    if (ret.twoFactor) ret.twoFactor = { enabled: !!ret.twoFactor.enabled };
+    return ret;
+  },
 });
 
 module.exports = mongoose.model('User', UserSchema);
