@@ -45,6 +45,31 @@ Run it with `npm start` (sets `NODE_ENV=production`) behind HTTPS. Required sett
 `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `FRONTEND_URL` (exactly the website origin: CORS and cookies depend on it) and `TRUST_PROXY`
 for your proxy setup. Keep these in the host's secret store; the `.env` file is git-ignored and must never be in an image or repo.
 
+### As a container
+```bash
+docker build -t gradzest-api server
+docker run -p 5000:5000 --env-file server/.env gradzest-api
+```
+`server/Dockerfile` installs production dependencies only, runs as the unprivileged `node` user and has a health check on
+`/api/health` (503 while the database is down). CI builds it on every pull request (`api-image`).
+
+* **Uploads:** a container's disk is lost on redeploy. Set `AWS_S3_BUCKET`, or mount a volume at `/app/uploads`.
+* **Virus scanning:** the upload scanner calls `clamdscan` and **refuses every upload (503) if it cannot scan**. The image contains
+  the client only; run the `clamd` daemon elsewhere (a ClamAV container or the host) and set `CLAMD_HOST` (and `CLAMD_PORT`,
+  default 3310). The entrypoint writes the client config from those two. Without `CLAMD_HOST` it uses `/etc/clamav/clamd.conf`.
+
+### Running more than one API instance
+Not yet fully supported. What is covered:
+
+* **Scheduled jobs:** every instance runs all of them, so reminders and digests would go out once per instance. Set `RUN_JOBS=false`
+  on every instance except one.
+* **Request log:** ordinary requests are written to Mongo in batches every `REQUEST_LOG_FLUSH_MS` (default 2000; `0` writes each
+  at once). 401/403/429 rows are always written immediately because the suspicious-IP rule counts them.
+
+What is still per instance: live notifications and chat (Socket.io has no shared adapter, so a message only reaches users connected
+to the same instance), Skyload's per-IP scoring, and local uploads. Until those move to Redis and S3, run one instance, or keep
+users on one instance with sticky sessions and store uploads in S3.
+
 ## 4. Verify a deployment
 ```bash
 # 1. The dev server must not be there. Each of these must NOT return JavaScript or source (a static host's single-page
