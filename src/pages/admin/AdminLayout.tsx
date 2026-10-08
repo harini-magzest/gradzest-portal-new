@@ -40,7 +40,7 @@ const search: SearchConfig = {
     ...navItems.map(item => ({ label: item.label, to: item.to })),
     ...[
       ['company', 'Company Profile'], ['profile', 'My Profile'], ['password', 'Password & Security'],
-      ['users', 'Users and Controls'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
+      ['users', 'Users and Controls'], ['forms', 'Forms'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
       ['google-cal', 'Google Calendar'], ['export', 'Export & Backup'], ['danger', 'Danger Zone'],
     ].map(([key, label]) => ({ label, to: `/admin/settings?section=${key}`, hint: 'Settings' })),
     { label: 'Roles', to: '/admin/settings?section=users&tab=roles', hint: 'Settings · Users and Controls' },

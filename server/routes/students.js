@@ -614,7 +614,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
     const rooms = req.user.role === 'admin' ? allRooms : allRooms.filter(r => r.participants.includes(me));
 
     // ── Timeline ──
-    const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor' };
+    const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor', web_form: 'submitted a website form', zest_chat: 'shared details in the Zest chat' };
     const timeline = [];
     timeline.push({ id: 'joined', at: student.createdAt || student.joinedDate, kind: 'student', title: 'Student created', detail: SOURCE[student.source] || '' });
     // Note text never goes in the shared timeline (older entries stored a snippet, which may be from a private note)

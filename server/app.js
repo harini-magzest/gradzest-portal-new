@@ -162,6 +162,17 @@ const assetLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
 });
+// Public marketing-form submissions (routes/forms.js). Generous enough for an education fair where many visitors
+// share the venue Wi-Fi, low enough to stop a script flooding the Students list with fake leads.
+const formSubmitLimiter = rateLimit({
+  store: new MongoRateLimitStore('form-submit'),
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,
+  skip: (req) => req.method !== 'POST',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many submissions from this network. Please try again in a few minutes.' },
+});
 
 if (process.env.NODE_ENV !== 'test') {
   // /login is limited after the body parsers below (it needs req.body.email).
@@ -174,6 +185,8 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
+  app.use('/api/forms/public', formSubmitLimiter);
+  app.use('/api/zest/public/lead', formSubmitLimiter);
   app.use('/api', generalLimiter);
   app.use(['/api/unilogo', '/api/favicon'], assetLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
@@ -339,6 +352,7 @@ app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
  app.use('/api/dashboards',    require('./routes/dashboards'));
+app.use('/api/forms',         require('./routes/forms'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');

@@ -7,6 +7,8 @@ const SOURCE_LABELS = {
   self_signup: 'Self sign-up',
   admin_created: 'Added by admin',
   counselor_created: 'Added by counselor',
+  web_form: 'Web form',
+  zest_chat: 'Zest chat',
 };
 
 const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : 0);
