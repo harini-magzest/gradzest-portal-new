@@ -1,12 +1,10 @@
 const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
-const University = require('../models/University');
 const PiiAccessLog = require('../models/PiiAccessLog');
 const { passportWarning } = require('../lib/documentCheck');
 const { buildChecklist } = require('../lib/documentChecklist');
 const { nextStepFor } = require('../lib/nextStep');
-const { describeEntry, highlights, addEntry, removeEntry, MAX_SHORTLIST } = require('../lib/shortlist');
 
 const DAY = 86400000;
 
@@ -60,21 +58,6 @@ describe('nextStepFor', () => {
   });
 });
 
-describe('shortlist helpers', () => {
-  it('adds once, refuses past the cap, and removes', () => {
-    let list = addEntry([], 'u1', 'c1');
-    expect(addEntry(list, 'u1', 'c1')).toBe(list); // repeat is a no-op
-    for (let i = 0; list && i < MAX_SHORTLIST; i++) list = addEntry(list, 'u', `c${i}`);
-    expect(list).toBeNull();
-    expect(removeEntry([{ universityId: 'u1', courseId: 'c1' }, { universityId: 'u1', courseId: 'c2' }], 'u1', 'c1')).toHaveLength(1);
-  });
-  it('flags the cheapest and best-ranked rows', () => {
-    const a = describeEntry({ id: 'u1', name: 'A', ranking: 50 }, { id: 'c1', name: 'X', tuitionFee: 20000 });
-    const b = describeEntry({ id: 'u2', name: 'B', ranking: 10 }, { id: 'c2', name: 'Y', tuitionFee: 30000 });
-    expect(highlights([a, b])).toEqual({ cheapest: 'u1:c1', bestRanked: 'u2:c2' });
-  });
-});
-
 let n = 0;
 async function mk(role) {
   const email = `feat-${role}-${Date.now()}-${n++}@example.com`;
@@ -111,42 +94,5 @@ describe('GET /api/students/me/data-access', () => {
     expect(res.body.accesses[0]).toMatchObject({ role: 'counselor', name: 'Feat counselor' });
     expect(JSON.stringify(res.body)).not.toMatch(/1\.2\.3\.4|passport|c@example\.com/); // no IP, field list or staff email
     expect((await request(app).get('/api/students/me/data-access').set(as(counselor))).status).toBe(403);
-  });
-});
-
-describe('shortlist routes', () => {
-  async function seedUni() {
-    const id = `uni-${Date.now()}-${n++}`;
-    await University.create({ id, name: 'Shortlist Uni', country: 'Canada', courses: [{ id: 'c-a', name: 'MSc A', tuitionFee: 20000, currency: 'CAD' }, { id: 'c-b', name: 'MSc B', tuitionFee: 30000 }] });
-    return id;
-  }
-
-  it('adds, lists with the cheapest flagged, ignores repeats, and removes', async () => {
-    const student = await mk('student');
-    const uniId = await seedUni();
-    expect((await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: uniId })).status).toBe(400);
-    expect((await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: uniId, courseId: 'nope' })).status).toBe(404);
-
-    await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: uniId, courseId: 'c-a' });
-    await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: uniId, courseId: 'c-a' });
-    const added = await request(app).post('/api/students/me/shortlist').set(as(student)).send({ universityId: uniId, courseId: 'c-b' });
-    expect(added.status).toBe(201);
-    expect(added.body.courses.map((c) => c.courseName).sort()).toEqual(['MSc A', 'MSc B']);
-
-    const list = await request(app).get('/api/students/me/shortlist').set(as(student));
-    expect(list.body.cheapest).toBe(`${uniId}:c-a`);
-
-    const removed = await request(app).delete(`/api/students/me/shortlist/${uniId}/c-a`).set(as(student));
-    expect(removed.body.courses.map((c) => c.courseName)).toEqual(['MSc B']);
-  });
-
-  it('is private to each student and closed to staff', async () => {
-    const a = await mk('student');
-    const b = await mk('student');
-    const counselor = await mk('counselor');
-    const uniId = await seedUni();
-    await request(app).post('/api/students/me/shortlist').set(as(a)).send({ universityId: uniId, courseId: 'c-a' });
-    expect((await request(app).get('/api/students/me/shortlist').set(as(b))).body.courses).toHaveLength(0);
-    expect((await request(app).get('/api/students/me/shortlist').set(as(counselor))).status).toBe(403);
   });
 });

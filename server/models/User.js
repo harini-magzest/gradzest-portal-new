@@ -224,8 +224,6 @@ const UserSchema = new mongoose.Schema({
   academicDetails: [AcademicDetailSchema],
   experienceDetails: [ExperienceSchema],
   applications: [ApplicationSchema],
-  // Courses the student has saved to compare (see lib/shortlist.js)
-  shortlist: { type: [new mongoose.Schema({ universityId: String, courseId: String, addedAt: Date }, { _id: false })], default: undefined },
   documents: [DocumentSchema],
   counselorNotes: [CounselorNoteSchema],
   counselorId: String,

@@ -14,7 +14,6 @@ const en = {
   'nav.countries': 'Countries',
   'nav.universities': 'Universities',
   'nav.courses': 'Courses',
-  'nav.shortlist': 'Shortlist',
   'nav.activities': 'Activities',
   'nav.meetings': 'Meetings',
   'nav.events': 'Events',
@@ -31,28 +30,6 @@ const en = {
   'dataAccess.showAll': 'Show all {n}',
   'dataAccess.showFewer': 'Show fewer',
 
-  'shortlist.title': 'My shortlist',
-  'shortlist.intro': 'Save courses from the Courses page, then compare them here.',
-  'shortlist.emptyTitle': 'Nothing saved yet',
-  'shortlist.emptyHint': 'Use “Save to compare” on any course to build your shortlist.',
-  'shortlist.browse': 'Browse courses',
-  'shortlist.remove': 'Remove',
-  'shortlist.lowestFee': 'Lowest fee',
-  'shortlist.bestRanked': 'Best ranked',
-  'shortlist.row.location': 'Location',
-  'shortlist.row.ranking': 'University ranking',
-  'shortlist.row.level': 'Level',
-  'shortlist.row.duration': 'Duration',
-  'shortlist.row.tuition': 'Tuition fee',
-  'shortlist.row.applicationFee': 'Application fee',
-  'shortlist.row.intakes': 'Intakes',
-  'shortlist.row.scholarship': 'Scholarship',
-  'shortlist.row.minGpa': 'Minimum GPA',
-  'shortlist.row.english': 'English requirement',
-
-  'courses.save': 'Save to compare',
-  'courses.saved': 'Saved',
-  'courses.compare': 'Compare shortlist',
 };
 
 export type TranslationKey = keyof typeof en;
@@ -66,7 +43,6 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'nav.countries': 'देश',
   'nav.universities': 'विश्वविद्यालय',
   'nav.courses': 'पाठ्यक्रम',
-  'nav.shortlist': 'शॉर्टलिस्ट',
   'nav.activities': 'गतिविधियाँ',
   'nav.meetings': 'बैठकें',
   'nav.events': 'कार्यक्रम',
@@ -83,28 +59,6 @@ const hi: Partial<Record<TranslationKey, string>> = {
   'dataAccess.showAll': 'सभी {n} देखें',
   'dataAccess.showFewer': 'कम दिखाएँ',
 
-  'shortlist.title': 'मेरी शॉर्टलिस्ट',
-  'shortlist.intro': 'पाठ्यक्रम पृष्ठ से पाठ्यक्रम सहेजें, फिर उनकी यहाँ तुलना करें।',
-  'shortlist.emptyTitle': 'अभी कुछ सहेजा नहीं गया',
-  'shortlist.emptyHint': 'अपनी शॉर्टलिस्ट बनाने के लिए किसी भी पाठ्यक्रम पर “तुलना के लिए सहेजें” चुनें।',
-  'shortlist.browse': 'पाठ्यक्रम देखें',
-  'shortlist.remove': 'हटाएँ',
-  'shortlist.lowestFee': 'सबसे कम शुल्क',
-  'shortlist.bestRanked': 'सर्वोच्च रैंक',
-  'shortlist.row.location': 'स्थान',
-  'shortlist.row.ranking': 'विश्वविद्यालय रैंकिंग',
-  'shortlist.row.level': 'स्तर',
-  'shortlist.row.duration': 'अवधि',
-  'shortlist.row.tuition': 'ट्यूशन शुल्क',
-  'shortlist.row.applicationFee': 'आवेदन शुल्क',
-  'shortlist.row.intakes': 'प्रवेश सत्र',
-  'shortlist.row.scholarship': 'छात्रवृत्ति',
-  'shortlist.row.minGpa': 'न्यूनतम GPA',
-  'shortlist.row.english': 'अंग्रेज़ी की आवश्यकता',
-
-  'courses.save': 'तुलना के लिए सहेजें',
-  'courses.saved': 'सहेजा गया',
-  'courses.compare': 'शॉर्टलिस्ट की तुलना करें',
 };
 
 export const TRANSLATIONS: Record<LangCode, Partial<Record<TranslationKey, string>>> = { en, hi };

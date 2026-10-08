@@ -1,12 +1,10 @@
 ﻿import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, BookOpen, Calendar, Award, CheckCircle, X, ShieldCheck, AlertCircle, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Search, BookOpen, Calendar, Award, CheckCircle, X, ShieldCheck, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import ApplicationModal from '../../components/ApplicationModal';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
-import { useShortlist } from '../../hooks/useShortlist';
 import { useT } from '../../i18n/LanguageContext';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
@@ -48,7 +46,6 @@ export default function StudentCourses() {
   const [countryFilter, setCountryFilter] = useState('');
   const [eligibleOnly, setEligibleOnly] = useState(false);
   const [applyModal, setApplyModal] = useState<{ course: any; uni: any } | null>(null);
-  const shortlist = useShortlist();
   const { t } = useT();
 
   const loadCourses = () => {
@@ -96,16 +93,10 @@ export default function StudentCourses() {
           onSuccess={() => setApplyModal(null)}
         />
       )}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Available Courses</h1>
-          <p className="text-gray-500 mt-1">Browse and apply to courses across partner universities</p>
-        </div>
-        <Link to="/student/shortlist" className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg">
-          <Bookmark className="w-4 h-4" aria-hidden="true" /> {t('courses.compare')}{shortlist.count ? ` (${shortlist.count})` : ''}
-        </Link>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Available Courses</h1>
+        <p className="text-gray-500 mt-1">Browse and apply to courses across partner universities</p>
       </div>
-      {shortlist.error && <p role="alert" className="text-sm text-red-600">{shortlist.error}</p>}
 
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <div className="flex flex-col md:flex-row gap-3">
@@ -209,23 +200,7 @@ export default function StudentCourses() {
               </div>
             )}
 
-            <div className="mt-auto pt-2 flex flex-wrap items-center gap-3">
-              {(() => {
-                const courseId = String(course.id || course._id);
-                const saved = shortlist.has(course.uniId, courseId);
-                return (
-                  <button
-                    type="button"
-                    onClick={() => shortlist.toggle(course.uniId, courseId)}
-                    disabled={shortlist.busyKey === `${course.uniId}:${courseId}`}
-                    aria-pressed={saved}
-                    className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors disabled:opacity-50 ${saved ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                  >
-                    {saved ? <BookmarkCheck className="w-4 h-4" aria-hidden="true" /> : <Bookmark className="w-4 h-4" aria-hidden="true" />}
-                    {saved ? t('courses.saved') : t('courses.save')}
-                  </button>
-                );
-              })()}
+            <div className="mt-auto pt-2">
               {(student?.applications || []).some((a: any) => a.universityId === course.uniId && a.courseId === (course.id || course._id)) ? (
                 <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium">
                   <CheckCircle className="w-4 h-4" /> Applied

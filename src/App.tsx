@@ -47,7 +47,6 @@ const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentCountryDetail = lazy(() => import('./pages/student/StudentCountryDetail'));
-const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
@@ -191,7 +190,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="meetings" element={<Navigate to="/student/activities?tab=meetings" replace />} />
               <Route path="events" element={<Navigate to="/student/activities?tab=events" replace />} />
-              <Route path="shortlist" element={<StudentShortlist />} />
+              <Route path="shortlist" element={<Navigate to="/student" replace />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 
