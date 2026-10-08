@@ -57,6 +57,7 @@ describe('SOC data is encrypted at rest', () => {
   });
 
   it('keeps unique indexes and updates working on encrypted fields', async () => {
+    await BlockedIp.init(); // the unique index must be built before duplicates are expected to fail
     await BlockedIp.deleteMany({ ip: '198.51.100.9' });
     await BlockedIp.create({ ip: '198.51.100.9', reason: 'testing' });
     await expect(BlockedIp.create({ ip: '198.51.100.9' })).rejects.toThrow();

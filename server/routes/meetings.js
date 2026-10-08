@@ -12,6 +12,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const { computeSlots } = require('../lib/meetingSlots');
 const { buildIcs } = require('../lib/ics');
+const { normalizeHttpUrl } = require('../lib/safeUrl');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -148,7 +149,13 @@ router.post('/', auth, can('meetings.create'), async (req, res) => {
     if (!title || !scheduledDate || !scheduledTime) {
       return res.status(400).json({ message: 'Title, date, and time are required' });
     }
-    const meetingLink = platform === 'jitsi' && !req.body.meetingLink ? generateJitsiLink() : req.body.meetingLink;
+    // A meeting link is shown to students and opened from the page and from emails, so only http(s) is accepted
+    let suppliedLink = req.body.meetingLink;
+    if (suppliedLink != null && suppliedLink !== '') {
+      suppliedLink = normalizeHttpUrl(suppliedLink);
+      if (!suppliedLink) return res.status(400).json({ message: 'meetingLink must be a valid http(s) URL' });
+    }
+    const meetingLink = platform === 'jitsi' && !suppliedLink ? generateJitsiLink() : suppliedLink;
     let allParticipants = participants || [];
     let creatorName = req.user.name || '';
     // Auto-add counselor as participant and fetch their name
@@ -323,6 +330,10 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const changes = Object.fromEntries(MEETING_EDITABLE.filter((k) => req.body[k] !== undefined).map((k) => [k, req.body[k]]));
+    if (changes.meetingLink != null && changes.meetingLink !== '') {
+      changes.meetingLink = normalizeHttpUrl(changes.meetingLink);
+      if (!changes.meetingLink) return res.status(400).json({ message: 'meetingLink must be a valid http(s) URL' });
+    }
     const updated = await Meeting.findByIdAndUpdate(req.params.id, changes, { new: true, runValidators: true });
 
     // Notify all participants (except the person making the update)

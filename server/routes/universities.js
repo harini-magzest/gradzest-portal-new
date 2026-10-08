@@ -18,7 +18,11 @@ function dbReady(res) {
 }
 
 // Auto-fill university details by name (uses 24h in-memory cache)
-router.get('/autofill', async (req, res) => {
+// Admin form helper: it makes outbound requests to Wikipedia/Wikidata and the university's own website on the caller's
+// behalf, so it is not open to the public.
+const adminOnly = (req, res, next) => (req.user.role === 'admin' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+router.get('/autofill', authMiddleware, adminOnly, async (req, res) => {
   const name = (req.query.name || '').trim();
   if (!name) return res.status(400).json({ message: 'name query param required' });
   try {

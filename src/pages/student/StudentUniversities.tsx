@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info, AlertCircle, Heart } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -25,7 +25,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   );
 }
 
-function UniversityCard({ uni, student, saved, onToggleSaved }: { uni: any; student: any; saved: boolean; onToggleSaved: (uni: any) => void }) {
+export function UniversityCard({ uni, student }: { uni: any; student: any }) {
   const navigate = useNavigate();
   const eligibleCount = (uni.courses || []).filter((c: any) => checkCourseEligibility(student, c).status === 'eligible').length;
 
@@ -41,15 +41,6 @@ function UniversityCard({ uni, student, saved, onToggleSaved }: { uni: any; stud
         <div className="absolute top-2 left-2 bg-white/90 text-xs font-bold text-blue-800 px-2.5 py-1 rounded-full">
           #{uni.ranking} World
         </div>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onToggleSaved(uni); }}
-          aria-pressed={saved}
-          aria-label={saved ? `Remove ${uni.name} from your saved universities` : `Save ${uni.name} to your saved universities`}
-          className="absolute bottom-2 left-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-colors"
-        >
-          <Heart className={`w-4 h-4 ${saved ? 'text-rose-500 fill-rose-500' : 'text-gray-500'}`} />
-        </button>
         <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded-full">
           <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
           <span className="text-xs font-bold text-gray-800">{uni.rating}</span>
@@ -113,25 +104,9 @@ export default function StudentUniversities() {
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
-  const [country, setCountry] = useState('');
+  const [searchParams] = useSearchParams();
+  const [country, setCountry] = useState(() => searchParams.get('country') || '');
   const [level, setLevel] = useState('');
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-
-  // Heart on a card: saves to / removes from the saved universities. Updated at once, undone if the server refuses.
-  const toggleSaved = async (uni: any) => {
-    const id = String(uni.id || uni._id);
-    const wasSaved = savedIds.has(id);
-    const next = new Set(savedIds);
-    if (wasSaved) next.delete(id); else next.add(id);
-    setSavedIds(next);
-    try {
-      if (wasSaved) await api.savedUniversities.remove(id); else await api.savedUniversities.add(id);
-    } catch (err: any) {
-      setSavedIds(savedIds);
-      toast.error(err?.message || 'Could not update your saved universities.');
-    }
-  };
-
   const loadUniversities = () => {
     setLoadError('');
     api.universities.list().then(setAllUniversities).catch(() => setLoadError('Failed to load universities.'));
@@ -140,7 +115,6 @@ export default function StudentUniversities() {
   useEffect(() => {
     loadUniversities();
     api.students.me().then(setStudent).catch(() => toast.error('Failed to load your eligibility info.'));
-    api.savedUniversities.list().then(l => setSavedIds(new Set(l.map(u => u.id)))).catch(() => { /* hearts just start empty */ });
     if (user?.role === 'student' && !(user as any)?.onboarding?.universityBrowsed) {
       api.onboarding.markStep('universityBrowsed').then(refreshUser).catch(() => {});
     }
@@ -211,7 +185,7 @@ export default function StudentUniversities() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(uni => (
-          <UniversityCard key={uni.id} uni={uni} student={student} saved={savedIds.has(String(uni.id || uni._id))} onToggleSaved={toggleSaved} />
+          <UniversityCard key={uni.id} uni={uni} student={student} />
         ))}
       </div>
     </div>

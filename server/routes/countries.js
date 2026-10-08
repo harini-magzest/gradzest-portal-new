@@ -3,10 +3,14 @@ const { sendServerError } = require('../lib/httpError');
 const mongoose = require('mongoose');
 const Country = require('../models/Country');
 const { fetchCountryData } = require('../lib/enrichCountry');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/autofill', async (req, res) => {
+// Admin form helper that makes outbound requests on the caller's behalf: not open to the public.
+const adminOnly = (req, res, next) => (req.user.role === 'admin' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+router.get('/autofill', authMiddleware, adminOnly, async (req, res) => {
   const name = (req.query.name || '').trim();
   if (!name) return res.status(400).json({ message: 'name query param required' });
   try {

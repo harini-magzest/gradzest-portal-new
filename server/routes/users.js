@@ -1,5 +1,6 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');

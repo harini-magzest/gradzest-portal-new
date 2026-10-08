@@ -1,16 +1,21 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, Sparkles, Video, Ticket, ShieldCheck } from 'lucide-react';
+import ZestIcon from '../../components/zest/ZestIcon';
+import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { useNewLeadCount } from '../../hooks/useNewLeadCount';
 import SkipLink from '../../components/SkipLink';
 
 type NavIcon = React.ComponentType<{ className?: string }> | string;
 
-const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = [
+// appTeamHidden: the backend already blocks Application Team accounts (role 'admin' with
+// isAppTeam) from these routes (see adminOnly in automation.js/roles.js/zest.js) — hidden here
+// too so the sidebar doesn't offer a link that just 403s for them.
+const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTeamHidden?: boolean }[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/counselors', label: 'Team', icon: UserCog },
   { to: '/admin/students', label: 'Students', icon: Users },
@@ -19,15 +24,29 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean }[] = 
   { to: '/admin/universities', label: 'Universities', icon: GraduationCap },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
-  { to: '/admin/meetings', label: 'Meetings', icon: Video },
-  { to: '/admin/events', label: 'Events', icon: Ticket },
   { to: '/admin/privacy', label: 'Data requests', icon: ShieldCheck },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
-  { to: '/admin/zest', label: 'Zest', icon: GraduationCap },
+  { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
+  { to: '/admin/zest', label: 'Zest', icon: GraduationCap, appTeamHidden: true },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
-  { to: '/admin/settings', label: 'Settings', icon: Settings },
+  { to: '/admin/settings', label: 'Settings', icon: Settings, appTeamHidden: true },
 ];
+
+// Everything the top search can open: students, team, universities, courses, the sidebar pages and each Settings section
+const search: SearchConfig = {
+  basePath: '/admin/students',
+  teamLink: t => t.kind === 'counselor' ? `/admin/counselors/${t.id}/performance` : `/admin/counselors?view=${t.id}`,
+  pages: [
+    ...navItems.map(item => ({ label: item.label, to: item.to })),
+    ...[
+      ['company', 'Company Profile'], ['profile', 'My Profile'], ['password', 'Password & Security'],
+      ['users', 'Users and Controls'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
+      ['google-cal', 'Google Calendar'], ['export', 'Export & Backup'], ['danger', 'Danger Zone'],
+    ].map(([key, label]) => ({ label, to: `/admin/settings?section=${key}`, hint: 'Settings' })),
+    { label: 'Roles', to: '/admin/settings?section=users&tab=roles', hint: 'Settings · Users and Controls' },
+    { label: 'Application Board', to: '/admin/application-board', hint: 'Applications' },
+  ],
+};
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
   if (typeof icon === 'string') {
@@ -46,7 +65,9 @@ export default function AdminLayout() {
   if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
   if (user?.role !== 'admin') return <Navigate to={loginRedirect(location)} />;
 
-  const sidebarItems = navItems.map(item => ({
+  const visibleItems = navItems.filter(item => !(item.appTeamHidden && user?.isAppTeam));
+
+  const sidebarItems = visibleItems.map(item => ({
     to: item.to, label: item.label, end: item.end,
     icon: item.icon as React.ComponentType<{ className?: string }>,
     badge: item.label === 'Chat' ? unreadCount : item.label === 'Students' ? newLeads : undefined,
@@ -55,12 +76,12 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-purple-50">
       <SkipLink />
-      <DashboardTopbar workspaceLabel="Admin workspace" />
+      <DashboardTopbar workspaceLabel="Admin workspace" search={search} />
       <div className="flex">
         <DashboardSidebar navItems={sidebarItems} />
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
-          {navItems.map(item => (
+          {visibleItems.map(item => (
             <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex-1 flex flex-col items-center py-3 text-xs gap-1 ${isActive ? 'text-purple-600' : 'text-gray-500'}`}>
               <div className="relative">
                 <NavIcon icon={item.icon} size="md" />

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import SkipLink from '../../components/SkipLink';
 
@@ -24,6 +25,12 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; mobil
   { to: '/counselor/chat', label: 'Chat', icon: MessageSquare },
   { to: '/counselor/profile', label: 'My Profile', icon: User },
 ];
+
+// Top search: own students, universities, courses and the sidebar pages
+const search: SearchConfig = {
+  basePath: '/counselor/students',
+  pages: navItems.map(item => ({ label: item.label, to: item.to })),
+};
 
 function NavIcon({ icon, size }: { icon: NavIcon; size: 'sm' | 'md' }) {
   if (typeof icon === 'string') {
@@ -50,7 +57,7 @@ export default function CounselorLayout() {
   return (
     <div className="min-h-screen bg-green-50">
       <SkipLink />
-      <DashboardTopbar workspaceLabel="Counselor workspace" />
+      <DashboardTopbar workspaceLabel="Counselor workspace" search={search} />
       <div className="flex">
         {/* Sidebar */}
         <DashboardSidebar navItems={sidebarItems} />

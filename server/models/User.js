@@ -226,8 +226,6 @@ const UserSchema = new mongoose.Schema({
   academicDetails: [AcademicDetailSchema],
   experienceDetails: [ExperienceSchema],
   applications: [ApplicationSchema],
-  // Courses the student has saved to compare (see lib/shortlist.js)
-  shortlist: { type: [new mongoose.Schema({ universityId: String, courseId: String, addedAt: Date }, { _id: false })], default: undefined },
   documents: [DocumentSchema],
   counselorNotes: [CounselorNoteSchema],
   counselorId: String,
@@ -284,13 +282,6 @@ const UserSchema = new mongoose.Schema({
   // Account lockout — incremented on each failed login, cleared on success
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
-
-  // Universities the student has saved with the heart on the Universities page (see GET /api/students/me/saved-universities).
-  // `universityId` is the university's short id (or _id); capped at 20 by the route. Separate from `shortlist` above, which holds saved courses.
-  savedUniversities: {
-    type: [{ _id: false, universityId: { type: String, required: true }, addedAt: { type: Date, default: Date.now } }],
-    default: undefined,
-  },
 
   // Short code a student shares so friends can sign up as their referral (see lib/referrals.js). Created on first use.
   referralCode: { type: String, unique: true, sparse: true },

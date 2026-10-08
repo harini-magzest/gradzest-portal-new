@@ -26,16 +26,12 @@ describe('GET /api/soc/posture — dynamic code analysis', () => {
     expect(res.body.activeFeatures.length).toBeGreaterThan(0);
     expect(res.body.activeFeatures.some((f) => f.name === 'helmet')).toBe(true);
 
-    // codeAnalysis: real grep results against the actual source tree.
+    // codeAnalysis: a real scan of the source tree, limited to code flags. It must not hand out an inventory of which
+    // source files handle personal data or implement which defence (reconnaissance material).
     expect(res.body.codeAnalysis).toBeTruthy();
-    expect(Array.isArray(res.body.codeAnalysis.featureFileUsage)).toBe(true);
-    const wafFeature = res.body.codeAnalysis.featureFileUsage.find((f) => f.key === 'waf');
-    expect(wafFeature.fileCount).toBeGreaterThan(0);
-
-    expect(Array.isArray(res.body.codeAnalysis.piiFileUsage)).toBe(true);
-    const userModelPii = res.body.codeAnalysis.piiFileUsage.find((p) => p.file.includes('models/User.js'));
-    expect(userModelPii).toBeTruthy();
-    expect(userModelPii.fields).toContain('passportNumber');
+    expect(Array.isArray(res.body.codeAnalysis.codeFlags)).toBe(true);
+    expect(res.body.codeAnalysis.featureFileUsage).toBeUndefined();
+    expect(res.body.codeAnalysis.piiFileUsage).toBeUndefined();
 
     // The scanner must not flag its own pattern-definition source as a finding
     // (regression test for the self-match bug found and fixed this session).
@@ -52,19 +48,10 @@ describe('GET /api/soc/posture — dynamic code analysis', () => {
   });
 });
 
-describe('GET /api/soc/posture/checklist-pdf', () => {
-  it('rejects without an admin token', async () => {
-    const res = await request(app).get('/api/soc/posture/checklist-pdf');
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a real PDF document', async () => {
-    const token = await makeAdmin('pdf-admin');
+describe('the archived hardening checklist is gone', () => {
+  it('no longer serves the static checklist PDF', async () => {
+    const token = await makeAdmin('pdf-gone-admin');
     const res = await request(app).get('/api/soc/posture/checklist-pdf').set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(200);
-    expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.body.length).toBeGreaterThan(500); // a real generated PDF, not an empty stub
-    // PDF magic bytes
-    expect(res.body.slice(0, 4).toString()).toBe('%PDF');
+    expect(res.status).toBe(404);
   });
 });

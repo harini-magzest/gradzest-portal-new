@@ -1,5 +1,6 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -30,6 +31,10 @@ function issueAccessToken(user) {
 }
 
 const MAX_SESSIONS = 5;
+
+// Request fields must be real, non-empty strings. A JSON object or number (e.g. {"$ne":null}) used to reach
+// email.toLowerCase() / bcrypt and surface as a 500; it is a plain bad request.
+const isString = (v) => typeof v === 'string' && v.length > 0;
 
 // Issues a new refresh token as its own session, independent of any other
 // device the user is already logged in on (up to MAX_SESSIONS at a time —
@@ -73,7 +78,7 @@ const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
+  if (!isString(email) || !isString(password)) return res.status(400).json({ message: 'Email and password are required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
@@ -265,7 +270,7 @@ async function sendVerificationEmail(user, mailer, frontendUrl) {
 
 router.post('/register', async (req, res) => {
   const { name, email, password, phone, nationality, ref } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
+  if (!isString(name) || !isString(email) || !isString(password)) return res.status(400).json({ message: 'Name, email and password are required' });
   const pwError = validatePasswordStrength(password);
   if (pwError) return res.status(400).json({ message: pwError });
   try {
@@ -321,7 +326,7 @@ router.get('/verify-email', async (req, res) => {
 // POST /auth/resend-verification
 router.post('/resend-verification', async (req, res) => {
   const { email } = req.body || {};
-  if (!email) return res.status(400).json({ message: 'Email required' });
+  if (!isString(email)) return res.status(400).json({ message: 'Email required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || user.emailVerified) return res.json({ message: 'If that email exists and is unverified, a new link has been sent.' });
@@ -337,7 +342,7 @@ router.post('/resend-verification', async (req, res) => {
 // POST /auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body || {};
-  if (!email) return res.status(400).json({ message: 'Email is required' });
+  if (!isString(email)) return res.status(400).json({ message: 'Email is required' });
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
     // Logged whether or not the account exists (the response is identical either

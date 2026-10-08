@@ -6,6 +6,7 @@ import {
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { openExternal } from '../lib/safeUrl';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ function MeetingCard({ meeting, theme }: { meeting: any; theme: 'purple' | 'oran
       setTimeout(() => setShowExpired(false), 3000);
       return;
     }
-    window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+    openExternal(meeting.meetingLink);
   };
 
   return (

@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { safeRedirectPath } from '../lib/safeUrl';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -31,7 +32,7 @@ export default function Login() {
     const result = await login(email, password);
     setSubmitting(false);
     if (result.success) {
-      const redirectTo = searchParams.get('redirect');
+      const redirectTo = safeRedirectPath(searchParams.get('redirect')); // same-site paths only (no open redirect)
       if (redirectTo) navigate(redirectTo);
       else redirectAfterLogin(result.role!, result.isAppTeam);
     } else if (result.code === 'EMAIL_NOT_VERIFIED') {

@@ -19,6 +19,10 @@ const { tryAcquire, release } = require('../lib/skyload/connectionThrottle');
 const { bump } = require('../lib/skyload/riskRegistry');
 const { logSecurityEvent } = require('./logSecurityEvent');
 const jwt = require('jsonwebtoken');
+const { clientKey, isAssetRequest } = require('../lib/clientKey');
+
+// Pool size for logo/favicon image requests, separate from the data-call cap (NORMAL_LIMIT in connectionThrottle.js)
+const ASSET_LIMIT = 40;
 
 const BOT_FLAG_THRESHOLD = 4;
 
@@ -50,17 +54,30 @@ function skyload(req, res, next) {
   if (req.path === '/api/health') return next();
   if (isTrustedSocAdmin(req)) return next();
 
-  if (!tryAcquire(req.ip)) {
+  // Signed-in traffic is accounted per user, anonymous traffic per IP (see lib/clientKey.js). Logo/favicon images use
+  // their own pool and are never bot-scored, so a page full of university logos can't starve or flag the user.
+  const asset = isAssetRequest(req);
+  const key = asset ? `assets:${clientKey(req)}` : clientKey(req);
+
+  if (!tryAcquire(key, asset ? ASSET_LIMIT : null)) {
     return res.status(429).json({ message: 'Too many concurrent requests from this connection. Please slow down.' });
   }
   let released = false;
-  const releaseOnce = () => { if (!released) { released = true; release(req.ip); } };
+  const releaseOnce = () => { if (!released) { released = true; release(key); } };
   res.on('finish', releaseOnce);
   res.on('close', releaseOnce);
 
-  const { score, reasons } = scoreRequest(req);
+  if (asset) return next();
+
+  // Velocity ("20+ requests in 5s") is a scraper signal and is only meaningful for anonymous traffic. A signed-in person's
+  // normal page load is dozens of quick requests, so scoring it flagged their own account and cut it to 4 concurrent
+  // requests (the "Failed to load" banners). A signed-in user's volume is already capped per user by the general rate
+  // limiter and by the 15-request concurrency cap above; anonymous requests are scored exactly as before.
+  if (key.startsWith('user:')) return next();
+
+  const { score, reasons } = scoreRequest(req, key);
   if (score >= BOT_FLAG_THRESHOLD) {
-    bump(req.ip, score);
+    bump(key, score);
     logSecurityEvent('skyload_bot_flag', {
       severity: score >= 6 ? 'high' : 'medium',
       ip: req.ip,

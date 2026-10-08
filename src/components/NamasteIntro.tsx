@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import './NamasteIntro.css';
 
 // A welcome for new visitors only: shown once per browser, on the public homepage, to someone who isn't signed in. Never on
 // the dashboards, the login pages, other public pages or a parent's share link.
 const SEEN_KEY = 'gz_namaste_seen';
 const INTRO_PATH = '/';
 const DURATION_MS = 3500;
-const GREETING_COLOUR = '#FFFFFF';
 // The intro is the video at public/namaste-intro.mp4: hands, lotus, glow and the "NAMASTE / WELCOME / GRADZEST" text are all
 // in the footage, so it plays alone for its full length. If the file is missing, or doesn't start playing within
 // VIDEO_WAIT_MS (autoplay blocked, slow network), the drawn hands below play instead.
@@ -111,80 +111,6 @@ const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
 
 const GREETING = 'Namaste'.split('');
 
-// Drawn fallback timeline (3.5s): hands slide together and trace in 0–1.6s, the glow blooms 1.2–2.4s, 'Namaste' reveals letter by letter from
-// 1.5s, then the whole overlay slides up and fades 2.9–3.5s.
-const CSS = `
-.gz-namaste { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-.gz-namaste-bg {
-  background:
-    radial-gradient(ellipse at 50% 45%, rgba(59, 130, 246, 0.28) 0%, transparent 62%),
-    linear-gradient(180deg, #0e1c4d 0%, #09133a 100%);
-}
-@keyframes gz-namaste-exit {
-  0%, 82% { transform: translateY(0); opacity: 1; animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); }
-  100% { transform: translateY(-100%); opacity: 0; }
-}
-.gz-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-/* Portrait screens: the artwork sits in the middle ~60% of the 16:9 frame, so enlarge the video to fill the width (only the empty sides
-   are cropped) and fade its top and bottom edges, where the glow would otherwise end in a hard line. */
-@media (max-aspect-ratio: 1/1) {
-  .gz-video {
-    inset: auto; top: 50%; left: 0; height: auto; aspect-ratio: 16 / 9;
-    transform: translateY(-50%) scale(1.5);
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
-  }
-}
-@keyframes gz-namaste-video-exit {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(-100%); opacity: 0; }
-}
-@keyframes gz-draw {
-  to { stroke-dashoffset: 0; }
-}
-@keyframes gz-fill-in {
-  to { opacity: 1; }
-}
-@keyframes gz-join-left {
-  from { transform: translateX(-46px); }
-  to { transform: translateX(0); }
-}
-@keyframes gz-join-right {
-  from { transform: translateX(46px); }
-  to { transform: translateX(0); }
-}
-@keyframes gz-text-in {
-  0% { opacity: 0; transform: translateY(12px); letter-spacing: 0.35em; }
-  100% { opacity: 1; transform: translateY(0); letter-spacing: 0.12em; }
-}
-@keyframes gz-glow {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-  100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
-}
-@keyframes gz-letter-in {
-  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-@keyframes gz-sub-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes gz-dust {
-  0% { opacity: 0; transform: translateY(0); }
-  30%, 70% { opacity: 0.9; }
-  100% { opacity: 0; transform: translateY(-60px); }
-}
-.gz-join-left { animation: gz-join-left 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.gz-join-right { animation: gz-join-right 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.gz-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: gz-draw 0.9s ease-out forwards; }
-.gz-fill { opacity: 0; animation: gz-fill-in 1s ease-out 1.1s forwards; }
-.gz-halo { animation: gz-glow 1.6s ease-out 1.2s both; }
-.gz-greeting { letter-spacing: 0.12em; color: ${GREETING_COLOUR}; font-weight: 700; text-shadow: 0 0 22px rgba(103, 232, 249, 0.55); }
-.gz-letter { display: inline-block; animation: gz-letter-in 0.7s ease-out both; }
-.gz-sub { animation: gz-sub-in 0.9s ease-out 2s both; }
-.gz-dust { animation: gz-dust linear infinite; background: #A5F3FC; box-shadow: 0 0 8px 2px rgba(103, 232, 249, 0.6); }
-`;
 
 export default function NamasteIntro() {
   const { pathname } = useLocation();
@@ -259,7 +185,6 @@ export default function NamasteIntro() {
             : 'none',
       }}
     >
-      <style>{CSS}</style>
 
       {/* The intro itself. Whole frame is shown (contain, not cover) so the hands, lotus and text are never cropped. */}
       {!fallback && (
