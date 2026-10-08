@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { eventStart } from '../utils/eventTime';
 import {
   Calendar, CheckSquare, Star, Phone, Plus, ChevronLeft, ChevronRight,
   Check, Clock, Video, PhoneCall, PhoneOff, Trash2, X, Bell, BellOff, Users,
-  History,
+  History, ChevronDown, CheckCircle2,
 } from 'lucide-react';
 import MeetingPanel from '../components/MeetingPanel';
 import { StudentMeetingsPanel, StudentEventsPanel } from '../components/student/StudentMeetingsEvents';
@@ -31,13 +32,6 @@ function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).get
 function getFirstDay(y: number, m: number)    { return new Date(y, m, 1).getDay(); }
 function padDate(n: number) { return String(n).padStart(2, '0'); }
 
-const INITIAL_TASKS = [
-  { id: 1, title: 'Review student visa documents',       done: false, priority: 'high',   due: '2026-05-29', page: 'applications' },
-  { id: 2, title: 'Follow up with university admissions',done: false, priority: 'medium', due: '2026-05-30', page: 'universities' },
-  { id: 3, title: 'Update application status reports',   done: true,  priority: 'low',    due: '2026-05-27', page: 'applications' },
-  { id: 4, title: 'Prepare counseling session notes',    done: false, priority: 'high',   due: '2026-05-31', page: 'students' },
-];
-
 const EVENT_PAGE: Record<string, string> = {
   university: 'universities',
   workshop:   'courses',
@@ -45,19 +39,14 @@ const EVENT_PAGE: Record<string, string> = {
   meeting:    'chat',
 };
 
-const INITIAL_EVENTS = [
-  { id: 1, title: 'University Open Day – Melbourne', date: '2026-05-30', time: '10:00 AM', type: 'university', desc: 'Virtual open day for international students' },
-  { id: 2, title: 'IELTS Preparation Workshop',      date: '2026-05-31', time: '02:00 PM', type: 'workshop',   desc: 'Group session for IELTS aspirants' },
-  { id: 3, title: 'Visa Guidance Seminar',            date: '2026-06-02', time: '11:00 AM', type: 'seminar',    desc: 'Australian student visa process walkthrough' },
-  { id: 4, title: 'Parent-Counselor Meet',            date: '2026-06-05', time: '04:00 PM', type: 'meeting',   desc: 'Quarterly parent engagement session' },
-];
+type LocalEvent = {
+  id: number; title: string; date: string; time: string; type: string; desc: string;
+  studentName?: string; _meetingId?: string; _externalCallId?: number;
+};
 
 const INITIAL_CALLS: { id: number; name: string; type: string; status: string; duration: string; time: string; date: string }[] = [];
 
-const INITIAL_REMINDERS = [
-  { id: 1, date: '2026-05-28', text: 'Submit monthly progress report', time: '09:00 AM' },
-  { id: 2, date: '2026-05-30', text: 'Call Riya about UK visa docs',   time: '11:30 AM' },
-];
+type Reminder = { id: number; date: string; text: string; time: string };
 
 function fmt12h(time24: string) {
   if (!time24) return '';
@@ -203,7 +192,7 @@ export default function Activities() {
   const [taskError, setTaskError]         = useState('');
   const [assignees, setAssignees]         = useState<{ _id: string; name: string; dept: string }[]>([]);
 
-  const [events, setEvents]           = useState(INITIAL_EVENTS);
+  const [events, setEvents]           = useState<LocalEvent[]>([]);
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEvent, setNewEvent]       = useState({ title: '', date: '', time: '', type: 'meeting', desc: '', studentName: '' });
 
@@ -212,7 +201,11 @@ export default function Activities() {
   const [newCall, setNewCall]           = useState({ name: '', studentId: '', type: 'video', time: '', date: '' });
   const [newCallCount, setNewCallCount] = useState(0);
 
-  const [reminders, setReminders]         = useState(INITIAL_REMINDERS);
+  const [reminders, setReminders]         = useState<Reminder[]>([]);
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  // Re-render every minute so an event moves from Upcoming to Past once it has started
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [newReminder, setNewReminder]     = useState({ text: '', time: '' });
 
@@ -587,12 +580,50 @@ export default function Activities() {
     role === 'counselor' ? '/counselor/meetings' :
     role === 'student'   ? '/student/activities?tab=meetings' : '/admin/meetings'; // unused for students — they get the full panel below, not the summary link
 
+  // Upcoming = hasn't started yet (soonest first); past = already happened (most recent first)
+  const upcomingEvents = events.filter(e => !(eventStart(e) < now)).sort((a, b) => (eventStart(a) || 0) - (eventStart(b) || 0));
+  const pastEvents = events.filter(e => eventStart(e) < now).sort((a, b) => eventStart(b) - eventStart(a));
+  const renderEvent = (ev: LocalEvent, past: boolean) => (
+              <Link key={ev.id} to={`/${role}/${EVENT_PAGE[ev.type] || 'activities'}`}
+                className={`block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all overflow-hidden ${past ? 'opacity-60' : ''}`}>
+                <div className="flex">
+                  <div className={`w-1.5 flex-shrink-0 ${past ? 'bg-gray-300' : EVENT_TYPE_DOT[ev.type] || 'bg-gray-400'}`} />
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h3 className="text-sm font-semibold text-gray-900">{ev.title}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${EVENT_TYPE_COLOR[ev.type] || 'bg-gray-100 text-gray-600'}`}>{ev.type}</span>
+                          {past && (
+                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />Completed
+                            </span>
+                          )}
+                          {ev.studentName && (
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                              <Users className="w-3 h-3" />{ev.studentName}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">{ev.desc}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-gray-600">{ev.time}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{ev.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+  );
+
   const TABS: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },
     { key: 'tasks',    label: 'Tasks',    icon: <CheckSquare className="w-4 h-4" />, count: apiTasks.filter(at => at.status !== 'completed').length + meetingTasks.filter(mt => !mt.done).length },
     // For students this tab shows the real, registerable events (see StudentEventsPanel), not the
     // local list below — so the badge shouldn't show that list's count for them.
-    { key: 'events',   label: 'Events',   icon: <Star className="w-4 h-4" />,        count: isStudent ? undefined : events.length },
+    // Only upcoming events count — past ones never light the badge up
+    { key: 'events',   label: 'Events',   icon: <Star className="w-4 h-4" />,        count: isStudent ? undefined : upcomingEvents.length },
     { key: 'calls',    label: 'Calls',    icon: <Phone className="w-4 h-4" />,       count: calls.filter(c => c.status === 'scheduled').length },
     { key: 'meetings', label: 'Meetings', icon: <Users className="w-4 h-4" /> },
   ];
@@ -1052,7 +1083,10 @@ export default function Activities() {
       {tab === 'events' && (isStudent ? <StudentEventsPanel /> : (
         <div className="max-w-2xl">
           <div className="flex items-center justify-between mb-5">
-            <span className="text-sm text-gray-500"><span className="font-semibold text-gray-800">{events.length}</span> upcoming events</span>
+            <span className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-800">{upcomingEvents.length}</span> upcoming {upcomingEvents.length === 1 ? 'event' : 'events'}
+              {pastEvents.length > 0 && <span className="text-gray-400"> · {pastEvents.length} past</span>}
+            </span>
             {!isStudent && (
               <button type="button" onClick={() => setShowAddEvent(true)}
                 className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-sm`}>
@@ -1096,49 +1130,32 @@ export default function Activities() {
             </div>
           )}
 
-          <div className="space-y-3">
-            {[...events].sort((a, b) => {
-              // Convert "10:00 AM" / "02:00 PM" to minutes-since-midnight
-              const toMins = (t: string) => {
-                if (!t) return 0;
-                const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                if (!m) return 0;
-                let h = parseInt(m[1]); const min = parseInt(m[2]); const p = m[3].toUpperCase();
-                if (p === 'PM' && h !== 12) h += 12;
-                if (p === 'AM' && h === 12) h = 0;
-                return h * 60 + min;
-              };
-              const da = (a.date || '').localeCompare(b.date || '');
-              return da !== 0 ? -da : toMins(b.time) - toMins(a.time);
-            }).map(ev => (
-              <Link key={ev.id} to={`/${role}/${EVENT_PAGE[ev.type] || 'activities'}`}
-                className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all overflow-hidden">
-                <div className="flex">
-                  <div className={`w-1.5 flex-shrink-0 ${EVENT_TYPE_DOT[ev.type] || 'bg-gray-400'}`} />
-                  <div className="flex-1 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="text-sm font-semibold text-gray-900">{ev.title}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${EVENT_TYPE_COLOR[ev.type] || 'bg-gray-100 text-gray-600'}`}>{ev.type}</span>
-                          {(ev as any).studentName && (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                              <Users className="w-3 h-3" />{(ev as any).studentName}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500">{ev.desc}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-semibold text-gray-600">{ev.time}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{ev.date}</p>
-                      </div>
-                    </div>
-                  </div>
+          {upcomingEvents.length === 0 ? (
+            <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
+              <Star className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No upcoming events.</p>
+              {!isStudent && <p className="text-xs text-gray-400 mt-1">Use "Add Event" to plan one.</p>}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {upcomingEvents.map(ev => renderEvent(ev, false))}
+            </div>
+          )}
+
+          {pastEvents.length > 0 && (
+            <div className="mt-6">
+              <button type="button" onClick={() => setShowPastEvents(v => !v)} aria-expanded={showPastEvents}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 uppercase tracking-wide mb-3">
+                <ChevronDown className={`w-4 h-4 transition-transform ${showPastEvents ? '' : '-rotate-90'}`} />
+                Past events ({pastEvents.length})
+              </button>
+              {showPastEvents && (
+                <div className="space-y-3">
+                  {pastEvents.map(ev => renderEvent(ev, true))}
                 </div>
-              </Link>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
 
