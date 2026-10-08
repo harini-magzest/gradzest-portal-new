@@ -7,6 +7,7 @@ const UiActivity = require('../models/UiActivity');
 const authMiddleware = require('../middleware/auth');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { buildDevice } = require('../lib/device');
+const { sendServerError } = require('../lib/httpError');
 
 // Roles whose UI activity is recorded. Staff by default; student tracking is
 // opt-in (SOC_UI_TRACK_ROLES=admin,counselor,student) because recording every
@@ -73,7 +74,7 @@ router.post('/', authMiddleware, limiter, attachUserEmail, async (req, res) => {
     }
     res.json({ tracking: true, accepted: docs.length });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err, 'Server error');
   }
 });
 
