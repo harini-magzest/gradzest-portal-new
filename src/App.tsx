@@ -46,6 +46,7 @@ const StudentProfile      = lazy(() => import('./pages/student/StudentProfile'))
 const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
+const StudentCountryDetail = lazy(() => import('./pages/student/StudentCountryDetail'));
 const StudentShortlist    = lazy(() => import('./pages/student/StudentShortlist'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
@@ -184,6 +185,7 @@ export default function App() {
               <Route path="profile" element={<StudentProfile />} />
               <Route path="courses" element={<StudentCourses />} />
               <Route path="countries" element={<StudentCountries />} />
+              <Route path="countries/:countryId" element={<StudentCountryDetail />} />
               {/* Meetings and Events live inside Activities now (one tab each) — both old routes
                   redirect there so old notification links and bookmarks still land somewhere. */}
               <Route path="activities" element={<Activities />} />

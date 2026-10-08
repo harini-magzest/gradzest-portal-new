@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -25,7 +25,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   );
 }
 
-function UniversityCard({ uni, student }: { uni: any; student: any }) {
+export function UniversityCard({ uni, student }: { uni: any; student: any }) {
   const navigate = useNavigate();
   const eligibleCount = (uni.courses || []).filter((c: any) => checkCourseEligibility(student, c).status === 'eligible').length;
 
@@ -104,7 +104,8 @@ export default function StudentUniversities() {
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
-  const [country, setCountry] = useState('');
+  const [searchParams] = useSearchParams();
+  const [country, setCountry] = useState(() => searchParams.get('country') || '');
   const [level, setLevel] = useState('');
   const loadUniversities = () => {
     setLoadError('');
