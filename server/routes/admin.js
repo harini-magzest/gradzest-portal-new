@@ -12,6 +12,8 @@ const COUNTRY_FIELDS = WRITABLE(Country.schema.paths, ['id']);
 const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {}).filter(([k]) => fields.includes(k)));
 const Subscriber = require('../models/Subscriber');
 const Task = require('../models/Task');
+const Setting = require('../models/Setting');
+const { sendCsv } = require('../lib/csv');
 const authMiddleware = require('../middleware/auth');
 const { fetchEnrichmentData, clearCache } = require('../lib/enrichUniversity');
 const { recordStaffActivity } = require('../lib/staffActivity');
@@ -110,7 +112,8 @@ router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, async (req, 
 
 // Update counselor
 router.put('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
-  const { password, role, _id, ...updates } = req.body;
+  // twoFactor is account security state (see routes/account.js), never something an update body may set
+  const { password, role, _id, twoFactor, ...updates } = req.body;
   try {
     const counselor = await User.findOneAndUpdate(
       { _id: req.params.id, role: 'counselor' },
@@ -204,7 +207,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail
 // Update an Application Team member — scoped to isAppTeam admins only, so this can never
 // touch a non-appteam admin account even if someone guesses another user's id.
 router.put('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
-  const { password, role, isAppTeam, _id, ...updates } = req.body;
+  const { password, role, isAppTeam, _id, twoFactor, ...updates } = req.body;
   try {
     if (password) updates.password = await bcrypt.hash(password, 10);
     const member = await User.findOneAndUpdate(
@@ -974,6 +977,118 @@ router.delete('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async
     const sub = await Subscriber.findByIdAndDelete(req.params.id);
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json({ message: 'Subscriber deleted' });
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+/* ── Settings page: company profile, integrations status, CSV exports ───────── */
+
+const COMPANY_DEFAULTS = { name: 'Gradzest', tagline: '', email: '', phone: '', website: '', address: '' };
+const COMPANY_LIMITS = { name: 100, tagline: 200, email: 254, phone: 30, website: 200, address: 300 };
+
+// Returns { value } with the cleaned profile, or { error }. Only the known fields are read; anything else in the body is dropped.
+function cleanCompanyProfile(body) {
+  const value = {};
+  for (const [k, max] of Object.entries(COMPANY_LIMITS)) {
+    if (body?.[k] === undefined) continue;
+    if (typeof body[k] !== 'string') return { error: `${k} must be text` };
+    const v = body[k].trim();
+    if (v.length > max) return { error: `${k} is too long (max ${max} characters)` };
+    value[k] = v;
+  }
+  if (value.name !== undefined && !value.name) return { error: 'Company name is required' };
+  if (value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) return { error: 'Invalid email address' };
+  // http(s) only: a javascript: or data: address must never end up as a link
+  if (value.website && !/^https?:\/\/[^\s]+$/i.test(value.website)) return { error: 'Website must start with http:// or https://' };
+  return { value };
+}
+
+router.get('/settings/company', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  try {
+    const doc = await Setting.findOne({ key: 'company' }).lean();
+    res.json({ ...COMPANY_DEFAULTS, ...(doc?.value || {}) });
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.put('/settings/company', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+  const { value, error } = cleanCompanyProfile(req.body);
+  if (error) return res.status(400).json({ message: error });
+  if (!Object.keys(value).length) return res.status(400).json({ message: 'Nothing to update' });
+  try {
+    const set = Object.fromEntries(Object.entries(value).map(([k, v]) => [`value.${k}`, v]));
+    const doc = await Setting.findOneAndUpdate({ key: 'company' }, { $set: set }, { upsert: true, new: true, setDefaultsOnInsert: true }).lean();
+    res.json({ ...COMPANY_DEFAULTS, ...doc.value });
+  } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+// Which outside services the server is set up to use. Read-only on purpose: keys and tokens live in the server's environment
+// (see the README), never in the database or in a form, so this answers "is it connected?" and nothing more.
+router.get('/integrations', authMiddleware, adminOnly, blockAppTeam, (req, res) => {
+  res.json({
+    whatsapp: { connected: require('../lib/whatsapp').isWhatsAppConfigured(), env: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] },
+    email: { connected: !!(process.env.SMTP_USER && process.env.SMTP_PASS), env: ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'] },
+    calls: { connected: require('../lib/smartflo').isConfigured(), env: ['SMARTFLO_API_TOKEN'] },
+    ai: { connected: !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY), env: ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY'] },
+  });
+});
+
+const EXPORT_CAP = 50000;
+const EXPORTS = {
+  students: {
+    async rows() {
+      const [students, counselors] = await Promise.all([
+        User.find({ role: 'student', deletedAt: null })
+          .select('name email phone nationality status leadStage educationLevel preferredCountries counselorId joinedDate source createdAt')
+          .sort({ createdAt: -1 }).limit(EXPORT_CAP).lean(),
+        User.find({ role: 'counselor' }).select('name').lean(),
+      ]);
+      const counselorName = new Map(counselors.map(c => [String(c._id), c.name]));
+      return students.map(s => ({ ...s, counselorName: counselorName.get(String(s.counselorId)) || '' }));
+    },
+    columns: [
+      { label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Phone', key: 'phone' },
+      { label: 'Nationality', key: 'nationality' }, { label: 'Status', key: 'status' }, { label: 'Lead stage', key: 'leadStage' },
+      { label: 'Education level', key: 'educationLevel' }, { label: 'Preferred countries', value: r => (r.preferredCountries || []).join('; ') },
+      { label: 'Counselor', key: 'counselorName' }, { label: 'Source', key: 'source' }, { label: 'Joined', key: 'joinedDate' },
+    ],
+  },
+  applications: {
+    async rows() {
+      const students = await User.find({ role: 'student', deletedAt: null, 'applications.0': { $exists: true } })
+        .select('name email applications').limit(EXPORT_CAP).lean();
+      return students.flatMap(s => (s.applications || []).map(a => ({ ...a, studentName: s.name, studentEmail: s.email })));
+    },
+    columns: [
+      { label: 'Student', key: 'studentName' }, { label: 'Student email', key: 'studentEmail' }, { label: 'University', key: 'universityName' },
+      { label: 'Course', key: 'courseName' }, { label: 'Intake', key: 'intake' }, { label: 'Status', key: 'status' },
+      { label: 'Submitted', key: 'submittedDate' }, { label: 'Updated', key: 'updatedDate' },
+    ],
+  },
+  meetings: {
+    rows: () => require('../models/Meeting').find().sort({ scheduledDate: -1, scheduledTime: -1 }).limit(EXPORT_CAP).lean(),
+    columns: [
+      { label: 'Title', key: 'title' }, { label: 'Date', key: 'scheduledDate' }, { label: 'Time', key: 'scheduledTime' },
+      { label: 'Duration (min)', key: 'duration' }, { label: 'Platform', key: 'platform' }, { label: 'Status', key: 'status' },
+      { label: 'Participants', value: r => (r.participants || []).map(p => p.name).filter(Boolean).join('; ') },
+      { label: 'Created by', key: 'createdByName' },
+    ],
+  },
+};
+
+// Settings → Export & Backup. Each download is itself a security event, so a burst of exports by one account is noticed
+// (the same mass-export rule the SOC's own CSV downloads feed). Cells that look like spreadsheet formulas are defused in lib/csv.js.
+router.get('/export/:kind', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+  const spec = Object.prototype.hasOwnProperty.call(EXPORTS, req.params.kind) ? EXPORTS[req.params.kind] : null;
+  if (!spec) return res.status(404).json({ message: 'Unknown export' });
+  try {
+    const rows = await spec.rows();
+    logSecurityEvent('data_export', {
+      severity: 'info', userId: req.user.id, email: req.user.email || '', role: req.user.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: `Exported ${rows.length} ${req.params.kind} row${rows.length === 1 ? '' : 's'} as CSV from Settings`,
+      meta: { export: req.params.kind, rows: rows.length },
+    }).catch(() => {});
+    if (rows.length >= EXPORT_CAP) res.setHeader('X-Export-Truncated', '1');
+    sendCsv(res, `gradzest-${req.params.kind}-${new Date().toISOString().slice(0, 10)}.csv`, spec.columns, rows);
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 

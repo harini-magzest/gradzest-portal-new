@@ -83,7 +83,6 @@ const AdminActivityFeed      = lazy(() => import('./pages/admin/AdminActivityFee
 const AdminMeetings          = lazy(() => import('./pages/admin/AdminMeetings'));
 const AdminSettings          = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminAnalytics         = lazy(() => import('./pages/admin/AdminAnalytics'));
-const AdminZest               = lazy(() => import('./pages/admin/AdminZest'));
 const SOCLayout                = lazy(() => import('./pages/soc/SOCLayout'));
 const SOCDashboard             = lazy(() => import('./pages/soc/SOCDashboard'));
 
@@ -228,7 +227,8 @@ export default function App() {
               <Route path="chat" element={<AdminChat />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="zest" element={<AdminZest />} />
+              {/* Zest has no page of its own any more; the panel opens itself on the Alerts tab (see ZestWidget) */}
+              <Route path="zest" element={<Navigate to="/admin?zest=alerts" replace />} />
               <Route path="roles" element={<Navigate to="/admin/settings?section=users&tab=roles" replace />} />
               <Route path="automation" element={<Navigate to="/admin/settings?section=automation" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />

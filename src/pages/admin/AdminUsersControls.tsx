@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, Search, ShieldCheck, Lock, Trash2, Pencil, Users as UsersIcon, Network, KeyRound } from 'lucide-react';
+import { Plus, X, Search, ShieldCheck, ShieldOff, Lock, Trash2, Pencil, Users as UsersIcon, Network, KeyRound } from 'lucide-react';
 import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import AdminRoles from './AdminRoles';
 import AdminProfiles from './AdminProfiles';
@@ -11,6 +12,7 @@ const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-
 interface StaffUser {
   _id: string; name: string; email: string; role: 'admin' | 'counselor'; isAppTeam?: boolean;
   title?: string; hierarchyRole?: string | null; profileId?: string | null; active?: boolean;
+  twoFactor?: { enabled: boolean };
   firstName?: string; lastName?: string; phone?: string; mobile?: string; website?: string; fax?: string; dateOfBirth?: string;
   address?: { street?: string; city?: string; state?: string; country?: string; postalCode?: string };
 }
@@ -187,6 +189,7 @@ function UserModal({ user, roles, profiles, onClose, onSaved }: {
 
 function UsersTab() {
   const { toast } = useToast();
+  const { user: me } = useAuth();
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [roles, setRoles] = useState<Named[]>([]);
   const [profiles, setProfiles] = useState<Named[]>([]);
@@ -227,6 +230,19 @@ function UsersTab() {
     if (deactivating && !confirm(`Deactivate ${u.name}? They will be signed out and unable to log in.`)) return;
     setToggled(prev => new Set(prev).add(u._id));
     await update(u, { active: !deactivating });
+  };
+
+  // For a colleague who lost their phone and their recovery codes. Ends their sessions; they sign in with the password alone
+  // and set two-step verification up again. The server logs it as a high-severity security event.
+  const resetTwoFactor = async (u: StaffUser) => {
+    if (!confirm(`Turn off two-step verification for ${u.name}? They will be signed out and can sign in with their password alone until they set it up again. Only do this if you are sure it is really them asking.`)) return;
+    try {
+      const res = await api.users.resetTwoFactor(u._id);
+      setUsers(prev => prev.map(x => x._id === u._id ? { ...x, twoFactor: { enabled: false } } : x));
+      toast.success(res.message);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const remove = async (u: StaffUser) => {
@@ -301,7 +317,14 @@ function UsersTab() {
                         {u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{u.name}</p>
+                        <p className="font-medium text-gray-900 truncate flex items-center gap-1.5">
+                          {u.name}
+                          {u.twoFactor?.enabled && (
+                            <span title="Two-step verification is on" className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">
+                              <ShieldCheck className="w-3 h-3" />2FA
+                            </span>
+                          )}
+                        </p>
                         <p className="text-xs text-gray-500 truncate">{u.email}{u.title ? ` · ${u.title}` : ''}</p>
                       </div>
                     </div>
@@ -328,6 +351,10 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
+                      {u.twoFactor?.enabled && u._id !== me?.id && (
+                        <button type="button" onClick={() => resetTwoFactor(u)} aria-label={`Reset two-step verification for ${u.name}`} title="Reset two-step verification"
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"><ShieldOff className="w-4 h-4" /></button>
+                      )}
                       <button type="button" onClick={() => setEditing(u)} aria-label={`Edit ${u.name}`} title="Edit"
                         className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
                       <button type="button" onClick={() => remove(u)} aria-label={`Delete ${u.name}`} title="Delete"
