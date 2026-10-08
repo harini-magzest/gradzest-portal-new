@@ -6,6 +6,14 @@ const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');
 const University = require('../models/University');
 const Country = require('../models/Country');
+const { assertPublicHttpUrl } = require('../lib/ssrfGuard');
+
+// Rejects a logo/coverImage URL that isn't a public http(s) address (server/lib/ssrfGuard.js) —
+// an admin pasting (or a scrape returning) an internal URL must not be fetchable by unilogo.js.
+async function validImageUrl(url) {
+  if (!url) return true;
+  return assertPublicHttpUrl(url).then(() => true).catch(() => false);
+}
 
 const WRITABLE = (paths, extra = []) => [...new Set(Object.keys(paths).map(p => p.split('.')[0]))].filter(p => !['_id', '__v', 'createdAt', 'updatedAt', ...extra].includes(p));
 const COURSE_FIELDS = WRITABLE(University.schema.path('courses').schema.paths, ['id']);
@@ -571,6 +579,9 @@ router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req
             acceptanceRate, totalStudents, internationalStudents, rating, tags,
             averageFees, courses, facilities, scholarships, applicationDeadlines } = req.body;
     if (!name || !country) return res.status(400).json({ message: 'Name and country are required' });
+    if (!(await validImageUrl(logo)) || !(await validImageUrl(coverImage))) {
+      return res.status(400).json({ message: 'Logo/cover image must be a public http(s) URL' });
+    }
 
     // Run enrichment inline so courses + details are populated on creation
     let enriched = {};
@@ -634,8 +645,8 @@ router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam,
           clearCache(uni.name);
           const data = await fetchEnrichmentData(uni.name);
           const update = { enrichedAt: new Date(), enrichmentStatus: 'done' };
-          if (data.logo) update.logo = data.logo;
-          if (data.coverImage) update.coverImage = data.coverImage;
+          if (data.logo && (await validImageUrl(data.logo))) update.logo = data.logo;
+          if (data.coverImage && (await validImageUrl(data.coverImage))) update.coverImage = data.coverImage;
           if (data.country && !uni.country) update.country = data.country;
           if (data.city && !uni.city) update.city = data.city;
           if (data.type && !uni.type) update.type = data.type;
@@ -671,8 +682,8 @@ router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam,
     const data = await fetchEnrichmentData(uni.name);
 
     const update = { enrichedAt: new Date(), enrichmentStatus: 'done' };
-    if (data.logo) update.logo = data.logo;
-    if (data.coverImage) update.coverImage = data.coverImage;
+    if (data.logo && (await validImageUrl(data.logo))) update.logo = data.logo;
+    if (data.coverImage && (await validImageUrl(data.coverImage))) update.coverImage = data.coverImage;
     if (data.country) update.country = data.country;
     if (data.city) update.city = data.city;
     if (data.type) update.type = data.type;
@@ -697,6 +708,9 @@ router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam,
 router.put('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
   try {
     const { _id, __v, ...updates } = req.body;
+    if (!(await validImageUrl(updates.logo)) || !(await validImageUrl(updates.coverImage))) {
+      return res.status(400).json({ message: 'Logo/cover image must be a public http(s) URL' });
+    }
     const uni = await University.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!uni) return res.status(404).json({ message: 'University not found' });
     res.json(uni);
