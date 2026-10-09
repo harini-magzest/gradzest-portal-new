@@ -302,6 +302,8 @@ const UserSchema = new mongoose.Schema({
   // Active login sessions — one per device, each with its own refresh token
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },
+  // Access tokens issued before this moment are refused ("sign out everywhere"; see lib/accountState.js)
+  sessionsRevokedAt: { type: Date, default: null },
 
   // Two-factor sign-in with an authenticator app (see lib/twoFactor.js). Everything secret is `select: false`, so no
   // query returns it unless a route asks for it by name ('+twoFactor.secret'); toJSON below also cuts the block down to

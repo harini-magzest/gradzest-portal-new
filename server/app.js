@@ -228,7 +228,8 @@ app.use('/uploads', async (req, res, next) => {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
   try {
-    if (await require('./lib/accountState').isBlocked(decoded.id)) return res.status(401).json({ message: 'This account is no longer active.' });
+    const { isBlocked, tokenRevoked } = require('./lib/accountState');
+    if (await isBlocked(decoded.id) || await tokenRevoked(decoded)) return res.status(401).json({ message: 'This account is no longer active.' });
     const name = decodeURIComponent(req.path).replace(/^\/+/, '');
     if (!(await require('./lib/fileAccess').canAccessUpload(decoded, name))) return res.status(404).json({ message: 'File not found' });
     next();
@@ -394,7 +395,8 @@ io.use(async (socket, next) => {
   if (!token) return next(new Error('Unauthorized'));
   try {
     const decoded = require('./lib/jwt').verifyAccessToken(token);
-    if (await require('./lib/accountState').isBlocked(decoded.id)) return next(new Error('Unauthorized'));
+    const { isBlocked, tokenRevoked } = require('./lib/accountState');
+    if (await isBlocked(decoded.id) || await tokenRevoked(decoded)) return next(new Error('Unauthorized'));
     socket.data.userId = String(decoded.id);
     socket.data.role = decoded.role;
     socket.data.isAppTeam = !!decoded.isAppTeam;

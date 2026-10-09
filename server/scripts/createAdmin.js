@@ -1,4 +1,4 @@
-// Creates the first full admin on a fresh database, instead of the demo seed's admin@eduabroad.com / admin123.
+// Creates the first full admin on a fresh database, instead of the demo seed's admin@eduabroad.com.
 // The password is generated (24 random bytes, shown once) unless ADMIN_PASSWORD is set; either way it is stored hashed.
 //
 //   ADMIN_EMAIL=you@yourdomain.com ADMIN_NAME="Your Name" node scripts/createAdmin.js

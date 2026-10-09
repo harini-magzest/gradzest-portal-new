@@ -17,7 +17,7 @@ async function autoSeedIfEmpty() {
 
   const count = await User.countDocuments();
   if (count === 0) {
-    // The full seed creates demo accounts whose passwords are in the source code (admin@eduabroad.com / admin123 …).
+    // The full seed creates demo accounts (admin@eduabroad.com …) that share one password printed to the console.
     // Only an explicit development or test run may do that; a fresh production database must never start with a
     // publicly known admin login. Create the first real admin with: node scripts/createAdmin.js
     if (!['development', 'test'].includes(process.env.NODE_ENV)) {

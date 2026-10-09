@@ -3,8 +3,7 @@
  * admin account) for local testing. Run once: node server/seedDemo.js
  *
  * Passwords are generated randomly, not hardcoded — nothing in the frontend
- * actually references fixed demo credentials (checked: no "demo123" or
- * these emails anywhere in src/), so a fixed, guessable password here would
+ * depends on fixed demo credentials, so a fixed, guessable password here would
  * be pure risk with no feature depending on it. Each run prints the
  * generated password to the console so whoever ran it locally can use it.
  */

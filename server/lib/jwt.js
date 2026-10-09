@@ -3,13 +3,15 @@
 //     pinning also refuses any other algorithm a forged header might name, now and after library upgrades.
 //   * the secret must be strong. A short or placeholder JWT_SECRET (e.g. the .env.example text, or "secret") lets
 //     anyone who guesses it mint an admin token, so production refuses to start with one.
+//   * every token carries iatMs, its issue time in milliseconds. `iat` is in whole seconds, which cannot tell a token
+//     issued just before "sign out everywhere" from one issued just after it (lib/accountState.js tokenRevoked).
 const jwt = require('jsonwebtoken');
 
 const ALGORITHM = 'HS256';
 const MIN_SECRET_LENGTH = 32;
 
 const signAccessToken = (payload, options = {}) =>
-  jwt.sign(payload, process.env.JWT_SECRET, { ...options, algorithm: ALGORITHM });
+  jwt.sign({ ...payload, iatMs: Date.now() }, process.env.JWT_SECRET, { ...options, algorithm: ALGORITHM });
 
 const verifyAccessToken = (token) =>
   jwt.verify(token, process.env.JWT_SECRET, { algorithms: [ALGORITHM] });

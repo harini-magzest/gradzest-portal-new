@@ -1,6 +1,6 @@
 const { verifyAccessToken } = require('../lib/jwt');
 const { logSecurityEvent } = require('./logSecurityEvent');
-const { isBlocked, tokenRoleIsCurrent } = require('../lib/accountState');
+const { isBlocked, tokenRoleIsCurrent, tokenRevoked } = require('../lib/accountState');
 
 module.exports = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -24,6 +24,11 @@ module.exports = async (req, res, next) => {
   // not when its 15-minute token happens to expire.
   if (await isBlocked(req.user.id)) {
     return res.status(401).json({ message: 'This account is no longer active.', code: 'ACCOUNT_DISABLED' });
+  }
+  // Signed out everywhere after this token was issued (password rotated, sessions revoked): the browser's refresh then
+  // fails too, so the person signs in again
+  if (await tokenRevoked(req.user)) {
+    return res.status(401).json({ message: 'You were signed out. Please sign in again.', code: 'SESSION_REVOKED' });
   }
   // Privileges are re-checked against the account on every request, not taken from the token alone: a demoted admin or
   // a counselor moved off the Application Team loses the old rights within seconds. The browser refreshes its token on
