@@ -99,6 +99,8 @@ const SECURITY_TYPE_LABEL = {
   skyload_bot_flag: 'Skyload bot flag',
   skyload_throttle: 'Skyload throttle',
   password_reset_request: 'Password reset requested',
+  password_change: 'Password changed',
+  two_factor_change: 'Two-factor change',
   privilege_change: 'Privilege change',
   data_export: 'Data export',
   bulk_delete: 'Bulk data deletion',

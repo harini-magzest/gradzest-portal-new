@@ -8,6 +8,8 @@ export interface User {
   avatar?: string;
   /** Only meaningful when role === 'admin'. Marks this admin as Application Team, whose home is /appteam not /admin. */
   isAppTeam?: boolean;
+  /** Whether two-factor sign-in is on. The server never sends anything else about it. */
+  twoFactor?: { enabled: boolean };
 }
 
 export type YesNo = 'yes' | 'no' | 'not_sure' | '';

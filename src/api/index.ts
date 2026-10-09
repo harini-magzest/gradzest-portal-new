@@ -114,6 +114,8 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   return res.json();
 }
 
+export interface CompanyProfile { name: string; tagline: string; email: string; phone: string; website: string; address: string }
+
 export interface ShortlistData {
   courses: {
     universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
@@ -135,11 +137,18 @@ export const api = {
       }),
   },
   auth: {
+    // An account with two-factor sign-in gets a challenge instead of a session; send it back with a code to verifyTwoFactor.
     login: (email: string, password: string, device?: unknown) =>
-      req<{ token: string; user: any }>('/auth/login', {
+      req<{ token: string; user: any } | { twoFactorRequired: true; challengeToken: string }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, device }),
+      }),
+    verifyTwoFactor: (challengeToken: string, code: string, device?: unknown) =>
+      req<{ token: string; user: any; recoveryCodesRemaining?: number }>('/auth/2fa/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeToken, code, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
     register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
@@ -166,6 +175,28 @@ export const api = {
     revokeSession: (id: string) => req<{ message: string }>(`/auth/sessions/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+  },
+
+  // Self-service security for whoever is signed in (server/routes/account.js)
+  account: {
+    // Answers with a fresh access token: every session is replaced, this device's included.
+    changePassword: (currentPassword: string, newPassword: string) =>
+      req<{ message: string; token: string }>('/account/change-password', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+    updateProfile: (data: { name?: string; phone?: string; bio?: string }) =>
+      req<any>('/account/profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    twoFactor: {
+      status: () => req<{ enabled: boolean; enabledAt: string | null; recoveryCodesRemaining: number; hasPassword: boolean }>('/account/2fa', { headers: authHeaders() }),
+      setup: (password: string) =>
+        req<{ secret: string; otpauthUri: string }>('/account/2fa/setup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password }) }),
+      enable: (code: string) =>
+        req<{ enabled: true; recoveryCodes: string[] }>('/account/2fa/enable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code }) }),
+      disable: (password: string, code: string) =>
+        req<{ enabled: false }>('/account/2fa/disable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password, code }) }),
+      newRecoveryCodes: (password: string, code: string) =>
+        req<{ recoveryCodes: string[] }>('/account/2fa/recovery-codes', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password, code }) }),
+    },
   },
 
   countries: {
@@ -480,6 +511,22 @@ export const api = {
     deleteAllStudents: (confirm: string) => req<{ message: string; deletedCount: number }>('/admin/danger/delete-all-students', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm }),
     }),
+    // Settings page
+    companyProfile: () => req<CompanyProfile>('/admin/settings/company', { headers: authHeaders() }),
+    saveCompanyProfile: (data: Partial<CompanyProfile>) =>
+      req<CompanyProfile>('/admin/settings/company', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    integrations: () => req<Record<'whatsapp' | 'email' | 'calls' | 'ai', { connected: boolean; env: string[] }>>('/admin/integrations', { headers: authHeaders() }),
+    // The CSV arrives as a file, not JSON, so this fetches it itself (with one token refresh, as req() does) and returns the blob.
+    exportCsv: async (kind: 'students' | 'applications' | 'meetings', retry = true): Promise<{ blob: Blob; filename: string; truncated: boolean }> => {
+      const res = await fetch(`${BASE}/admin/export/${kind}`, { credentials: 'include', headers: authHeaders() });
+      if (res.status === 401 && retry && await tryRefresh()) return api.admin.exportCsv(kind, false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Export failed' }));
+        throw new ApiError(err.message || 'Export failed', res.status);
+      }
+      const filename = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || `gradzest-${kind}.csv`;
+      return { blob: await res.blob(), filename, truncated: res.headers.get('x-export-truncated') === '1' };
+    },
     assignCounselor: (studentId: string, counselorId: string | null) => req<any>(`/admin/students/${studentId}/assign`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ counselorId }),
     }),
@@ -680,6 +727,7 @@ export const api = {
     create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     remove: (id: string) => req<{ message: string }>(`/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    resetTwoFactor: (id: string) => req<{ message: string }>(`/users/${id}/two-factor/reset`, { method: 'POST', headers: authHeaders() }),
     profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
     createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
       req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -824,6 +872,8 @@ export const api = {
       req<{ draft: string }>('/zest/draft-reply', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
+    // Swaps the PDF behind an existing document and keeps its title.
+    replaceDocument: (id: string, formData: FormData) => upload<any>(`/zest/documents/${id}/replace`, formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ title }),
     }),

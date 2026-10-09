@@ -4,13 +4,17 @@ import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { safeRedirectPath } from '../lib/safeUrl';
+import TwoFactorStep from '../components/TwoFactorStep';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  // Set once the password was right on an account with two-step verification: the page then asks for the code.
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState('');
+  const { login, verifyTwoFactor } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,11 +39,36 @@ export default function Login() {
       const redirectTo = safeRedirectPath(searchParams.get('redirect')); // same-site paths only (no open redirect)
       if (redirectTo) navigate(redirectTo);
       else redirectAfterLogin(result.role!, result.isAppTeam);
+    } else if (result.twoFactor) {
+      setCodeError('');
+      setChallenge(result.twoFactor.challengeToken);
     } else if (result.code === 'EMAIL_NOT_VERIFIED') {
       toast.error('Please verify your email before logging in. Check your inbox or request a new verification link.');
     } else {
       // Show the server's reason (wrong password, account locked, too many attempts…)
       toast.error(result.message || 'Invalid email or password.');
+    }
+  };
+
+  const handleCode = async (code: string) => {
+    if (!challenge) return;
+    setSubmitting(true);
+    setCodeError('');
+    const result = await verifyTwoFactor(challenge, code);
+    setSubmitting(false);
+    if (result.success) {
+      if (result.recoveryCodesRemaining !== undefined) {
+        toast.warning(`You signed in with a recovery code. ${result.recoveryCodesRemaining} left; make new ones in Settings → Password & Security.`);
+      }
+      const redirectTo = searchParams.get('redirect');
+      if (redirectTo) navigate(redirectTo);
+      else redirectAfterLogin(result.role!, result.isAppTeam);
+    } else if (result.twoFactor === undefined && result.code === 'CHALLENGE_EXPIRED') {
+      // The five minutes ran out: start again from the password.
+      setChallenge(null);
+      toast.error(result.message || 'Your sign-in session expired. Please sign in again.');
+    } else {
+      setCodeError((result.twoFactor === undefined && result.message) || 'That code did not work. Please try again.');
     }
   };
 
@@ -52,6 +81,9 @@ export default function Login() {
     if (result.success) {
       if (redirectTo) navigate(redirectTo);
       else redirectAfterLogin(result.role!, result.isAppTeam);
+    } else if (result.twoFactor) {
+      setCodeError('');
+      setChallenge(result.twoFactor.challengeToken);
     } else {
       toast.error(result.message || 'Login failed. Please make sure the server is running and the database is seeded.');
     }
@@ -93,6 +125,12 @@ export default function Login() {
             <p className="text-gray-500 mt-2 text-sm">Sign in to access your dashboard</p>
           </div>
 
+          {challenge ? (
+            <TwoFactorStep
+              submitting={submitting} error={codeError} onSubmit={handleCode}
+              onBack={() => { setChallenge(null); setCodeError(''); setPassword(''); }}
+            />
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
@@ -128,8 +166,9 @@ export default function Login() {
               Forgot Password?
             </Link>
           </form>
+          )}
 
-          {import.meta.env.DEV && <div className="mt-8">
+          {import.meta.env.DEV && !challenge && <div className="mt-8">
             <p className="text-center text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Demo Accounts</p>
             <div className="space-y-3">
               <div>
