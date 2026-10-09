@@ -1,12 +1,12 @@
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../lib/jwt');
 const { logSecurityEvent } = require('./logSecurityEvent');
-const { isBlocked } = require('../lib/accountState');
+const { isBlocked, tokenRoleIsCurrent } = require('../lib/accountState');
 
 module.exports = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'No token provided' });
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verifyAccessToken(token);
   } catch (err) {
     // Fire-and-forget — this runs on nearly every protected request, so it
     // must never add latency or be able to fail the response.
@@ -24,6 +24,12 @@ module.exports = async (req, res, next) => {
   // not when its 15-minute token happens to expire.
   if (await isBlocked(req.user.id)) {
     return res.status(401).json({ message: 'This account is no longer active.', code: 'ACCOUNT_DISABLED' });
+  }
+  // Privileges are re-checked against the account on every request, not taken from the token alone: a demoted admin or
+  // a counselor moved off the Application Team loses the old rights within seconds. The browser refreshes its token on
+  // a 401 and retries, and the new token carries the current role.
+  if (!(await tokenRoleIsCurrent(req.user))) {
+    return res.status(401).json({ message: 'Your access has changed. Please try again.', code: 'ROLE_CHANGED' });
   }
   next();
 };

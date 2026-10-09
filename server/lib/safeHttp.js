@@ -118,4 +118,29 @@ async function fetchPublicImage(url, { headers = {}, timeout = 8000, maxBytes = 
   return { buf, ct };
 }
 
-module.exports = { isPrivateAddress, assertFetchable, fetchPublicImage, guardedLookup };
+/**
+ * GET a web page (HTML/text) from an untrusted URL, e.g. a university's website when enriching it. Same guarantees as
+ * fetchPublicImage: public addresses only (checked on the connection itself and on every redirect), default ports,
+ * no credentials in the URL, a size cap. Resolves to the body as a string, or throws.
+ * @param {string} url
+ * @param {{ headers?: object, timeout?: number, maxBytes?: number }} [opts]
+ */
+async function fetchPublicPage(url, { headers = {}, timeout = 6000, maxBytes = 2 * 1024 * 1024 } = {}) {
+  const target = assertFetchable(url);
+  const resp = await axios.get(target.href, {
+    responseType: 'text',
+    timeout,
+    maxRedirects: 3,
+    maxContentLength: maxBytes,
+    maxBodyLength: maxBytes,
+    httpAgent: agents.http,
+    httpsAgent: agents.https,
+    beforeRedirect: (options) => {
+      assertFetchable(`${options.protocol}//${options.hostname}${options.port ? `:${options.port}` : ''}${options.path || '/'}`);
+    },
+    headers,
+  });
+  return typeof resp.data === 'string' ? resp.data : '';
+}
+
+module.exports = { isPrivateAddress, assertFetchable, fetchPublicImage, fetchPublicPage, guardedLookup };

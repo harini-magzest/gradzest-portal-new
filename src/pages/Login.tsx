@@ -57,7 +57,9 @@ export default function Login() {
     }
   };
 
-  const demoAccounts = {
+  // Demo logins for local development only. The data itself is behind import.meta.env.DEV (which the production build
+  // folds to false), not just the buttons, so these passwords can never ship in a production bundle.
+  const demoAccounts = import.meta.env.DEV ? {
     admin: [
       { email: 'admin@eduabroad.com', password: 'admin123', name: 'Admin', initials: 'AD' },
     ],
@@ -72,7 +74,7 @@ export default function Login() {
       { email: 'lan@example.com', password: 'student123', name: 'Nguyen Thi Lan', initials: 'NL' },
       { email: 'sara@example.com', password: 'student123', name: 'Sara Ahmed', initials: 'SA' },
     ],
-  };
+  } : { admin: [], counselors: [], students: [] };
 
   const anyLoading = submitting;
 

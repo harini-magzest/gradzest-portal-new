@@ -166,6 +166,10 @@ const universityData = [
 ];
 
 async function run() {
+  // Wipes every user and recreates demo accounts with passwords that are in this file. Never against production data.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production: it deletes all users and creates accounts with known passwords.');
+  }
   await User.deleteMany({});
   await University.deleteMany({});
   await ChatRoom.deleteMany({});

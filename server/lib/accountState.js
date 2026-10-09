@@ -25,22 +25,36 @@ function stateOf(u) {
   return 'ok';
 }
 
-async function accountState(userId) {
+// The account's state plus its current role, from one cached read. The role lets callers re-check privileges on every
+// request instead of trusting the role baked into a token for its 15-minute life.
+async function accountRecord(userId) {
   const key = String(userId);
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.state;
-  let state = 'ok';
+  if (hit && Date.now() - hit.at < TTL_MS) return hit;
+  let entry;
   try {
-    state = stateOf(await User.findById(key).select('active lockedUntil').lean());
+    const u = await User.findById(key).select('active lockedUntil role isAppTeam').lean();
+    entry = { state: stateOf(u), role: u?.role ?? null, isAppTeam: !!u?.isAppTeam, at: Date.now() };
   } catch {
-    return 'ok'; // a database hiccup must not log everyone out
+    return { state: 'ok', role: null, isAppTeam: null }; // a database hiccup must not log everyone out
   }
-  cache.set(key, { state, at: Date.now() });
-  return state;
+  cache.set(key, entry);
+  return entry;
+}
+
+async function accountState(userId) {
+  return (await accountRecord(userId)).state;
+}
+
+/** False when the role or App Team flag in a token no longer matches the account (someone was demoted or moved). */
+async function tokenRoleIsCurrent(token) {
+  const { role, isAppTeam } = await accountRecord(token.id);
+  if (role === null) return true; // unknown (lookup failed): the blocked check already ran; don't lock people out
+  return role === token.role && isAppTeam === !!token.isAppTeam;
 }
 
 const isBlocked = async (userId) => (await accountState(userId)) !== 'ok';
 const invalidate = (userId) => { cache.delete(String(userId)); };
 const isAdminLocked = (u) => !!(u?.lockedUntil && new Date(u.lockedUntil) > new Date() && new Date(u.lockedUntil).getFullYear() >= ADMIN_LOCK_FROM_YEAR);
 
-module.exports = { accountState, isBlocked, invalidate, isAdminLocked };
+module.exports = { accountState, isBlocked, invalidate, isAdminLocked, tokenRoleIsCurrent };

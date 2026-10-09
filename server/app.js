@@ -1,7 +1,6 @@
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -20,6 +19,15 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
   console.error('Missing required env vars: JWT_SECRET and MONGODB_URI must be set in server/.env');
   process.exit(1);
+}
+// A weak or placeholder signing secret would let anyone forge admin tokens: refuse it in production, warn elsewhere
+{
+  const problem = require('./lib/jwt').jwtSecretProblem(process.env.JWT_SECRET);
+  if (problem && process.env.NODE_ENV === 'production') {
+    console.error(`${problem}. Generate one with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`);
+    process.exit(1);
+  }
+  if (problem && process.env.NODE_ENV !== 'test') console.warn(`[security] ${problem} (allowed outside production only)`);
 }
 if (!process.env.SMTP_PASS) {
   console.warn('[warn] SMTP_PASS is not set — emails will not be delivered. Set SMTP_PASS in server/.env to enable email features.');
@@ -45,6 +53,12 @@ const httpServer = createServer(app);
 // Blocked IPs are rejected before anything else runs (CORS/helmet/rate-limiters
 // included) — this depends on trust proxy being set above for req.ip to be correct.
 app.use(ipBlockMiddleware);
+
+// TRACE/TRACK echo a request back (cross-site tracing) and CONNECT is for proxies: none is ever valid here
+app.use((req, res, next) => {
+  if (!['TRACE', 'TRACK', 'CONNECT'].includes(req.method)) return next();
+  res.set('Allow', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS').status(405).json({ message: 'Method not allowed' });
+});
 markActive('ip_block', 'server/middleware/ipBlock.js mounted before CORS/helmet');
 refreshBlockedIps().catch(() => {});
 if (process.env.NODE_ENV !== 'test') ensureClamd().catch((err) => console.error('[ensureClamd] Failed:', err.message));
@@ -209,7 +223,7 @@ app.use('/uploads', async (req, res, next) => {
   if (!token) return res.status(401).json({ message: 'Authentication required' });
   let decoded;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
+    decoded = require('./lib/jwt').verifyAccessToken(token);
   } catch {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
@@ -370,7 +384,6 @@ app.get('/api/health', (req, res) => {
     status: ok ? 'ok' : 'degraded',
     db: dbStatus,
     uptime,
-    env: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
   });
 });
@@ -380,7 +393,7 @@ io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('Unauthorized'));
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = require('./lib/jwt').verifyAccessToken(token);
     if (await require('./lib/accountState').isBlocked(decoded.id)) return next(new Error('Unauthorized'));
     socket.data.userId = String(decoded.id);
     socket.data.role = decoded.role;
@@ -517,6 +530,10 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// Unknown API paths (or a known path with a method it doesn't support) get a plain JSON 404, not Express's HTML page
+// naming the method and path
+app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
 
 // Global error handler — catches anything thrown in routes
 app.use((err, req, res, next) => {

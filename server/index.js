@@ -17,7 +17,14 @@ async function autoSeedIfEmpty() {
 
   const count = await User.countDocuments();
   if (count === 0) {
-    console.log('Database is empty — running full seed...');
+    // The full seed creates demo accounts whose passwords are in the source code (admin@eduabroad.com / admin123 …).
+    // Only an explicit development or test run may do that; a fresh production database must never start with a
+    // publicly known admin login. Create the first real admin with: node scripts/createAdmin.js
+    if (!['development', 'test'].includes(process.env.NODE_ENV)) {
+      console.warn('[seed] No users yet. Demo accounts are not created outside development; run `node scripts/createAdmin.js` to create the first admin.');
+      return;
+    }
+    console.log('Database is empty — running full seed (development only)...');
     await require('./seed').run();
     console.log('Auto-seed complete.');
   }
