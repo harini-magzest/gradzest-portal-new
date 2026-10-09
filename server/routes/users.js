@@ -7,13 +7,16 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const Profile = require('../models/Profile');
 const authMiddleware = require('../middleware/auth');
+const attachUserEmail = require('../middleware/attachUserEmail');
+const { logSecurityEvent } = require('../middleware/logSecurityEvent');
+const twoFactor = require('../lib/twoFactor');
 const { PERMISSIONS, ALL_KEYS, loadAccess } = require('../lib/access');
 
 // Settings → Users and Controls: staff users and permission profiles
 const router = express.Router();
 
 const validId = (id) => id && mongoose.isValidObjectId(id);
-const STAFF_FIELDS = 'name firstName lastName email role isAppTeam title phone mobile website fax dateOfBirth address hierarchyRole profileId active createdAt';
+const STAFF_FIELDS = 'name firstName lastName email role isAppTeam title phone mobile website fax dateOfBirth address hierarchyRole profileId active createdAt twoFactor.enabled';
 
 const CONTACT_FIELDS = ['title', 'phone', 'mobile', 'website', 'fax', 'dateOfBirth'];
 const ADDRESS_FIELDS = ['street', 'city', 'state', 'country', 'postalCode'];
@@ -233,6 +236,35 @@ router.put('/:id', async (req, res) => {
     res.json(await User.findById(target._id).select(STAFF_FIELDS).lean());
   } catch (err) {
     sendServerError(res, err, 'Server error');
+  }
+});
+
+// A staff member who has lost both their authenticator and their recovery codes: an administrator turns two-factor off for
+// them so they can sign in with their password and set it up again. Their sessions are ended, and it is logged as a
+// high-severity security event, because this is exactly what an attacker would want an administrator to do.
+router.post('/:id/two-factor/reset', attachUserEmail, async (req, res) => {
+  if (!validId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+  if (req.params.id === String(req.user.id)) {
+    return res.status(400).json({ message: 'Manage your own two-factor sign-in under Password & Security.' });
+  }
+  try {
+    const target = await User.findOne({ _id: req.params.id, role: { $in: ['admin', 'counselor'] } }).select('name email role twoFactor.enabled');
+    if (!target) return res.status(404).json({ message: 'User not found' });
+    if (!target.twoFactor?.enabled) return res.status(400).json({ message: 'Two-factor sign-in is not turned on for this user.' });
+    await twoFactor.turnOff(target._id);
+    await User.updateOne({ _id: target._id }, { $set: { sessions: [] } });
+    require('../lib/accountState').invalidate(target._id);
+    req.app.get('io')?.in(`user:${target._id}`).disconnectSockets(true);
+    logSecurityEvent('two_factor_change', {
+      severity: 'high', userId: target._id, email: target.email || '', role: target.role,
+      ip: req.ip, userAgent: req.headers['user-agent'] || '',
+      message: `Two-factor sign-in reset for ${target.email} by ${req.user.email || 'an administrator'}`,
+      meta: { action: 'reset', by: String(req.user.id) },
+    }).catch(() => {});
+    res.json({ message: `Two-factor sign-in turned off for ${target.name}. They can sign in with their password and set it up again.` });
+  } catch (err) {
+    logError('users', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

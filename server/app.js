@@ -199,6 +199,8 @@ app.use(wafBodyCheck);
 app.use(cookieParser());
 if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/login', loginIpLimiter, loginFailLimiter);
+  // The second sign-in step takes the same failure budget: a wrong code counts, a right one does not.
+  app.use('/api/auth/2fa/login', loginIpLimiter, loginFailLimiter);
 }
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
@@ -325,6 +327,7 @@ initActivityLogger(io);
 initSecurityLogger(io);
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/account', require('./routes/account'));
 app.use('/api/countries', require('./routes/countries'));
 app.use('/api/universities', require('./routes/universities'));
 app.use('/api/students', require('./routes/students'));
