@@ -42,8 +42,13 @@ Copy `dist/` to the web root, use `deploy/nginx.conf` as the server block, and g
 
 ## 3. The API (`server/`)
 Run it with `npm start` (sets `NODE_ENV=production`) behind HTTPS. Required settings (see `server/.env.example`): `MONGODB_URI`,
-`JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `FRONTEND_URL` (exactly the website origin: CORS and cookies depend on it) and `TRUST_PROXY`
-for your proxy setup. Keep these in the host's secret store; the `.env` file is git-ignored and must never be in an image or repo.
+`JWT_SECRET`, `FILE_URL_SECRET`, `DATA_ENCRYPTION_KEY`, `FRONTEND_URL` (exactly the website origin: CORS and cookies depend on it)
+and `TRUST_PROXY` for your proxy setup. Keep these in the host's secret store; the `.env` file is git-ignored and must never be in an
+image or repo.
+
+Before the first production deploy, and whenever a server is rebuilt, work through
+[SECURITY_DEPLOY_CHECKLIST.md](SECURITY_DEPLOY_CHECKLIST.md): secrets, HTTPS, MongoDB Atlas, firewall, ClamAV, monitors and the
+first admin account, each with a command that verifies it.
 
 ## 4. Verify a deployment
 ```bash
