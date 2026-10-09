@@ -692,24 +692,11 @@ async function fetchEnrichmentData(name) {
   // Step 3: Wikidata structured data (country, city, founded, enrollment, website, logo)
   const wikidata = await fetchWikidata(wikiTitle);
 
-  // Step 4: Hipolabs — good source for website/domain
-  const hipoRes = await axios
-    .get("http://universities.hipolabs.com/search", {
-      params: { name },
-      timeout: 8000,
-    })
-    .catch(() => null);
-  const hipoList = hipoRes?.data || [];
-  const hipo =
-    hipoList.find((u) => u.name.toLowerCase() === name.toLowerCase()) ||
-    hipoList.find((u) =>
-      u.name.toLowerCase().includes(name.toLowerCase().split(" ")[0]),
-    ) ||
-    hipoList[0] ||
-    null;
+  // (Step 4 used to be Hipolabs. It only answers over plain HTTP, and enrichment results are saved without review,
+  // so anyone on the network path could have planted a website or name. Wikidata and Wikipedia cover the same fields.)
 
-  // Step 5: Country — Wikidata is most reliable, then Hipolabs, then text search
-  let country = wikidata.country || hipo?.country || "";
+  // Step 5: Country — Wikidata is most reliable, then text search
+  let country = wikidata.country || "";
   if (!country) {
     const tl = fullText.toLowerCase();
     for (const c of KNOWN_COUNTRIES) {
@@ -772,10 +759,9 @@ async function fetchEnrichmentData(name) {
   }
 
   // Step 9: Website & domain
-  let website =
-    wikidata.website || hipo?.web_pages?.[0]?.replace(/\/$/, "") || "";
-  let domain = hipo?.domains?.[0] || "";
-  if (!domain && website) {
+  let website = wikidata.website || "";
+  let domain = "";
+  if (website) {
     try {
       domain = new URL(website).hostname.replace("www.", "");
     } catch {}
@@ -921,7 +907,7 @@ async function fetchEnrichmentData(name) {
   }
 
   const data = {
-    name: hipo?.name || name,
+    name,
     country,
     city,
     type,

@@ -54,7 +54,10 @@ describe('POST /api/students/bulk', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ requested: 3, updated: 2, unchanged: 1, skipped: [] });
     expect((await User.findById(a.id)).leadStage).toBe('interested');
-    expect(await StaffActivity.countDocuments({ title: 'Lead Stage updated (bulk)', studentId: a.id })).toBe(1);
+    // The activity row is written after the response (fire-and-forget), so wait for it rather than racing it
+    await vi.waitFor(async () => {
+      expect(await StaffActivity.countDocuments({ title: 'Lead Stage updated (bulk)', studentId: a.id })).toBe(1);
+    });
   });
 
   it('tags students without duplicating a tag they already have', async () => {

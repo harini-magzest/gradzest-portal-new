@@ -3,7 +3,8 @@ const { app } = require('../app');
 const User = require('../models/User');
 const SecurityEvent = require('../models/SecurityEvent');
 const BlockedIp = require('../models/BlockedIp');
-const { encrypt, decrypt } = require('../lib/fieldCrypto');
+const crypto = require('crypto');
+const { encrypt, decrypt, decryptStrict, deriveEncKey, PREFIX } = require('../lib/fieldCrypto');
 
 let n = 0;
 async function loginAdmin(domain) {
@@ -176,5 +177,23 @@ describe('migration script: values written under a legacy key', () => {
     const out = run({ notes: [{ text: 'one' }, { text: encrypt('two') }] }, 'notes.text');
     expect(Object.keys(out)).toEqual(['notes.0.text']);
     expect(decrypt(out['notes.0.text'])).toBe('one');
+  });
+});
+
+describe('GCM authentication tag length', () => {
+  it('refuses a value whose tag is cut short, even when the short tag is correct', () => {
+    // A value an attacker could build without the key by guessing 4 tag bytes; a 16-byte tag cannot be guessed
+    const key = deriveEncKey('ab'.repeat(32));
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const ct = Buffer.concat([cipher.update('admin', 'utf8'), cipher.final()]);
+    const fullTag = cipher.getAuthTag();
+    const full = PREFIX + Buffer.concat([iv, fullTag, ct]).toString('base64url');
+    expect(decryptStrict(full, key)).toBe('admin');
+    // Same layout with a 4-byte tag: no ciphertext follows, so a correct 4-byte tag for empty plaintext is all it takes
+    const emptyCipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    emptyCipher.final();
+    const shortTag = emptyCipher.getAuthTag().subarray(0, 4);
+    expect(decryptStrict(PREFIX + Buffer.concat([iv, shortTag]).toString('base64url'), key)).toBeNull();
   });
 });

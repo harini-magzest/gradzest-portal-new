@@ -46,7 +46,9 @@ const deriveEncKey = (masterHex) => crypto.createHmac('sha256', Buffer.from(mast
 function decryptStrict(value, encKey) {
   try {
     const buf = Buffer.from(value.slice(PREFIX.length), 'base64url');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', encKey || getKeys().enc, buf.subarray(0, 12));
+    // authTagLength pins the tag to the full 16 bytes: without it GCM accepts a truncated tag (down to 4 bytes),
+    // which makes forging a value that "authenticates" a matter of guessing a few bytes
+    const decipher = crypto.createDecipheriv('aes-256-gcm', encKey || getKeys().enc, buf.subarray(0, 12), { authTagLength: 16 });
     decipher.setAuthTag(buf.subarray(12, 28));
     return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
   } catch {

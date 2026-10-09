@@ -7,6 +7,7 @@
 # (The API in server/ is deployed separately; this image is the frontend only.)
 
 # ---- build ---------------------------------------------------------------------------------------------------------
+# Keep the major in step with .nvmrc, which CI uses
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
