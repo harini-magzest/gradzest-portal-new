@@ -1,5 +1,6 @@
-// One-off migration: encrypts SOC fields on rows written before field-level encryption was enabled.
-// Dry run by default (counts only). Run with --apply to write. Safe to re-run: already-encrypted values are skipped.
+// One-off migration: encrypts SOC fields and User PII on rows written before field-level
+// encryption was enabled on them. Dry run by default (counts only). Run with --apply to write.
+// Safe to re-run: already-encrypted values are skipped.
 //
 //   node scripts/encryptSocData.js          # report
 //   node scripts/encryptSocData.js --apply  # encrypt in place
@@ -11,7 +12,7 @@ const crypto = require('crypto');
 const { encrypt, decryptStrict, deriveEncKey, isEncrypted } = require('../lib/fieldCrypto');
 
 // Which fields each model encrypts is declared on the model itself (lib/encryptedFields.js).
-const MODELS = ['SecurityEvent', 'RequestLog', 'ActivityLog', 'SecurityIncident', 'BlockedIp', 'PiiAccessLog', 'AnalystAction', 'UiActivity', 'UploadRecord'];
+const MODELS = ['SecurityEvent', 'RequestLog', 'ActivityLog', 'SecurityIncident', 'BlockedIp', 'PiiAccessLog', 'AnalystAction', 'UiActivity', 'UploadRecord', 'User'];
 
 // Keys that values may have been written with before DATA_ENCRYPTION_KEY was loaded: the development fallback derived
 // from JWT_SECRET (what a dev server without the key used). Values under these are re-encrypted from their plaintext
