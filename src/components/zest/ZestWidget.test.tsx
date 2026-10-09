@@ -80,9 +80,9 @@ describe('ZestWidget: who sees what', () => {
     },
   );
 
-  it('gives an admin Chat, Knowledge, Insights and Alerts tabs inside the panel', () => {
+  it('gives an admin Chat, Knowledge, Insights, Alerts and Log tabs inside the panel', () => {
     renderAt('/admin', admin);
-    expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Chat', 'Knowledge', 'Insights', 'Alerts']);
+    expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Chat', 'Knowledge', 'Insights', 'Alerts', 'Log']);
   });
 
   it('does not push suggested questions on anyone', () => {
@@ -100,8 +100,8 @@ describe('ZestWidget: asking', () => {
     renderAt('/', counselor);
     ask('Who is waiting for my reply in chat?');
     expect(await screen.findByText('Here is your draft')).toBeTruthy();
-    // text pieces, and (new) a callback for the "Checking your students…" notes
-    expect(zest.askStream).toHaveBeenCalledWith('Who is waiting for my reply in chat?', [], expect.any(Function), expect.any(Function));
+    // text pieces, a callback for the "Checking your students…" notes, and whether this is a signed-out guest
+    expect(zest.askStream).toHaveBeenCalledWith('Who is waiting for my reply in chat?', [], expect.any(Function), expect.any(Function), false);
     expect((screen.getByPlaceholderText('Ask Zest a question...') as HTMLInputElement).value).toBe('');
   });
 
