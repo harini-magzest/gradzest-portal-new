@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -23,6 +22,7 @@ import { useToast } from '../../context/ToastContext';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
 import { openExternal } from '../../lib/safeUrl';
+import SignedFileLink from '../../components/SignedFileLink';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COUNTRIES = ['UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'USA', 'Ireland', 'New Zealand'];
@@ -451,7 +451,7 @@ function StudentDetailModal({ student, onClose, onChat, onNewApplication, onLead
                       <div key={doc._id || i} className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-center justify-between border border-gray-100">
                         <div><p className="text-xs font-medium text-gray-900">{doc.name}</p><p className="text-xs text-gray-400">{doc.type}</p></div>
                         <div className="flex items-center gap-2">
-                          {doc.url && <a href={uploadUrl(doc.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-200 font-medium"><ExternalLink className="w-3 h-3" />Open</a>}
+                          {doc.url && <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-200 font-medium"><ExternalLink className="w-3 h-3" />Open</SignedFileLink>}
                           <StatusBadge status={doc.status} />
                         </div>
                       </div>

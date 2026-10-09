@@ -15,6 +15,7 @@
 // server genuinely can defend against.
 
 const { scoreRequest } = require('../lib/skyload/botDetection');
+const { redactUrl } = require('../lib/redactUrl');
 const { tryAcquire, release } = require('../lib/skyload/connectionThrottle');
 const { bump } = require('../lib/skyload/riskRegistry');
 const { logSecurityEvent } = require('./logSecurityEvent');
@@ -81,7 +82,7 @@ function skyload(req, res, next) {
       severity: score >= 6 ? 'high' : 'medium',
       ip: req.ip,
       userAgent: req.headers['user-agent'] || '',
-      message: `Skyload flagged ${req.method} ${req.originalUrl} (score ${score}): ${reasons.join(', ')}`,
+      message: `Skyload flagged ${req.method} ${redactUrl(req.originalUrl)} (score ${score}): ${reasons.join(', ')}`,
       meta: { score, reasons },
     }).catch(() => {});
   }

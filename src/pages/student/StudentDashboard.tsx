@@ -5,7 +5,6 @@ import NextStepCard from '../../components/dashboards/NextStepCard';
 import DataAccessLog from '../../components/dashboards/DataAccessLog';
 import ReferralCard from '../../components/dashboards/ReferralCard';
 import ParentAccessCard from '../../components/dashboards/ParentAccessCard';
-import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Clock, CheckCircle, Bell, ArrowRight, Star, MapPin, Upload, X, AlertCircle, ExternalLink, CalendarDays, GraduationCap, Phone, Video, PhoneCall } from 'lucide-react';
@@ -14,6 +13,7 @@ import { api } from '../../api';
 import { Student } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import OnboardingChecklist from '../../components/OnboardingChecklist';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const DOC_TYPES = ['Passport', 'Transcript', 'Diploma/Degree Certificate', 'English Test Certificate', 'SOP', 'LOR', 'CV/Resume', 'Bank Statement', 'Other'];
 
@@ -387,10 +387,10 @@ export default function StudentDashboard() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {doc.url && (
-                    <a href={uploadUrl(doc.url)} target="_blank" rel="noopener noreferrer"
+                    <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer"
                       className="p-1 text-gray-400 hover:text-blue-600 transition-colors" title="Open document">
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </SignedFileLink>
                   )}
                   <StatusBadge status={doc.status} />
                 </div>

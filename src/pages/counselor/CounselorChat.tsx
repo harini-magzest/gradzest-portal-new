@@ -11,6 +11,7 @@ import { useMarkRoomRead, unreadCount, unreadInRooms } from '../../hooks/useMark
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 import DraftWithZest from '../../components/zest/DraftWithZest';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -120,10 +121,10 @@ function FileMessage({ msg, isMe, senderRole }: { msg: any; isMe: boolean; sende
             </div>
             {msg.fileUrl && (
               <div className="mt-2.5">
-                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
+                <SignedFileLink href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
                   className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isMe ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
                   <Download className="w-3.5 h-3.5" /> Download
-                </a>
+                </SignedFileLink>
               </div>
             )}
           </div>

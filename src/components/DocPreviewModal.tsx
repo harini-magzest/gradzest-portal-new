@@ -1,4 +1,5 @@
 import { X, Download, FileText, AlertCircle } from 'lucide-react';
+import { useSignedUrl } from '../hooks/useSignedUrl';
 
 interface DocPreviewModalProps {
   url: string;
@@ -14,8 +15,11 @@ function getFileType(url: string): 'pdf' | 'image' | 'office' | 'unknown' {
   return 'unknown';
 }
 
+// `url` is the stored address (/uploads/...); the modal asks for its own short-lived signed link to show the file
 export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewModalProps) {
   const type = getFileType(url);
+  const { src, failed } = useSignedUrl(url);
+  // Deliberately the bare stored address, never the signed link: that would hand Google a working link to the file
   const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 
   return (
@@ -36,7 +40,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <a
-              href={url}
+              href={src || undefined}
               download
               target="_blank"
               rel="noreferrer"
@@ -56,17 +60,26 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
 
         {/* Preview body */}
         <div className="flex-1 overflow-hidden rounded-b-2xl bg-gray-50">
-          {type === 'pdf' && (
+          {failed && (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-gray-500 p-6 text-center">
+              <AlertCircle className="w-10 h-10 text-red-500" />
+              <p className="text-sm">This file could not be opened. It may have been removed, or you may no longer have access to it.</p>
+            </div>
+          )}
+          {!failed && !src && (type === 'pdf' || type === 'image') && (
+            <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">Loading…</div>
+          )}
+          {type === 'pdf' && src && (
             <iframe
-              src={url}
+              src={src || undefined}
               title="Document Preview"
               className="w-full h-full border-0"
             />
           )}
-          {type === 'image' && (
+          {type === 'image' && src && (
             <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
               <img
-                src={url}
+                src={src || undefined}
                 alt={fileName || 'Preview'}
                 className="max-w-full max-h-full object-contain rounded-lg shadow"
               />
@@ -84,7 +97,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
               <AlertCircle className="w-12 h-12 text-yellow-500" />
               <p className="text-base font-medium">Preview not available for this file type.</p>
               <a
-                href={url}
+                href={src || undefined}
                 download
                 target="_blank"
                 rel="noreferrer"

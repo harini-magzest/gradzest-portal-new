@@ -20,14 +20,23 @@ if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
   console.error('Missing required env vars: JWT_SECRET and MONGODB_URI must be set in server/.env');
   process.exit(1);
 }
-// A weak or placeholder signing secret would let anyone forge admin tokens: refuse it in production, warn elsewhere
+// A weak or placeholder signing secret would let anyone forge admin tokens: refuse it in production, warn elsewhere.
+// FILE_URL_SECRET signs the short-lived /uploads links (lib/fileLinks.js). Outside production a missing one is derived
+// from JWT_SECRET; production needs its own, so a leak of one secret does not give away the other.
 {
-  const problem = require('./lib/jwt').jwtSecretProblem(process.env.JWT_SECRET);
-  if (problem && process.env.NODE_ENV === 'production') {
-    console.error(`${problem}. Generate one with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`);
+  const { secretProblem } = require('./lib/jwt');
+  const problems = [secretProblem(process.env.JWT_SECRET, 'JWT_SECRET')];
+  if (process.env.FILE_URL_SECRET || process.env.NODE_ENV === 'production') {
+    problems.push(secretProblem(process.env.FILE_URL_SECRET, 'FILE_URL_SECRET'));
+    if (process.env.FILE_URL_SECRET === process.env.JWT_SECRET) problems.push('FILE_URL_SECRET must differ from JWT_SECRET');
+  }
+  const found = problems.filter(Boolean);
+  if (found.length && process.env.NODE_ENV === 'production') {
+    for (const problem of found) console.error(problem);
+    console.error(`Generate a secret with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`);
     process.exit(1);
   }
-  if (problem && process.env.NODE_ENV !== 'test') console.warn(`[security] ${problem} (allowed outside production only)`);
+  if (process.env.NODE_ENV !== 'test') for (const problem of found) console.warn(`[security] ${problem} (allowed outside production only)`);
 }
 if (!process.env.SMTP_PASS) {
   console.warn('[warn] SMTP_PASS is not set — emails will not be delivered. Set SMTP_PASS in server/.env to enable email features.');
@@ -217,21 +226,35 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
 // or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.
+// The browser opens a file with a short-lived signed link (POST /api/files/:name/link, lib/fileLinks.js). The older
+// way, the access token in ?token=, put a token for the whole API into URLs; it only works while
+// ALLOW_LEGACY_UPLOAD_TOKENS allows it (off in production unless turned on for the switch-over).
 app.use('/uploads', async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1]
-    || req.query.token; // allow ?token= for direct <img src> links
-  if (!token) return res.status(401).json({ message: 'Authentication required' });
-  let decoded;
+  const { isBlocked, tokenRevoked, currentAccess } = require('./lib/accountState');
+  const { checkSignedUpload, legacyUploadTokensAllowed } = require('./lib/fileLinks');
   try {
-    decoded = require('./lib/jwt').verifyAccessToken(token);
-  } catch {
-    return res.status(401).json({ message: 'Invalid or expired token' });
-  }
-  try {
-    const { isBlocked, tokenRevoked } = require('./lib/accountState');
-    if (await isBlocked(decoded.id) || await tokenRevoked(decoded)) return res.status(401).json({ message: 'This account is no longer active.' });
     const name = decodeURIComponent(req.path).replace(/^\/+/, '');
-    if (!(await require('./lib/fileAccess').canAccessUpload(decoded, name))) return res.status(404).json({ message: 'File not found' });
+    let user;
+    if (req.query.sig !== undefined) {
+      const link = checkSignedUpload(name, req.query);
+      if (link.error === 'expired') return res.status(403).json({ message: 'This link has expired. Open the file again from the app.' });
+      if (link.error) return res.status(403).json({ message: 'Invalid link' });
+      // The account's current role, not one captured when the link was made; and "sign out everywhere" ends links too
+      user = await currentAccess(link.userId);
+      if (!user || await tokenRevoked({ id: link.userId, iatMs: link.issuedAt })) {
+        return res.status(401).json({ message: 'This account is no longer active.' });
+      }
+    } else {
+      const token = req.headers.authorization?.split(' ')[1] || (legacyUploadTokensAllowed() ? req.query.token : undefined);
+      if (!token) return res.status(401).json({ message: 'Authentication required' });
+      try {
+        user = require('./lib/jwt').verifyAccessToken(token);
+      } catch {
+        return res.status(401).json({ message: 'Invalid or expired token' });
+      }
+      if (await isBlocked(user.id) || await tokenRevoked(user)) return res.status(401).json({ message: 'This account is no longer active.' });
+    }
+    if (!(await require('./lib/fileAccess').canAccessUpload(user, name))) return res.status(404).json({ message: 'File not found' });
     next();
   } catch {
     res.status(404).json({ message: 'File not found' });
@@ -368,6 +391,7 @@ app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
  app.use('/api/dashboards',    require('./routes/dashboards'));
 app.use('/api/forms',         require('./routes/forms'));
+app.use('/api/files',         require('./routes/files'));
 
 // Health check — no auth required, used by hosting platforms and monitoring
 const mongoose = require('mongoose');

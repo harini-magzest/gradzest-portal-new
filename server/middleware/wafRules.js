@@ -11,6 +11,7 @@
 // legitimate user content (chat messages, notes, form text).
 
 const { logSecurityEvent } = require('./logSecurityEvent');
+const { redactUrl } = require('../lib/redactUrl');
 const { bump: bumpSkyloadRisk } = require('../lib/skyload/riskRegistry');
 
 const SIGNATURES = [
@@ -102,7 +103,7 @@ function makeWafMiddleware(getTexts) {
             severity: sig.severity,
             ip: req.ip,
             userAgent: req.headers['user-agent'] || '',
-            message: `Blocked ${sig.category} pattern on ${req.method} ${req.originalUrl}`,
+            message: `Blocked ${sig.category} pattern on ${req.method} ${redactUrl(req.originalUrl)}`,
             meta: { category: sig.category },
           }).catch(() => {});
           // Feed Skyload's reputation registry — this IP now gets stricter

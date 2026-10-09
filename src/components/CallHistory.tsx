@@ -4,7 +4,8 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { uploadUrl } from '../utils/uploadUrl';
+import { useSignedUrl } from '../hooks/useSignedUrl';
+import SignedFileLink from './SignedFileLink';
 import { CallSummaryBox, callNeedsSummary, canSummarizeCall } from './CallSummary';
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -22,7 +23,13 @@ const fmtWhen = (d: string) => {
   if (diff === 1) return `Yesterday, ${time}`;
   return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${time}`;
 };
-const playable = (url: string) => (url.startsWith('/uploads/') ? uploadUrl(url) : url);
+// Mounted when Play is pressed, so the recording's signed link (good for five minutes) is fetched right then
+function RecordingPlayer({ url, onEnded }: { url: string; onEnded: () => void }) {
+  const { src, failed } = useSignedUrl(url);
+  if (failed) return <p className="text-xs text-red-600 mt-3">This recording could not be loaded.</p>;
+  if (!src) return <p className="text-xs text-gray-400 mt-3">Loading recording…</p>;
+  return <audio controls autoPlay src={src} className="w-full mt-3 h-9" onEnded={onEnded} />;
+}
 
 /** Past calls (in-app Gradzest calls + Tata Smartflo phone calls) with recordings. */
 export default function CallHistory() {
@@ -124,7 +131,7 @@ export default function CallHistory() {
             const incoming = c.calleeId === me;
             const missed = c.status !== 'answered';
             const Icon = missed ? PhoneMissed : outgoing ? PhoneOutgoing : PhoneIncoming;
-            const src = c.recordingUrl ? playable(c.recordingUrl) : '';
+            const src = c.recordingUrl || '';
             return (
               <li key={c.id} className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-3">
@@ -150,15 +157,15 @@ export default function CallHistory() {
                         className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold ${playing === c.id ? 'bg-gray-100 text-gray-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
                         {playing === c.id ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}Recording
                       </button>
-                      <a href={src} download target="_blank" rel="noopener noreferrer" aria-label="Download recording"
+                      <SignedFileLink href={src} download target="_blank" rel="noopener noreferrer" aria-label="Download recording"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
                         <Download className="w-3.5 h-3.5" />
-                      </a>
+                      </SignedFileLink>
                     </div>
                   ) : !missed && <span className="text-[11px] text-gray-400">No recording</span>}
                 </div>
                 {playing === c.id && src && (
-                  <audio controls autoPlay src={src} className="w-full mt-3 h-9" onEnded={() => setPlaying(null)} />
+                  <RecordingPlayer url={src} onEnded={() => setPlaying(null)} />
                 )}
                 <CallSummaryBox call={c} me={me} role={user?.role} onSaved={replaceCall} />
               </li>

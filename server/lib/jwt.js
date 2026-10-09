@@ -16,12 +16,13 @@ const signAccessToken = (payload, options = {}) =>
 const verifyAccessToken = (token) =>
   jwt.verify(token, process.env.JWT_SECRET, { algorithms: [ALGORITHM] });
 
-/** Why a JWT secret is unsafe to use, or null when it is fine. */
-function jwtSecretProblem(secret) {
-  if (!secret) return 'JWT_SECRET is not set';
-  if (secret.length < MIN_SECRET_LENGTH) return `JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters`;
-  if (/[<>]|generate|change.?me|your[_-]?secret|^secret$|^(.)\1+$/i.test(secret)) return 'JWT_SECRET looks like a placeholder';
+/** Why a signing secret (the value of the environment variable `name`) is unsafe to use, or null when it is fine. */
+function secretProblem(secret, name) {
+  if (!secret) return `${name} is not set`;
+  if (secret.length < MIN_SECRET_LENGTH) return `${name} is shorter than ${MIN_SECRET_LENGTH} characters`;
+  if (/[<>]|generate|change.?me|your[_-]?secret|^secret$|^(.)\1+$/i.test(secret)) return `${name} looks like a placeholder`;
   return null;
 }
+const jwtSecretProblem = (secret) => secretProblem(secret, 'JWT_SECRET');
 
-module.exports = { signAccessToken, verifyAccessToken, jwtSecretProblem, ALGORITHM };
+module.exports = { signAccessToken, verifyAccessToken, secretProblem, jwtSecretProblem, ALGORITHM };

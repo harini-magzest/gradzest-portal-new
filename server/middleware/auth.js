@@ -1,5 +1,6 @@
 const { verifyAccessToken } = require('../lib/jwt');
 const { logSecurityEvent } = require('./logSecurityEvent');
+const { redactUrl } = require('../lib/redactUrl');
 const { isBlocked, tokenRoleIsCurrent, tokenRevoked } = require('../lib/accountState');
 
 module.exports = async (req, res, next) => {
@@ -14,8 +15,8 @@ module.exports = async (req, res, next) => {
       severity: 'low',
       ip: req.ip,
       userAgent: req.headers['user-agent'] || '',
-      message: `Rejected token on ${req.method} ${req.originalUrl}`,
-      meta: { path: req.originalUrl },
+      message: `Rejected token on ${req.method} ${redactUrl(req.originalUrl)}`,
+      meta: { path: redactUrl(req.originalUrl) },
     }).catch(() => {});
     return res.status(401).json({ message: 'Invalid or expired token' });
   }

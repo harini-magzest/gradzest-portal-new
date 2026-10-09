@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Routes, Route, Link, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -15,6 +14,7 @@ import StudentEditForm, { StudentProfileFields } from '../../components/StudentE
 import { useToast } from '../../context/ToastContext';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const APP_STATUSES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400' },
@@ -549,14 +549,14 @@ function StudentDetail() {
             <StatusBadge status={doc.status} />
             {doc.url ? (
               <>
-                <button type="button" onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                <button type="button" onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
                   className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium transition-colors">
                   <Eye className="w-3 h-3" /> Preview
                 </button>
-                <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition-colors">
                   <Download className="w-3 h-3" /> Download
-                </a>
+                </SignedFileLink>
               </>
             ) : <span className="text-xs text-gray-300 italic">No file</span>}
           </div>

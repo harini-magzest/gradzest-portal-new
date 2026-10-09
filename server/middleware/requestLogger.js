@@ -1,5 +1,6 @@
 const RequestLog = require('../models/RequestLog');
 const { checkSuspiciousIpRule } = require('../lib/detectIncidents');
+const { redactUrl } = require('../lib/redactUrl');
 
 // Response codes worth an immediate live ping to admins, on top of the
 // persisted row every request gets. Everything else is Mongo-only and
@@ -15,7 +16,7 @@ module.exports = function requestLogger(req, res, next) {
 
     RequestLog.create({
       method: req.method,
-      path: req.originalUrl,
+      path: redactUrl(req.originalUrl), // never store a token or link signature sent in the query string
       status: res.statusCode,
       latencyMs: Math.round(latencyMs),
       ip: req.ip,
@@ -25,7 +26,7 @@ module.exports = function requestLogger(req, res, next) {
     }).then((entry) => {
       if (ALERTABLE_STATUSES.includes(res.statusCode)) {
         req.app.get('io')?.to('admin-room').emit('security_request_alert', {
-          method: req.method, path: req.originalUrl, status: res.statusCode, ip: req.ip, at: new Date(),
+          method: req.method, path: redactUrl(req.originalUrl), status: res.statusCode, ip: req.ip, at: new Date(),
         });
         checkSuspiciousIpRule(entry, req.app.get('io')).catch((err) => console.error('[detectIncidents] Failed:', err.message));
       }
