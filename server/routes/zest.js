@@ -20,6 +20,7 @@ const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
 const { buildInsights, documentUsage } = require('../lib/zestInsights');
 const { replaceDocument } = require('../lib/zestKnowledge');
+const { createWebLead, readContact, text: cleanText, list } = require('../lib/createWebLead');
 
 const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
 const UNAVAILABLE = "Zest's AI is unavailable right now. Please try again later.";
@@ -219,6 +220,28 @@ router.post('/ask-stream', authMiddleware, askLimiter, streamAnswer);
 // The same stream for signed-out visitors on the public site (landing page etc.): no auth, IP-limited,
 // knowledge base + catalogue search only. No file upload or feedback — those stay signed-in.
 router.post('/public/ask-stream', guestLimiter, streamAnswer);
+
+// The "Talk to a counselor" form inside the guest chat. Zest itself never saves anything (its tools are read-only),
+// so the widget collects the details in a real form and they go through the same lead path as a marketing form:
+// saved once (a repeat email/mobile is never stored twice), counselor assigned, admins alerted. `wantsHuman` makes
+// the alert urgent so someone calls back. Same reply either way, so the chat can't reveal who is already a student.
+const ZEST_LEAD_THANKS = 'Thank you! A Gradzest counselor will contact you shortly.';
+router.post('/public/lead', async (req, res) => {
+  const b = req.body || {};
+  if (cleanText(b.website)) return res.status(201).json({ message: ZEST_LEAD_THANKS }); // bot trap, as on the forms
+  const contact = readContact(b);
+  if (contact.error) return res.status(400).json({ message: contact.error });
+  try {
+    await createWebLead(req.app, {
+      ...contact, source: 'zest_chat', wantsHuman: !!b.wantsHuman,
+      preferredCountries: list(b.preferredCountries),
+    });
+    res.status(201).json({ message: ZEST_LEAD_THANKS });
+  } catch (err) {
+    console.error('[zest/public/lead]', err);
+    res.status(500).json({ message: 'Could not send your details. Please try again.' });
+  }
+});
 
 // A user handing Zest a document for one question — not added to the shared knowledge base.
 // Reuses the exact same security pipeline as a KB upload (ClamAV scan + deep inspection/audit

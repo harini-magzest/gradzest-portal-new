@@ -66,10 +66,8 @@ beforeEach(() => {
 });
 
 describe('ZestWidget: who sees what', () => {
-  it('shows nothing to a signed-out visitor, or on the SOC pages', () => {
-    const { container } = renderAt('/', null);
-    expect(container.querySelector('button')).toBeNull();
-    renderAt('/soc', counselor);
+  it.each(['/soc', '/parent/abc123', '/f/enquiry'])('shows nothing on %s, even to someone signed in', path => {
+    renderAt(path, counselor);
     expect(screen.queryByRole('button', { name: 'Open Zest' })).toBeNull();
   });
 
@@ -266,5 +264,50 @@ describe('ZestWidget: showing what Zest is doing', () => {
     release();
     expect(await screen.findByText('Here is your answer')).toBeTruthy();
     expect(screen.queryByText('Checking your students…')).toBeNull();
+  });
+});
+
+describe('ZestWidget: Markdown answers', () => {
+  it('renders **bold** and `code` as real elements, not literal asterisks and backticks', async () => {
+    const answer = 'You can check status under **Applications** (`/student/applications`).';
+    zest.askStream.mockImplementation(async (_q: string, _h: unknown, onDelta: (t: string) => void) => {
+      onDelta(answer);
+      return { answer, sources: [], logId: 'log1' };
+    });
+    const { container } = renderAt('/', student);
+    ask('Where are my applications?');
+
+    await waitFor(() => expect(container.querySelector('strong')?.textContent).toBe('Applications'));
+    expect(container.querySelector('code')?.textContent).toBe('/student/applications');
+    // the raw Markdown syntax itself must not appear anywhere in the bubble
+    expect(screen.queryByText(/\*\*Applications\*\*/)).toBeNull();
+  });
+
+  it("shows the person's own message as plain text, not parsed as Markdown", async () => {
+    renderAt('/', student);
+    ask('what about **this** question?');
+    expect(await screen.findByText('what about **this** question?')).toBeTruthy();
+  });
+
+  it('shows an error as plain text even if it contains Markdown-like characters', async () => {
+    zest.askStream.mockRejectedValue(new Error('Zest could not reach the *model* right now.'));
+    renderAt('/', student);
+    ask('anything');
+    expect(await screen.findByText('Zest could not reach the *model* right now.')).toBeTruthy();
+  });
+});
+
+describe('ZestWidget: signed-out visitors', () => {
+  it('offers a guest the chat and a "Talk to a counselor" form, with no management tabs or file upload', () => {
+    renderAt('/', null);
+    expect(screen.getByRole('button', { name: 'Open Zest' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Talk to a counselor/ })).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByTitle('Attach a PDF to ask about')).toBeNull();
+  });
+
+  it('does not offer the counselor form to someone who is signed in', () => {
+    renderAt('/', student);
+    expect(screen.queryByRole('button', { name: /Talk to a counselor/ })).toBeNull();
   });
 });

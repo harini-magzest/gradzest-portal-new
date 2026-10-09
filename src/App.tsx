@@ -47,9 +47,9 @@ const StudentChat         = lazy(() => import('./pages/student/StudentChat'));
 const StudentCourses      = lazy(() => import('./pages/student/StudentCourses'));
 const StudentCountries    = lazy(() => import('./pages/student/StudentCountries'));
 const StudentCountryDetail = lazy(() => import('./pages/student/StudentCountryDetail'));
-const StudentSavedUniversities = lazy(() => import('./pages/student/StudentSavedUniversities'));
 const AdminPrivacy        = lazy(() => import('./pages/admin/AdminPrivacy'));
 const ParentView          = lazy(() => import('./pages/ParentView'));
+const PublicForm = lazy(() => import('./pages/PublicForm'));
 const StaffEvents         = lazy(() => import('./pages/StaffEvents'));
 const StudentLearning     = lazy(() => import('./pages/student/StudentLearning'));
 
@@ -111,6 +111,9 @@ function ScrollToTop() {
 
 function ToastLayer() {
   const { toasts, dismissToast } = useNotifications();
+  const { pathname } = useLocation();
+  // The SOC is a standalone analyst tool: business notices ("Applications need attention") don't belong over it.
+  if (pathname === '/soc' || pathname.startsWith('/soc/')) return null;
   return <ToastContainer toasts={toasts} onDismiss={dismissToast} />;
 }
 
@@ -157,6 +160,8 @@ export default function App() {
           <Routes>
             {/* Read-only progress page a student shares with a parent; no account, no site chrome */}
             <Route path="/parent/:token" element={<ParentView />} />
+            {/* Marketing enquiry form from Admin -> Settings -> Forms; no account, no site chrome */}
+            <Route path="/f/:slug" element={<PublicForm />} />
             {/* Public routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
@@ -192,7 +197,6 @@ export default function App() {
               <Route path="meetings" element={<Navigate to="/student/activities?tab=meetings" replace />} />
               <Route path="events" element={<Navigate to="/student/activities?tab=events" replace />} />
               <Route path="shortlist" element={<Navigate to="/student" replace />} />
-              <Route path="saved-universities" element={<StudentSavedUniversities />} />
               <Route path="learning" element={<StudentLearning />} />
             </Route>
 

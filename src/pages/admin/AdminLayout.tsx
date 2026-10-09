@@ -24,7 +24,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTe
   { to: '/admin/universities', label: 'Universities', icon: GraduationCap },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
-    { to: '/admin/privacy', label: 'Data requests', icon: ShieldCheck },
+  { to: '/admin/privacy', label: 'Data requests', icon: ShieldCheck },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
     { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
@@ -39,7 +39,7 @@ const search: SearchConfig = {
     ...navItems.map(item => ({ label: item.label, to: item.to })),
     ...[
       ['company', 'Company Profile'], ['profile', 'My Profile'], ['password', 'Password & Security'],
-      ['users', 'Users and Controls'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
+      ['users', 'Users and Controls'], ['forms', 'Forms'], ['automation', 'Automation'], ['whatsapp', 'WhatsApp / SMS'],
       ['google-cal', 'Google Calendar'], ['export', 'Export & Backup'], ['danger', 'Danger Zone'],
     ].map(([key, label]) => ({ label, to: `/admin/settings?section=${key}`, hint: 'Settings' })),
     { label: 'Roles', to: '/admin/settings?section=users&tab=roles', hint: 'Settings · Users and Controls' },

@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Send, FileText, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, Copy, Check, Plus } from 'lucide-react';
+import { X, Send, FileText, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, Copy, Check, Plus, PhoneCall } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ZestIcon from './ZestIcon';
+import ZestLeadForm from './ZestLeadForm';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
@@ -70,8 +74,34 @@ function forgetChats() {
   } catch { /* nothing to forget */ }
 }
 
+
+// Zest's answers come back with real Markdown (**bold**, `code`, lists, links) — these render it
+// at a size and spacing that fits a chat bubble, instead of showing the raw ** and ` characters.
+// A stable object outside the component so it isn't rebuilt on every render.
+const MARKDOWN_COMPONENTS = {
+  p: ({ children }: { children?: ReactNode }) => <p className="whitespace-pre-wrap mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }: { children?: ReactNode }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }: { children?: ReactNode }) => <em className="italic">{children}</em>,
+  a: ({ href, children }: { href?: string; children?: ReactNode }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{children}</a>
+  ),
+  ul: ({ children }: { children?: ReactNode }) => <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0">{children}</ul>,
+  ol: ({ children }: { children?: ReactNode }) => <ol className="list-decimal pl-5 space-y-1 mb-2 last:mb-0">{children}</ol>,
+  li: ({ children }: { children?: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  pre: ({ children }: { children?: ReactNode }) => (
+    <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-x-auto mb-2 last:mb-0">{children}</pre>
+  ),
+  code: ({ className, children }: { className?: string; children?: ReactNode }) =>
+    /language-/.test(className || '')
+      ? <code className={className}>{children}</code>
+      : <code className="bg-gray-100 text-[13px] px-1 py-0.5 rounded font-mono">{children}</code>,
+  table: ({ children }: { children?: ReactNode }) => <table className="w-full text-xs border-collapse mb-2">{children}</table>,
+  th: ({ children }: { children?: ReactNode }) => <th className="border border-gray-200 px-2 py-1 text-left font-semibold">{children}</th>,
+  td: ({ children }: { children?: ReactNode }) => <td className="border border-gray-200 px-2 py-1">{children}</td>,
+};
+
 // Shown in the welcome bubble to signed-out visitors, in place of the per-role welcome.
-const GUEST_WELCOME = "Hi, I'm Zest, Gradzest's study-abroad assistant. Ask me about universities, courses, visas or how the process works. Sign in to get help with your own application.";
+const GUEST_WELCOME = "Hi, I'm Zest, Gradzest's study-abroad assistant. Ask me about universities, courses, visas or how the process works. Want to speak to a person? Tap \"Talk to a counselor\" below. Sign in to get help with your own application.";
 
 // Global AI assistant, mounted once in App.tsx alongside the other root-level overlays
 // (ToastLayer, FlashToast, AuthModal) so every role gets it without touching each
@@ -98,6 +128,8 @@ export default function ZestWidget() {
   const [status, setStatus] = useState('');
   // Which user's saved conversation is currently loaded, so a save never overwrites it before it has been read.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  // Guest "Talk to a counselor" form: hidden, open, or already sent this conversation
+  const [leadForm, setLeadForm] = useState<'closed' | 'open' | 'sent'>('closed');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const speech = useSpeech();
@@ -112,6 +144,7 @@ export default function ZestWidget() {
   useEffect(() => {
     if (authLoading) return;
     setAttachedFile(null);
+    setLeadForm('closed');
     if (!isAuthenticated || !userId) { forgetChats(); setMessages([]); setLoadedFor(null); return; }
     setMessages(loadChat(userId));
     setLoadedFor(userId);
@@ -125,7 +158,7 @@ export default function ZestWidget() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, open, tab]);
+  }, [messages, open, tab, leadForm]);
 
   // Links into Zest (the daily-alerts notification) look like /admin?zest=alerts: open the panel on that tab,
   // then drop the parameter so a refresh doesn't reopen it.
@@ -145,7 +178,7 @@ export default function ZestWidget() {
 
   // SOC is deliberately isolated from the rest of the portal (see SOCLayout.tsx) — Zest stays out too, as it
   // does from the token-only parent view.
-  const hidden = location.pathname.startsWith('/soc') || location.pathname.startsWith('/parent/');
+  const hidden = location.pathname.startsWith('/soc') || location.pathname.startsWith('/parent/') || location.pathname.startsWith('/f/');
   if (hidden) return null;
 
   const send = async () => {
@@ -336,7 +369,11 @@ export default function ZestWidget() {
                       ? 'bg-[#0d1b4b] text-white'
                       : m.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-gray-800 border border-gray-100 shadow-sm'
                   }`}>
-                    <p className="whitespace-pre-wrap">{m.text}</p>
+                    {m.role === 'assistant' && !m.error ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{m.text}</ReactMarkdown>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{m.text}</p>
+                    )}
                     {m.role === 'assistant' && !m.error && m.id !== streamingId && (
                       <div className="mt-2 flex items-center gap-1 text-gray-400">
                         {m.logId && (
@@ -379,9 +416,24 @@ export default function ZestWidget() {
                   </div>
                 </div>
               )}
+              {guest && leadForm === 'open' && (
+                <ZestLeadForm
+                  onClose={() => setLeadForm('closed')}
+                  onSent={message => {
+                    setLeadForm('sent');
+                    setMessages(prev => [...prev, { id: `lead-${Date.now()}`, role: 'assistant', text: message }]);
+                  }}
+                />
+              )}
             </div>
 
             <div className="flex-shrink-0 border-t border-gray-100 p-3 bg-white">
+              {guest && leadForm === 'closed' && (
+                <button type="button" onClick={() => setLeadForm('open')}
+                  className="w-full mb-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-sm font-semibold hover:bg-blue-100">
+                  <PhoneCall className="w-4 h-4" /> Talk to a counselor
+                </button>
+              )}
               {attachedFile && (
                 <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs">
                   <FileText className="w-3.5 h-3.5 flex-shrink-0" />

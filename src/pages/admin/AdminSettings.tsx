@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Building2, User, Lock, Download, AlertTriangle,
   ChevronRight, Save, Eye, EyeOff, Check,
-  Smartphone, Globe, Users, Zap, Plug2, Mail, Phone, Bot,
+  Smartphone, Globe, Users, Zap, Plug2, Mail, Phone, Bot, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api, setApiToken, type CompanyProfile as CompanyProfileData } from '../../api';
@@ -13,12 +13,13 @@ import PasswordStrengthBar from '../../components/PasswordStrengthBar';
 import { checkPasswordStrength } from '../../utils/passwordStrength';
 import AdminUsersControls from './AdminUsersControls';
 import AdminAutomation from './AdminAutomation';
+import AdminForms from './AdminForms';
 import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SectionKey =
-  | 'company' | 'profile' | 'password' | 'automation'
+  | 'company' | 'profile' | 'password' | 'automation' | 'forms'
   | 'users' | 'integrations' | 'export' | 'danger';
 
 interface NavItem { key: SectionKey; label: string; icon: any }
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'profile',         label: 'My Profile',           icon: User },
   { key: 'password',        label: 'Password & Security',  icon: Lock },
   { key: 'users',           label: 'Users and Controls',   icon: Users },
+  { key: 'forms',           label: 'Forms',                icon: ClipboardList },
   { key: 'automation',      label: 'Automation',           icon: Zap },
   { key: 'integrations',    label: 'Integrations',         icon: Plug2 },
   { key: 'export',         label: 'Export & Backup',      icon: Download },
@@ -417,6 +419,7 @@ export default function AdminSettings() {
       case 'profile':         return <MyProfile />;
       case 'password':        return <PasswordSecurity />;
       case 'users':           return <AdminUsersControls />;
+      case 'forms':           return <AdminForms />;
       case 'automation':      return <AdminAutomation />;
       case 'integrations':    return <Integrations />;
       case 'export':         return <ExportBackup />;

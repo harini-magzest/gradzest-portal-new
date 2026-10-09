@@ -22,7 +22,7 @@ const STUDENT_STATUSES = {
   active: 'Active', inactive: 'Inactive', counseling: 'Counseling', shortlisting: 'Shortlisting', application: 'Application',
   test_preparation: 'Test Preparation', visa_process: 'Visa Process', loan_process: 'Loan Process', enrolled: 'Enrolled',
 };
-const SOURCES = { self_signup: 'Self signup', admin_created: 'Created by admin', counselor_created: 'Created by counselor' };
+const SOURCES = { self_signup: 'Self signup', admin_created: 'Created by admin', counselor_created: 'Created by counselor', web_form: 'Web form', zest_chat: 'Zest chat' };
 const YES_NO = { yes: 'Yes', no: 'No' };
 
 const TRIGGERS = [

@@ -40,6 +40,13 @@ export class ApiError extends Error {
   constructor(message: string, status: number, code?: string, data?: any) { super(message); this.name = 'ApiError'; this.status = status; this.code = code; this.data = data; }
 }
 
+export type LeadFormField = 'email' | 'preferredCountries' | 'preferredIntake' | 'preferredCourseLevel' | 'qualification' | 'message';
+export interface LeadFormInput { title: string; intro?: string; fields?: LeadFormField[]; thankYouMessage?: string; campaign?: string }
+export interface LeadForm extends Required<LeadFormInput> {
+  id: string; slug: string; active: boolean; submissions: number;
+  lastSubmissionAt: string | null; createdByName: string; createdAt: string;
+}
+
 export type NoteVisibility = 'public' | 'private';
 export interface StudentNote {
   id: string; text: string; visibility: NoteVisibility;
@@ -108,6 +115,17 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export interface CompanyProfile { name: string; tagline: string; email: string; phone: string; website: string; address: string }
+export interface ShortlistData {
+  courses: {
+    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
+    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
+    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
+    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
+  }[];
+  cheapest: string | null;
+  bestRanked: string | null;
+  max: number;
+}
 
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
@@ -182,14 +200,14 @@ export const api = {
 
   countries: {
     list: () => req<any[]>('/countries'),
-    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
+    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`),
   },
 
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
     compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
-    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
+    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
@@ -228,6 +246,11 @@ export const api = {
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
     nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
     dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
+    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
+    addToShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
+    removeFromShortlist: (universityId: string, courseId: string) =>
+      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
     timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
@@ -365,10 +388,10 @@ export const api = {
     },
   },
 
-  savedUniversities: {
-    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/saved-universities', { headers: authHeaders() }),
-    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/saved-universities', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
-    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/saved-universities/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
+  shortlist: {
+    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
+    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
+    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   parentLinks: {
@@ -666,6 +689,7 @@ export const api = {
     },
     piiAudit: () => req<any>('/soc/pii-audit', { headers: authHeaders() }),
     auditTrail: (limit?: number) => req<any>(`/soc/audit-trail${limit ? `?limit=${limit}` : ''}`, { headers: authHeaders() }),
+    access: () => req<{ ok: boolean }>('/soc/access', { headers: authHeaders() }),
   },
 
   tasks: {
@@ -839,6 +863,9 @@ export const api = {
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
+    // Signed-out visitors: the "Talk to a counselor" form in the chat; saved once as a new lead
+    publicLead: (data: { firstName: string; lastName: string; phone: string; email: string; preferredCountries: string[]; wantsHuman: boolean; website?: string }) =>
+      req<{ message: string }>('/zest/public/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     addToKnowledge: (question: string, answer: string) =>
       req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
@@ -871,6 +898,21 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
+  },
+
+  // Marketing web forms (Admin → Settings → Forms) and their public pages at /f/:slug
+  forms: {
+    list: () => req<LeadForm[]>('/forms', { headers: authHeaders() }),
+    create: (data: LeadFormInput) => req<LeadForm>('/forms', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<LeadFormInput> & { active?: boolean }) =>
+      req<LeadForm>(`/forms/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    remove: (id: string) => req<{ message: string }>(`/forms/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    publicView: (slug: string) =>
+      req<{ title: string; intro: string; fields: LeadFormField[] }>(`/forms/public/${encodeURIComponent(slug)}`),
+    submit: (slug: string, data: Record<string, unknown>) =>
+      req<{ message: string }>(`/forms/public/${encodeURIComponent(slug)}/submit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+      }),
   },
 
   subscribe: (data: { name: string; email: string; phone: string }) =>

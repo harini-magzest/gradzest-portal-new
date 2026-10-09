@@ -172,42 +172,6 @@ router.post('/bulk', authMiddleware, async (req, res) => {
 // are allowed to see (/:id/...). `me` routes are declared first so "me" is never read as a student id.
 const asStudent = (req, res, next) => (req.user.role === 'student' ? next() : res.status(403).json({ message: 'Forbidden' }));
 
-// Universities a student has saved with the heart on the Universities page. Capped so it stays a short list.
-const SAVED_MAX = 20;
-
-router.get('/me/saved-universities', authMiddleware, asStudent, async (req, res) => {
-  try {
-    const { findUniversity } = require('../lib/findUniversity');
-    const { summarise } = require('../lib/universityCompare');
-    const me = await User.findById(req.user.id).select('savedUniversities').lean();
-    const unis = await Promise.all((me?.savedUniversities || []).map((s) => findUniversity(s.universityId)));
-    // A university deleted since it was saved just drops out of the list
-    res.json(unis.filter(Boolean).map(summarise));
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
-router.post('/me/saved-universities', authMiddleware, asStudent, async (req, res) => {
-  try {
-    const { findUniversity } = require('../lib/findUniversity');
-    const uni = await findUniversity(req.body?.universityId);
-    if (!uni) return res.status(404).json({ message: 'University not found' });
-    const universityId = uni.id || String(uni._id);
-    const me = await User.findById(req.user.id).select('savedUniversities').lean();
-    const list = me?.savedUniversities || [];
-    if (list.some((s) => s.universityId === universityId)) return res.json({ universityId, saved: true, count: list.length });
-    if (list.length >= SAVED_MAX) return res.status(409).json({ message: `You have saved the most universities you can (${SAVED_MAX}). Remove one to add another.` });
-    await User.updateOne({ _id: req.user.id, 'savedUniversities.universityId': { $ne: universityId } }, { $push: { savedUniversities: { universityId, addedAt: new Date() } } });
-    res.status(201).json({ universityId, saved: true, count: list.length + 1 });
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
-router.delete('/me/saved-universities/:universityId', authMiddleware, asStudent, async (req, res) => {
-  try {
-    await User.updateOne({ _id: req.user.id }, { $pull: { savedUniversities: { universityId: req.params.universityId } } });
-    res.json({ universityId: req.params.universityId, saved: false });
-  } catch (err) { logError('students', err); res.status(500).json({ message: 'Server error' }); }
-});
-
 router.get('/me/checklist', authMiddleware, asStudent, async (req, res) => {
   try {
     const result = await checklistFor(req.user.id);
@@ -650,7 +614,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
     const rooms = req.user.role === 'admin' ? allRooms : allRooms.filter(r => r.participants.includes(me));
 
     // ── Timeline ──
-    const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor' };
+    const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor', web_form: 'submitted a website form', zest_chat: 'shared details in the Zest chat' };
     const timeline = [];
     timeline.push({ id: 'joined', at: student.createdAt || student.joinedDate, kind: 'student', title: 'Student created', detail: SOURCE[student.source] || '' });
     // Note text never goes in the shared timeline (older entries stored a snippet, which may be from a private note)
