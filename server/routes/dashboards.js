@@ -6,6 +6,7 @@ const { LEAD_STAGES } = require('../lib/automation');
 const { daysSinceStageChange } = require('../lib/leadRisk');
 const { scoreLead } = require('../lib/leadScore');
 const Meeting = require('../models/Meeting');
+const University = require('../models/University');
 const { buildConversion } = require('../lib/conversionReport');
 const { sendCsv } = require('../lib/csv');
 const { followupsFor } = require('../lib/counselorFollowups');
@@ -130,7 +131,7 @@ router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => 
   res.json({ weeks: keys.map(k => ({ week: k, newLeads: newMap.get(k) || 0, offers: offerMap.get(k) || 0 })) });
 });
 
-/* ── Global search (admin: everyone; counselor: their own students) ──────── */
+/* ── Global search (admin: everyone; counselor: their own students; all staff: universities and courses) ── */
 
 router.get('/search', authMiddleware, async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 100);
@@ -144,7 +145,27 @@ router.get('/search', authMiddleware, async (req, res) => {
     ...(req.user.role === 'counselor' ? { counselorId: String(req.user.id) } : {}),
   };
   const students = await User.find(filter).select('name email phone leadStage').limit(10).lean();
-  res.json({ students: students.map(s => ({ id: String(s._id), name: s.name, email: s.email || '', phone: s.phone || '', leadStage: s.leadStage || 'new_enquiry' })) });
+  const body = { students: students.map(s => ({ id: String(s._id), name: s.name, email: s.email || '', phone: s.phone || '', leadStage: s.leadStage || 'new_enquiry' })) };
+
+  // Team: admins find counselors and Application Team members, Application Team finds counselors, counselors nobody
+  const re = new RegExp(escaped, 'i');
+  const teamRoles = req.user.role === 'counselor' ? null
+    : req.user.isAppTeam ? [{ role: 'counselor' }]
+    : [{ role: 'counselor' }, { role: 'admin', isAppTeam: true }];
+  const [team, unis, courseUnis] = await Promise.all([
+    teamRoles ? User.find({ $or: teamRoles, $and: [{ $or: [{ name: re }, { email: re }, { phone: re }] }] })
+      .select('name email role isAppTeam').limit(8).lean() : [],
+    University.find({ $or: [{ name: re }, { city: re }, { country: re }] }).select('id name city country').limit(8).lean(),
+    University.find({ 'courses.name': re }).select('id name courses._id courses.id courses.name courses.level').limit(20).lean(),
+  ]);
+  body.team = team.map(u => ({ id: String(u._id), name: u.name, email: u.email || '', kind: u.role === 'counselor' ? 'counselor' : 'appteam' }));
+  body.universities = unis.map(u => ({ id: u.id || String(u._id), name: u.name, city: u.city || '', country: u.country || '' }));
+  body.courses = courseUnis
+    .flatMap(u => (u.courses || []).filter(c => re.test(c.name || '')).map(c => ({
+      id: String(c._id || c.id), name: c.name, level: c.level || '', universityId: u.id || String(u._id), universityName: u.name,
+    })))
+    .slice(0, 8);
+  res.json(body);
 });
 
 /* ── Lead scores: who to call first (admin: everyone; counselor: their own students) ─────────── */

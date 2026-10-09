@@ -45,6 +45,30 @@ describe('dashboard summary endpoints are role-gated', () => {
     const forAdmin = await request(app).get(`/api/dashboards/search?q=${tag}`).set(as(admin));
     expect(forAdmin.body.students.length).toBe(2);
   });
+
+  it('admins find team, universities and courses; Application Team finds counselors; counselors find no team', async () => {
+    const University = require('../models/University');
+    const tag = `Qx${Date.now()}`;
+    const counselor = await mk('counselor', { name: `${tag} Counselor` });
+    const admin = await mk('admin');
+    await University.create({ id: `${tag}-uni`, name: `${tag} University`, country: 'Canada', courses: [{ id: `${tag}-c1`, name: `${tag} Data Science`, level: 'Masters' }] });
+
+    const forAdmin = (await request(app).get(`/api/dashboards/search?q=${tag}`).set(as(admin))).body;
+    expect(forAdmin.team.map(t => [t.name, t.kind])).toEqual([[`${tag} Counselor`, 'counselor']]);
+    expect(forAdmin.universities.map(u => u.id)).toEqual([`${tag}-uni`]);
+    expect(forAdmin.courses).toEqual([expect.objectContaining({ name: `${tag} Data Science`, universityId: `${tag}-uni`, universityName: `${tag} University` })]);
+
+    const appTeam = await mk('admin', { isAppTeam: true, name: `${tag} AppTeam` });
+    const forAppTeam = (await request(app).get(`/api/dashboards/search?q=${tag}`).set(as(appTeam))).body;
+    expect(forAppTeam.team.map(t => t.kind)).toEqual(['counselor']);
+    expect(forAppTeam.courses).toHaveLength(1);
+    expect((await request(app).get(`/api/dashboards/search?q=${tag}`).set(as(admin))).body.team.map(t => t.kind).sort()).toEqual(['appteam', 'counselor']);
+
+    const forCounselor = (await request(app).get(`/api/dashboards/search?q=${tag}`).set(as(counselor))).body;
+    expect(forCounselor.team).toEqual([]);
+    expect(forCounselor.universities.map(u => u.id)).toEqual([`${tag}-uni`]);
+    expect(forCounselor.courses).toHaveLength(1);
+  });
 });
 
 describe('dashboard summary response shapes', () => {

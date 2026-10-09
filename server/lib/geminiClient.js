@@ -12,7 +12,7 @@ try {
 }
 
 const { getToolsForRole, executeTool, statusFor } = require('./zestTools');
-const { buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS } = require('./anthropicClient');
+const { buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, trimIncompleteAnswer } = require('./anthropicClient');
 const { withRetry, isTransient } = require('./zestRetry');
 
 let client = null;
@@ -56,7 +56,9 @@ async function runTurn(params, onText) {
   try {
     const stream = await getClient().models.generateContentStream(params);
     const parts = [];
+    let finishReason;
     for await (const chunk of stream) {
+      finishReason = chunk.candidates?.[0]?.finishReason || finishReason;
       for (const part of chunk.candidates?.[0]?.content?.parts || []) {
         parts.push(part);
         if (typeof part.text === 'string' && !part.thought && !part.functionCall) { emitted = true; onText(part.text); }
@@ -66,7 +68,7 @@ async function runTurn(params, onText) {
     return {
       text: parts.filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join(''),
       functionCalls: functionCalls.length ? functionCalls : undefined,
-      candidates: [{ content: { role: 'model', parts } }],
+      candidates: [{ content: { role: 'model', parts }, finishReason }],
     };
   } catch (err) {
     if (emitted && err && typeof err === 'object') err.zestPartial = true;
@@ -140,7 +142,9 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     response = await generate();
   }
 
-  return { text: response.text || '', toolsUsed };
+  let text = response.text || '';
+  if (response.candidates?.[0]?.finishReason === 'MAX_TOKENS') text = trimIncompleteAnswer(text);
+  return { text, toolsUsed };
 }
 
 module.exports = { askZest, isZestConfigured, setGeminiClientForTests };

@@ -2,10 +2,12 @@ import React from 'react';
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Layers, Users, UserCog, CalendarDays, Activity, MessageSquare, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import { loginRedirect } from '../../lib/loginRedirect';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import DashboardTopbar from '../../components/DashboardTopbar';
 import SkipLink from '../../components/SkipLink';
+import type { SearchConfig } from '../../components/dashboards/GlobalSearch';
 
 const navItems: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }[] = [
   { to: '/appteam',              label: 'Dashboard',    icon: LayoutDashboard, end: true },
@@ -18,9 +20,17 @@ const navItems: { to: string; label: string; icon: React.ComponentType<{ classNa
   { to: '/appteam/learning',     label: 'Learning Hub', icon: GraduationCap },
 ];
 
+// Top search: students, counselors, universities, courses and the sidebar pages
+const search: SearchConfig = {
+  basePath: '/appteam/students',
+  teamLink: t => t.kind === 'counselor' ? `/appteam/counselors?view=${t.id}` : null,
+  pages: navItems.map(item => ({ label: item.label, to: item.to })),
+};
+
 export default function AppTeamLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
+  const unreadCount = useUnreadMessages();
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -33,11 +43,11 @@ export default function AppTeamLayout() {
   return (
     <div className="min-h-screen bg-orange-50">
       <SkipLink />
-      <DashboardTopbar workspaceLabel="Application Team workspace" />
+      <DashboardTopbar workspaceLabel="Application Team workspace" search={search} />
       <div className="flex">
 
         {/* Sidebar */}
-        <DashboardSidebar navItems={navItems} />
+        <DashboardSidebar navItems={navItems.map(item => ({ ...item, badge: item.label === 'Chat' ? unreadCount : undefined }))} />
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-40">
@@ -46,7 +56,12 @@ export default function AppTeamLayout() {
               className={({ isActive }) =>
                 `flex-1 flex flex-col items-center py-2.5 text-[10px] gap-1 font-medium ${isActive ? 'text-orange-600' : 'text-gray-400'}`
               }>
-              <Icon className="w-5 h-5" />
+              <span className="relative">
+                <Icon className="w-5 h-5" />
+                {label === 'Chat' && unreadCount > 0 && (
+                  <span aria-label={`${unreadCount} unread messages`} className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
+                )}
+              </span>
               <span>{label}</span>
             </NavLink>
           ))}

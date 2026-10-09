@@ -186,6 +186,9 @@ const COUNSELOR_ONLY_TOOLS = ['my_day_brief'];
 // Students get the catalogue and their own progress and schedule. Counselors get the staff tools plus their day brief;
 // admins also get the Zest-management and reporting ones. A student-only tool is never offered to staff.
 function getToolsForRole(role) {
+  // Guests (signed-out visitors on the public site) get the catalogue only. Checked first so a guest never falls
+  // through to the staff filter below.
+  if (role === 'guest') return [TOOL_SCHEMAS.search_universities];
   if (role === 'student') return STUDENT_TOOLS.map(n => TOOL_SCHEMAS[n]);
   return Object.values(TOOL_SCHEMAS).filter(t => !STUDENT_ONLY_TOOLS.includes(t.name)
     && (role === 'admin' || !ADMIN_ONLY_TOOLS.includes(t.name))
@@ -616,6 +619,8 @@ const statusFor = (name) => TOOL_STATUS[name] || 'Looking that up…';
 async function executeTool(name, input, user, ctx = {}) {
   const handler = HANDLERS[name];
   if (!handler) return { error: `Unknown tool: ${name}` };
+  // A guest has no account to scope by, so only public reference data is reachable, whatever tool is named.
+  if (!user && name !== 'search_universities') return { error: 'Not available without signing in.' };
   // Scoping is enforced inside each handler (students are refused staff tools even if they name them).
   try {
     return await handler(input || {}, user, ctx);

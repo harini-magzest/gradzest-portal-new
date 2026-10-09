@@ -47,8 +47,23 @@ export interface StudentNote {
   createdAt?: string; updatedAt?: string;
 }
 
+// Skyload caps in-flight requests per IP, and a dashboard load can briefly exceed it. Those 429s say "concurrent"
+// and only mean "try again in a moment", so reads wait and retry instead of failing; other 429s (real rate limits) don't.
+const CONCURRENCY_RETRY_DELAYS = [300, 800, 1500];
+
+async function fetchWithConcurrencyRetry(input: string, init: RequestInit): Promise<Response> {
+  const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status !== 429 || !isRead || attempt >= CONCURRENCY_RETRY_DELAYS.length) return res;
+    const body = await res.clone().json().catch(() => null);
+    if (!/concurrent/i.test(body?.message || '')) return res;
+    await new Promise(r => setTimeout(r, CONCURRENCY_RETRY_DELAYS[attempt] + Math.random() * 200));
+  }
+}
+
 async function req<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, { credentials: 'include', ...options });
+  const res = await fetchWithConcurrencyRetry(`${BASE}${url}`, { credentials: 'include', ...options });
   if (res.status === 401 && retry && !url.startsWith('/auth/')) {
     const newToken = await tryRefresh();
     if (newToken) {
@@ -93,18 +108,6 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export interface CompanyProfile { name: string; tagline: string; email: string; phone: string; website: string; address: string }
-
-export interface ShortlistData {
-  courses: {
-    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
-    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
-    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
-    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
-  }[];
-  cheapest: string | null;
-  bestRanked: string | null;
-  max: number;
-}
 
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
@@ -179,14 +182,14 @@ export const api = {
 
   countries: {
     list: () => req<any[]>('/countries'),
-    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`),
+    autofill: (name: string) => req<any>(`/countries/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
   },
 
   universities: {
     list: () => req<any[]>('/universities'),
     get: (id: string) => req<any>(`/universities/${id}`),
     compare: (ids: string[]) => req<{ universities: { id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]; rows: { key: string; label: string; format: string; values: (number | string | null)[]; best: number[] | null }[] }>(`/universities/compare?ids=${ids.map(encodeURIComponent).join(',')}`),
-    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`),
+    autofill: (name: string) => req<any>(`/universities/autofill?name=${encodeURIComponent(name)}`, { headers: authHeaders() }),
     updateCourseCustom: (uniId: string, courseId: string, data: { tags: string[]; customFields: { key: string; value: string }[] }) =>
       req<any>(`/universities/${uniId}/courses/${courseId}/custom`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
@@ -225,11 +228,6 @@ export const api = {
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
     nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
     dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
-    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
-    addToShortlist: (universityId: string, courseId: string) =>
-      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
-    removeFromShortlist: (universityId: string, courseId: string) =>
-      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
     timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
@@ -769,7 +767,13 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    search: (q: string) => req<{ students: { id: string; name: string; email: string; phone: string; leadStage: string }[] }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
+    search: (q: string) => req<{
+      students: { id: string; name: string; email: string; phone: string; leadStage: string }[];
+      // Staff workspaces; team is empty for counselors
+      team?: { id: string; name: string; email: string; kind: 'counselor' | 'appteam' }[];
+      universities?: { id: string; name: string; city: string; country: string }[];
+      courses?: { id: string; name: string; level: string; universityId: string; universityName: string }[];
+    }>(`/dashboards/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }),
   },
 
   onboarding: {
@@ -784,13 +788,15 @@ export const api = {
       }),
     // Streams the answer as it is generated; onDelta gets each piece of text as it arrives, and onStatus (optional)
     // gets a plain-words note such as "Checking your students…" when Zest starts a live lookup.
+    // guest: a signed-out visitor on the public site — uses the unauthenticated, IP-limited endpoint.
     askStream: async (
       question: string,
       history: { role: 'user' | 'assistant'; text: string }[] | undefined,
       onDelta: (text: string) => void,
       onStatus?: (text: string) => void,
+      guest = false,
     ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
-      const res = await fetch(`${BASE}/zest/ask-stream`, {
+      const res = await fetch(`${BASE}/zest/${guest ? 'public/ask-stream' : 'ask-stream'}`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ question, history }),
@@ -846,6 +852,8 @@ export const api = {
       method: 'DELETE', headers: authHeaders(),
     }),
     alerts: () => req<any[]>('/zest/alerts', { headers: authHeaders() }),
+    queryLogs: (params?: Record<string, string | number | undefined>) =>
+      req<{ logs: any[]; total: number }>(`/zest/query-logs?${toQueryString(params || {})}`, { headers: authHeaders() }),
     resolveAlert: (id: string) => req<any>(`/zest/alerts/${id}/resolve`, {
       method: 'PUT', headers: authHeaders(),
     }),

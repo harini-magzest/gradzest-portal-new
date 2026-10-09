@@ -38,14 +38,22 @@ const STUDENT_GUIDE = `Portal guide — this user is a STUDENT (at /student/...)
 - Universities (/student/universities), Courses (/student/courses), Countries (/student/countries): browse options.
 - Applications (/student/applications): track status of each university application they've submitted.
 - Chat (/student/chat): message their assigned counselor directly.
-- Meetings (/student/meetings): scheduled calls/sessions with their counselor.
 - Profile (/student/profile): their own personal/academic details and documents.
 - Learning (/student/learning): study-abroad learning resources.
-- Activities (/student/activities): their activity/timeline log.
+- Activities (/student/activities): their activity/timeline log, plus two tabs — Meetings
+  (scheduled calls with their counselor) and Events (webinars/open days to register for).
 A student CANNOT: see other students' data, change which counselor they're assigned to,
 access /admin, /appteam, /board or /soc, or manage the Zest knowledge base. If they ask about
 something outside their own data or access, tell them plainly and suggest contacting their
 counselor via Chat.`;
+
+const GUEST_GUIDE = `Portal guide — this user is a VISITOR who is not signed in (on the public website):
+- They can browse Universities (/universities), Resources (/resources) and Search (/search) without an account.
+- Signing in or registering (/login) gives them a student dashboard with applications, counselor chat,
+  meetings and a profile for their documents.
+You know nothing about who they are and have no access to any account or personal records. If they
+ask about their own application, documents or counselor, tell them to sign in, or to register to get
+started with a Gradzest counselor.`;
 
 const STAFF_GUIDE = `Portal guide — this user is STAFF (counselor or admin):
 - Counselor (/counselor/...): own dashboard, assigned Students (incl. lead stage, tasks),
@@ -153,8 +161,13 @@ Staff (counselors, admins) and students ask you questions about visas, universit
 applications, how to use the portal, and general study-abroad topics.
 
 Rules:
-- Default to short and direct: 1-4 sentences, no filler, no "I'd be happy to help" — UNLESS the
-  user is asking you to draft an email (see below), where a full draft is expected.
+- Default to SHORT for every role, staff and students alike: 1-3 sentences, well under 60 words.
+  No filler, no restating the question, no "I'd be happy to help", and don't list every detail
+  that could be relevant — give the single most useful answer and stop. If more is genuinely
+  worth knowing, offer it in a few words ("want the deadline too?") instead of including it
+  unasked. A short answer that gets straight to the point is faster to read and understand than
+  a long one, even a well-organized one — that is the goal, not just a length limit. The only
+  exception is an explicit email-draft request (see below), which may run longer.
 - Knowledge-base reference material (if any is attached to this turn) may contain documents
   admin uploaded that are unrelated to Gradzest or study-abroad counseling. Only use a passage
   if it actually answers the question being asked — never treat an off-topic document as
@@ -212,12 +225,14 @@ const ANSWER_QUALITY = `How to answer well:
 // `today` is injected per request: without it the model cannot tell whether a deadline has passed or a
 // task is overdue, and will guess from its training data. `name` makes replies feel addressed to the person.
 function buildSystemPrompt(role, { today, name } = {}) {
-  const audienceGuide = role === 'student' ? STUDENT_GUIDE : STAFF_GUIDE;
+  const guest = role === 'guest';
+  const audienceGuide = guest ? GUEST_GUIDE : role === 'student' ? STUDENT_GUIDE : STAFF_GUIDE;
   const context = [
     today ? `Today's date is ${today} (India time).` : '',
     name ? `You are talking to ${String(name).slice(0, 60)} (${role}).` : '',
   ].filter(Boolean).join(' ');
-  return `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${EMAIL_AUTOMATION_GUIDE}\n\n${role === 'student' ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}${context ? `\n\n${context}` : ''}`;
+  const emailGuide = guest ? '' : `${EMAIL_AUTOMATION_GUIDE}\n\n`;
+  return `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${emailGuide}${role === 'student' || guest ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}${context ? `\n\n${context}` : ''}`;
 }
 
 function todayIST() {
@@ -227,6 +242,17 @@ function todayIST() {
 const MAX_TOOL_ROUNDS = 4;
 // Roomy enough for a full email draft or a multi-step answer; the "short and direct" rule keeps normal replies short.
 const MAX_OUTPUT_TOKENS = 1500;
+
+// A reply that hits the token cap mid-sentence reads as broken, not just cut short — trim it back
+// to the last complete sentence instead of showing a dangling half-thought. Leaves the text
+// unchanged if no sentence boundary is found, or if trimming would throw away almost everything
+// (near-empty output is a clearer signal of trouble than a lone unfinished sentence).
+function trimIncompleteAnswer(text) {
+  const match = /^[\s\S]*[.!?](?=["')\]]?(?:\s|$))/.exec(text);
+  if (!match) return text;
+  const trimmed = match[0].trim();
+  return trimmed.length >= 20 ? trimmed : text;
+}
 
 // A failure after some text has already reached the caller is marked so withRetry does not replay it:
 // a retry would stream the start of the answer a second time.
@@ -245,7 +271,7 @@ function callModel(params, onText) {
  * @param {string} question
  * @param {{ title: string, text: string }[]} chunks  top-matching knowledge-base chunks for this turn
  * @param {{ role: 'user'|'assistant', text: string }[]} history  prior turns in this conversation, oldest first
- * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin')
+ * @param {string} role  the asking user's portal role ('student'|'counselor'|'admin'), or 'guest' when signed out
  * @param {string} [attachedDocText]  text of a one-off document the user attached to this turn, if any
  * @param {{ id: string, role: string }} [user]  the authenticated caller, for tool scoping (required if role !== 'student')
  * @param {(delta: string) => void} [onText]  if given, receives answer text as it is generated
@@ -299,8 +325,12 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     message = await create({ ...createParams, messages });
   }
 
-  const text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  let text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  if (message.stop_reason === 'max_tokens') text = trimIncompleteAnswer(text);
   return { text, toolsUsed };
 }
 
-module.exports = { askZest, isZestConfigured, buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, setAnthropicClientForTests };
+module.exports = {
+  askZest, isZestConfigured, buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, setAnthropicClientForTests,
+  trimIncompleteAnswer,
+};

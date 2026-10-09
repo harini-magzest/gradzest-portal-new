@@ -1,4 +1,4 @@
-import GlobalSearch from './dashboards/GlobalSearch';
+import GlobalSearch, { type SearchConfig } from './dashboards/GlobalSearch';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
@@ -11,8 +11,11 @@ const ICON_BTN = 'w-9 h-9 flex items-center justify-center rounded-lg border bor
 
 export default function DashboardTopbar({
   workspaceLabel,
+  search,
 }: {
   workspaceLabel: string;
+  /** Workspace search: student, team, university, course and page results (staff workspaces) */
+  search?: SearchConfig;
 }) {
   const { user, logout } = useAuth();
   // Staff see their role from the Roles tree (e.g. "Associate Counsellor HO workspace")
@@ -54,7 +57,11 @@ export default function DashboardTopbar({
       {/* Right cell */}
       <div className="flex-1 flex items-center px-4 md:px-6 min-w-0">
         <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-          {(user?.role === 'admin' || user?.role === 'counselor') && (
+          {search ? (
+            <div className="hidden md:block w-80 mr-2">
+              <GlobalSearch {...search} />
+            </div>
+          ) : (user?.role === 'admin' || user?.role === 'counselor') && (
             <div className="hidden md:block w-64 mr-2">
               <GlobalSearch basePath={user.role === 'counselor' ? '/counselor/students' : '/admin/students'} />
             </div>

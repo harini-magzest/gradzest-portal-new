@@ -5,6 +5,7 @@ const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
 const ZestQueryLog = require('../models/ZestQueryLog');
+const KnowledgeChunk = require('../models/KnowledgeChunk');
 const { setGeminiClientForTests } = require('../lib/geminiClient');
 
 let n = 0;
@@ -20,6 +21,10 @@ const events = (text) => text.split('\n\n').filter(Boolean).map(b => JSON.parse(
 const chunk = (text) => ({ candidates: [{ content: { role: 'model', parts: [{ text }] } }] });
 
 const prevKey = process.env.GEMINI_API_KEY;
+// The client is mocked, so a dummy key is enough to make Zest count as configured (same as geminiStream.test.js).
+beforeEach(() => { process.env.GEMINI_API_KEY = 'fake-key-client-is-mocked'; });
+// Retrieval runs a $text search, which needs the text index built first (as zest.test.js does).
+beforeAll(async () => { await KnowledgeChunk.init(); });
 afterEach(() => {
   setGeminiClientForTests(null);
   if (prevKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = prevKey;
@@ -73,5 +78,31 @@ describe('POST /api/zest/ask-stream', () => {
     const res = await request(app).post('/api/zest/ask').set(as(student)).send({ question: 'hi' });
     expect(res.status).toBe(200);
     expect(res.body.answer).toBe('Plain answer.');
+  });
+});
+
+describe('POST /api/zest/public/ask-stream (signed-out visitors)', () => {
+  it('answers a guest with no account, catalogue search as the only tool, and logs it as a guest turn', async () => {
+    process.env.GEMINI_API_KEY = 'fake-key-client-is-mocked';
+    let seen;
+    setGeminiClientForTests({ models: { generateContentStream: async (params) => { seen = params; return (async function* () { yield chunk('Guest answer.'); })(); } } });
+    const res = await request(app).post('/api/zest/public/ask-stream').send({ question: 'Which UK universities offer an MBA?' });
+
+    expect(res.status).toBe(200);
+    const done = events(res.text).pop();
+    expect(done.type).toBe('done');
+    expect(done.answer).toBe('Guest answer.');
+    expect(done.logId).toBeUndefined();
+    const tools = JSON.stringify(seen.config.tools);
+    expect(tools).toMatch(/search_universities/);
+    expect(tools).not.toMatch(/lookup_student_status|list_my_students|pipeline_summary|list_open_lead_alerts/);
+    expect(seen.config.systemInstruction).toMatch(/not signed in/);
+    const log = await ZestQueryLog.findOne({ userRole: 'guest', answer: 'Guest answer.' }).lean();
+    expect(log).toBeTruthy();
+    expect(log.userId).toBeUndefined();
+  });
+
+  it('still validates the question', async () => {
+    expect((await request(app).post('/api/zest/public/ask-stream').send({ question: ' ' })).status).toBe(400);
   });
 });

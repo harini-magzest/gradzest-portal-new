@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Plus, X, Check, UserCheck, MessageSquare,
   RefreshCw, Users, Star, TrendingUp, UserCog, ChevronDown,
@@ -1263,6 +1263,16 @@ export default function AdminCounselors() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // ?view=<id> (from the top search) opens that Application Team member's profile
+  const [params, setParams] = useSearchParams();
+  const viewId = params.get('view');
+  useEffect(() => {
+    if (!viewId || loading) return;
+    const member = appTeamMembers.find(m => normalId(m) === viewId);
+    if (member) { setActiveRole('appteam'); setEditingAppTeam(member); }
+    setParams(p => { p.delete('view'); return p; }, { replace: true });
+  }, [viewId, loading, appTeamMembers, setParams]);
+
   // Compute metrics for each counselor
   const metricsMap = useMemo(() => {
     const m: Record<string, ReturnType<typeof counselorMetrics>> = {};
@@ -1468,7 +1478,9 @@ return (
                 icon: <Star className="w-5 h-5 text-purple-500" />,
                 bg: 'bg-purple-50',
                 label: 'Top performer',
-                value: topPerformer?.name?.split(' ')[0] + (topPerformer?.name?.split(' ')[1] ? ' ' + topPerformer.name.split(' ')[1][0] + '.' : '') || '—',
+                value: topPerformer?.name
+                  ? topPerformer.name.split(' ')[0] + (topPerformer.name.split(' ')[1] ? ' ' + topPerformer.name.split(' ')[1][0] + '.' : '')
+                  : '—',
                 sub: topPerformer ? `Score ${metricsMap[normalId(topPerformer)]?.score ?? 0}` : '—',
                 subColor: 'text-green-600',
               },

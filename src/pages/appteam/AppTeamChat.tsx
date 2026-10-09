@@ -9,7 +9,7 @@ import { useCallContext } from '../../context/CallContext';
 import { useToast } from '../../context/ToastContext';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
-import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
+import { useMarkRoomRead, unreadCount, unreadInRooms, unreadWithPeople } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -374,13 +374,22 @@ export default function AppTeamChat() {
           </div>
 
           <div className="flex border-b border-gray-100">
-            {([['counselors', 'Counselors', UserCog, counselors.length], ['admins', 'Admin', ShieldCheck, admins.length], ['groups', 'Groups', Users, groupRooms.length]] as const).map(([tab, label, Icon, count]) => (
+            {/* Each tab's badge counts unread messages only, and disappears once they've been read */}
+            {([
+              ['counselors', 'Counselors', UserCog, unreadWithPeople(counselors, rooms, String(user?.id))],
+              ['admins', 'Admin', ShieldCheck, unreadWithPeople(admins, rooms, String(user?.id))],
+              ['groups', 'Groups', Users, unreadInRooms(groupRooms, String(user?.id))],
+            ] as const).map(([tab, label, Icon, unread]) => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
                   activeTab === tab ? 'text-orange-700 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700'
                 }`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
-                <span className="text-[10px] text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">{count}</span>
+                {unread > 0 && (
+                  <span aria-label={`${unread} unread`} className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
               </button>
             ))}
           </div>

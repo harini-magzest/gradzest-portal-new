@@ -65,7 +65,10 @@ export default defineConfig({
     hookTimeout: 90000,
   },
   server: {
-    host: '0.0.0.0',
+    // Development only. Reachable from this machine alone by default: the dev server serves unbuilt source and
+    // /@vite/client, so it must never be exposed to a network or a public domain. To test from a phone on the same
+    // Wi-Fi run `DEV_HOST=0.0.0.0 npm run client` on purpose. Production is the built `dist/`, never this server.
+    host: process.env.DEV_HOST || 'localhost',
     port: 5173,
     strictPort: true,
     // Dev-only: the full-screen error overlay on an unhandled exception. Never ships
@@ -88,5 +91,12 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  // `npm run preview` serves the BUILT dist/ (no source, no /@vite/client) for checking a build locally. It is not a
+  // production server; deploy dist/ behind nginx or a static host (see docs/DEPLOYMENT.md).
+  preview: {
+    host: process.env.PREVIEW_HOST || 'localhost',
+    port: 4173,
+    strictPort: true,
   },
 })

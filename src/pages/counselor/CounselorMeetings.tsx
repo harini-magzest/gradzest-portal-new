@@ -4,6 +4,7 @@ import { api } from '../../api';
 import AddToCalendar from '../../components/AddToCalendar';
 import { useAuth } from '../../context/AuthContext';
 import { usePortalName } from '../../hooks/usePortalName';
+import { openExternal } from '../../lib/safeUrl';
 
 function Spinner() {
   return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
@@ -49,7 +50,7 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
       setTimeout(() => setShowExpired(false), 3000);
       return;
     }
-    window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer');
+    openExternal(meeting.meetingLink);
   };
 
   return (

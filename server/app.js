@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
+const { MongoRateLimitStore } = require('./lib/mongoRateLimitStore');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 // Load env file: .env.production or .env.development first, fall back to .env
@@ -30,6 +31,7 @@ const requestLogger = require('./middleware/requestLogger');
 const { ipBlockMiddleware, refreshBlockedIps } = require('./middleware/ipBlock');
 const { wafQueryCheck, wafBodyCheck } = require('./middleware/wafRules');
 const { skyload, isTrustedSocAdmin } = require('./middleware/skyload');
+const { userIdFromToken, isAssetRequest } = require('./lib/clientKey');
 const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
@@ -104,6 +106,7 @@ app.use('/api', requestLogger);
 // make many sequential auth calls from the same "IP") don't trip each other's quota.
 // Rate-limiter behavior itself is covered by its own dedicated test instead.
 const authLimiter = rateLimit({
+  store: new MongoRateLimitStore('auth'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   standardHeaders: true,
@@ -114,6 +117,7 @@ const authLimiter = rateLimit({
 // Failures are counted per IP + email: one person mistyping their password must not lock
 // out colleagues on the same office network. The per-IP cap still stops password spraying.
 const loginFailLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-fail'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   skipSuccessfulRequests: true,
@@ -123,6 +127,7 @@ const loginFailLimiter = rateLimit({
   message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
 });
 const loginIpLimiter = rateLimit({
+  store: new MongoRateLimitStore('login-ip'),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50,
   skipSuccessfulRequests: true,
@@ -131,10 +136,28 @@ const loginIpLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many failed login attempts from this network. Please try again in 15 minutes.' },
 });
+// Counted per signed-in user (anonymous: per IP): offices and campuses share one public IP, and a single dashboard
+// load is dozens of requests, so an IP-wide budget locked colleagues out of each other. A forged token earns no key.
+const limiterKey = (req) => {
+  const id = userIdFromToken(req);
+  return id ? `user:${id}` : rateLimit.ipKeyGenerator(req.ip);
+};
 const generalLimiter = rateLimit({
+  store: new MongoRateLimitStore('general'),
   windowMs: 60 * 1000, // 1 minute
   max: 120,
-  skip: isTrustedSocAdmin,
+  skip: (req) => isTrustedSocAdmin(req) || isAssetRequest(req), // logo/favicon images have their own limiter below
+  keyGenerator: limiterKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please slow down.' },
+});
+// University logos and favicons: a list page loads one per card, so the cap is generous, but still bounded because
+// these routes fetch from third-party sites on a cache miss.
+const assetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  keyGenerator: limiterKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests. Please slow down.' },
@@ -152,6 +175,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/github', authLimiter);
   app.use('/api/auth/github/callback', authLimiter);
   app.use('/api', generalLimiter);
+  app.use(['/api/unilogo', '/api/favicon'], assetLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
   markActive('rate_limit_general', '120 req / min on /api');
 }

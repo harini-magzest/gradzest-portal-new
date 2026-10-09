@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ZestKnowledgePanel from './ZestKnowledgePanel';
 import ZestInsightsPanel from './ZestInsightsPanel';
+import ZestQueryLogPanel from './ZestQueryLogPanel';
 
 const zest = vi.hoisted(() => ({
   documents: vi.fn(), replaceDocument: vi.fn(), uploadDocument: vi.fn(), renameDocument: vi.fn(), deleteDocument: vi.fn(),
-  analytics: vi.fn(), addToKnowledge: vi.fn(),
+  analytics: vi.fn(), addToKnowledge: vi.fn(), queryLogs: vi.fn(),
 }));
 vi.mock('../../api', () => ({ api: { zest } }));
 
@@ -138,5 +139,36 @@ describe('Insights tab: what Zest is used for', () => {
     zest.analytics.mockResolvedValue({ days: 30, total: 0, rated: 0, up: 0, down: 0, unanswered: [], downvoted: [] });
     render(<ZestInsightsPanel />);
     expect(await screen.findByText(/No live lookups in this period/)).toBeTruthy();
+  });
+});
+
+describe('Log tab: query log', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    id: 'l1', question: 'Which countries offer the cheapest masters?', answer: 'Germany and Ireland have low fees.',
+    userRole: 'guest', userName: 'Guest', userEmail: '', sourceDocCount: 1, createdAt: '2026-10-01T10:00:00Z', ...over,
+  });
+
+  it('lists each question with who asked it, including signed-out guests', async () => {
+    zest.queryLogs.mockResolvedValue({
+      logs: [row(), row({ id: 'l2', question: 'Where is my file?', userRole: 'student', userName: 'Asha' })],
+      total: 2,
+    });
+    render(<ZestQueryLogPanel />);
+    expect(await screen.findByText('Which countries offer the cheapest masters?')).toBeTruthy();
+    expect(screen.getByText('Where is my file?')).toBeTruthy();
+    expect(screen.getByText('(guest)')).toBeTruthy();
+    expect(screen.getByText('(student)')).toBeTruthy();
+    expect(zest.queryLogs).toHaveBeenCalledWith({ limit: 50 });
+  });
+
+  it('says so when nothing has been asked, and shows the error when loading fails', async () => {
+    zest.queryLogs.mockResolvedValueOnce({ logs: [], total: 0 });
+    const { unmount } = render(<ZestQueryLogPanel />);
+    expect(await screen.findByText('No questions asked yet.')).toBeTruthy();
+    unmount();
+
+    zest.queryLogs.mockRejectedValueOnce(new Error('Forbidden'));
+    render(<ZestQueryLogPanel />);
+    expect((await screen.findByRole('alert')).textContent).toBe('Forbidden');
   });
 });

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, X, CheckCheck, ChevronUp, ChevronDown, Calendar, FileText, Tag, UserPlus } from "lucide-react";
+import { Bell, X, CheckCheck, ChevronUp, ChevronDown, Calendar, FileText, UserPlus, ClipboardList, AlarmClock, Clock, Ticket, Sunrise, Zap, GraduationCap, BellRing } from "lucide-react";
 import { useNotifications, AppNotification } from "../context/NotificationContext";
+import { devicePermission, requestDevicePermission, playNotificationSound, type DevicePermission } from "../lib/deviceNotifications";
+import { openExternal } from '../lib/safeUrl';
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -14,16 +16,54 @@ function timeAgo(date: Date): string {
 const NOTIF_ICONS: Record<string, React.ReactNode> = {
   meeting: <Calendar className="w-4 h-4 text-[#0d1b4b]" />,
   application: <FileText className="w-4 h-4 text-emerald-600" />,
-  discount: <Tag className="w-4 h-4 text-amber-500" />,
   lead: <UserPlus className="w-4 h-4 text-purple-600" />,
+  subscriber: <UserPlus className="w-4 h-4 text-purple-600" />,
+  counselor: <GraduationCap className="w-4 h-4 text-indigo-600" />,
+  task: <ClipboardList className="w-4 h-4 text-orange-600" />,
+  "task-overdue": <AlarmClock className="w-4 h-4 text-red-600" />,
+  deadline: <Clock className="w-4 h-4 text-amber-600" />,
+  event: <Ticket className="w-4 h-4 text-pink-600" />,
+  daily_brief: <Sunrise className="w-4 h-4 text-amber-600" />,
+  automation: <Zap className="w-4 h-4 text-sky-600" />,
 };
 
 const NOTIF_COLORS: Record<string, string> = {
   meeting: "bg-blue-50",
   application: "bg-emerald-50",
-  discount: "bg-amber-50",
   lead: "bg-purple-50",
+  subscriber: "bg-purple-50",
+  counselor: "bg-indigo-50",
+  task: "bg-orange-50",
+  "task-overdue": "bg-red-50",
+  deadline: "bg-amber-50",
+  event: "bg-pink-50",
+  daily_brief: "bg-amber-50",
+  automation: "bg-sky-50",
 };
+
+// Whether this device shows pop-ups, with a way to turn them on for anyone who chose "Not now"
+function DevicePopupsRow() {
+  const [permission, setPermission] = useState<DevicePermission>(devicePermission);
+  if (permission === "unsupported") return null;
+  const turnOn = async () => {
+    const result = await requestDevicePermission();
+    setPermission(result);
+    if (result === "granted") playNotificationSound();
+  };
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-[11px] text-gray-500">
+      <BellRing className="w-3.5 h-3.5 flex-shrink-0" />
+      {permission === "granted" && <span>Pop-ups with sound are <b className="text-gray-700">on</b> for this device</span>}
+      {permission === "default" && (
+        <>
+          <span className="flex-1">Pop-ups on this device are off</span>
+          <button type="button" onClick={turnOn} className="font-semibold text-[#0d1b4b] hover:underline">Turn on</button>
+        </>
+      )}
+      {permission === "denied" && <span>Pop-ups are blocked. Allow notifications for this site in your browser settings.</span>}
+    </div>
+  );
+}
 
 export default function NotificationBell({ buttonClassName }: { buttonClassName?: string }) {
   const { notifications, unreadCount, markRead, markAllRead, dismiss, clearAll } = useNotifications();
@@ -62,7 +102,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
   function handleNotifClick(n: AppNotification) {
     markRead(n.id);
     setNotifOpen(false);
-    if (n.link?.startsWith('http')) window.open(n.link, '_blank', 'noopener,noreferrer');
+    if (n.link?.startsWith('http')) openExternal(n.link);
     else if (n.link) navigate(n.link);
   }
 
@@ -125,8 +165,8 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
                 <div key={n.id}
                   className={`flex gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${bgColor}`}
                   onClick={() => handleNotifClick(n)}>
-                  <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${NOTIF_COLORS[n.type]}`}>
-                    {NOTIF_ICONS[n.type]}
+                  <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${NOTIF_COLORS[n.type] ?? "bg-gray-100"}`}>
+                    {NOTIF_ICONS[n.type] ?? <Bell className="w-4 h-4 text-gray-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -157,6 +197,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
           )}
+          <DevicePopupsRow />
         </div>
       )}
     </div>

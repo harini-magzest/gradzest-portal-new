@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GraduationCap, X, Send, FileText, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, Copy, Check, Plus } from 'lucide-react';
+import { X, Send, FileText, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, Copy, Check, Plus } from 'lucide-react';
+import ZestIcon from './ZestIcon';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useSpeech, SPEECH_LANGS } from '../../hooks/useSpeech';
 import ZestKnowledgePanel from './ZestKnowledgePanel';
 import ZestInsightsPanel from './ZestInsightsPanel';
 import ZestAlertsPanel from './ZestAlertsPanel';
+import ZestQueryLogPanel from './ZestQueryLogPanel';
 
 interface ZestMessage {
   id: string;
@@ -18,12 +20,13 @@ interface ZestMessage {
   rating?: 'up' | 'down';
 }
 
-type Tab = 'chat' | 'knowledge' | 'insights' | 'alerts';
+type Tab = 'chat' | 'knowledge' | 'insights' | 'alerts' | 'log';
 const ADMIN_TABS: { key: Tab; label: string }[] = [
   { key: 'chat', label: 'Chat' },
   { key: 'knowledge', label: 'Knowledge' },
   { key: 'insights', label: 'Insights' },
   { key: 'alerts', label: 'Alerts' },
+  { key: 'log', label: 'Log' },
 ];
 
 function welcomeFor(role: string): string {
@@ -67,9 +70,13 @@ function forgetChats() {
   } catch { /* nothing to forget */ }
 }
 
+// Shown in the welcome bubble to signed-out visitors, in place of the per-role welcome.
+const GUEST_WELCOME = "Hi, I'm Zest, Gradzest's study-abroad assistant. Ask me about universities, courses, visas or how the process works. Sign in to get help with your own application.";
+
 // Global AI assistant, mounted once in App.tsx alongside the other root-level overlays
 // (ToastLayer, FlashToast, AuthModal) so every role gets it without touching each
-// dashboard's own *Layout.tsx. Self-gates on auth state and route below.
+// dashboard's own *Layout.tsx. Signed-out visitors get it too (public site), as a guest: knowledge base and
+// catalogue only, no file upload or rating. Self-gates on route below.
 //
 // Zest lives only here: every Zest feature is either something you ask it in Chat (drafts, lookups, alerts,
 // insights) or, for admins, a tab in this panel (knowledge base, insights, alerts). There is no Zest page or
@@ -81,6 +88,7 @@ export default function ZestWidget() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('chat');
   const [messages, setMessages] = useState<ZestMessage[]>([]);
+  const guest = !isAuthenticated || !user;
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -98,10 +106,12 @@ export default function ZestWidget() {
   const canManage = user?.role === 'admin' && !user.isAppTeam;
   const userId = user?.id;
 
-  // Bring back this user's conversation after a reload; forget everything once they are signed out. While the session
-  // is still being restored the user is briefly unknown, which must not be mistaken for a sign-out.
+  // Bring back this user's conversation after a reload; forget everything once they are signed out, so a guest chat
+  // never carries into an account or back. While the session is still being restored the user is briefly unknown,
+  // which must not be mistaken for a sign-out.
   useEffect(() => {
     if (authLoading) return;
+    setAttachedFile(null);
     if (!isAuthenticated || !userId) { forgetChats(); setMessages([]); setLoadedFor(null); return; }
     setMessages(loadChat(userId));
     setLoadedFor(userId);
@@ -133,8 +143,9 @@ export default function ZestWidget() {
   // A person who stops being an admin (or switches account) must not stay on a management tab.
   useEffect(() => { if (!canManage && tab !== 'chat') setTab('chat'); }, [canManage, tab]);
 
-  // SOC is deliberately isolated from the rest of the portal (see SOCLayout.tsx) — Zest stays out too.
-  const hidden = !isAuthenticated || !user || location.pathname.startsWith('/soc');
+  // SOC is deliberately isolated from the rest of the portal (see SOCLayout.tsx) — Zest stays out too, as it
+  // does from the token-only parent view.
+  const hidden = location.pathname.startsWith('/soc') || location.pathname.startsWith('/parent/');
   if (hidden) return null;
 
   const send = async () => {
@@ -178,7 +189,7 @@ export default function ZestWidget() {
       const { answer, sources, logId } = await api.zest.askStream(question, history, (delta) => {
         setStatus('');
         setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: m.text + delta } : m)));
-      }, setStatus);
+      }, setStatus, guest);
       setMessages(prev => prev.map(m => (m.id === replyId ? { ...m, text: answer, sources, logId } : m)));
       if (speech.speakAnswers) speech.speak(answer);
     } catch (err: any) {
@@ -228,9 +239,9 @@ export default function ZestWidget() {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close Zest' : 'Open Zest'}
-        className="fixed bottom-6 right-6 z-[250] w-14 h-14 rounded-2xl bg-[#0d1b4b] hover:bg-[#152258] shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-[250] w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
       >
-        {open ? <X className="w-6 h-6" /> : <GraduationCap className="w-7 h-7" />}
+        {open ? <X className="w-6 h-6 text-[#0d1b4b]" /> : <ZestIcon className="w-24 h-24" />}
       </button>
 
       <div
@@ -239,12 +250,9 @@ export default function ZestWidget() {
         }`}
       >
         <div className="bg-[#0d1b4b] text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            {/* The header is the same navy as the logo tile, so the tile gets a thin light edge to stay visible. */}
-            <span className="w-8 h-8 rounded-lg bg-[#0d1b4b] ring-1 ring-white/30 flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-[18px] h-[18px]" />
-            </span>
-            <span className="font-semibold text-lg">Zest</span>
+          <div className="flex items-center gap-2">
+            <ZestIcon className="w-5 h-5" />
+            <span className="font-semibold text-lg">Zest AI</span>
           </div>
           <div className="flex items-center gap-1">
             {tab === 'chat' && messages.length > 0 && (
@@ -311,13 +319,14 @@ export default function ZestWidget() {
             {tab === 'knowledge' && <ZestKnowledgePanel />}
             {tab === 'insights' && <ZestInsightsPanel />}
             {tab === 'alerts' && <ZestAlertsPanel />}
+            {tab === 'log' && <ZestQueryLogPanel />}
           </div>
         ) : (
           <>
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
               <div className="flex justify-start">
                 <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-white text-gray-800 border border-gray-100 shadow-sm">
-                  <p className="whitespace-pre-wrap">{welcomeFor(user.role)}</p>
+                  <p className="whitespace-pre-wrap">{user ? welcomeFor(user.role) : GUEST_WELCOME}</p>
                 </div>
               </div>
               {messages.filter(m => !(m.id === streamingId && !m.text)).map(m => (
@@ -391,15 +400,17 @@ export default function ZestWidget() {
                   className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) setAttachedFile(f); if (fileRef.current) fileRef.current.value = ''; }}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  title="Attach a PDF to ask about"
-                  disabled={loading}
-                  className="w-10 h-10 flex-shrink-0 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-40 flex items-center justify-center"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </button>
+                {!guest && (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    title="Attach a PDF to ask about"
+                    disabled={loading}
+                    className="w-10 h-10 flex-shrink-0 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-40 flex items-center justify-center"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                )}
                 {speech.canListen && (
                   <button
                     type="button"

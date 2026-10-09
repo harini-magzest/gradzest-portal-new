@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Star, BookOpen, X, DollarSign, ExternalLink, Users, Info, AlertCircle, Heart } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -25,7 +25,8 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   );
 }
 
-function UniversityCard({ uni, student, saved, onToggleSaved }: { uni: any; student: any; saved: boolean; onToggleSaved: (uni: any) => void }) {
+// The heart shows only where a page passes onToggleSaved (the Universities list); the country page reuses this card without it.
+export function UniversityCard({ uni, student, saved = false, onToggleSaved }: { uni: any; student: any; saved?: boolean; onToggleSaved?: (uni: any) => void }) {
   const navigate = useNavigate();
   const eligibleCount = (uni.courses || []).filter((c: any) => checkCourseEligibility(student, c).status === 'eligible').length;
 
@@ -41,15 +42,17 @@ function UniversityCard({ uni, student, saved, onToggleSaved }: { uni: any; stud
         <div className="absolute top-2 left-2 bg-white/90 text-xs font-bold text-blue-800 px-2.5 py-1 rounded-full">
           #{uni.ranking} World
         </div>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onToggleSaved(uni); }}
-          aria-pressed={saved}
-          aria-label={saved ? `Remove ${uni.name} from your saved universities` : `Save ${uni.name} to your saved universities`}
-          className="absolute bottom-2 left-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-colors"
-        >
-          <Heart className={`w-4 h-4 ${saved ? 'text-rose-500 fill-rose-500' : 'text-gray-500'}`} />
-        </button>
+        {onToggleSaved && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onToggleSaved(uni); }}
+            aria-pressed={saved}
+            aria-label={saved ? `Remove ${uni.name} from your saved universities` : `Save ${uni.name} to your saved universities`}
+            className="absolute bottom-2 left-2 bg-white/90 hover:bg-white p-1.5 rounded-full transition-colors"
+          >
+            <Heart className={`w-4 h-4 ${saved ? 'text-rose-500 fill-rose-500' : 'text-gray-500'}`} />
+          </button>
+        )}
         <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded-full">
           <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
           <span className="text-xs font-bold text-gray-800">{uni.rating}</span>
@@ -113,7 +116,8 @@ export default function StudentUniversities() {
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
-  const [country, setCountry] = useState('');
+  const [searchParams] = useSearchParams();
+  const [country, setCountry] = useState(() => searchParams.get('country') || '');
   const [level, setLevel] = useState('');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 

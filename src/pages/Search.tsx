@@ -36,10 +36,11 @@ export default function SearchPage() {
     if (country) result = result.filter(u => u.country === country);
     if (level) result = result.filter(u => u.courses.some((c: any) => c.level === level));
     if (field) result = result.filter(u => u.courses.some((c: any) => c.name.toLowerCase().includes(field.toLowerCase())));
-    result = result.filter(u => u.averageFees.postgraduate <= maxFee);
+    // A university with no fee on record stays in the list rather than crashing the page or silently vanishing
+    result = result.filter(u => (u.averageFees?.postgraduate ?? 0) <= maxFee);
     return [...result].sort((a, b) => {
       if (sortBy === 'ranking') return a.ranking - b.ranking;
-      if (sortBy === 'fee') return a.averageFees.postgraduate - b.averageFees.postgraduate;
+      if (sortBy === 'fee') return (a.averageFees?.postgraduate ?? Infinity) - (b.averageFees?.postgraduate ?? Infinity) || 0;
       return b.rating - a.rating;
     });
   }, [allUniversities, query, country, level, field, maxFee, sortBy]);
@@ -155,8 +156,8 @@ export default function SearchPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 text-center">
                       <div><BookOpen className="w-3.5 h-3.5 mx-auto text-gray-400 mb-0.5" /><p className="text-xs text-gray-400">Courses</p><p className="text-sm font-bold text-gray-800">{uni.courses.length}</p></div>
-                      <div><Users className="w-3.5 h-3.5 mx-auto text-gray-400 mb-0.5" /><p className="text-xs text-gray-400">Students</p><p className="text-sm font-bold text-gray-800">{(uni.totalStudents / 1000).toFixed(0)}k</p></div>
-                      <div><DollarSign className="w-3.5 h-3.5 mx-auto text-gray-400 mb-0.5" /><p className="text-xs text-gray-400">PG/year</p><p className="text-sm font-bold text-gray-800">{uni.averageFees.currency} {(uni.averageFees.postgraduate / 1000).toFixed(0)}k</p></div>
+                      <div><Users className="w-3.5 h-3.5 mx-auto text-gray-400 mb-0.5" /><p className="text-xs text-gray-400">Students</p><p className="text-sm font-bold text-gray-800">{uni.totalStudents ? `${(uni.totalStudents / 1000).toFixed(0)}k` : '—'}</p></div>
+                      <div><DollarSign className="w-3.5 h-3.5 mx-auto text-gray-400 mb-0.5" /><p className="text-xs text-gray-400">PG/year</p><p className="text-sm font-bold text-gray-800">{uni.averageFees?.postgraduate ? `${uni.averageFees.currency || ''} ${(uni.averageFees.postgraduate / 1000).toFixed(0)}k`.trim() : '—'}</p></div>
                     </div>
                   </div>
                 </div>

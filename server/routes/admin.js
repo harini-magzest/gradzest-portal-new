@@ -1,5 +1,6 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');

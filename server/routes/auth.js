@@ -1,5 +1,6 @@
 const express = require('express');
 const { logError } = require('../lib/logError');
+const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');

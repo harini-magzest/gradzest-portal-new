@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCallContext } from '../../context/CallContext';
 import { api } from '../../api';
-import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
+import { useMarkRoomRead, unreadCount, unreadInRooms } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 
@@ -355,9 +355,9 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
   });
 
   const q = search.toLowerCase();
-  const groupCount = rooms.filter((r: any) => r.type === 'group').length;
-  const groupUnread = rooms.filter((r: any) => r.type === 'group')
-    .reduce((n: number, r: any) => n + (unreadCount(r, String(user?.id))), 0);
+  // Tab badges count unread messages only (not how many conversations exist), and clear once read
+  const chatsUnread = unreadInRooms(rooms.filter((r: any) => r.type !== 'group'), String(user?.id));
+  const groupUnread = unreadInRooms(rooms.filter((r: any) => r.type === 'group'), String(user?.id));
   const filteredRooms = rooms
     // Chats tab = 1:1 conversations; Groups tab = counselling groups (created by admins)
     .filter((room: any) => (listTab === 'groups') === (room.type === 'group'))
@@ -398,13 +398,16 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
             </div>
           </div>
           <div className="flex border-b border-gray-100" role="tablist" aria-label="Conversation type">
-            {([['chats', 'Chats', MessageSquare, 0], ['groups', 'Groups', Users, groupUnread]] as const).map(([tab, label, Icon, badge]) => (
+            {([['chats', 'Chats', MessageSquare, chatsUnread], ['groups', 'Groups', Users, groupUnread]] as const).map(([tab, label, Icon, badge]) => (
               <button key={tab} type="button" role="tab" aria-selected={listTab === tab} onClick={() => setListTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
                   listTab === tab ? 'text-green-700 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
-                {tab === 'groups' && <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{groupCount}</span>}
-                {badge > 0 && <span className="bg-green-600 text-white text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center">{badge}</span>}
+                {badge > 0 && (
+                  <span aria-label={`${badge} unread`} className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
