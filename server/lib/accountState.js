@@ -16,7 +16,7 @@ const User = require('../models/User');
 
 const TTL_MS = 10 * 1000;
 const ADMIN_LOCK_FROM_YEAR = 2090;
-const cache = new Map(); // userId -> { state, at }
+const cache = new Map(); // userId -> { state, role, isAppTeam, revokedAt, at }
 
 function stateOf(u) {
   if (!u) return 'missing';
@@ -33,8 +33,11 @@ async function accountRecord(userId) {
   if (hit && Date.now() - hit.at < TTL_MS) return hit;
   let entry;
   try {
-    const u = await User.findById(key).select('active lockedUntil role isAppTeam').lean();
-    entry = { state: stateOf(u), role: u?.role ?? null, isAppTeam: !!u?.isAppTeam, at: Date.now() };
+    const u = await User.findById(key).select('active lockedUntil role isAppTeam sessionsRevokedAt').lean();
+    entry = {
+      state: stateOf(u), role: u?.role ?? null, isAppTeam: !!u?.isAppTeam,
+      revokedAt: u?.sessionsRevokedAt ? new Date(u.sessionsRevokedAt).getTime() : 0, at: Date.now(),
+    };
   } catch {
     return { state: 'ok', role: null, isAppTeam: null }; // a database hiccup must not log everyone out
   }
@@ -53,8 +56,24 @@ async function tokenRoleIsCurrent(token) {
   return role === token.role && isAppTeam === !!token.isAppTeam;
 }
 
+/** True when every session of the account was ended after this token was issued (see revokeAllSessions). */
+async function tokenRevoked(token) {
+  const { revokedAt } = await accountRecord(token.id);
+  if (!revokedAt) return false;
+  // Tokens from before iatMs existed only have `iat` (seconds): treat them as issued at the start of that second
+  const issuedAt = typeof token.iatMs === 'number' ? token.iatMs : (token.iat || 0) * 1000;
+  return issuedAt < revokedAt;
+}
+
 const isBlocked = async (userId) => (await accountState(userId)) !== 'ok';
 const invalidate = (userId) => { cache.delete(String(userId)); };
+
+// Ends every session of an account at once: the refresh tokens go, and access tokens issued before now are refused on
+// their next use. A server in another process (the API, when a script calls this) notices within TTL_MS.
+async function revokeAllSessions(userId) {
+  await User.updateOne({ _id: userId }, { $set: { sessions: [], sessionsRevokedAt: new Date() } });
+  invalidate(userId);
+}
 const isAdminLocked = (u) => !!(u?.lockedUntil && new Date(u.lockedUntil) > new Date() && new Date(u.lockedUntil).getFullYear() >= ADMIN_LOCK_FROM_YEAR);
 
-module.exports = { accountState, isBlocked, invalidate, isAdminLocked, tokenRoleIsCurrent };
+module.exports = { accountState, isBlocked, invalidate, isAdminLocked, tokenRoleIsCurrent, tokenRevoked, revokeAllSessions };
