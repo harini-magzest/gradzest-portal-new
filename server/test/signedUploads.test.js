@@ -59,7 +59,7 @@ describe('POST /api/files/:name/link', () => {
     const name = await storedFile(owner, 'private');
     expect((await linkFor(other, name)).status).toBe(404);
     expect((await linkFor(other, '1700000000000-doesnotexist.pdf')).status).toBe(404);
-    expect((await linkFor(other, '..%2F.env')).status).toBe(404);
+    expect((await linkFor(other, '..%2F.env')).status).toBe(400); // not a stored file name at all: refused by validation
     expect((await request(app).post(`/api/files/${name}/link`)).status).toBe(401);
   });
 });

@@ -7,6 +7,8 @@ const authMiddleware = require('../middleware/auth');
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
+const { idParam } = require('../middleware/validate');
+router.param('id', idParam); // a task id is a MongoDB ObjectId: a malformed one is a 400 (middleware/validate.js)
 const { TASK_STATUSES } = Task;
 const STATUS_LABEL = { pending: 'Pending', in_progress: 'In progress', on_hold: 'On hold', completed: 'Completed' };
 

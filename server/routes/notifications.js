@@ -6,6 +6,8 @@ const User = require('../models/User');
 const { isWhatsAppConfigured } = require('../lib/whatsapp');
 
 const router = express.Router();
+const { idParam } = require('../middleware/validate');
+router.param('id', idParam); // a notification id is a MongoDB ObjectId: a malformed one is a 400 (middleware/validate.js)
 
 // GET /api/notifications — latest 50 for logged-in user
 router.get('/', authMiddleware, async (req, res) => {
