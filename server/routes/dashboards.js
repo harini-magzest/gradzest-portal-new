@@ -1,7 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
 const Task = require('../models/Task');
-const LeadAlert = require('../models/LeadAlert');
 const authMiddleware = require('../middleware/auth');
 const { LEAD_STAGES } = require('../lib/automation');
 const { daysSinceStageChange } = require('../lib/leadRisk');
@@ -34,7 +33,6 @@ router.get('/admin/team-workload', authMiddleware, requireRole('admin'), async (
   const counselors = await User.find({ role: 'counselor' }).select('name').lean();
   const students = await User.find({ role: 'student', counselorId: { $ne: null } })
     .select('counselorId leadStageChangedAt createdAt joinedDate status').lean();
-  const alerts = await LeadAlert.find({ resolved: false }).select('counselorId').lean();
   const overdue = await Task.find({
     status: { $in: ['pending', 'in_progress'] }, dueDate: { $ne: '', $lt: new Date().toISOString().slice(0, 10) },
   }).select('assignedTo').lean();
@@ -47,7 +45,6 @@ router.get('/admin/team-workload', authMiddleware, requireRole('admin'), async (
       name: c.name,
       leads: mine.length,
       staleLeads: mine.filter(s => !NON_STALE_STATUSES.includes(s.status) && (daysSinceStageChange(s) ?? -1) >= STALE_DAYS).length,
-      openAlerts: alerts.filter(a => String(a.counselorId) === id).length,
       overdueTasks: overdue.filter(t => String(t.assignedTo) === id).length,
     };
   }).sort((a, b) => b.staleLeads - a.staleLeads || b.leads - a.leads);

@@ -41,12 +41,12 @@ const SEVERITY_STYLE: Record<string, { bg: string; text: string; label: string }
 const TYPE_ICON: Record<string, any> = {
   login_success: LogIn, login_failure: KeyRound, login_lockout: Lock,
   logout: LogOut, token_invalid: ShieldAlert, token_expired: ShieldAlert, password_reset: KeyRound,
-  password_reset_request: KeyRound, privilege_change: ShieldAlert,
+  password_reset_request: KeyRound, password_change: KeyRound, two_factor_change: ShieldAlert, privilege_change: ShieldAlert,
 };
 const TYPE_LABEL: Record<string, string> = {
   login_success: 'Login', login_failure: 'Failed login', login_lockout: 'Lockout',
   logout: 'Logout', token_invalid: 'Invalid token', token_expired: 'Expired token', password_reset: 'Password reset',
-  password_reset_request: 'Reset requested', privilege_change: 'Privilege change', data_export: 'Data export', bulk_delete: 'Bulk delete', malware_upload: 'Malware upload', waf_block: 'WAF block',
+  password_reset_request: 'Reset requested', password_change: 'Password changed', two_factor_change: 'Two-factor change', privilege_change: 'Privilege change', data_export: 'Data export', bulk_delete: 'Bulk delete', malware_upload: 'Malware upload', waf_block: 'WAF block',
   skyload_bot_flag: 'Bot flag', skyload_throttle: 'Throttled',
 };
 

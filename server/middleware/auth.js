@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../lib/tokens');
 const { logSecurityEvent } = require('./logSecurityEvent');
 const { isBlocked } = require('../lib/accountState');
 
@@ -6,7 +6,7 @@ module.exports = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'No token provided' });
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verifyAccessToken(token);
   } catch (err) {
     // Fire-and-forget — this runs on nearly every protected request, so it
     // must never add latency or be able to fail the response.

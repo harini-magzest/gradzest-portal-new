@@ -17,6 +17,8 @@ const securityEventSchema = new mongoose.Schema(
         "skyload_bot_flag",
         "skyload_throttle",
         "password_reset_request",
+        "password_change",
+        "two_factor_change",
         "privilege_change",
         "data_export",
         "bulk_delete",
