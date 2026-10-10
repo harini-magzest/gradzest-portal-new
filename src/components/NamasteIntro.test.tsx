@@ -117,7 +117,7 @@ describe('NamasteIntro', () => {
       expect(dialog()).toBeNull();
     });
 
-    it.each(['/student', '/student/universities', '/counselor', '/admin', '/admin/zest', '/soc', '/appteam', '/board'])(
+    it.each(['/student', '/student/universities', '/counselor', '/admin', '/admin/settings', '/soc', '/appteam', '/board'])(
       'never plays on a dashboard (%s)',
       path => {
         renderIntro(path);

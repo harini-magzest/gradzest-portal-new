@@ -6,11 +6,16 @@ import { getDeviceHints } from '../lib/deviceInfo';
 // Force a full page reload on HMR so the context reference never mismatches
 if (import.meta.hot) { import.meta.hot.invalidate(); }
 
-type LoginResult = { success: true; role: string; isAppTeam?: boolean } | { success: false; code?: string; message?: string };
+type LoginResult =
+  | { success: true; role: string; isAppTeam?: boolean; recoveryCodesRemaining?: number }
+  // The password was right but the account asks for a second step: pass `twoFactor.challengeToken` to verifyTwoFactor.
+  | { success: false; twoFactor: { challengeToken: string } }
+  | { success: false; twoFactor?: undefined; code?: string; message?: string };
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<LoginResult>;
+  verifyTwoFactor: (challengeToken: string, code: string) => Promise<LoginResult>;
   loginWithToken: (token: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -61,14 +66,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       // The device the person signs in from is recorded with the sign-in (browser-reported, display only).
-      const { token, user: u } = await api.auth.login(email, password, await getDeviceHints());
-      setApiToken(token);
-      setUser(u);
-      return { success: true, role: u.role, isAppTeam: u.isAppTeam };
+      const result = await api.auth.login(email, password, await getDeviceHints());
+      if ('twoFactorRequired' in result) return { success: false, twoFactor: { challengeToken: result.challengeToken } };
+      setApiToken(result.token);
+      setUser(result.user);
+      return { success: true, role: result.user.role, isAppTeam: result.user.isAppTeam };
     } catch (err: any) {
       const message = err?.message || '';
       const code = message.toLowerCase().includes('verify your email') ? 'EMAIL_NOT_VERIFIED' : undefined;
       return { success: false, code, message };
+    }
+  };
+
+  const verifyTwoFactor = async (challengeToken: string, code: string): Promise<LoginResult> => {
+    try {
+      const { token, user: u, recoveryCodesRemaining } = await api.auth.verifyTwoFactor(challengeToken, code, await getDeviceHints());
+      setApiToken(token);
+      setUser(u);
+      return { success: true, role: u.role, isAppTeam: u.isAppTeam, recoveryCodesRemaining };
+    } catch (err: any) {
+      // CHALLENGE_EXPIRED: the five minutes ran out, so the caller sends the person back to the password step
+      return { success: false, code: err?.code, message: err?.message || 'Verification failed.' };
     }
   };
 
@@ -104,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithToken, logout, refreshUser, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, login, verifyTwoFactor, loginWithToken, logout, refreshUser, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );

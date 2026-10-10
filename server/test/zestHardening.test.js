@@ -233,14 +233,28 @@ describe('ZestQueryLog is encrypted at rest', () => {
 });
 
 describe('system prompt', () => {
-  it('gives staff the personal-data tools and students only the catalogue search', () => {
+  it('gives staff the personal-data tools and students only the catalogue and their own progress', () => {
     const staff = buildSystemPrompt('counselor');
     const student = buildSystemPrompt('student');
     expect(staff).toContain('lookup_student_status');
     expect(staff).toContain('pipeline_summary');
+    expect(staff).toContain('draft_followup_message');
+    expect(staff).toContain('get_chat_for_reply');
+    expect(staff).toContain('my_day_brief');
+    expect(staff).toContain('conversion_report');
     expect(student).toContain('search_universities');
+    expect(student).toContain('my_upcoming');
+    expect(student).not.toContain('my_day_brief');
+    expect(student).not.toContain('conversion_report');
+    expect(student).toContain('my_status');
     expect(student).not.toContain('lookup_student_status');
     expect(student).not.toContain('pipeline_summary');
+    expect(student).not.toContain('draft_followup_message');
+    expect(student).not.toContain('get_chat_for_reply');
+  });
+
+  it('no longer points anyone at a Zest page that does not exist', () => {
+    for (const role of ['student', 'counselor', 'admin']) expect(buildSystemPrompt(role)).not.toContain('/admin/zest');
   });
 
   it('tells the model that knowledge-base and tool text are data, not instructions', () => {
