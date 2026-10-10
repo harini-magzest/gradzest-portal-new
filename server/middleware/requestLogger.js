@@ -1,5 +1,6 @@
 const RequestLog = require('../models/RequestLog');
 const { checkSuspiciousIpRule } = require('../lib/detectIncidents');
+const { createRequestLogBuffer, DEFAULT_FLUSH_MS } = require('../lib/requestLogBuffer');
 
 // Response codes worth an immediate live ping to admins, on top of the
 // persisted row every request gets. Everything else is Mongo-only and
@@ -7,13 +8,23 @@ const { checkSuspiciousIpRule } = require('../lib/detectIncidents');
 // request would flood the live feed under normal traffic.
 const ALERTABLE_STATUSES = [401, 403, 429];
 
-module.exports = function requestLogger(req, res, next) {
+// Every other row is batched into one insertMany every REQUEST_LOG_FLUSH_MS (default 2s; 0 = write each row at once)
+// rather than one Mongo write per request. The alertable rows above are still written one by one, straight away: the
+// suspicious-IP rule counts them in Mongo the moment they happen, so they must already be there.
+const flushMs = process.env.NODE_ENV === 'test' ? 0 : Number(process.env.REQUEST_LOG_FLUSH_MS ?? DEFAULT_FLUSH_MS);
+const buffer = createRequestLogBuffer({
+  write: (rows) => RequestLog.insertMany(rows, { ordered: false }),
+  flushMs: Number.isFinite(flushMs) ? flushMs : DEFAULT_FLUSH_MS,
+  onError: (err) => console.error('[requestLogger] Failed:', err.message),
+});
+
+function requestLogger(req, res, next) {
   const start = process.hrtime.bigint();
 
   res.on('finish', () => {
     const latencyMs = Number(process.hrtime.bigint() - start) / 1e6;
 
-    RequestLog.create({
+    const row = {
       method: req.method,
       path: req.originalUrl,
       status: res.statusCode,
@@ -22,15 +33,21 @@ module.exports = function requestLogger(req, res, next) {
       userAgent: req.headers['user-agent'] || '',
       userId: req.user?.id || null,
       role: req.user?.role || '',
-    }).then((entry) => {
-      if (ALERTABLE_STATUSES.includes(res.statusCode)) {
-        req.app.get('io')?.to('admin-room').emit('security_request_alert', {
-          method: req.method, path: req.originalUrl, status: res.statusCode, ip: req.ip, at: new Date(),
-        });
-        checkSuspiciousIpRule(entry, req.app.get('io')).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-      }
+    };
+
+    if (!ALERTABLE_STATUSES.includes(res.statusCode)) { buffer.add(row); return; }
+
+    RequestLog.create(row).then((entry) => {
+      req.app.get('io')?.to('admin-room').emit('security_request_alert', {
+        method: req.method, path: req.originalUrl, status: res.statusCode, ip: req.ip, at: new Date(),
+      });
+      checkSuspiciousIpRule(entry, req.app.get('io')).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     }).catch((err) => console.error('[requestLogger] Failed:', err.message));
   });
 
   next();
-};
+}
+
+module.exports = requestLogger;
+// Writes whatever is still waiting; db.js calls it on SIGINT/SIGTERM before it closes the connection.
+module.exports.flushRequestLogs = () => buffer.flush();
