@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import TwoFactorStep from '../components/TwoFactorStep';
 import { safeRedirectPath } from '../lib/safeUrl';
+import TwoFactorStep from '../components/TwoFactorStep';
 
 export default function Login() {
   const [email, setEmail] = useState('');
