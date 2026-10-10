@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import TwoFactorStep from '../components/TwoFactorStep';
 import { safeRedirectPath } from '../lib/safeUrl';
 import TwoFactorStep from '../components/TwoFactorStep';
 

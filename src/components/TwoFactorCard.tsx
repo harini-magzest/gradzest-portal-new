@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import { ShieldCheck, ShieldOff, Copy, Download, Check, Loader2, KeyRound, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -20,11 +19,21 @@ const groupKey = (secret: string) => secret.replace(/(.{4})/g, '$1 ').trim();
 
 // The QR code is drawn in the browser from the otpauth link. The key never goes to a third-party QR service.
 function QrImage({ text }: { text: string }) {
-  return (
-    <div className="p-2 rounded-xl border border-gray-200 bg-white">
-      <QRCodeSVG value={text} size={160} marginSize={0} role="img" aria-label="QR code to add Gradzest to your authenticator app" />
-    </div>
-  );
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    import('qrcode-generator').then((mod: any) => {
+      if (cancelled) return;
+      const qrcode = mod.default ?? mod;
+      const qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      setSrc(qr.createDataURL(5, 2));
+    }).catch(() => { if (!cancelled) setSrc(''); });
+    return () => { cancelled = true; };
+  }, [text]);
+  if (!src) return <div className="w-44 h-44 rounded-xl bg-gray-100 animate-pulse" aria-hidden="true" />;
+  return <img src={src} alt="QR code to add Gradzest to your authenticator app" width={176} height={176} className="rounded-xl border border-gray-200 bg-white" style={{ imageRendering: 'pixelated' }} />;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {

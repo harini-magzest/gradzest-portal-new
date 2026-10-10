@@ -12,6 +12,11 @@ vi.mock('../api', () => ({
   },
 }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ refreshUser: vi.fn() }) }));
+// The QR image is drawn by a library; what matters here is that the card asks for one from the otpauth link.
+vi.mock('qrcode-generator', () => ({
+  default: () => ({ addData: vi.fn(), make: vi.fn(), createDataURL: () => 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }),
+}));
+
 import { api } from '../api';
 const tf = api.account.twoFactor as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
@@ -39,7 +44,7 @@ describe('TwoFactorCard', () => {
 
     // the key is shown for manual entry, and the QR image is there
     expect(await screen.findByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')).toBeInTheDocument();
-    expect(await screen.findByRole('img', { name: /qr code/i })).toBeInTheDocument();
+    expect(await screen.findByAltText(/qr code/i)).toBeInTheDocument();
 
     const turnOn = screen.getByRole('button', { name: /^turn on$/i });
     expect(turnOn).toBeDisabled();

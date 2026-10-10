@@ -1,6 +1,7 @@
-// Draft follow-up messages for counselors to send to a student who has gone quiet. The facts come from our own data;
-// the AI (when available) only polishes the wording, and a plain template is the fallback, so a draft is always
-// available. Pure (no database access): routes/zest.js loads the student and the checklist.
+// Facts for a follow-up message to a student who has gone quiet, plus a plain template as a starting point. Zest's
+// draft_followup_message tool (lib/zestTools.js) hands both to the model, which writes the final wording from only
+// those facts; the counselor copies and sends it themselves. Pure (no database access): the tool loads the student and
+// the checklist.
 
 const { LEAD_STAGES } = require('./automation');
 
@@ -63,27 +64,4 @@ function templateDraft(f, channel, counselorName = '') {
   };
 }
 
-// What the AI is asked. It must use only these facts: no invented deadlines, fees or promises.
-function buildPrompt(f, channel, counselorName = '') {
-  const lines = [
-    `Write a short, warm follow-up ${channel === 'whatsapp' ? 'WhatsApp message (2-4 sentences, no subject, casual but professional)' : 'email (a subject line, then a body of 3 short paragraphs at most)'} from the counselor${counselorName ? ` ${counselorName}` : ''} to a student who has gone quiet.`,
-    `Student's first name: ${f.firstName}`,
-    `Lead stage: ${f.stageLabel}, unchanged for ${f.daysIdle} days.`,
-    f.countries.length ? `Interested in: ${f.countries.join(', ')}.` : '',
-    f.applications.length ? `Open applications: ${f.applications.map((a) => `${a.university}${a.course ? ` (${a.course})` : ''}, ${a.status}`).join('; ')}.` : 'No applications yet.',
-    f.missingDocuments.length ? `Documents still needed: ${f.missingDocuments.join(', ')}.` : '',
-    'Rules: use only the facts above. Do not invent deadlines, fees, offers or promises. Make one clear, easy next step. Do not use placeholders like [name]. Do not mention that you are an AI.',
-    channel === 'whatsapp' ? 'Reply with only the message text.' : 'Reply in exactly this form:\nSubject: <subject line>\n\n<body>',
-  ];
-  return lines.filter(Boolean).join('\n');
-}
-
-// Splits the model's reply into subject and body for email; WhatsApp is all body.
-function parseDraft(text, channel) {
-  const clean = String(text || '').trim();
-  if (channel === 'whatsapp') return { subject: '', body: clean };
-  const m = clean.match(/^subject:\s*(.+?)\r?\n+([\s\S]*)$/i);
-  return m ? { subject: m[1].trim(), body: m[2].trim() } : { subject: '', body: clean };
-}
-
-module.exports = { gatherFacts, templateDraft, buildPrompt, parseDraft, CHANNELS };
+module.exports = { gatherFacts, templateDraft, CHANNELS };

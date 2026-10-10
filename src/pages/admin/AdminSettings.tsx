@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Building2, User, Lock, Download, AlertTriangle,
   ChevronRight, Save, Eye, EyeOff, Check,
-  Smartphone, Globe, Users, Zap, ClipboardList, Plug2, Mail, Phone, Bot,
+  Smartphone, Globe, Users, Zap, Plug2, Mail, Phone, Bot, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api, setApiToken, type CompanyProfile as CompanyProfileData } from '../../api';

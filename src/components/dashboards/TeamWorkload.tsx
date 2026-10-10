@@ -3,7 +3,7 @@ import { Users } from 'lucide-react';
 import { api } from '../../api';
 
 // Admin view of each counselor's load: how many leads they hold, how many have stalled,
-// open daily alerts, and overdue tasks. Sorted so the most stretched counselors appear first.
+// and overdue tasks. Sorted so the most stretched counselors appear first.
 export default function TeamWorkload() {
   const [rows, setRows] = useState<Awaited<ReturnType<typeof api.dashboards.teamWorkload>>['rows'] | null>(null);
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export default function TeamWorkload() {
           <table className="w-full text-sm">
             <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
               <th className="py-2 font-medium">Counselor</th><th className="py-2 font-medium text-right">Leads</th>
-              <th className="py-2 font-medium text-right">Stalled</th><th className="py-2 font-medium text-right">Open alerts</th>
+              <th className="py-2 font-medium text-right">Stalled</th>
               <th className="py-2 font-medium text-right">Overdue tasks</th>
             </tr></thead>
             <tbody>
@@ -36,7 +36,6 @@ export default function TeamWorkload() {
                   <td className="py-2.5 font-medium text-gray-800">{r.name}</td>
                   <td className="py-2.5 text-right text-gray-600">{r.leads}</td>
                   <td className={`py-2.5 text-right ${r.staleLeads > 0 ? 'text-amber-700 font-semibold' : 'text-gray-600'}`}>{r.staleLeads}</td>
-                  <td className="py-2.5 text-right text-gray-600">{r.openAlerts}</td>
                   <td className={`py-2.5 text-right ${r.overdueTasks > 0 ? 'text-red-700 font-semibold' : 'text-gray-600'}`}>{r.overdueTasks}</td>
                 </tr>
               ))}

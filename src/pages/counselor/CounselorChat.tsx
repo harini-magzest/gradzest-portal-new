@@ -10,7 +10,6 @@ import { api } from '../../api';
 import { useMarkRoomRead, unreadCount, unreadInRooms } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
-import DraftWithZest from '../../components/zest/DraftWithZest';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -604,7 +603,6 @@ const studentsWithNoChat = myStudents.filter((s: any) => {
                   className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors flex-shrink-0">
                   <CalendarDays className="w-4 h-4" />
                 </button>
-                {selectedRoom.type !== 'group' && <DraftWithZest roomId={selectedRoom.id} onDraft={setInput} />}
                 <div className="w-px h-6 bg-gray-200 mx-0.5 flex-shrink-0" />
                 <input type="text" value={input} onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { pendingFile ? sendFile() : send(); } }}
