@@ -356,6 +356,15 @@ UserSchema.set('toJSON', {
   // which applies public/private visibility (lib/studentNotes.js).
   transform: (doc, ret) => {
     delete ret.counselorNotes;
+    // Credentials and session internals never leave the server: the password hash, every device's refresh-token hash
+    // and IP (served, redacted, only by the sessions endpoints), and the one-time email-verify / password-reset tokens.
+    delete ret.password;
+    delete ret.sessions;
+    delete ret.emailVerifyToken;
+    delete ret.emailVerifyExpires;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpires;
+    delete ret.loginAttempts;
     // Whatever was selected, a user object never carries 2FA secrets, only whether it is on.
     if (ret.twoFactor) ret.twoFactor = { enabled: !!ret.twoFactor.enabled };
     return ret;

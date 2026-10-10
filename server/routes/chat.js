@@ -357,7 +357,7 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     });
     res.json({ calls: page, smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err);
   }
 });
 

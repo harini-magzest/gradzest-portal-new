@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { X, Send, FileText, Paperclip, ThumbsUp, ThumbsDown, Mic, MicOff, Volume2, VolumeX, Copy, Check, Plus, PhoneCall } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';

@@ -29,6 +29,10 @@ function createMailer() {
 
 const router = express.Router();
 
+const { issueAccessToken, issueFileToken } = require('../lib/tokens');
+
+const MAX_SESSIONS = 5;
+
 // Request fields must be real, non-empty strings. A JSON object or number (e.g. {"$ne":null}) used to reach
 // email.toLowerCase() / bcrypt and surface as a 500; it is a plain bad request.
 const isString = (v) => typeof v === 'string' && v.length > 0;
@@ -183,17 +187,7 @@ router.post('/2fa/login', async (req, res) => {
       });
     }
 
-    if (result.method === 'recovery') {
-      logSecurityEvent('two_factor_change', {
-        severity: 'medium', userId: user._id, email: user.email, role: user.role,
-        ip: req.ip, userAgent: req.headers['user-agent'] || '',
-        message: `Signed in with a recovery code (${result.remaining} left)`, meta: { action: 'recovery_used', remaining: result.remaining },
-      }).catch(() => {});
-    }
-    await completeLogin(user, req, res, {
-      twoFactorMethod: result.method,
-      recoveryCodesRemaining: result.method === 'recovery' ? result.remaining : undefined,
-    });
+    res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
   } catch (err) {
     console.error('[auth/2fa/login]', err);
     res.status(500).json({ message: 'Server error' });
@@ -313,7 +307,7 @@ router.post('/register', async (req, res) => {
     setRefreshCookie(res, raw, expires);
     const userObj = user.toJSON();
     delete userObj.password;
-    res.status(201).json({ token: accessToken, user: userObj });
+    res.status(201).json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
   } catch (err) {
     console.error('[auth/register]', err);
     sendServerError(res, err, 'Server error');
@@ -462,7 +456,7 @@ router.post('/refresh', async (req, res) => {
     await user.save();
 
     setRefreshCookie(res, newRaw, newExpires);
-    res.json({ token: issueAccessToken(user) });
+    res.json({ token: issueAccessToken(user), fileToken: issueFileToken(user) });
   } catch (err) {
     console.error('[auth/refresh]', err);
     res.status(500).json({ message: 'Server error' });

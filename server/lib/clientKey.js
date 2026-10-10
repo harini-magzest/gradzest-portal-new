@@ -5,13 +5,13 @@
 // load fires dozens of requests, which looked like a bot, flagged the shared IP, and cut everyone on it to 4
 // concurrent requests (the "Failed to load … Too many concurrent requests" banners). Anonymous requests are still
 // counted per IP. Only a token that verifies earns its own key, so an attacker cannot mint keys by forging one.
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('./tokens');
 
 function userIdFromToken(req) {
   const token = req.headers?.authorization?.split(' ')[1];
   if (!token) return null;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = verifyAccessToken(token);
     return payload?.id ? String(payload.id) : null;
   } catch {
     return null;

@@ -2,8 +2,13 @@ export const API_ORIGIN = import.meta.env.VITE_API_URL || '';
 const BASE = `${API_ORIGIN}/api`;
 
 let _token: string | null = null;
-export function setApiToken(t: string | null) { _token = t; }
+// Download-only token for /uploads links (<img src> can't send a header). The server issues it with every access token
+// and refuses it on the API, so a link that leaks through history or logs can't be used to call the API.
+let _fileToken: string | null = null;
+export function setApiToken(t: string | null) { _token = t; if (!t) _fileToken = null; }
 export function getApiToken(): string | null { return _token; }
+export function getFileToken(): string | null { return _fileToken; }
+function rememberFileToken(data: any) { if (typeof data?.fileToken === 'string') _fileToken = data.fileToken; }
 
 function getToken() { return _token; }
 function setToken(t: string) { _token = t; }
@@ -24,7 +29,7 @@ async function tryRefresh(): Promise<string | null> {
   refreshing = fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
     .then(r => r.ok ? r.json() : null)
     .then(data => {
-      if (data?.token) { setToken(data.token); return data.token; }
+      if (data?.token) { setToken(data.token); rememberFileToken(data); return data.token; }
       return null;
     })
     .catch(() => null)
@@ -83,7 +88,7 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
       return req<T>(url, retryOpts, false);
     }
     // Refresh failed — force logout
-    _token = null;
+    setApiToken(null);
     window.dispatchEvent(new Event('auth:logout'));
   }
   if (!res.ok) {
@@ -91,7 +96,9 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
     // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
     throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
-  return res.json();
+  const data = await res.json();
+  if (url.startsWith('/auth/')) rememberFileToken(data);
+  return data;
 }
 
 async function upload<T>(url: string, formData: FormData, retry = true): Promise<T> {
@@ -104,7 +111,7 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   if (res.status === 401 && retry) {
     const newToken = await tryRefresh();
     if (newToken) return upload<T>(url, formData, false);
-    _token = null;
+    setApiToken(null);
     window.dispatchEvent(new Event('auth:logout'));
   }
   if (!res.ok) {
