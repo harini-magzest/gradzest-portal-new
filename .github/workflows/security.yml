@@ -13,10 +13,11 @@
 name: Security
 
 on:
+  # Every pull request, whatever branch it targets: PRs merged into dev or into another feature branch used to skip
+  # these checks entirely and reached main unchecked.
   pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main, dev]
   schedule:
     # Nightly: catches advisories published against code that did not change, and the full-history/full-repo scans.
     - cron: '17 2 * * *'
@@ -51,7 +52,7 @@ jobs:
           grep " ${tarball}\$" checksums.txt | sha256sum -c -
           tar -xzf "$tarball" gitleaks
           sudo mv gitleaks /usr/local/bin/
-      # PR: its commits. Push to main: the pushed commits. Nightly/manual: everything. Matches are redacted in the log.
+      # PR: its commits. Push to main/dev: the pushed commits. Nightly/manual: everything. Matches are redacted in the log.
       - name: Scan
         env:
           EVENT: ${{ github.event_name }}
@@ -92,7 +93,7 @@ jobs:
 
   sast:
     name: sast
-    # A push to main was already checked as a PR; the whole-repo pass runs nightly.
+    # A push to main/dev was already checked as a PR; the whole-repo pass runs nightly.
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
