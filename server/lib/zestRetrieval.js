@@ -33,10 +33,19 @@ async function retrieveChunks(question, history = []) {
   const KnowledgeChunk = require('../models/KnowledgeChunk');
   const priorUserText = [...history].reverse().find(h => h.role === 'user')?.text;
   const searchQuery = priorUserText ? `${priorUserText} ${question}` : question;
-  const ranked = await KnowledgeChunk.find(
-    { $text: { $search: searchQuery } },
-    { score: { $meta: 'textScore' } },
-  ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
+  // $text needs the text index, which Mongoose builds in the background on a fresh database (a new deployment, CI):
+  // wait for it, and if it still isn't there, answer without knowledge-base context rather than fail the question.
+  let ranked;
+  try {
+    await KnowledgeChunk.init();
+    ranked = await KnowledgeChunk.find(
+      { $text: { $search: searchQuery } },
+      { score: { $meta: 'textScore' } },
+    ).sort({ score: { $meta: 'textScore' } }).limit(TOP_K).lean();
+  } catch (err) {
+    if (err?.code === 27 || /text index required/i.test(err?.message || '')) return []; // IndexNotFound
+    throw err;
+  }
   return filterByRelativeScore(ranked);
 }
 
