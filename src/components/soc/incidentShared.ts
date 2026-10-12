@@ -27,7 +27,7 @@ export const TYPE_LABEL: Record<string, string> = {
   account_lockout: 'Account Lockout', pii_bulk_access: 'Bulk PII Access', malware_upload: 'Malware Upload',
   waf_block: 'WAF Block', skyload_bot_activity: 'Skyload Bot Activity', impossible_travel: 'Impossible Travel', manual: 'Manual',
   credential_stuffing: 'Credential Stuffing', privilege_escalation: 'Privilege Escalation', off_hours_admin: 'Off-hours Admin Login',
-  new_device_privileged: 'New Device (Privileged)', password_reset_abuse: 'Password Reset Abuse', mass_export: 'Mass Data Export',
+  new_device_privileged: 'New Device (Privileged)', password_reset_abuse: 'Password Reset Abuse', ai_usage: 'AI Usage', mass_export: 'Mass Data Export',
 };
 
 export const RESOLUTION_REASONS: { value: string; label: string }[] = [
