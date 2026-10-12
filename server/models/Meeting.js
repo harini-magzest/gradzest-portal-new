@@ -21,4 +21,8 @@ const MeetingSchema = new mongoose.Schema({
   createdByName: { type: String, default: '' },
 }, { timestamps: true });
 
+// Upcoming meetings (reminder job, dashboards) and one person's upcoming meetings
+MeetingSchema.index({ status: 1, scheduledDate: 1 });
+MeetingSchema.index({ 'participants.userId': 1, scheduledDate: 1 });
+
 module.exports = mongoose.model('Meeting', MeetingSchema);
