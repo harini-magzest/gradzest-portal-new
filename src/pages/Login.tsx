@@ -149,8 +149,8 @@ export default function Login() {
           ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-              <input
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+              <input id="login-email"
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] text-sm"
                 placeholder="your@email.com" required autoComplete="email"
@@ -158,16 +158,16 @@ export default function Login() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">Password</label>
                 <Link to="/forgot-password" className="text-xs text-[#0d1b4b] hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
-                <input
+                <input id="login-password"
                   type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] text-sm pr-12"
                   placeholder="••••••••" required autoComplete="current-password"
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
