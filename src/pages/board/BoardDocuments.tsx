@@ -1,8 +1,8 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../../api';
 import { Search, X, FolderOpen, FileText, Download, ChevronRight, Filter, Eye } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const DOC_STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: 'Pending',  color: 'text-amber-700',  bg: 'bg-amber-100' },
@@ -216,14 +216,14 @@ export default function BoardDocuments() {
                       {doc.url ? (
                         <div className="flex items-center gap-1.5">
                           <button type="button"
-                            onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                            onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors text-xs font-semibold">
                             <Eye className="w-3.5 h-3.5" /> Preview
                           </button>
-                          <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                          <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-xs font-semibold">
                             <Download className="w-3.5 h-3.5" /> Download
-                          </a>
+                          </SignedFileLink>
                         </div>
                       ) : (
                         <span className="text-xs text-gray-300 italic">No file</span>

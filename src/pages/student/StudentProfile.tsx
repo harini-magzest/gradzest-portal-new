@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useRef, useState } from 'react';
 import { User, GraduationCap, BookOpen, Upload, Edit3, Save, X, FileText, Trash2, ExternalLink, CheckCircle, AlertCircle, Plus, ArrowUp, ArrowDown, Eye, Heart } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';
@@ -9,6 +8,7 @@ import StatusBadge from '../../components/StatusBadge';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import NotificationPreferences from '../../components/NotificationPreferences';
 import PrivacyCard from '../../components/PrivacyCard';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const EDUCATION_LEVELS = ['10th Grade', '12th Grade / Intermediate', 'Diploma', "Bachelor's Degree", "Master's Degree", 'PhD', 'Other'];
 type AcadDoc = { name: string; url: string; docId: string; docType: string };
@@ -876,8 +876,8 @@ export default function StudentProfile() {
                                   {(entry.docs || []).map((doc, di) => (
                                     <div key={di} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1">
                                       <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded">{doc.docType}</span>
-                                      <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs text-blue-700 hover:underline max-w-[140px] truncate">{doc.name}</a>
+                                      <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer"
+                                        className="text-xs text-blue-700 hover:underline max-w-[140px] truncate">{doc.name}</SignedFileLink>
                                       <button type="button" aria-label="Remove document"
                                         onClick={() => updateAcademicEntry(entry.id, 'docs', (entry.docs || []).filter((_, i) => i !== di))}
                                         className="text-gray-400 hover:text-red-500 transition-colors ml-0.5">
@@ -918,12 +918,12 @@ export default function StudentProfile() {
                                 <p className="text-xs text-gray-400 mb-1">CMM / OD Documents</p>
                                 <div className="flex flex-wrap gap-2">
                                   {(entry.docs || []).map((doc, di) => (
-                                    <a key={di} href={doc.url} target="_blank" rel="noopener noreferrer"
+                                    <SignedFileLink key={di} href={doc.url} target="_blank" rel="noopener noreferrer"
                                       className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1 hover:bg-blue-100 transition-colors">
                                       <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded">{doc.docType}</span>
                                       <span className="text-xs text-blue-700 max-w-[140px] truncate">{doc.name}</span>
                                       <ExternalLink className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                                    </a>
+                                    </SignedFileLink>
                                   ))}
                                 </div>
                               </div>
@@ -1304,7 +1304,7 @@ export default function StudentProfile() {
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 {cert.url && (
                                   <button type="button"
-                                    onClick={() => setPreviewDoc({ url: uploadUrl(cert.url), name: cert.name })}
+                                    onClick={() => setPreviewDoc({ url: cert.url, name: cert.name })}
                                     className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
                                     <Eye className="w-3 h-3" /> Preview
                                   </button>
@@ -1345,7 +1345,7 @@ export default function StudentProfile() {
                           <div className="mt-2 flex flex-wrap gap-2">
                             {(entry.certificates || []).map((cert, ci) => (
                               <button key={ci} type="button"
-                                onClick={() => setPreviewDoc({ url: uploadUrl(cert.url), name: cert.name })}
+                                onClick={() => setPreviewDoc({ url: cert.url, name: cert.name })}
                                 className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg font-medium transition-colors">
                                 <Eye className="w-3 h-3 flex-shrink-0" /> {cert.name}
                               </button>
@@ -1463,7 +1463,7 @@ export default function StudentProfile() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {resumeDoc.url && (
                         <button type="button"
-                          onClick={() => setPreviewDoc({ url: uploadUrl(resumeDoc.url), name: resumeDoc.name })}
+                          onClick={() => setPreviewDoc({ url: resumeDoc.url, name: resumeDoc.name })}
                           className="inline-flex items-center gap-1 text-xs bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg font-medium transition-colors">
                           <Eye className="w-3 h-3" /> Preview
                         </button>
@@ -1518,7 +1518,7 @@ export default function StudentProfile() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {doc.url && (
                         <button type="button"
-                          onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                          onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
                           className="inline-flex items-center gap-1 text-xs bg-sky-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg font-medium transition-colors">
                           <Eye className="w-3 h-3" /> Preview
                         </button>
@@ -1590,7 +1590,7 @@ export default function StudentProfile() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {doc.url && (
                         <button type="button"
-                          onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                          onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
                           className="inline-flex items-center gap-1 text-xs bg-sky-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg font-medium transition-colors">
                           <Eye className="w-3 h-3" /> Preview
                         </button>

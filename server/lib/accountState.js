@@ -65,6 +65,14 @@ async function tokenRevoked(token) {
   return issuedAt < revokedAt;
 }
 
+/** The account as the access checks need it, { id, role, isAppTeam }, from the cached record; null when the account is
+ *  missing, deactivated or locked, or cannot be read right now (callers refuse access then). */
+async function currentAccess(userId) {
+  const { state, role, isAppTeam } = await accountRecord(userId);
+  if (state !== 'ok' || role === null) return null;
+  return { id: String(userId), role, isAppTeam: !!isAppTeam };
+}
+
 const isBlocked = async (userId) => (await accountState(userId)) !== 'ok';
 const invalidate = (userId) => { cache.delete(String(userId)); };
 
@@ -76,4 +84,4 @@ async function revokeAllSessions(userId) {
 }
 const isAdminLocked = (u) => !!(u?.lockedUntil && new Date(u.lockedUntil) > new Date() && new Date(u.lockedUntil).getFullYear() >= ADMIN_LOCK_FROM_YEAR);
 
-module.exports = { accountState, isBlocked, invalidate, isAdminLocked, tokenRoleIsCurrent, tokenRevoked, revokeAllSessions };
+module.exports = { accountState, isBlocked, invalidate, isAdminLocked, tokenRoleIsCurrent, tokenRevoked, revokeAllSessions, currentAccess };

@@ -12,6 +12,7 @@ import { api } from '../../api';
 import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const formatDuration = (s: number) => {
   const m = Math.floor(s / 60);
@@ -98,10 +99,10 @@ function FileMessage({ msg, isMe, onAction }: { msg: any; isMe: boolean; onActio
             </div>
             {msg.fileUrl && (
               <div className="mt-2.5 flex gap-2">
-                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
+                <SignedFileLink href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isMe ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
                   <Download className="w-3.5 h-3.5" /> Download
-                </a>
+                </SignedFileLink>
                 {!isMe && onAction && (
                   <button type="button" onClick={onAction}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isOffer ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-[#0d1b4b] hover:bg-[#152258] text-white'}`}>

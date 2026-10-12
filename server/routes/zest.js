@@ -42,6 +42,14 @@ function knowledgeBaseFallback(matches) {
 }
 
 const router = express.Router();
+const { validate, idParam } = require('../middleware/validate');
+const { z, text } = require('../lib/schemas');
+
+router.param('id', idParam); // knowledge documents and lead alerts: MongoDB ObjectIds (middleware/validate.js)
+// Multipart form fields that come with an uploaded file
+const knowledgeDocumentFields = z.object({ title: text(200).optional() }).strict();
+// `history` is the conversation so far, as JSON text (the route parses and sanitises it)
+const askWithFileFields = z.object({ question: z.string().max(20000).optional(), history: z.string().max(200000).optional() }).strict();
 
 // Per-user cap (see lib/zestLimiter.js). Off in the test env, like the other limiters, so tests can ask freely;
 // the limiter itself has its own test.
@@ -77,7 +85,7 @@ async function extractAndChunk(req, res, next) {
   next();
 }
 
-router.post('/documents', authMiddleware, adminOnly, upload.single('file'), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
+router.post('/documents', authMiddleware, adminOnly, upload.single('file'), validate({ body: knowledgeDocumentFields }), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
   const storagePath = req.file.s3Url || `/uploads/${req.file.filename}`;
   const title = (req.body.title || req.file.originalname || 'Document').trim();
@@ -218,7 +226,7 @@ router.post('/public/lead', async (req, res) => {
 // Reuses the exact same security pipeline as a KB upload (ClamAV scan + deep inspection/audit
 // via recordUpload), but skips S3 and never creates a KnowledgeDocument/KnowledgeChunk, and the
 // local copy is deleted right after extraction since nothing should persist past this request.
-router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'), scanUploadedFile, recordUpload('zest_chat'), async (req, res) => {
+router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'), validate({ body: askWithFileFields }), scanUploadedFile, recordUpload('zest_chat'), async (req, res) => {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!req.file) return res.status(400).json({ message: 'A file is required' });
   if (!question) { fs.unlink(req.file.path, () => {}); return res.status(400).json({ message: 'question is required' }); }

@@ -20,6 +20,18 @@ const PiiAccessLog = require('../models/PiiAccessLog');
 const { validateBulk } = require('../lib/bulkActions');
 
 const router = express.Router();
+const { validate, idParam } = require('../middleware/validate');
+const { z, text } = require('../lib/schemas');
+
+// :id, :docId and :noteId are MongoDB ObjectIds: a malformed one is a 400 before any handler (middleware/validate.js)
+for (const name of ['id', 'docId', 'noteId']) router.param(name, idParam);
+
+// Document upload form (multipart). `url` re-uses a file the student already has (e.g. one sent in chat): only a stored
+// file path or an https address, never javascript: or another scheme.
+const studentDocumentFields = z.object({
+  name: text(200).optional(), type: text(300).optional(),
+  url: z.union([z.string().regex(/^\/uploads\/[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/), z.string().max(2000).regex(/^https:\/\/[^\s]+$/)]).optional(),
+}).strict();
 
 // Get all students (counselor only)
 router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
@@ -231,7 +243,7 @@ router.get('/:id/timeline', authMiddleware, can('students.view'), async (req, re
 });
 
 // Add document (student only) — accepts multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
+router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), validate({ body: studentDocumentFields }), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
   const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);

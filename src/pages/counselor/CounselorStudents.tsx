@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -1134,7 +1133,7 @@ function StudentDetail() {
                   <div className="flex items-center gap-2">
                     {doc.url && (
                       <button type="button"
-                        onClick={() => setPreviewDoc({ url: uploadUrl(doc.url), name: doc.name })}
+                        onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
                         className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium transition-colors">
                         <Eye className="w-3 h-3" /> Preview
                       </button>

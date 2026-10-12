@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 ﻿import { useRef, useState } from 'react';
 import { User, Upload, FileText, Eye, Trash2, X, Award, Globe, Phone, MapPin } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +5,7 @@ import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import NotificationPreferences from '../../components/NotificationPreferences';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const DOC_TYPES = [
   'Degree Certificate', 'Teaching Certificate', 'Professional License',
@@ -291,10 +291,10 @@ export default function CounselorProfile() {
                         <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                         <p className="text-xs text-gray-400">{doc.type}</p>
                         {doc.url && (
-                          <a href={uploadUrl(doc.url)} target="_blank" rel="noopener noreferrer"
+                          <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-0.5">
                             <Eye className="w-3 h-3" /> View file
-                          </a>
+                          </SignedFileLink>
                         )}
                       </div>
                     </div>
