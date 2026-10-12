@@ -122,18 +122,6 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
 }
 
 export interface CompanyProfile { name: string; tagline: string; email: string; phone: string; website: string; address: string }
-export interface ShortlistData {
-  courses: {
-    universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
-    ranking: number | null; courseName: string; level: string; duration: string; tuitionFee: number | null; currency: string;
-    applicationFee: number | null; intake: string[]; scholarshipAvailable: boolean; scholarshipAmount: string;
-    minGPA: number | null; englishRequirements: { test: string; minScore: number }[]; addedAt: string | null;
-  }[];
-  cheapest: string | null;
-  bestRanked: string | null;
-  max: number;
-}
-
 export const api = {
   // Activity tracker: batches of UI events (page views, clicks, file picks) for the SOC trail.
   uiTrail: {
@@ -253,11 +241,6 @@ export const api = {
     myTimeline: () => req<any>('/students/me/timeline', { headers: authHeaders() }),
     nextStep: () => req<{ kind: string; title: string; detail: string; action: { label: string; to: string } }>('/students/me/next-step', { headers: authHeaders() }),
     dataAccess: () => req<{ accesses: { id: string; at: string; role: string; name: string; kind: string }[] }>('/students/me/data-access', { headers: authHeaders() }),
-    shortlist: () => req<ShortlistData>('/students/me/shortlist', { headers: authHeaders() }),
-    addToShortlist: (universityId: string, courseId: string) =>
-      req<ShortlistData>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId, courseId }) }),
-    removeFromShortlist: (universityId: string, courseId: string) =>
-      req<ShortlistData>(`/students/me/shortlist/${encodeURIComponent(universityId)}/${encodeURIComponent(courseId)}`, { method: 'DELETE', headers: authHeaders() }),
     timeline: (studentId: string) => req<any>(`/students/${studentId}/timeline`, { headers: authHeaders() }),
     sendEmail: (studentId: string, subject: string, body: string) =>
       req<any>(`/students/${studentId}/emails`, {
@@ -393,12 +376,6 @@ export const api = {
       a.remove();
       URL.revokeObjectURL(url);
     },
-  },
-
-  shortlist: {
-    list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
-    add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
-    remove: (universityId: string) => req<{ universityId: string; saved: boolean }>(`/students/me/shortlist/${encodeURIComponent(universityId)}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   parentLinks: {
