@@ -181,7 +181,7 @@ CI and the frontend build use Node 24 (`.nvmrc`). Run the API on the same major.
 
 `main` broke in October 2026 because Dependabot pull requests were merged while CI was failing. Turn on branch protection
 for `main` (Settings → Branches → Add rule): "Require a pull request before merging" and "Require status checks to pass",
-selecting `typecheck-build`, `backend-tests`, `ui-tests`, `secret-scan`, `dep-audit (.)`, `dep-audit (server)`, `sast` and
+selecting `lint`, `typecheck-build`, `backend-tests`, `ui-tests`, `secret-scan`, `dep-audit (.)`, `dep-audit (server)`, `sast` and
 `actionlint`.
 
 **Verify:** open a pull request with a failing test; the merge button stays disabled.

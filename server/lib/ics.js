@@ -18,6 +18,7 @@ const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 
 // Text values: backslash, semicolon, comma and newlines are escaped (RFC 5545 section 3.3.11). Control characters are
 // dropped so a title cannot inject extra iCalendar properties.
+// eslint-disable-next-line no-control-regex -- control characters are stripped on purpose
 const esc = (s) => String(s ?? '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
 // Lines longer than 75 octets are folded onto continuation lines that start with a space.

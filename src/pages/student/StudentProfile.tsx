@@ -353,20 +353,18 @@ export default function StudentProfile() {
     }
   }, [user, editing]);
 
-  if (!student) return null;
-
-  const docs = student.documents || [];
-  const apps = student.applications || [];
+  const docs = student?.documents || [];
+  const apps = student?.applications || [];
 
   const profileFields = [
-    { label: 'Phone Number', filled: !!student.phone },
-    { label: 'Nationality', filled: !!student.nationality },
-    { label: 'Education Level', filled: !!student.educationLevel },
-    { label: 'GPA / Percentage', filled: !!student.gpa },
-    { label: 'English Proficiency', filled: !!(student.englishScore?.score) || !!(student.moi?.institution) || !!(student.englishProficiencyTest?.name) },
-    { label: 'Preferred Countries', filled: (student.preferredCountries?.length || 0) > 0 },
-    { label: 'Interested Courses', filled: (student.interestedCourses?.length || 0) > 0 },
-    { label: 'Annual Budget', filled: !!student.budget },
+    { label: 'Phone Number', filled: !!student?.phone },
+    { label: 'Nationality', filled: !!student?.nationality },
+    { label: 'Education Level', filled: !!student?.educationLevel },
+    { label: 'GPA / Percentage', filled: !!student?.gpa },
+    { label: 'English Proficiency', filled: !!(student?.englishScore?.score) || !!(student?.moi?.institution) || !!(student?.englishProficiencyTest?.name) },
+    { label: 'Preferred Countries', filled: (student?.preferredCountries?.length || 0) > 0 },
+    { label: 'Interested Courses', filled: (student?.interestedCourses?.length || 0) > 0 },
+    { label: 'Annual Budget', filled: !!student?.budget },
   ];
   const completion = Math.round((profileFields.filter(f => f.filled).length / profileFields.length) * 100);
   useEffect(() => {
@@ -375,6 +373,8 @@ export default function StudentProfile() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completion]);
+  // After the last hook: a component must call the same hooks on every render, signed in or not
+  if (!student) return null;
   const filledCount = profileFields.filter(f => f.filled).length;
   const scoreColor = completion === 100 ? 'text-green-500' : completion >= 67 ? 'text-blue-400' : completion >= 34 ? 'text-amber-300' : 'text-red-300';
   const barColor = completion === 100 ? 'bg-green-400' : completion >= 67 ? 'bg-blue-300' : completion >= 34 ? 'bg-amber-300' : 'bg-red-300';

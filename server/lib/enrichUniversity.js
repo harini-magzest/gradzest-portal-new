@@ -390,7 +390,7 @@ async function fetchCampusImage(wikiTitle) {
 
 // ── Course scraper ────────────────────────────────────────────────────────────
 const DEGREE_RE =
-  /(?:Bachelor(?:'?s)?(?:\s+of)?|B\.?Sc\.?|B\.?A\.(?:\s|$)|B\.?Eng\.?|B\.?Tech\.?|LLB|BArch|BBA|Master(?:'?s)?(?:\s+of)?|M\.?Sc\.?|M\.?A\.(?:\s|$)|MPhil|M\.?Eng\.?|MBA|LLM|MEd|MRes|PhD|Doctorate|Doctor\s+of|Postgrad(?:uate)?\s+Diploma|Pg\s*Dip|Diploma\s+in|Certificate\s+in|Foundation\s+(?:Year|Course|Degree))\s+(?:of\s+|in\s+)?(?:[A-Z][A-Za-z](?:[A-Za-z ,&()\-]{3,55}))/g;
+  /(?:Bachelor(?:'?s)?(?:\s+of)?|B\.?Sc\.?|B\.?A\.(?:\s|$)|B\.?Eng\.?|B\.?Tech\.?|LLB|BArch|BBA|Master(?:'?s)?(?:\s+of)?|M\.?Sc\.?|M\.?A\.(?:\s|$)|MPhil|M\.?Eng\.?|MBA|LLM|MEd|MRes|PhD|Doctorate|Doctor\s+of|Postgrad(?:uate)?\s+Diploma|Pg\s*Dip|Diploma\s+in|Certificate\s+in|Foundation\s+(?:Year|Course|Degree))\s+(?:of\s+|in\s+)?(?:[A-Z][A-Za-z](?:[A-Za-z ,&()-]{3,55}))/g;
 
 const LEVEL_MAP = [
   [/PhD|Doctorate|Doctor\s+of/i, "PhD"],

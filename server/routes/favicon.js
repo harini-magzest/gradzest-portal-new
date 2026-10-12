@@ -16,7 +16,7 @@ const NOT_FOUND_TTL = 60 * 60 * 1000;
 router.get('/:domain', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=86400');
 
-  const domain = req.params.domain.toLowerCase().replace(/[^a-z0-9.\-]/g, '');
+  const domain = req.params.domain.toLowerCase().replace(/[^a-z0-9.-]/g, '');
   if (!domain) return res.type('image/gif').send(TRANSPARENT_GIF);
 
   // Serve transparent GIF immediately for recently-confirmed-missing domains

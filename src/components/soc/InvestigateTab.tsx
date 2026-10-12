@@ -231,7 +231,6 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
     if (!initialUserId) return;
     setMode('user'); setShowFeatures(false);
     void investigateUser({ id: initialUserId, email: '' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUserId]);
 
   // Arriving from the global search / attention card with an IP already chosen.

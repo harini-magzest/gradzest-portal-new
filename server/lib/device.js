@@ -42,6 +42,7 @@ function parseUserAgent(ua = '') {
   return { browser, os, deviceType };
 }
 
+// eslint-disable-next-line no-control-regex -- control characters are stripped on purpose
 const str = (v, n) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').trim().slice(0, n) : '');
 const num = (v, lo, hi) => (Number.isFinite(Number(v)) && Number(v) >= lo && Number(v) <= hi ? Number(v) : null);
 

@@ -5,7 +5,7 @@ import NextStepCard from '../../components/dashboards/NextStepCard';
 import DataAccessLog from '../../components/dashboards/DataAccessLog';
 import ReferralCard from '../../components/dashboards/ReferralCard';
 import ParentAccessCard from '../../components/dashboards/ParentAccessCard';
-﻿import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Clock, CheckCircle, Bell, ArrowRight, Star, MapPin, Upload, X, AlertCircle, ExternalLink, CalendarDays, GraduationCap, Phone, Video, PhoneCall } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';

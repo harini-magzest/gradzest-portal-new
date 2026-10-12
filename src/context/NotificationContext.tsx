@@ -106,7 +106,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: any[]) => setNotifications(data.map(fromServer)))
       .catch(() => setNotifications(loadStored(userId)));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {
@@ -167,7 +166,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Real-time Socket.io — every notification below is pushed by the server as it happens ──

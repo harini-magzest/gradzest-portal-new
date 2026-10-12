@@ -146,6 +146,7 @@ function checkImage(buf, type, add) {
 function checkFilename(name, add) {
   if (/[‪-‮⁦-⁩]/.test(name)) add('rtl_override', 'high', 'Filename contains a right-to-left override character (disguises the real extension)');
   if (/\.(exe|scr|bat|cmd|com|js|vbs|ps1|jar|msi|lnk|hta|dll)\.[a-z0-9]{2,5}$/i.test(name)) add('double_extension', 'high', 'Filename hides an executable extension before the real one');
+  // eslint-disable-next-line no-control-regex -- looking for control characters is the point
   if (/[\u0000-\u001f]/.test(name)) add('control_chars', 'medium', 'Filename contains control characters');
 }
 

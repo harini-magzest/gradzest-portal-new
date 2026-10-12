@@ -36,7 +36,6 @@ export default function StudentCountryDetail() {
     load();
     // The full profile (budget, test scores…) makes the eligibility checks accurate
     api.students.me().then(setStudent).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countryId]);
 
   const key = decodeURIComponent(countryId);
