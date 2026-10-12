@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 // Signed in one place (lib/tokens.js): algorithm pinned, and the millisecond issue time session revocation relies on
 const { issueAccessToken } = require('./tokens');
+const { policyFor } = require('./sessionPolicy');
 
 const MAX_SESSIONS = 5;
 
@@ -14,8 +15,8 @@ const MAX_SESSIONS = 5;
 async function issueRefreshToken(user, req) {
   const raw = crypto.randomBytes(40).toString('hex');
   const hash = crypto.createHash('sha256').update(raw).digest('hex');
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   const now = new Date();
+  const expires = new Date(now.getTime() + policyFor(user.role).absoluteMs); // the session's hard end; never extended (lib/sessionPolicy.js)
 
   const fresh = await User.findById(user._id).select('sessions');
   let sessions = (fresh?.sessions || []).filter((s) => s.expires > now);

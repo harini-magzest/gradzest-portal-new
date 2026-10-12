@@ -112,12 +112,22 @@ describe('requestLogger with real Mongo', () => {
     res.emit('finish');
   }
 
+  // The write is not awaited by the middleware, so wait for it to land rather than guess how long it takes: a fixed
+  // sleep passed alone and failed when the whole suite loaded the machine.
+  async function until(check, ms = 3000) {
+    const end = Date.now() + ms;
+    for (;;) {
+      const value = await check();
+      if (value || Date.now() > end) return value;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+  }
+
   it('stores batched rows with ip and userAgent encrypted at rest, and reads them back as plaintext', async () => {
     run({ status: 200, ip: '203.0.113.77', ua: 'batched-agent' });
     await requestLogger.flushRequestLogs();
-    await new Promise((r) => setTimeout(r, 50)); // write-through mode starts the write on the next tick
 
-    const raw = await RequestLog.collection.findOne({ path: '/api/probe', status: 200 });
+    const raw = await until(() => RequestLog.collection.findOne({ path: '/api/probe', status: 200 }));
     expect(raw).toBeTruthy();
     expect(raw.ip).not.toBe('203.0.113.77');
     expect(raw.userAgent).not.toBe('batched-agent');
@@ -129,7 +139,8 @@ describe('requestLogger with real Mongo', () => {
 
   it('still writes a 401 on the spot, because the suspicious-IP rule counts those rows in Mongo', async () => {
     run({ status: 401, ip: '203.0.113.78', path: '/api/auth/login' });
-    await new Promise((r) => setTimeout(r, 100));
-    expect(await RequestLog.countDocuments({ ip: '203.0.113.78', status: 401 })).toBe(1);
+    const filter = { ip: '203.0.113.78', status: 401 };
+    await until(async () => (await RequestLog.countDocuments(filter)) > 0);
+    expect(await RequestLog.countDocuments(filter)).toBe(1);
   });
 });
