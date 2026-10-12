@@ -96,7 +96,7 @@ async function extractAndChunk(req, res, next) {
 
 router.post('/documents', authMiddleware, adminOnly, upload.single('file'), requirePdf, validate({ body: knowledgeDocumentFields }), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
-  const storagePath = req.file.s3Url || `/uploads/${req.file.filename}`;
+  const storagePath = `/uploads/${req.file.filename}`;
   const title = (req.body.title || req.file.originalname || 'Document').trim();
 
   const doc = await KnowledgeDocument.create({
@@ -136,7 +136,7 @@ function requireReadable(req, res, next) {
 router.post('/documents/:id/replace', authMiddleware, adminOnly, loadKbDocument, upload.single('file'), requirePdf, scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, requireReadable, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
   const updated = await replaceDocument(req.kbDoc, {
-    storagePath: req.file.s3Url || `/uploads/${req.file.filename}`,
+    storagePath: `/uploads/${req.file.filename}`,
     originalFilename: req.file.originalname,
     mimeType: req.file.mimetype,
     fileSize: req.file.size,

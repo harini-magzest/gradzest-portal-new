@@ -67,7 +67,10 @@ docker run -p 5000:5000 --env-file server/.env gradzest-api
 `server/Dockerfile` installs production dependencies only, runs as the unprivileged `node` user and has a health check on
 `/api/health` (503 while the database is down). CI builds it on every pull request (`api-image`).
 
-* **Uploads:** a container's disk is lost on redeploy. Set `AWS_S3_BUCKET`, or mount a volume at `/app/uploads`.
+* **Uploads:** a container's disk is lost on redeploy. Set `AWS_S3_BUCKET`, or mount a volume at `/app/uploads`. The bucket
+  must be private (S3 → the bucket → Permissions → Block all public access: on). The API streams files from it after its own
+  access checks; nothing links to the bucket directly. Records saved before this change that hold bucket URLs are converted
+  by `node scripts/migrateS3Urls.js` (dry run first, then `--apply`).
 * **Virus scanning:** the upload scanner calls `clamdscan` and **refuses every upload (503) if it cannot scan**. The image contains
   the client only; run the `clamd` daemon elsewhere (a ClamAV container or the host) and set `CLAMD_HOST` (and `CLAMD_PORT`,
   default 3310). The entrypoint writes the client config from those two. Without `CLAMD_HOST` it uses `/etc/clamav/clamd.conf`.
