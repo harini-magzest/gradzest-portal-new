@@ -5,7 +5,7 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, Pencil,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
+  ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Phone,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -120,7 +120,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
   const [created, setCreated] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, []);
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, [toast]);
 
   const selfId = String(user?.id ?? '');
   const groups = [
@@ -790,45 +790,6 @@ function NewStudentModal({ onClose, onCreated, counselors }: {
 }
 
 // ── Assign counselor modal ───────────────────────────────────────────────────
-function AssignCounselorModal({ student, counselors, onClose, onSaved }: {
-  student: any; counselors: any[]; onClose: () => void; onSaved: () => void;
-}) {
-  const currentId = student.counselorId || '';
-  const [selectedId, setSelectedId] = useState(currentId);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const unchanged = selectedId === currentId;
-  const handleSave = async () => {
-    setSaving(true); setError('');
-    try { await api.admin.assignCounselor(normalId(student), selectedId || null); onSaved(); }
-    catch (err: any) { setError(err.message || 'Failed.'); setSaving(false); }
-  };
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <div><h2 className="text-base font-bold text-gray-900">Assign Counselor</h2><p className="text-sm text-gray-500 mt-0.5">{student.name}</p></div>
-          <BtnClose onClick={onClose} />
-        </div>
-        <div className="p-5 space-y-4">
-          <select value={selectedId} onChange={e => setSelectedId(e.target.value)} title="Counselor" className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700">
-            <option value="">— Unassigned —</option>
-            {counselors.map(c => <option key={normalId(c)} value={normalId(c)}>{c.name}</option>)}
-          </select>
-          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
-          <div className="flex gap-3">
-            <BtnGhost onClick={onClose} className="flex-1">Cancel</BtnGhost>
-            <BtnPrimary onClick={handleSave} disabled={saving || unchanged} className="flex-1">
-              {saving ? <><Spinner size={4} white />Saving…</> : unchanged ? 'No Change' : 'Save'}
-            </BtnPrimary>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── New application modal ────────────────────────────────────────────────────
 function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }: {
   allStudents: any[]; initialStudent?: any; onClose: () => void; onCreated: () => void;

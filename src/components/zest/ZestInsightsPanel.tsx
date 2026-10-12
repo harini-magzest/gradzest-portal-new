@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ThumbsUp, ThumbsDown, HelpCircle, RefreshCw, BookPlus, Check, Wrench } from 'lucide-react';
 import { api } from '../../api';
 
@@ -101,12 +101,12 @@ export default function ZestInsightsPanel() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setFailed(false);
     try { setData(await api.zest.analytics(days)); } catch { setFailed(true); } finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, [days]);
+  }, [days]);
+  useEffect(() => { load(); }, [load]);
 
   const helpful = data && data.rated ? Math.round((data.up / data.rated) * 100) : null;
 

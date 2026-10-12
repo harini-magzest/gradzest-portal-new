@@ -11,8 +11,6 @@ function EligibilityBadge({ result, loading }: { result: EligibilityResult | nul
   if (loading) return <span className="inline-flex items-center gap-1 text-xs text-gray-400 animate-pulse">Checking eligibility…</span>;
   if (!result) return null;
 
-  const failCount = result.checks.filter(c => c.status === 'fail' || c.status === 'missing').length;
-  const passCount = result.checks.filter(c => c.status === 'pass').length;
 
   return (
     <div className="mt-3">

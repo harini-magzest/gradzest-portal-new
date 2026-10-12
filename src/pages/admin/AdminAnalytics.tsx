@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, 
 } from 'recharts';
 import { BarChart2, TrendingUp, Users, Award, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
@@ -9,10 +9,6 @@ import { SkeletonStat } from '../../components/Skeleton';
 import { usePortalName } from '../../hooks/usePortalName';
 
 type Period = '7d' | '30d' | '90d' | '1yr';
-
-function Spinner({ white = false }: { white?: boolean }) {
-  return <span className={`w-4 h-4 border-2 rounded-full animate-spin inline-block flex-shrink-0 ${white ? 'border-white/40 border-t-white' : 'border-gray-300 border-t-gray-600'}`} />;
-}
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string | number; sub?: string; color: string }) {
   return (
@@ -265,7 +261,7 @@ export default function AdminAnalytics() {
                 <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No counselors found</div>
               ) : (
                 <div className="space-y-3">
-                  {data.counselorPerformance.map((c: any, i: number) => (
+                  {data.counselorPerformance.map((c: any) => (
                     <div key={c.name} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                       <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                         {c.name?.charAt(0)}

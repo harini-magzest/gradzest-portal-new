@@ -376,7 +376,6 @@ export default function StudentProfile() {
   // After the last hook: a component must call the same hooks on every render, signed in or not
   if (!student) return null;
   const filledCount = profileFields.filter(f => f.filled).length;
-  const scoreColor = completion === 100 ? 'text-green-500' : completion >= 67 ? 'text-blue-400' : completion >= 34 ? 'text-amber-300' : 'text-red-300';
   const barColor = completion === 100 ? 'bg-green-400' : completion >= 67 ? 'bg-blue-300' : completion >= 34 ? 'bg-amber-300' : 'bg-red-300';
   const progressFillClass = `progress-fill-${filledCount}`;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Routes, Route, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, ExternalLink, UserPlus, Plus, Users, BookOpen, StickyNote, Edit2, Trash2, Eye, Mail, MapPin, UserCog,
+  Search, ArrowLeft, FileText, MessageSquare, CheckCircle, Upload, Phone, X, UserPlus, Plus, Users, BookOpen, Edit2, Eye, UserCog,
   ChevronDown, ChevronLeft, ChevronRight, Download, RefreshCw, Activity, GraduationCap, AlertTriangle, UserX,
 } from 'lucide-react';
 import DocPreviewModal from '../../components/DocPreviewModal';

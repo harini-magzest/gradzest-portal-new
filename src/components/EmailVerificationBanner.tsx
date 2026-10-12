@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MailWarning, X, RefreshCw } from 'lucide-react';
+import { MailWarning, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_ORIGIN } from '../api';
 

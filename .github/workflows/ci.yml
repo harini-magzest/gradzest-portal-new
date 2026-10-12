@@ -1,5 +1,5 @@
 # Runs on every pull request into main and on every push to main. Independent jobs so a failure says what broke:
-#   lint             — ESLint: errors fail, and warnings may not grow (see eslint.config.mjs)
+#   lint             — ESLint: any error or warning fails (see eslint.config.mjs)
 #   typecheck-build  — `tsc` + the production Vite build (what actually gets deployed)
 #   backend-tests    — the API suite, against an in-memory MongoDB (no secrets, no real database)
 #   ui-tests         — React component tests (jsdom)
@@ -43,7 +43,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      # Errors fail; warnings are held at the count in package.json ("lint" script) so they can only go down.
+      # Errors and warnings both fail: the "lint" script in package.json allows no warnings at all.
       - run: npm run lint
 
   typecheck-build:

@@ -54,18 +54,6 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '' }:
   );
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-700">{label}</span>
-      <button type="button" onClick={() => onChange(!checked)} role="switch" aria-checked={checked}
-        className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-purple-600' : 'bg-gray-200'}`}>
-        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
-      </button>
-    </div>
-  );
-}
-
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -447,7 +435,7 @@ export default function AdminSettings() {
         {/* Left nav */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-20">
-            {NAV_ITEMS.map((item, idx) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isDanger = item.key === 'danger';
               return (

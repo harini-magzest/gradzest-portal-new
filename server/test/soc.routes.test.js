@@ -11,7 +11,7 @@ const { waitUntil } = require('./helpers');
 
 async function makeAdmin(emailPrefix) {
   const email = `${emailPrefix}-${Date.now()}@example.com`;
-  const reg = await request(app).post('/api/auth/register')
+  await request(app).post('/api/auth/register')
     .send({ name: 'Test Admin', email, password: 'TestPass123!' });
   await User.findOneAndUpdate({ email }, { emailVerified: true, role: 'admin' });
   const login = await request(app).post('/api/auth/login').send({ email, password: 'TestPass123!' });
@@ -49,7 +49,7 @@ describe('SOC routes — auth gating', () => {
 
 describe('SOC routes — blocked IPs actually block requests and are audited', () => {
   it('blocking an IP via the API rejects subsequent requests from it, and logs a real AnalystAction', async () => {
-    const { token, email } = await makeAdmin('soc-blocker');
+    const { token } = await makeAdmin('soc-blocker');
     const testIp = '192.0.2.55'; // TEST-NET-1, reserved for documentation/testing
 
     const before = await AnalystAction.countDocuments({ action: 'block_ip', targetId: testIp });

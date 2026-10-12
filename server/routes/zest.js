@@ -6,7 +6,6 @@ const KnowledgeDocument = require('../models/KnowledgeDocument');
 const KnowledgeChunk = require('../models/KnowledgeChunk');
 const ZestQueryLog = require('../models/ZestQueryLog');
 const LeadAlert = require('../models/LeadAlert');
-const ChatRoom = require('../models/ChatRoom');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');

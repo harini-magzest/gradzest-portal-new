@@ -72,6 +72,8 @@ export default function CounselorDashboard() {
     refreshStudents();
     loadUniversities();
     loadCalls();
+    // The dashboard's first load, once. The loaders are re-created on every render, so listing them would refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const submitReply = async (appId: string) => {

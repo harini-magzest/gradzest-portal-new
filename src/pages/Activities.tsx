@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import MeetingPanel from '../components/MeetingPanel';
 import { StudentMeetingsPanel, StudentEventsPanel } from '../components/student/StudentMeetingsEvents';
-import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import CallHistory from '../components/CallHistory';
 import { TaskStatusPill, TaskTimeline, LatestTaskUpdate, taskUpdateCount } from '../components/TaskProgress';
@@ -44,7 +43,7 @@ type LocalEvent = {
   studentName?: string; _meetingId?: string; _externalCallId?: number;
 };
 
-const INITIAL_CALLS: { id: number; name: string; type: string; status: string; duration: string; time: string; date: string }[] = [];
+type CallRow = { id: number; name: string; type: string; status: string; duration: string; time: string; date: string };
 
 type Reminder = { id: number; date: string; text: string; time: string };
 
@@ -170,7 +169,6 @@ export default function Activities() {
     pathname.includes('/board')     ? 'board' : 'counselor';
 
   const isStudent = role === 'student';
-  const { addNotif } = useNotifications();
   const { user } = useAuth();
   const myId = String(user?.id ?? '');
   // Any staff member can hand tasks to any other staff member / department
@@ -196,7 +194,7 @@ export default function Activities() {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEvent, setNewEvent]       = useState({ title: '', date: '', time: '', type: 'meeting', desc: '', studentName: '' });
 
-  const [calls, setCalls]               = useState<typeof INITIAL_CALLS>([]);
+  const [calls, setCalls]               = useState<CallRow[]>([]);
   const [showScheduleCall, setShowScheduleCall] = useState(false);
   const [newCall, setNewCall]           = useState({ name: '', studentId: '', type: 'video', time: '', date: '' });
   const [newCallCount, setNewCallCount] = useState(0);
@@ -218,7 +216,7 @@ export default function Activities() {
       api.students.list().then(setStudents).catch(() => {});
     }
     if (!isStudent && role !== 'board') api.tasks.assignees().then(setAssignees).catch(() => {});
-  }, [role]);
+  }, [role, isStudent]);
 
   useEffect(() => {
     setTasksLoading(true);
