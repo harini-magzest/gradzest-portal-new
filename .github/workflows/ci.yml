@@ -1,4 +1,4 @@
-# Runs on every pull request into main and on every push to main. Four independent jobs so a failure says what broke:
+# Runs on every pull request (any target branch) and on every push to main or dev. Four independent jobs so a failure says what broke:
 #   typecheck-build  — `tsc` + the production Vite build (what actually gets deployed)
 #   backend-tests    — the API suite, against an in-memory MongoDB (no secrets, no real database)
 #   ui-tests         — React component tests (jsdom)
@@ -11,10 +11,11 @@
 name: CI
 
 on:
+  # Every pull request, whatever branch it targets: PRs merged into dev or into another feature branch used to skip
+  # these checks entirely and reached main unchecked.
   pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 # A newer push to the same branch/PR makes the older run pointless.
 concurrency:
