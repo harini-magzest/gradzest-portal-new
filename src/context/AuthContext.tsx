@@ -1,7 +1,6 @@
 ﻿import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
-import { api, setApiToken, takeRefreshFailure, type SessionInfo } from '../api';
-import { reasonFromCode, setLogoutReason, type LogoutReason } from '../lib/sessionLogout';
+import { api, setApiToken } from '../api';
 import { getDeviceHints } from '../lib/deviceInfo';
 
 // Force a full page reload on HMR so the context reference never mismatches
@@ -18,12 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<LoginResult>;
   verifyTwoFactor: (challengeToken: string, code: string) => Promise<LoginResult>;
   loginWithToken: (token: string) => Promise<void>;
-  // `reason` is remembered so the login page can say why (see lib/sessionLogout.ts)
-  logout: (reason?: LogoutReason) => void;
-  // The server's limits for this sign-in (when it ends, how long idle is allowed); null when signed out
-  session: SessionInfo | null;
-  // Tells the server the person is still here (renews the idle clock); signs out if the session has already ended
-  extendSession: () => Promise<void>;
+  logout: () => void;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
@@ -49,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Only "loading" while a session restore is actually in flight. Public pages render
   // straight away either way; the dashboard layouts wait on this before redirecting.
   const [loading, setLoading] = useState(hasSessionHint);
-  const [session, setSession] = useState<SessionInfo | null>(null);
 
   useEffect(() => {
     if (!hasSessionHint()) return;
@@ -61,7 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u);
         } else {
           setSessionHint(false);
-          setLogoutReason(reasonFromCode(takeRefreshFailure())); // came back after the session timed out: say so on the login page
         }
       })
       .catch(() => setSessionHint(false))
@@ -77,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await api.auth.login(email, password, await getDeviceHints());
       if ('twoFactorRequired' in result) return { success: false, twoFactor: { challengeToken: result.challengeToken } };
       setApiToken(result.token);
-      setSession(result.session ?? null);
       setUser(result.user);
       return { success: true, role: result.user.role, isAppTeam: result.user.isAppTeam };
     } catch (err: any) {
@@ -89,9 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyTwoFactor = async (challengeToken: string, code: string): Promise<LoginResult> => {
     try {
-      const { token, user: u, session: s, recoveryCodesRemaining } = await api.auth.verifyTwoFactor(challengeToken, code, await getDeviceHints());
+      const { token, user: u, recoveryCodesRemaining } = await api.auth.verifyTwoFactor(challengeToken, code, await getDeviceHints());
       setApiToken(token);
-      setSession(s ?? null);
       setUser(u);
       return { success: true, role: u.role, isAppTeam: u.isAppTeam, recoveryCodesRemaining };
     } catch (err: any) {
@@ -110,36 +100,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = (reason?: LogoutReason) => {
+  const logout = () => {
     api.auth.logout();
     setApiToken(null);
     setUser(null);
-    setSession(null);
     setSessionHint(false);
-    if (reason) setLogoutReason(reason);
   };
 
-  // The server's limits arrive with every renewal of the access token
+  // Listen for forced logout triggered by the API interceptor when refresh fails
   useEffect(() => {
-    const onSession = (e: Event) => setSession((e as CustomEvent<SessionInfo>).detail ?? null);
-    window.addEventListener('auth:session', onSession);
-    return () => window.removeEventListener('auth:session', onSession);
-  }, []);
-
-  // Listen for forced logout triggered by the API interceptor when refresh fails (the detail says if a time limit ended it)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setLogoutReason(reasonFromCode((e as CustomEvent<{ reason?: string | null }>).detail?.reason));
-      setApiToken(null); setUser(null); setSession(null); setSessionHint(false);
-    };
+    const handler = () => { setApiToken(null); setUser(null); setSessionHint(false); };
     window.addEventListener('auth:logout', handler);
     return () => window.removeEventListener('auth:logout', handler);
   }, []);
-
-  const extendSession = async () => {
-    const token = await api.auth.refresh();
-    if (!token) logout(reasonFromCode(takeRefreshFailure()) ?? undefined); // it had already ended: sign out cleanly
-  };
 
   const refreshUser = async () => {
     try {
@@ -149,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, verifyTwoFactor, loginWithToken, logout, session, extendSession, refreshUser, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, login, verifyTwoFactor, loginWithToken, logout, refreshUser, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,7 +10,6 @@ import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastNotification';
 import FlashToast from './components/FlashToast';
 import NamasteIntro from './components/NamasteIntro';
-import SessionTimeoutDialog from './components/SessionTimeoutDialog';
 import { ReferralCapture } from './lib/referral';
 import ZestWidget from './components/zest/ZestWidget';
 import { useNotifications } from './context/NotificationContext';
@@ -155,7 +154,6 @@ export default function App() {
         <NotificationPermissionPrompt />
         <FlashToast />
         <NamasteIntro />
-        <SessionTimeoutDialog />
         <AuthModal />
         <ZestWidget />
         <Suspense fallback={<PageSpinner />}>

@@ -1,3 +1,36 @@
-# A shell script with Windows line endings fails inside a Linux image ("/bin/sh^M: bad interpreter"), whatever the
-# checkout's autocrlf setting, so these are always LF.
+# One line ending in the repository, whatever each contributor's editor or core.autocrlf says.
+#
+# Before this file the repository held a mix (most files LF, about a hundred CRLF, two with both), depending on who last
+# committed them. Git then saw a whole file as changed whenever two people's editors disagreed, which showed up as
+# whole-file merge conflicts and merges that silently duplicated or dropped code.
+#
+# If a branch from before this change conflicts on line endings, bring it up to date with:
+#   git merge -Xrenormalize origin/main
+* text=auto eol=lf
+
+# A shell script with Windows line endings fails inside a Linux image ("/bin/sh^M: bad interpreter"), so these are always LF.
 *.sh text eol=lf
+
+# Windows scripts: the repository copy is LF like everything else, the working copy is CRLF, as before.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never convert binaries (text=auto detects most; these are listed so a lucky byte pattern can't be "converted")
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp3 binary
+*.mp4 binary
+*.webm binary
+*.glb binary
+*.pptx binary
+*.docx binary
+*.xlsx binary
