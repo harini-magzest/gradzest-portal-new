@@ -7,6 +7,12 @@ export type LangCode = keyof typeof LANGUAGES;
 
 const en = {
   'lang.label': 'Language',
+
+  'session.idleTitle': 'Are you still there?',
+  'session.idleBody': 'For your security you will be signed out in {time} because there has been no activity.',
+  'session.stay': 'Stay signed in',
+  'session.signOut': 'Sign out now',
+  'session.endingBody': 'Your sign-in ends in {time}. Save your work: you will need to sign in again to continue.',
   'a11y.skipToContent': 'Skip to main content',
 
   'nav.dashboard': 'Dashboard',
@@ -36,6 +42,12 @@ export type TranslationKey = keyof typeof en;
 
 const hi: Partial<Record<TranslationKey, string>> = {
   'lang.label': 'भाषा',
+
+  'session.idleTitle': 'क्या आप यहाँ हैं?',
+  'session.idleBody': 'आपकी सुरक्षा के लिए, कोई गतिविधि न होने के कारण आपको {time} में साइन आउट कर दिया जाएगा।',
+  'session.stay': 'साइन इन रहें',
+  'session.signOut': 'अभी साइन आउट करें',
+  'session.endingBody': 'आपका साइन-इन {time} में समाप्त हो जाएगा। अपना काम सहेज लें; जारी रखने के लिए आपको दोबारा साइन इन करना होगा।',
   'a11y.skipToContent': 'मुख्य सामग्री पर जाएँ',
 
   'nav.dashboard': 'डैशबोर्ड',
