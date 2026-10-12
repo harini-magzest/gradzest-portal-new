@@ -6,14 +6,17 @@ const authMiddleware = require('../middleware/auth');
 const { canAccessUpload } = require('../lib/fileAccess');
 const { signedUploadPath, isStoredName } = require('../lib/fileLinks');
 const { sendServerError } = require('../lib/httpError');
+const { validate } = require('../middleware/validate');
+const { z, noBody } = require('../lib/schemas');
 
 const router = express.Router();
+const linkParams = z.object({ name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/, 'Not a stored file name') }).strict();
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
 // POST /api/files/:name/link — a link to one stored file (/uploads/<name>) that works for five minutes, for the caller
 // only. The same per-file rule as a download decides who may have one. "No such file" and "not yours" get the same 404,
 // so the endpoint cannot be used to find out which file names exist.
-router.post('/:name/link', authMiddleware, async (req, res) => {
+router.post('/:name/link', authMiddleware, validate({ params: linkParams, body: noBody }), async (req, res) => {
   try {
     const { name } = req.params;
     if (!isStoredName(name) || !(await canAccessUpload(req.user, name)) || !fs.existsSync(path.join(UPLOAD_DIR, name))) {

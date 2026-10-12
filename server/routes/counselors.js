@@ -11,6 +11,11 @@ const attachUserEmail = require('../middleware/attachUserEmail');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
 
 const router = express.Router();
+const { validate, idParam } = require('../middleware/validate');
+const { z, text } = require('../lib/schemas');
+
+router.param('docId', idParam); // a MongoDB ObjectId: a malformed one is a 400 (middleware/validate.js)
+const counselorDocumentFields = z.object({ name: text(200).optional(), type: text(300).optional() }).strict();
 
 // Get own profile (counselor)
 router.get('/me', authMiddleware, async (req, res) => {
@@ -56,7 +61,7 @@ router.get('/me/documents', authMiddleware, async (req, res) => {
 });
 
 // Upload own document (counselor) — multipart/form-data with optional file
-router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('counselor_document'), uploadToS3IfConfigured, async (req, res) => {
+router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), validate({ body: counselorDocumentFields }), scanUploadedFile, recordUpload('counselor_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { name, type } = req.body;
   const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : undefined;

@@ -13,6 +13,23 @@ const { fireEvent } = require('../lib/automation');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 const { recordSignInActivity } = require('../lib/recordSignIn');
 const { isAdminLocked, invalidate: invalidateAccountState } = require('../lib/accountState');
+const { validate } = require('../middleware/validate');
+const { z, email, password, text, requiredText, noBody, ids } = require('../lib/schemas');
+
+// ── Request schemas (middleware/validate.js); unknown fields are refused ──
+// Browser-reported device details (lib/recordSignIn.js cleans them): bounded, but loose inside so a browser reporting
+// something new can never block a sign-in
+const deviceHints = z.record(z.string().max(40), z.union([z.string().max(200), z.number(), z.boolean(), z.null()]))
+  .refine((hints) => Object.keys(hints).length <= 20, 'Too many fields');
+const loginBody = z.object({ email, password, device: deviceHints.optional() }).strict();
+const registerBody = z.object({
+  name: requiredText(100), email, password,
+  phone: text(30).optional(), nationality: text(60).optional(), ref: text(64).optional(),
+}).strict();
+const emailOnlyBody = z.object({ email }).strict();
+const resetPasswordBody = z.object({ token: requiredText(200), password }).strict();
+// Not strict: the link arrives from an email, and mail tracking may add its own parameters
+const verifyEmailQuery = z.object({ token: requiredText(200) });
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -75,7 +92,7 @@ function setRefreshCookie(res, token, expires) {
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
-router.post('/login', async (req, res) => {
+router.post('/login', validate({ body: loginBody }), async (req, res) => {
   const { email, password } = req.body || {};
   if (!isString(email) || !isString(password)) return res.status(400).json({ message: 'Email and password are required' });
   try {
@@ -267,7 +284,7 @@ async function sendVerificationEmail(user, mailer, frontendUrl) {
   }
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register', validate({ body: registerBody }), async (req, res) => {
   const { name, email, password, phone, nationality, ref } = req.body;
   if (!isString(name) || !isString(email) || !isString(password)) return res.status(400).json({ message: 'Name, email and password are required' });
   const pwError = validatePasswordStrength(password);
@@ -306,7 +323,7 @@ router.post('/register', async (req, res) => {
 });
 
 // GET /auth/verify-email?token=...
-router.get('/verify-email', async (req, res) => {
+router.get('/verify-email', validate({ query: verifyEmailQuery }), async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ message: 'Token required' });
   try {
@@ -323,7 +340,7 @@ router.get('/verify-email', async (req, res) => {
 });
 
 // POST /auth/resend-verification
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', validate({ body: emailOnlyBody }), async (req, res) => {
   const { email } = req.body || {};
   if (!isString(email)) return res.status(400).json({ message: 'Email required' });
   try {
@@ -339,7 +356,7 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 // POST /auth/forgot-password
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', validate({ body: emailOnlyBody }), async (req, res) => {
   const { email } = req.body || {};
   if (!isString(email)) return res.status(400).json({ message: 'Email is required' });
   try {
@@ -382,7 +399,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // POST /auth/reset-password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', validate({ body: resetPasswordBody }), async (req, res) => {
   const { token, password } = req.body || {};
   if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
   const pwError = validatePasswordStrength(password);
@@ -417,7 +434,7 @@ router.post('/reset-password', async (req, res) => {
 // POST /auth/refresh — exchange refresh token cookie for a new access token.
 // Rotates only the ONE session matching this cookie — every other device's
 // session is left untouched, which is the actual multi-session fix.
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', validate({ body: noBody }), async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (!raw) return res.status(401).json({ message: 'No refresh token' });
   try {
@@ -455,7 +472,7 @@ router.post('/refresh', async (req, res) => {
 });
 
 // POST /auth/logout — revoke just this device's session and clear its cookie
-router.post('/logout', async (req, res) => {
+router.post('/logout', validate({ body: noBody }), async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (raw) {
     const hash = crypto.createHash('sha256').update(raw).digest('hex');
@@ -503,7 +520,7 @@ router.get('/sessions', authMiddleware, async (req, res) => {
 });
 
 // DELETE /auth/sessions/:sessionId — revoke one specific session ("log out that device")
-router.delete('/sessions/:sessionId', authMiddleware, async (req, res) => {
+router.delete('/sessions/:sessionId', authMiddleware, validate({ params: ids('sessionId') }), async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
