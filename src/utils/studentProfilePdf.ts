@@ -1,7 +1,9 @@
-import { createPdfReport } from './pdfReport';
+import { loadPdfReport } from './loadPdfReport';
 
 /** Generates and downloads a one-page-plus "Student Profile Report" PDF for the given student record. */
-export function downloadStudentProfilePdf(student: any, opts?: { counselorName?: string; counselorEmail?: string }) {
+export async function downloadStudentProfilePdf(student: any, opts?: { counselorName?: string; counselorEmail?: string }) {
+  const createPdfReport = await loadPdfReport();
+  if (!createPdfReport) return;
   const r = createPdfReport({
     title: 'Student Profile Report',
     accent: [59, 7, 100],
