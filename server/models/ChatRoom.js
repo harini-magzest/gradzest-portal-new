@@ -42,6 +42,9 @@ const ChatRoomSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// "My chats, most recent first" is the query behind every chat list and unread badge
+ChatRoomSchema.index({ participants: 1, updatedAt: -1 });
+
 ChatRoomSchema.set("toJSON", { virtuals: true });
 
 module.exports = mongoose.model("ChatRoom", ChatRoomSchema);

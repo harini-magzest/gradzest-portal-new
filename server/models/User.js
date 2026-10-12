@@ -351,6 +351,12 @@ const UserSchema = new mongoose.Schema({
 // Unique only among accounts that have an email, so any number of phone-only leads can coexist
 UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } });
 
+// Every token refresh and every logout finds the user by the hash of a session's refresh token, and the staff lists filter by
+// role (and a counselor's students by counselorId). Without these each of those reads walks every user document, and a
+// user document is large (applications, documents, notes).
+UserSchema.index({ 'sessions.tokenHash': 1 });
+UserSchema.index({ role: 1, counselorId: 1 });
+
 UserSchema.set('toJSON', {
   virtuals: true,
   // Staff notes never travel inside a user object — that would hand them to the student and
