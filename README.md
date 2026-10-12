@@ -89,8 +89,8 @@ Zest answers from the uploaded knowledge base, the university catalogue and role
 
 ## Checks and merging
 
-Every pull request into `main` runs three automatic checks (`.github/workflows/ci.yml`): **typecheck-build**, **backend-tests** and **ui-tests**. They are the same commands as step 4 above, so run those locally before you open the pull request.
+Every pull request into `main` runs automatic checks (`.github/workflows/ci.yml`): **lint**, **typecheck-build**, **backend-tests**, **ui-tests** and **api-image**. They are the same commands as step 4 above (plus `npm run lint`), so run those locally before you open the pull request. `npm run lint` fails on errors and on any *new* warning: if you remove warnings, lower the `--max-warnings` number in the `lint` script in `package.json` to match, so they can't come back.
 
 - **Update your branch before merging.** `git fetch origin && git merge origin/main`, then fix conflicts by reading *both* sides. A branch built from an old snapshot can silently overwrite newer work on `main` when it is merged, and the checks only catch it if you run them on the merged result.
 - **Don't share one working folder.** Two people (or two tools) committing in the same checkout can reset each other's branch and wipe uncommitted work. Use separate clones, or `git worktree add ../my-work -b my-branch origin/main`.
-- **For a repository admin, once:** Settings → Branches → add a rule for `main` → *Require a pull request before merging* and *Require status checks to pass before merging* (select the three checks above) → *Require branches to be up to date before merging*. Without this rule the checks only warn; they don't block.
+- **For a repository admin, once:** Settings → Branches → add a rule for `main` → *Require a pull request before merging* and *Require status checks to pass before merging* (select the checks above) → *Require branches to be up to date before merging*. Without this rule the checks only warn; they don't block.

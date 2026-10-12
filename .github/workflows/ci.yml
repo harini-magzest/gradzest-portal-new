@@ -1,11 +1,12 @@
-# Runs on every pull request (any target branch) and on every push to main or dev. Four independent jobs so a failure says what broke:
+# Runs on every pull request into main and on every push to main. Independent jobs so a failure says what broke:
+#   lint             — ESLint: errors fail, and warnings may not grow (see eslint.config.mjs)
 #   typecheck-build  — `tsc` + the production Vite build (what actually gets deployed)
 #   backend-tests    — the API suite, against an in-memory MongoDB (no secrets, no real database)
 #   ui-tests         — React component tests (jsdom)
 #   api-image        — the API's Docker image (server/Dockerfile) builds and contains what the app needs
 #
 # To make these block bad merges, a repository admin turns on branch protection for `main`
-# (Settings → Branches → Add rule → "Require status checks to pass before merging" → select the four jobs, and
+# (Settings → Branches → Add rule → "Require status checks to pass before merging" → select the jobs, and
 # "Require a pull request before merging"). See the README, "Checks and merging".
 
 name: CI
@@ -30,6 +31,21 @@ env:
   CI: true
 
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      # Errors fail; warnings are held at the count in package.json ("lint" script) so they can only go down.
+      - run: npm run lint
+
   typecheck-build:
     name: typecheck-build
     runs-on: ubuntu-latest
