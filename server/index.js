@@ -1,6 +1,23 @@
 const { app, io, httpServer, userSockets, mailer } = require('./app');
 const { connectDB } = require('./db');
 const { jobsEnabled } = require('./lib/runJobs');
+const { installConsoleBridgeFromEnv } = require('./lib/logger');
+const { initErrorReporting, captureError, flushErrorReporting } = require('./lib/errorReporting');
+
+// After ./app, which is what loads server/.env. Both are off unless configured (LOG_FORMAT / NODE_ENV=production, and
+// SENTRY_DSN), so a development machine behaves exactly as before.
+installConsoleBridgeFromEnv();
+if (initErrorReporting()) console.log('[errorReporting] Sentry error reporting is on');
+
+// Node would end the process on either of these anyway; this keeps that, but records why first and gives the report
+// a moment to leave the machine.
+function dieWith(kind, error) {
+  console.error(`[${kind}]`, error);
+  captureError(error, { scope: kind, fatal: true });
+  flushErrorReporting(2000).finally(() => process.exit(1));
+}
+process.on('uncaughtException', (err) => dieWith('uncaughtException', err));
+process.on('unhandledRejection', (reason) => dieWith('unhandledRejection', reason instanceof Error ? reason : new Error(String(reason))));
 
 async function autoSeedIfEmpty() {
   const User = require('./models/User');

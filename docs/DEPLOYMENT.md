@@ -75,6 +75,19 @@ What is still per instance: live notifications and chat (Socket.io has no shared
 to the same instance), Skyload's per-IP scoring, and local uploads. Until those move to Redis and S3, run one instance, or keep
 users on one instance with sticky sessions and store uploads in S3.
 
+### Logs and error tracking
+* **Structured logs:** with `NODE_ENV=production` (or `LOG_FORMAT=json`) every `console.*` call is written as one JSON line
+  (`level`, `time`, `service`, `msg`, and `err` with the stack when an Error was passed), so a log platform can search and alert on
+  it. `LOG_LEVEL` sets the threshold (default `info`); `LOG_FORMAT=text` turns it off. Passwords, tokens and auth headers are
+  redacted wherever they appear in a logged object. Note that this does not clean up what the existing messages themselves say.
+* **Error tracking (Sentry):** off until `SENTRY_DSN` is set. Only exceptions, their stacks and a few tags (scope, method, path
+  without the query string, status) are sent. There are no request bodies, cookies, headers, user objects or breadcrumbs, and
+  e-mail addresses and long digit runs in the error text are masked, because database errors quote the value that failed.
+  Set `SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` (for example the git commit) so errors group by deploy.
+* **What is reported:** 5xx responses from the global error handler, every `logError(...)` call in a route, and an uncaught
+  exception or unhandled rejection. The last two still end the process, as Node does by default; the report is flushed first.
+* The API's own `/soc` security logging (RequestLog, SecurityEvent) is separate and unchanged.
+
 ## 4. Verify a deployment
 ```bash
 # 1. The dev server must not be there. Each of these must NOT return JavaScript or source (a static host's single-page

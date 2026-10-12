@@ -569,12 +569,7 @@ io.on('connection', (socket) => {
 // naming the method and path
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
 
-// Global error handler — catches anything thrown in routes
-app.use((err, req, res, next) => {
-  const status = err.status || err.statusCode || 500;
-  const message = status < 500 ? err.message : 'Internal server error';
-  if (status >= 500) console.error(`[error] ${req.method} ${req.path}`, err);
-  res.status(status).json({ message });
-});
+// Global error handler — catches anything thrown in routes (middleware/errorHandler.js)
+app.use(require('./middleware/errorHandler'));
 
 module.exports = { app, io, httpServer, userSockets, mailer };
