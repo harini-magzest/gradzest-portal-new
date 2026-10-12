@@ -113,7 +113,7 @@ describe('Zest /ask end-to-end with a mocked model (no real API call)', () => {
     expect(log.toolsUsed).toEqual(['list_my_open_tasks']);
   });
 
-  it('never offers tools to a student — the model request carries no tools param', async () => {
+  it('offers a student only the catalogue and their own record, never a staff tool', async () => {
     const student = await mk('student');
     const client = fakeClient([textResponse('I can only help with your own application here.')]);
     setAnthropicClientForTests(client);
@@ -121,7 +121,10 @@ describe('Zest /ask end-to-end with a mocked model (no real API call)', () => {
     const res = await request(app).post('/api/zest/ask').set(as(student)).send({ question: 'What are my open tasks?' });
 
     expect(res.status).toBe(200);
-    expect(client.calls[0].tools).toBeUndefined();
+    // These three take no input that could name someone else; everything else is staff-only (and executeTool refuses
+    // a student for those regardless of what the model asks for)
+    const offered = (client.calls[0].tools || []).map((tool) => tool.name).sort();
+    expect(offered).toEqual(['my_status', 'my_upcoming', 'search_universities']);
 
     const log = await ZestQueryLog.findOne({ userId: student.id }).sort({ createdAt: -1 });
     expect(log.toolsUsed).toEqual([]);
