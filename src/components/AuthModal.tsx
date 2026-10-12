@@ -7,10 +7,14 @@ import { api, setApiToken } from '../api';
 import { getReferral, clearReferral } from '../lib/referral';
 import PasswordStrengthBar from './PasswordStrengthBar';
 import { checkPasswordStrength } from '../utils/passwordStrength';
+import TwoFactorStep from './TwoFactorStep';
 
 export default function AuthModal() {
   const { isOpen, tab, close, setTab } = useAuthModal();
-  const { login, refreshUser } = useAuth();
+  const { login, verifyTwoFactor, refreshUser } = useAuth();
+  // Set once the password was right on an account with two-step verification: the popup then asks for the code.
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState('');
   const navigate = useNavigate();
 
   const [loginEmail, setLoginEmail] = useState('');
@@ -45,6 +49,8 @@ export default function AuthModal() {
 
   const switchTab = (t: 'login' | 'register') => {
     setTab(t);
+    setChallenge(null);
+    setCodeError('');
     setLoginError('');
     setRegError('');
   };
@@ -56,12 +62,38 @@ export default function AuthModal() {
     const result = await login(loginEmail, loginPassword);
     setLoginLoading(false);
     if (result.success) {
-      close();
-      if (result.role === 'admin') navigate(result.isAppTeam ? '/appteam' : '/admin');
-      else if (result.role === 'counselor') navigate('/counselor');
-      else navigate('/student');
+      finishSignIn(result.role, result.isAppTeam);
+    } else if (result.twoFactor) {
+      setCodeError('');
+      setChallenge(result.twoFactor.challengeToken);
     } else {
       setLoginError('Invalid email or password. Please try again.');
+    }
+  };
+
+  const finishSignIn = (role: string, isAppTeam?: boolean) => {
+    setChallenge(null);
+    setLoginPassword('');
+    close();
+    if (role === 'admin') navigate(isAppTeam ? '/appteam' : '/admin');
+    else if (role === 'counselor') navigate('/counselor');
+    else navigate('/student');
+  };
+
+  const handleCode = async (code: string) => {
+    if (!challenge) return;
+    setLoginLoading(true);
+    setCodeError('');
+    const result = await verifyTwoFactor(challenge, code);
+    setLoginLoading(false);
+    if (result.success) {
+      finishSignIn(result.role, result.isAppTeam);
+    } else if (result.twoFactor === undefined && result.code === 'CHALLENGE_EXPIRED') {
+      // The five minutes ran out: back to the password.
+      setChallenge(null);
+      setLoginError(result.message || 'Your sign-in session expired. Please sign in again.');
+    } else {
+      setCodeError((result.twoFactor === undefined && result.message) || 'That code did not work. Please try again.');
     }
   };
 
@@ -136,8 +168,16 @@ export default function AuthModal() {
         </div>
 
         <div className="px-6 pb-6">
+          {/* SECOND STEP: the sign-in code, after the password was right on an account that has two-step verification */}
+          {tab === 'login' && challenge && (
+            <TwoFactorStep
+              submitting={loginLoading} error={codeError} onSubmit={handleCode}
+              onBack={() => { setChallenge(null); setCodeError(''); setLoginPassword(''); }}
+            />
+          )}
+
           {/* LOGIN FORM */}
-          {tab === 'login' && (
+          {tab === 'login' && !challenge && (
             <form onSubmit={handleLogin} className="space-y-4">
               <p className="text-sm text-gray-500">Welcome back! Sign in to your account.</p>
               {/* Demo accounts — development only (see DEMO_ACCOUNTS) */}

@@ -1,6 +1,7 @@
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const { verifyAccessToken, verifyFileToken } = require('./lib/tokens');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -24,7 +25,7 @@ if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
 // FILE_URL_SECRET signs the short-lived /uploads links (lib/fileLinks.js). Outside production a missing one is derived
 // from JWT_SECRET; production needs its own, so a leak of one secret does not give away the other.
 {
-  const { secretProblem } = require('./lib/jwt');
+  const { secretProblem } = require('./lib/tokens');
   const problems = [secretProblem(process.env.JWT_SECRET, 'JWT_SECRET')];
   if (process.env.FILE_URL_SECRET || process.env.NODE_ENV === 'production') {
     problems.push(secretProblem(process.env.FILE_URL_SECRET, 'FILE_URL_SECRET'));
@@ -53,6 +54,7 @@ const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
 const app = express();
+app.disable('x-powered-by');
 // Required for req.ip to resolve the real client IP behind a reverse proxy/load balancer,
 // and for rate limiters to key correctly by client rather than by proxy.
 app.set('trust proxy', process.env.TRUST_PROXY || 1);
@@ -63,10 +65,13 @@ const httpServer = createServer(app);
 // included) — this depends on trust proxy being set above for req.ip to be correct.
 app.use(ipBlockMiddleware);
 
-// TRACE/TRACK echo a request back (cross-site tracing) and CONNECT is for proxies: none is ever valid here
+// Only the verbs the API actually uses. TRACE/TRACK (cross-site tracing), CONNECT and any made-up method are refused
+// before routing, so they can't slip past middleware that only expects the usual verbs.
+const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 app.use((req, res, next) => {
-  if (!['TRACE', 'TRACK', 'CONNECT'].includes(req.method)) return next();
-  res.set('Allow', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS').status(405).json({ message: 'Method not allowed' });
+  if (ALLOWED_METHODS.has(req.method)) return next();
+  res.set('Allow', [...ALLOWED_METHODS].join(', '));
+  res.status(405).json({ message: 'Method not allowed' });
 });
 markActive('ip_block', 'server/middleware/ipBlock.js mounted before CORS/helmet');
 refreshBlockedIps().catch(() => {});
@@ -210,6 +215,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/github/callback', authLimiter);
   app.use('/api/forms/public', formSubmitLimiter);
   app.use('/api/zest/public/lead', formSubmitLimiter);
+  app.use('/api/subscribe', formSubmitLimiter);
   app.use('/api', generalLimiter);
   app.use(['/api/unilogo', '/api/favicon'], assetLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
@@ -222,13 +228,16 @@ app.use(wafBodyCheck);
 app.use(cookieParser());
 if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/login', loginIpLimiter, loginFailLimiter);
+  // The second sign-in step takes the same failure budget: a wrong code counts, a right one does not.
+  app.use('/api/auth/2fa/login', loginIpLimiter, loginFailLimiter);
 }
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
 // or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.
-// The browser opens a file with a short-lived signed link (POST /api/files/:name/link, lib/fileLinks.js). The older
-// way, the access token in ?token=, put a token for the whole API into URLs; it only works while
-// ALLOW_LEGACY_UPLOAD_TOKENS allows it (off in production unless turned on for the switch-over).
+// The app opens a file with a short-lived signed link (POST /api/files/:name/link, lib/fileLinks.js). An Authorization
+// header with the access token works too. ?token= carries only a download-only file token (lib/tokens.js), never the
+// access token (URLs end up in history, proxy logs and Referer headers), and only while ALLOW_LEGACY_UPLOAD_TOKENS
+// allows it: off in production unless turned on while browsers still run a frontend that sends it.
 app.use('/uploads', async (req, res, next) => {
   const { isBlocked, tokenRevoked, currentAccess } = require('./lib/accountState');
   const { checkSignedUpload, legacyUploadTokensAllowed } = require('./lib/fileLinks');
@@ -245,10 +254,11 @@ app.use('/uploads', async (req, res, next) => {
         return res.status(401).json({ message: 'This account is no longer active.' });
       }
     } else {
-      const token = req.headers.authorization?.split(' ')[1] || (legacyUploadTokensAllowed() ? req.query.token : undefined);
-      if (!token) return res.status(401).json({ message: 'Authentication required' });
+      const headerToken = req.headers.authorization?.split(' ')[1];
+      const queryToken = legacyUploadTokensAllowed() && typeof req.query.token === 'string' ? req.query.token : '';
+      if (!headerToken && !queryToken) return res.status(401).json({ message: 'Authentication required' });
       try {
-        user = require('./lib/jwt').verifyAccessToken(token);
+        user = headerToken ? verifyAccessToken(headerToken) : verifyFileToken(queryToken);
       } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
       }
@@ -291,9 +301,10 @@ markActive('critical_alert', 'server/lib/criticalAlert.js — emails admins on n
 // Public email subscription / free registration
 const Subscriber = require('./models/Subscriber');
 app.post('/api/subscribe', async (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
-  const name  = (req.body.name  || '').trim();
-  const phone = (req.body.phone || '').trim();
+  const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const email = str(req.body.email, 254).toLowerCase();
+  const name  = str(req.body.name, 100);
+  const phone = str(req.body.phone, 30);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ message: 'Invalid email address' });
   }
@@ -312,7 +323,9 @@ app.post('/api/subscribe', async (req, res) => {
     });
 
     // Send thank-you email to the new subscriber
-    const greeting = sub.name ? `Hi ${sub.name},` : 'Hello,';
+    // The name is whatever a visitor typed — escape it so it can't inject markup or links into our email.
+    const safeName = sub.name.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const greeting = safeName ? `Hi ${safeName},` : 'Hello,';
     mailer.sendMail({
       from:    `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to:      sub.email,
@@ -363,6 +376,7 @@ initActivityLogger(io);
 initSecurityLogger(io);
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/account', require('./routes/account'));
 app.use('/api/countries', require('./routes/countries'));
 app.use('/api/universities', require('./routes/universities'));
 app.use('/api/students', require('./routes/students'));
@@ -393,22 +407,16 @@ app.use('/api/zest',          require('./routes/zest'));
 app.use('/api/forms',         require('./routes/forms'));
 app.use('/api/files',         require('./routes/files'));
 
-// Health check — no auth required, used by hosting platforms and monitoring
+// Health check — no auth required, used by hosting platforms and monitoring. Says only whether the service is up:
+// no environment name, versions or uptime for an unauthenticated caller.
 const mongoose = require('mongoose');
-const startTime = Date.now();
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
-  const uptimeMs = Date.now() - startTime;
-  const h = Math.floor(uptimeMs / 3600000);
-  const m = Math.floor((uptimeMs % 3600000) / 60000);
-  const s = Math.floor((uptimeMs % 60000) / 1000);
-  const uptime = `${h}h ${m}m ${s}s`;
   const ok = dbState === 1;
   res.status(ok ? 200 : 503).json({
     status: ok ? 'ok' : 'degraded',
     db: dbStatus,
-    uptime,
     timestamp: new Date().toISOString(),
   });
 });
@@ -418,7 +426,7 @@ io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('Unauthorized'));
   try {
-    const decoded = require('./lib/jwt').verifyAccessToken(token);
+    const decoded = verifyAccessToken(token);
     const { isBlocked, tokenRevoked } = require('./lib/accountState');
     if (await isBlocked(decoded.id) || await tokenRevoked(decoded)) return next(new Error('Unauthorized'));
     socket.data.userId = String(decoded.id);

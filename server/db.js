@@ -25,6 +25,15 @@ mongoose.connection.on('disconnected', () =>
 // Graceful shutdown on SIGINT / SIGTERM
 ['SIGINT', 'SIGTERM'].forEach((signal) => {
   process.on(signal, async () => {
+    // Request-log rows are batched in memory (middleware/requestLogger.js): write them before the connection goes.
+    // Loaded here, not at the top, so scripts that only use connectDB() do not pull in the models; capped so a
+    // dead database cannot hold the shutdown up.
+    try {
+      await Promise.race([
+        require('./middleware/requestLogger').flushRequestLogs(),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    } catch { /* shutting down anyway */ }
     await mongoose.connection.close();
     console.log(`[MongoDB] Connection closed on ${signal}`);
     process.exit(0);

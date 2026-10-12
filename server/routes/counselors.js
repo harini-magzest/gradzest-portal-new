@@ -86,7 +86,7 @@ router.get('/me/performance', authMiddleware, async (req, res) => {
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
     res.json(await buildCounselorPerformance(counselor, req.query.days));
   } catch (err) {
-    sendServerError(res, err); // logs the details server-side; the client gets a generic message
+    sendServerError(res, err);
   }
 });
 

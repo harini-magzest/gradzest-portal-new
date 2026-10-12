@@ -26,8 +26,8 @@ router.post('/invites', authMiddleware, adminOnly, validate({ body: inviteBody }
 
 ## Covered so far
 
-Auth (login, register, verification, password reset, refresh, logout, sessions), all of `/api/admin`, all of
-`/api/chat`, every file upload form (student and counselor documents, chat files and recordings, Zest documents and
+Auth (login and its two-factor step, register, verification, password reset, refresh, logout, sessions), `/api/admin`
+(except the Settings-page routes listed below), all of `/api/chat`, every file upload form (student and counselor documents, chat files and recordings, Zest documents and
 questions with a file), `/api/files`, and the id parameters of the student, notification, task, counselor-document
 and Zest routes.
 
@@ -36,8 +36,18 @@ and Zest routes.
 Routes that read a body, a query string or an id parameter without a schema. "id checked in handler" means a malformed
 id is already refused (with a 404) by the route itself; only the body or query still needs a schema.
 
+### account (/api/account) (4)
+- `POST /change-password` — body
+- `POST /2fa/setup` — body
+- `POST /2fa/enable` — body
+- `PUT /profile` — body
+
 ### activity (/api/activity) (1)
 - `GET /` — query
+
+### admin (/api/admin) (2)
+- `PUT /settings/company` — body
+- `GET /export/:kind` — id: kind
 
 ### applications (/api/applications) (5)
 - `POST /` — body
@@ -175,13 +185,11 @@ id is already refused (with a 404) by the route itself; only the body or query s
 - `POST /` — body
 - `PUT /:id` — body, id checked in handler, no schema
 
-### zest (/api/zest) (9)
+### zest (/api/zest) (7)
 - `PUT /documents/:id` — body
 - `POST /ask` — body
 - `POST /public/lead` — body
-- `POST /followup-draft` — body
 - `POST /feedback` — body
 - `POST /documents/from-answer` — body
-- `POST /draft-reply` — body
 - `GET /analytics` — query
 - `GET /query-logs` — query

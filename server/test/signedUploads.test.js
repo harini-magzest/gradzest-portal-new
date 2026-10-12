@@ -20,7 +20,7 @@ async function signedIn(role, extra = {}) {
   await request(app).post('/api/auth/register').send({ name: `Links ${role}`, email, password: 'TestPass123!' });
   await User.findOneAndUpdate({ email }, { emailVerified: true, role, ...extra });
   const res = await request(app).post('/api/auth/login').send({ email, password: 'TestPass123!' });
-  return { id: String(res.body.user.id), token: res.body.token };
+  return { id: String(res.body.user.id), token: res.body.token, fileToken: res.body.fileToken };
 }
 const auth = (t) => ({ Authorization: `Bearer ${t}` });
 const created = [];
@@ -129,13 +129,21 @@ describe('the old ?token= links', () => {
   const before = process.env.ALLOW_LEGACY_UPLOAD_TOKENS;
   afterEach(() => { if (before === undefined) delete process.env.ALLOW_LEGACY_UPLOAD_TOKENS; else process.env.ALLOW_LEGACY_UPLOAD_TOKENS = before; });
 
-  it('are refused unless ALLOW_LEGACY_UPLOAD_TOKENS is on', async () => {
+  it('take a download-only file token, and only while ALLOW_LEGACY_UPLOAD_TOKENS is on', async () => {
     const owner = await signedIn('student');
     const name = await storedFile(owner, 'legacy');
+    expect(owner.fileToken).toBeTruthy();
     process.env.ALLOW_LEGACY_UPLOAD_TOKENS = 'false';
-    expect((await request(app).get(`/uploads/${name}?token=${owner.token}`)).status).toBe(401);
+    expect((await request(app).get(`/uploads/${name}?token=${owner.fileToken}`)).status).toBe(401);
     process.env.ALLOW_LEGACY_UPLOAD_TOKENS = 'true';
-    expect((await request(app).get(`/uploads/${name}?token=${owner.token}`)).status).toBe(200);
+    expect((await request(app).get(`/uploads/${name}?token=${owner.fileToken}`)).status).toBe(200);
+  });
+
+  it('never take the API access token in a URL, flag or not', async () => {
+    const owner = await signedIn('student');
+    const name = await storedFile(owner, 'legacy-access');
+    process.env.ALLOW_LEGACY_UPLOAD_TOKENS = 'true';
+    expect((await request(app).get(`/uploads/${name}?token=${owner.token}`)).status).toBe(401);
   });
 
   it('are off by default in production', async () => {

@@ -1,5 +1,6 @@
 const { app, io, httpServer, userSockets, mailer } = require('./app');
 const { connectDB } = require('./db');
+const { jobsEnabled } = require('./lib/runJobs');
 
 async function autoSeedIfEmpty() {
   const User = require('./models/User');
@@ -51,12 +52,17 @@ connectDB().then(async () => {
   await require('./lib/migrateEmailIndex').migrateEmailIndex();
   await autoSeedIfEmpty();
   await require('./lib/access').seedProfiles();
+  // Needed by the request handlers on every instance, so they stay outside the RUN_JOBS switch below.
+  initAutomation({ io, userSockets, mailer });
+  await seedStarterTemplates();
+  if (!jobsEnabled()) {
+    console.log('[jobs] RUN_JOBS is off: scheduled jobs are not started on this instance');
+    return;
+  }
   startDeadlineReminders(io, userSockets, mailer);
   startDocumentReminders(io, userSockets, mailer);
   startSecurityDigest(mailer);
   require('./jobs/incidentEscalation').startIncidentEscalation();
-  initAutomation({ io, userSockets, mailer });
-  await seedStarterTemplates();
   startAutomationScheduler();
   startMeetingReminders(io, userSockets, mailer);
   startEventReminders(io, userSockets, mailer);

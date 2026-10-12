@@ -11,7 +11,7 @@ try {
   // Not installed in some environment — isZestConfigured() below gates every real call.
 }
 
-const { getToolsForRole, executeTool } = require('./zestTools');
+const { getToolsForRole, executeTool, statusFor } = require('./zestTools');
 const { buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, trimIncompleteAnswer } = require('./anthropicClient');
 const { withRetry, isTransient } = require('./zestRetry');
 
@@ -133,6 +133,7 @@ async function askZest(question, chunks, history = [], role = 'student', attache
     const responseParts = [];
     for (const call of response.functionCalls) {
       toolsUsed.push(call.name);
+      ctx.onStatus?.(statusFor(call.name));
       const result = await executeTool(call.name, call.args, user, ctx);
       responseParts.push(createPartFromFunctionResponse(call.id || call.name, call.name, result));
     }

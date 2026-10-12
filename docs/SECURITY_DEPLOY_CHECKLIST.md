@@ -130,13 +130,13 @@ will not delete the test file first.)
 
 ## 7. Health monitors
 
-`GET /api/health` no longer includes `env`. It answers `200 {"status":"ok","db":"connected",...}`, or `503` with
+`GET /api/health` no longer includes `env` or `uptime`. It answers `200 {"status":"ok","db":"connected",...}`, or `503` with
 `"status":"degraded"` when the database is unreachable. Update any uptime monitor that matched on `env`: check for HTTP 200
 and the text `"status":"ok"`.
 
 **Verify (PowerShell):**
 ```powershell
-curl.exe -s https://api.example.com/api/health      # {"status":"ok","db":"connected","uptime":"...","timestamp":"..."}
+curl.exe -s https://api.example.com/api/health      # {"status":"ok","db":"connected","timestamp":"..."}
 ```
 
 ## 8. The first admin, and the old demo accounts
@@ -163,7 +163,7 @@ node scripts/rotateDemoAccounts.js --apply    # new random passwords (printed on
 ## 9. Switching file links over
 
 1. Deploy with `FILE_URL_SECRET` set (section 1) and `ALLOW_LEGACY_UPLOAD_TOKENS=true`, so tabs still running the
-   previous frontend can open files.
+   previous frontend (which sends a download-only file token in `?token=`) can open files.
 2. After a day, remove `ALLOW_LEGACY_UPLOAD_TOKENS` (off is the production default) and restart.
 
 **Verify (PowerShell):** an old-style link is refused once the flag is gone.
