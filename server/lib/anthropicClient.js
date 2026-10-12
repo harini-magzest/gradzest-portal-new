@@ -230,7 +230,11 @@ const ANSWER_QUALITY = `How to answer well:
 
 // `today` is injected per request: without it the model cannot tell whether a deadline has passed or a
 // task is overdue, and will guess from its training data. `name` makes replies feel addressed to the person.
-function buildSystemPrompt(role, { today, name } = {}) {
+//
+// Two parts, because of prompt caching: `stable` is the same for everyone with this role, `context` changes with the day
+// and the person. Whatever sits before a cache breakpoint must be byte-identical between requests to be reused, so the
+// volatile part is kept apart and placed after it (see buildSystemBlocks).
+function buildSystemParts(role, { today, name } = {}) {
   const guest = role === 'guest';
   const audienceGuide = guest ? GUEST_GUIDE : role === 'student' ? STUDENT_GUIDE : STAFF_GUIDE;
   const context = [
@@ -238,7 +242,25 @@ function buildSystemPrompt(role, { today, name } = {}) {
     name ? `You are talking to ${String(name).slice(0, 60)} (${role}).` : '',
   ].filter(Boolean).join(' ');
   const emailGuide = guest ? '' : `${EMAIL_AUTOMATION_GUIDE}\n\n`;
-  return `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${emailGuide}${role === 'student' || guest ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}${context ? `\n\n${context}` : ''}`;
+  const stable = `${BASE_RULES}\n\n${ANSWER_QUALITY}\n\n${audienceGuide}\n\n${emailGuide}${role === 'student' || guest ? STUDENT_TOOLS_GUIDE : TOOLS_GUIDE}\n\n${SAFETY_RULES}`;
+  return { stable, context };
+}
+
+// The whole prompt as one string (what the other backend and the tests read).
+function buildSystemPrompt(role, ctx) {
+  const { stable, context } = buildSystemParts(role, ctx);
+  return context ? `${stable}\n\n${context}` : stable;
+}
+
+// The same prompt as the request's `system` blocks, with a cache breakpoint after the stable part. The cached prefix is
+// everything before the breakpoint, tools included (they render ahead of the system prompt), so every counselor shares
+// one cache entry and the day/name block never invalidates it. Haiku 4.5 only caches a prefix of 4096+ tokens: the staff
+// roles clear that, student and guest prompts are shorter and are simply not cached (no write, so no extra cost).
+function buildSystemBlocks(role, ctx) {
+  const { stable, context } = buildSystemParts(role, ctx);
+  const blocks = [{ type: 'text', text: stable, cache_control: { type: 'ephemeral' } }];
+  if (context) blocks.push({ type: 'text', text: context });
+  return blocks;
 }
 
 function todayIST() {
@@ -283,7 +305,8 @@ function callModel(params, onText) {
  * @param {(delta: string) => void} [onText]  if given, receives answer text as it is generated
  * @param {{ ip?: string, io?: object, onStatus?: (text: string) => void }} [ctx]  request context: ip/io for the PII access
  *   audit, and an optional callback told in plain words which lookup is running
- * @returns {Promise<{ text: string, toolsUsed: string[] }>}
+ * @returns {Promise<{ text: string, toolsUsed: string[], usage: { inputTokens: number, outputTokens: number,
+ *   cacheReadTokens: number, cacheWriteTokens: number } }>}  usage is summed over every model call this answer took
  */
 async function askZest(question, chunks, history = [], role = 'student', attachedDocText = '', user = null, onText = null, ctx = {}) {
   if (!isZestConfigured()) throw new Error('Zest is not configured (missing ANTHROPIC_API_KEY)');
@@ -308,11 +331,24 @@ async function askZest(question, chunks, history = [], role = 'student', attache
   const createParams = {
     model: process.env.ZEST_MODEL || 'claude-haiku-4-5-20251001',
     max_tokens: MAX_OUTPUT_TOKENS,
-    system: buildSystemPrompt(role, { today: todayIST(), name: user?.name }),
+    system: buildSystemBlocks(role, { today: todayIST(), name: user?.name }),
   };
   if (tools.length) createParams.tools = tools;
 
-  const create = (params) => withRetry(() => callModel(params, onText));
+  // Summed over the tool rounds. cacheRead / cacheWrite show whether the prompt cache is working: reads stay at 0 for
+  // the student and guest roles (prompt below the model's cache minimum) and should grow for counselors and admins.
+  const usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const create = async (params) => {
+    const response = await withRetry(() => callModel(params, onText));
+    const u = response?.usage;
+    if (u) {
+      usage.inputTokens += u.input_tokens || 0;
+      usage.outputTokens += u.output_tokens || 0;
+      usage.cacheReadTokens += u.cache_read_input_tokens || 0;
+      usage.cacheWriteTokens += u.cache_creation_input_tokens || 0;
+    }
+    return response;
+  };
   let message = await create({ ...createParams, messages });
 
   // Tool-use loop: Claude asks for live data, we fetch it (scoped to `user`), hand it back, and
@@ -333,10 +369,10 @@ async function askZest(question, chunks, history = [], role = 'student', attache
 
   let text = message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
   if (message.stop_reason === 'max_tokens') text = trimIncompleteAnswer(text);
-  return { text, toolsUsed };
+  return { text, toolsUsed, usage };
 }
 
 module.exports = {
-  askZest, isZestConfigured, buildSystemPrompt, todayIST, MAX_OUTPUT_TOKENS, setAnthropicClientForTests,
-  trimIncompleteAnswer,
+  askZest, isZestConfigured, buildSystemPrompt, buildSystemBlocks, todayIST, MAX_OUTPUT_TOKENS,
+  setAnthropicClientForTests, trimIncompleteAnswer,
 };
