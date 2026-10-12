@@ -26,8 +26,7 @@ const navItems: { to: string; label: string; icon: NavIcon; end?: boolean; appTe
   { to: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { to: '/admin/privacy', label: 'Data requests', icon: ShieldCheck },
   { to: '/admin/live-feed', label: 'Live Feed', icon: Activity },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
-  { to: '/admin/zest', label: 'Zest', icon: GraduationCap, appTeamHidden: true },
+    { to: '/admin/analytics', label: 'Analytics', icon: BarChart2, appTeamHidden: true },
   { to: '/admin/chat', label: 'Chat', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings, appTeamHidden: true },
 ];

@@ -1,39 +1,12 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import obfuscator from 'vite-plugin-javascript-obfuscator'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    // Production-only (apply: 'build') — never runs under `vite`/npm run dev, which would
-    // make HMR unusable and serves unbundled source anyway regardless of this plugin.
-    // This plugin runs pre-bundle (Rollup's `transform` hook), so esbuild's later minify
-    // pass overwrites plain identifier renaming — only options that inject real runtime
-    // logic (stringArray) survive into the shipped bundle. ignoreImports:true is required:
-    // without it, stringArray also encodes the literal specifiers passed to dynamic
-    // import(), which breaks Rollup's static chunk resolution for this app's 40+ lazy
-    // routes ("Failed to fetch dynamically imported module"). Verified via full build +
-    // browser test (public pages, real login, 8 admin pages) with 0 runtime errors.
-    obfuscator({
-      apply: 'build',
-      options: {
-        compact: true,
-        identifierNamesGenerator: 'hexadecimal',
-        renameGlobals: false,
-        controlFlowFlattening: false,
-        deadCodeInjection: false,
-        debugProtection: false,
-        disableConsoleOutput: false,
-        selfDefending: false,
-        splitStrings: false,
-        ignoreImports: true,
-        stringArray: true,
-        stringArrayThreshold: 0.75,
-        stringArrayEncoding: ['base64'],
-        transformObjectKeys: false,
-      },
-    }),
-  ],
+  // No JavaScript obfuscator. The one that used to run here (string-array encoding) made the shipped JS about 28% larger
+  // gzipped and the build about twice as slow (2m24s vs 1m13s); anything a browser can run can be read, so it protected nothing. What keeps
+  // the original source from being read back is below: no source maps, and Terser's multi-pass minify and mangle.
+  // Secrets never belong in the bundle at all (see docs/DEPLOYMENT.md: no secret in a VITE_* variable).
+  plugins: [react()],
   build: {
     // Vite's default is already false — explicit here so it can't be flipped on
     // by accident and so DevTools can never reconstruct the original source.

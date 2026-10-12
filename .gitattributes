@@ -1,0 +1,3 @@
+# A shell script with Windows line endings fails inside a Linux image ("/bin/sh^M: bad interpreter"), whatever the
+# checkout's autocrlf setting, so these are always LF.
+*.sh text eol=lf

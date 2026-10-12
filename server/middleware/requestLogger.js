@@ -8,13 +8,23 @@ const { redactUrl } = require('../lib/redactUrl');
 // request would flood the live feed under normal traffic.
 const ALERTABLE_STATUSES = [401, 403, 429];
 
-module.exports = function requestLogger(req, res, next) {
+// Every other row is batched into one insertMany every REQUEST_LOG_FLUSH_MS (default 2s; 0 = write each row at once)
+// rather than one Mongo write per request. The alertable rows above are still written one by one, straight away: the
+// suspicious-IP rule counts them in Mongo the moment they happen, so they must already be there.
+const flushMs = process.env.NODE_ENV === 'test' ? 0 : Number(process.env.REQUEST_LOG_FLUSH_MS ?? DEFAULT_FLUSH_MS);
+const buffer = createRequestLogBuffer({
+  write: (rows) => RequestLog.insertMany(rows, { ordered: false }),
+  flushMs: Number.isFinite(flushMs) ? flushMs : DEFAULT_FLUSH_MS,
+  onError: (err) => console.error('[requestLogger] Failed:', err.message),
+});
+
+function requestLogger(req, res, next) {
   const start = process.hrtime.bigint();
 
   res.on('finish', () => {
     const latencyMs = Number(process.hrtime.bigint() - start) / 1e6;
 
-    RequestLog.create({
+    const row = {
       method: req.method,
       path: redactUrl(req.originalUrl), // never store a token or link signature sent in the query string
       status: res.statusCode,
@@ -34,4 +44,8 @@ module.exports = function requestLogger(req, res, next) {
   });
 
   next();
-};
+}
+
+module.exports = requestLogger;
+// Writes whatever is still waiting; db.js calls it on SIGINT/SIGTERM before it closes the connection.
+module.exports.flushRequestLogs = () => buffer.flush();

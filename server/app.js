@@ -53,6 +53,7 @@ const { ensureClamd } = require('./lib/ensureClamd');
 const { markActive } = require('./lib/activeFeatures');
 
 const app = express();
+app.disable('x-powered-by');
 // Required for req.ip to resolve the real client IP behind a reverse proxy/load balancer,
 // and for rate limiters to key correctly by client rather than by proxy.
 app.set('trust proxy', process.env.TRUST_PROXY || 1);
@@ -210,6 +211,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/github/callback', authLimiter);
   app.use('/api/forms/public', formSubmitLimiter);
   app.use('/api/zest/public/lead', formSubmitLimiter);
+  app.use('/api/subscribe', formSubmitLimiter);
   app.use('/api', generalLimiter);
   app.use(['/api/unilogo', '/api/favicon'], assetLimiter);
   markActive('rate_limit_auth', '10 req / 15 min on auth endpoints');
@@ -222,6 +224,8 @@ app.use(wafBodyCheck);
 app.use(cookieParser());
 if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/login', loginIpLimiter, loginFailLimiter);
+  // The second sign-in step takes the same failure budget: a wrong code counts, a right one does not.
+  app.use('/api/auth/2fa/login', loginIpLimiter, loginFailLimiter);
 }
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
@@ -291,9 +295,10 @@ markActive('critical_alert', 'server/lib/criticalAlert.js — emails admins on n
 // Public email subscription / free registration
 const Subscriber = require('./models/Subscriber');
 app.post('/api/subscribe', async (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
-  const name  = (req.body.name  || '').trim();
-  const phone = (req.body.phone || '').trim();
+  const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const email = str(req.body.email, 254).toLowerCase();
+  const name  = str(req.body.name, 100);
+  const phone = str(req.body.phone, 30);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ message: 'Invalid email address' });
   }
@@ -312,7 +317,9 @@ app.post('/api/subscribe', async (req, res) => {
     });
 
     // Send thank-you email to the new subscriber
-    const greeting = sub.name ? `Hi ${sub.name},` : 'Hello,';
+    // The name is whatever a visitor typed — escape it so it can't inject markup or links into our email.
+    const safeName = sub.name.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const greeting = safeName ? `Hi ${safeName},` : 'Hello,';
     mailer.sendMail({
       from:    `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to:      sub.email,
@@ -363,6 +370,7 @@ initActivityLogger(io);
 initSecurityLogger(io);
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/account', require('./routes/account'));
 app.use('/api/countries', require('./routes/countries'));
 app.use('/api/universities', require('./routes/universities'));
 app.use('/api/students', require('./routes/students'));
@@ -393,17 +401,12 @@ app.use('/api/zest',          require('./routes/zest'));
 app.use('/api/forms',         require('./routes/forms'));
 app.use('/api/files',         require('./routes/files'));
 
-// Health check — no auth required, used by hosting platforms and monitoring
+// Health check — no auth required, used by hosting platforms and monitoring. Says only whether the service is up:
+// no environment name, versions or uptime for an unauthenticated caller.
 const mongoose = require('mongoose');
-const startTime = Date.now();
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
-  const uptimeMs = Date.now() - startTime;
-  const h = Math.floor(uptimeMs / 3600000);
-  const m = Math.floor((uptimeMs % 3600000) / 60000);
-  const s = Math.floor((uptimeMs % 60000) / 1000);
-  const uptime = `${h}h ${m}m ${s}s`;
   const ok = dbState === 1;
   res.status(ok ? 200 : 503).json({
     status: ok ? 'ok' : 'degraded',

@@ -18,10 +18,8 @@ const { buildAlertsWorkbook } = require('../lib/zestXlsx');
 const { retrieveChunks } = require('../lib/zestRetrieval');
 const { sanitizeHistory } = require('../lib/zestHistory');
 const { createZestLimiter } = require('../lib/zestLimiter');
-const { denyStudent } = require('../lib/access');
-const { checklistFor } = require('../lib/studentProgress');
-const { gatherFacts, templateDraft, buildPrompt, parseDraft, CHANNELS } = require('../lib/followupDraft');
-const zestDraft = require('../lib/zestDraft');
+const { buildInsights, documentUsage } = require('../lib/zestInsights');
+const { replaceDocument } = require('../lib/zestKnowledge');
 const { createWebLead, readContact, text: cleanText, list } = require('../lib/createWebLead');
 
 const NOT_CONFIGURED = 'Zest is not configured yet. Ask an admin to set ANTHROPIC_API_KEY or GEMINI_API_KEY.';
@@ -107,9 +105,40 @@ router.post('/documents', authMiddleware, adminOnly, upload.single('file'), vali
   res.status(201).json(doc.toObject());
 });
 
+// Replace the PDF behind an existing document and keep its title. The document is looked up first so a wrong id costs no
+// upload, then the new file goes through the same scan / inspect / read pipeline as a new upload. A PDF that cannot be
+// read is refused before anything is stored, so the existing document keeps working.
+async function loadKbDocument(req, res, next) {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Not found' });
+  const doc = await KnowledgeDocument.findById(req.params.id);
+  if (!doc) return res.status(404).json({ message: 'Not found' });
+  req.kbDoc = doc;
+  next();
+}
+
+function requireReadable(req, res, next) {
+  if (!req.zestExtractError) return next();
+  if (req.file) fs.unlink(req.file.path, () => {});
+  res.status(400).json({ message: `${req.zestExtractError}. The existing document was left as it was.` });
+}
+
+router.post('/documents/:id/replace', authMiddleware, adminOnly, loadKbDocument, upload.single('file'), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, requireReadable, uploadToS3IfConfigured, async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
+  const updated = await replaceDocument(req.kbDoc, {
+    storagePath: req.file.s3Url || `/uploads/${req.file.filename}`,
+    originalFilename: req.file.originalname,
+    mimeType: req.file.mimetype,
+    fileSize: req.file.size,
+  }, req.zestChunks);
+  res.json(updated);
+});
+
+// How far back "used as a source" looks.
+const USAGE_DAYS = 90;
+
 router.get('/documents', authMiddleware, adminOnly, async (req, res) => {
-  const docs = await KnowledgeDocument.find().sort({ createdAt: -1 }).lean();
-  res.json(docs);
+  const [docs, usage] = await Promise.all([KnowledgeDocument.find().sort({ createdAt: -1 }).lean(), documentUsage(USAGE_DAYS)]);
+  res.json(docs.map(d => ({ ...d, timesUsed: usage.get(String(d._id)) || 0 })));
 });
 
 router.put('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
@@ -131,7 +160,7 @@ router.delete('/documents/:id', authMiddleware, adminOnly, async (req, res) => {
 /* ── Chat (any authenticated role, plus signed-out visitors as 'guest') ───── */
 
 // req.user is absent on the public route: the caller is then a 'guest' with no tools beyond the catalogue.
-async function answerQuestion(req, question, history, onText) {
+async function answerQuestion(req, question, history, onText, onStatus) {
   const userId = req.user?.id;
   const role = req.user ? req.user.role : 'guest';
   const matches = await retrieveChunks(question, history);
@@ -142,7 +171,7 @@ async function answerQuestion(req, question, history, onText) {
   let answer, toolsUsed;
   try {
     ({ text: answer, toolsUsed } = await askZest(
-      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, role, '', req.user ? await callerFor(req) : null, onText, { ip: req.ip, io: req.app.get('io') },
+      question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, role, '', req.user ? await callerFor(req) : null, onText, { ip: req.ip, io: req.app.get('io'), onStatus },
     ));
   } catch (err) {
     const fallback = knowledgeBaseFallback(matches);
@@ -170,8 +199,8 @@ router.post('/ask', authMiddleware, askLimiter, async (req, res) => {
 });
 
 // Same answer as /ask, delivered as server-sent events so the first words appear while the rest
-// is still being generated. Events: {type:'delta',text} repeatedly, then {type:'done',answer,sources}
-// or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
+// is still being generated. Events: {type:'status',text} when a live lookup starts (plain words such as "Checking your
+// students…"), {type:'delta',text} repeatedly, then {type:'done',answer,sources} or {type:'error',message}. Pre-stream validation still returns plain JSON errors.
 async function streamAnswer(req, res) {
   const question = (req.body.question || '').trim().slice(0, 1000);
   if (!question) return res.status(400).json({ message: 'question is required' });
@@ -184,7 +213,7 @@ async function streamAnswer(req, res) {
   const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 
   try {
-    const { answer, sources, degraded, logId } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }));
+    const { answer, sources, degraded, logId } = await answerQuestion(req, question, sanitizeHistory(req.body.history), (text) => send({ type: 'delta', text }), (text) => send({ type: 'status', text }));
     send({ type: 'done', answer, sources, logId, ...(degraded ? { degraded } : {}) });
   } catch (err) {
     console.error('[zest/ask-stream]', err.message);
@@ -267,46 +296,6 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
   }
 });
 
-/* ── Follow-up drafts for staff ──────────────────────────────────────────── */
-
-// A draft message to a student who has gone quiet, for the counselor to review and send themselves (Zest cannot send).
-// The wording comes from the AI when it is available; otherwise from a plain template, so there is always a draft.
-router.post('/followup-draft', authMiddleware, askLimiter, async (req, res) => {
-  if (!['counselor', 'admin'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
-  const { studentId } = req.body || {};
-  const channel = CHANNELS.includes(req.body?.channel) ? req.body.channel : 'email';
-  if (!mongoose.isValidObjectId(studentId)) return res.status(400).json({ message: 'studentId is required' });
-  try {
-    if (await denyStudent(req, res, studentId)) return;
-    const [student, checklist, me] = await Promise.all([
-      User.findById(studentId).select('name email phone leadStage leadStageChangedAt createdAt preferredCountries applications').lean(),
-      checklistFor(studentId),
-      User.findById(req.user.id).select('name').lean(),
-    ]);
-    const facts = gatherFacts(student, checklist);
-    const counselorName = me?.name || '';
-
-    let draft = null;
-    let source = 'template';
-    if (isZestConfigured()) {
-      try {
-        // No knowledge-base chunks and no history: the prompt carries every fact, and nothing else should leak in
-        const { text } = await askZest(buildPrompt(facts, channel, counselorName), [], [], req.user.role, '', await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
-        const parsed = parseDraft(text, channel);
-        if (parsed.body) { draft = parsed; source = 'ai'; }
-      } catch (err) {
-        console.error('[zest/followup-draft] AI unavailable, using the template:', err.message);
-      }
-    }
-    if (!draft) draft = templateDraft(facts, channel, counselorName);
-
-    res.json({ ...draft, channel, source, studentName: student.name, email: student.email || '', phone: student.phone || '', daysIdle: facts.daysIdle });
-  } catch (err) {
-    console.error('[zest/followup-draft]', err.message);
-    res.status(500).json({ message: 'Could not prepare a draft right now.' });
-  }
-});
-
 /* ── Answer feedback + analytics ─────────────────────────────────────────── */
 
 // The person who was answered rates that answer. Only their own log row can be rated, and re-rating replaces
@@ -342,63 +331,10 @@ router.post('/documents/from-answer', authMiddleware, adminOnly, async (req, res
   res.status(201).json(doc.toObject());
 });
 
-// Staff only: Zest suggests a reply to the student's latest message in one of the staff member's own chats. It
-// only drafts; the staff member edits and sends it, so nothing reaches the student without a person approving it.
-router.post('/draft-reply', authMiddleware, askLimiter, async (req, res) => {
-  if (req.user.role !== 'counselor' && req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
-  const { roomId } = req.body || {};
-  if (!mongoose.isValidObjectId(roomId)) return res.status(400).json({ message: 'roomId is required' });
-  if (!isZestConfigured()) return res.status(503).json({ message: NOT_CONFIGURED });
-
-  const room = await ChatRoom.findOne({ _id: roomId, participants: String(req.user.id) });
-  if (!room) return res.status(404).json({ message: 'Chat not found' });
-
-  const lines = zestDraft.recentTranscript(room.messages);
-  if (!zestDraft.needsReply(lines)) return res.status(400).json({ message: 'There is no new student message to reply to.' });
-
-  try {
-    const { text } = await askZest(zestDraft.DRAFT_INSTRUCTION, [], [], req.user.role, zestDraft.transcriptText(lines), await callerFor(req), null, { ip: req.ip, io: req.app.get('io') });
-    const draft = String(text || '').trim();
-    if (!draft) return res.status(502).json({ message: 'Zest could not write a draft. Please try again.' });
-    res.json({ draft });
-  } catch (err) {
-    console.error('[zest/draft-reply]', err.message);
-    res.status(503).json({ message: UNAVAILABLE });
-  }
-});
-
-const normaliseQuestion = (q) => q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
-
-// What to improve in the knowledge base: how often answers were rated up/down, the questions that matched no
-// knowledge-base document and used no live-data tool (Zest had nothing to ground them in), and the most recent
-// thumbs-down answers. Question text is encrypted at rest, so grouping happens here after decryption.
+// What to improve in Zest (see lib/zestInsights.js). Shown on the Insights tab of the Zest panel, and available to
+// admins in chat through the get_zest_insights tool.
 router.get('/analytics', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
-  const since = new Date(Date.now() - days * 86400000);
-  const logs = await ZestQueryLog.find({ createdAt: { $gte: since } })
-    .select('question answer sourceDocIds toolsUsed degraded feedback createdAt')
-    .sort({ createdAt: -1 }).limit(3000).lean();
-
-  let up = 0, down = 0;
-  const groups = new Map();
-  const downvoted = [];
-  for (const l of logs) {
-    if (l.feedback?.rating === 'up') up++;
-    if (l.feedback?.rating === 'down') {
-      down++;
-      if (downvoted.length < 20) downvoted.push({ id: String(l._id), question: l.question, answer: l.answer, comment: l.feedback.comment || '', at: l.feedback.at || l.createdAt });
-    }
-    const ungrounded = !(l.sourceDocIds || []).length && !(l.toolsUsed || []).length;
-    if (!ungrounded || l.question.startsWith('[attached:')) continue;
-    const key = normaliseQuestion(l.question);
-    if (!key) continue;
-    const g = groups.get(key) || { question: l.question, count: 0, lastAsked: l.createdAt };
-    g.count++;
-    groups.set(key, g);
-  }
-  const unanswered = [...groups.values()].sort((a, b) => b.count - a.count || new Date(b.lastAsked) - new Date(a.lastAsked)).slice(0, 15);
-
-  res.json({ days, total: logs.length, rated: up + down, up, down, unanswered, downvoted });
+  res.json(await buildInsights(req.query.days));
 });
 
 /* ── Daily lead alerts (admin only) ──────────────────────────────────────── */

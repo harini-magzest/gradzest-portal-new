@@ -52,43 +52,6 @@ const MAX_SESSIONS = 5;
 // email.toLowerCase() / bcrypt and surface as a 500; it is a plain bad request.
 const isString = (v) => typeof v === 'string' && v.length > 0;
 
-// Issues a new refresh token as its own session, independent of any other
-// device the user is already logged in on (up to MAX_SESSIONS at a time —
-// oldest is evicted first once the cap is hit).
-async function issueRefreshToken(user, req) {
-  const raw = crypto.randomBytes(40).toString('hex');
-  const hash = crypto.createHash('sha256').update(raw).digest('hex');
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  const now = new Date();
-
-  const fresh = await User.findById(user._id).select('sessions');
-  let sessions = (fresh?.sessions || []).filter((s) => s.expires > now);
-  sessions.push({
-    tokenHash: hash,
-    expires,
-    userAgent: req?.headers?.['user-agent'] || '',
-    ip: req?.ip || '',
-    createdAt: now,
-    lastUsedAt: now,
-  });
-  if (sessions.length > MAX_SESSIONS) {
-    sessions = sessions.sort((a, b) => a.createdAt - b.createdAt).slice(sessions.length - MAX_SESSIONS);
-  }
-
-  await User.findByIdAndUpdate(user._id, { sessions });
-  return { raw, expires };
-}
-
-function setRefreshCookie(res, token, expires) {
-  res.cookie('refreshToken', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    expires,
-    path: '/api/auth',
-  });
-}
-
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -167,29 +130,81 @@ router.post('/login', validate({ body: loginBody }), async (req, res) => {
       });
     }
 
-    // Success — reset lockout counters
-    await User.findByIdAndUpdate(user._id, { loginAttempts: 0, lockedUntil: null });
+    // An account with two-factor sign-in stops here: the password was right, but no session exists until the second step
+    // succeeds. The failed-attempt counter is deliberately not reset yet. If it were, someone who has the password could
+    // clear it on every try and guess authenticator codes without limit.
+    if (user.twoFactor?.enabled) {
+      return res.json({ twoFactorRequired: true, challengeToken: twoFactor.signChallenge(user._id) });
+    }
 
-    const accessToken = issueAccessToken(user);
-    const { raw: refreshRaw, expires: refreshExpires } = await issueRefreshToken(user, req);
-    setRefreshCookie(res, refreshRaw, refreshExpires);
-
-    logSecurityEvent('login_success', {
-      userId: user._id, email: user.email, role: user.role,
-      ip: req.ip, userAgent: req.headers['user-agent'] || '',
-      message: 'Login successful',
-    }).catch(() => {});
-
-    // The trail entry carries the person's name and the device they signed in from (browser-reported hints are
-    // optional and untrusted; see lib/device.js).
-    recordSignInActivity({ kind: 'login', user, req, deviceHints: req.body?.device });
-
-    const userObj = user.toJSON();
-    delete userObj.password;
-
-    res.json({ token: accessToken, user: userObj });
+    await completeLogin(user, req, res);
   } catch (err) {
     console.error('[auth/login]', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Everything that happens once a person has fully proven who they are, by password alone or password plus second factor:
+// clear the lockout counters, start a session, record the sign-in, and answer with the access token.
+async function completeLogin(user, req, res, { twoFactorMethod, recoveryCodesRemaining } = {}) {
+  await User.findByIdAndUpdate(user._id, { loginAttempts: 0, lockedUntil: null });
+
+  const accessToken = issueAccessToken(user);
+  const { raw: refreshRaw, expires: refreshExpires } = await issueRefreshToken(user, req);
+  setRefreshCookie(res, refreshRaw, refreshExpires);
+
+  logSecurityEvent('login_success', {
+    userId: user._id, email: user.email, role: user.role,
+    ip: req.ip, userAgent: req.headers['user-agent'] || '',
+    message: twoFactorMethod ? `Login successful (two-factor, ${twoFactorMethod === 'recovery' ? 'recovery code' : 'authenticator code'})` : 'Login successful',
+    meta: twoFactorMethod ? { twoFactor: twoFactorMethod } : {},
+  }).catch(() => {});
+
+  // The trail entry carries the person's name and the device they signed in from (browser-reported hints are
+  // optional and untrusted; see lib/device.js).
+  recordSignInActivity({ kind: 'login', user, req, deviceHints: req.body?.device });
+
+  const userObj = user.toJSON();
+  delete userObj.password;
+
+  res.json({ token: accessToken, user: userObj, ...(recoveryCodesRemaining !== undefined && { recoveryCodesRemaining }) });
+}
+
+// POST /auth/2fa/login — the second sign-in step: the challenge from /login plus a code from the authenticator app (or an
+// unused recovery code). A wrong code counts toward the same lockout as a wrong password.
+router.post('/2fa/login', async (req, res) => {
+  const { challengeToken, code } = req.body || {};
+  const expired = { message: 'Your sign-in session expired. Please sign in again.', code: 'CHALLENGE_EXPIRED' };
+  const userId = twoFactor.readChallenge(challengeToken);
+  if (!userId) return res.status(401).json(expired);
+  if (typeof code !== 'string' || !code.trim()) return res.status(400).json({ message: 'Enter the verification code.' });
+  try {
+    const user = await User.findById(userId).select(twoFactor.SECRET_FIELDS);
+    if (!user || user.active === false || !user.twoFactor?.enabled) return res.status(401).json(expired);
+
+    const locked = lockMessage(user);
+    if (locked) return res.status(423).json({ message: locked });
+
+    const result = await twoFactor.consumeSecondFactor(user, code);
+    if (!result.ok) {
+      if (result.reason === 'not_configured') {
+        return res.status(403).json({ message: 'Two-factor sign-in is not set up correctly for this account. Please contact your administrator.' });
+      }
+      const { locked: nowLocked, remaining } = await registerFailedAttempt(user, req, {
+        message: 'Failed two-factor code', meta: { stage: '2fa', reason: result.reason },
+      });
+      if (nowLocked) return res.status(423).json({ message: 'Account locked for 15 minutes after too many failed attempts.' });
+      const left = `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`;
+      return res.status(401).json({
+        message: result.reason === 'already_used'
+          ? `That code was already used. Wait for your app to show a new one, then try again. ${left}`
+          : `Invalid verification code. ${left}`,
+      });
+    }
+
+    res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
+  } catch (err) {
+    console.error('[auth/2fa/login]', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -246,14 +261,6 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-function validatePasswordStrength(password) {
-  if (!password || password.length < 8) return 'Password must be at least 8 characters.';
-  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
-  if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
-  if (!/[^A-Za-z0-9]/.test(password)) return 'Password must contain at least one special character.';
-  return null;
-}
 
 async function sendVerificationEmail(user, mailer, frontendUrl) {
   const raw = crypto.randomBytes(32).toString('hex');
@@ -315,7 +322,7 @@ router.post('/register', validate({ body: registerBody }), async (req, res) => {
     setRefreshCookie(res, raw, expires);
     const userObj = user.toJSON();
     delete userObj.password;
-    res.status(201).json({ token: accessToken, user: userObj });
+    res.status(201).json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
   } catch (err) {
     console.error('[auth/register]', err);
     sendServerError(res, err, 'Server error');
@@ -464,7 +471,7 @@ router.post('/refresh', validate({ body: noBody }), async (req, res) => {
     await user.save();
 
     setRefreshCookie(res, newRaw, newExpires);
-    res.json({ token: issueAccessToken(user) });
+    res.json({ token: issueAccessToken(user), fileToken: issueFileToken(user) });
   } catch (err) {
     console.error('[auth/refresh]', err);
     res.status(500).json({ message: 'Server error' });

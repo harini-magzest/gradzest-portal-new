@@ -2,8 +2,13 @@ export const API_ORIGIN = import.meta.env.VITE_API_URL || '';
 const BASE = `${API_ORIGIN}/api`;
 
 let _token: string | null = null;
-export function setApiToken(t: string | null) { _token = t; }
+// Download-only token for /uploads links (<img src> can't send a header). The server issues it with every access token
+// and refuses it on the API, so a link that leaks through history or logs can't be used to call the API.
+let _fileToken: string | null = null;
+export function setApiToken(t: string | null) { _token = t; if (!t) _fileToken = null; }
 export function getApiToken(): string | null { return _token; }
+export function getFileToken(): string | null { return _fileToken; }
+function rememberFileToken(data: any) { if (typeof data?.fileToken === 'string') _fileToken = data.fileToken; }
 
 function getToken() { return _token; }
 function setToken(t: string) { _token = t; }
@@ -24,7 +29,7 @@ async function tryRefresh(): Promise<string | null> {
   refreshing = fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
     .then(r => r.ok ? r.json() : null)
     .then(data => {
-      if (data?.token) { setToken(data.token); return data.token; }
+      if (data?.token) { setToken(data.token); rememberFileToken(data); return data.token; }
       return null;
     })
     .catch(() => null)
@@ -83,7 +88,7 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
       return req<T>(url, retryOpts, false);
     }
     // Refresh failed — force logout
-    _token = null;
+    setApiToken(null);
     window.dispatchEvent(new Event('auth:logout'));
   }
   if (!res.ok) {
@@ -91,7 +96,9 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
     // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
     throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
-  return res.json();
+  const data = await res.json();
+  if (url.startsWith('/auth/')) rememberFileToken(data);
+  return data;
 }
 
 async function upload<T>(url: string, formData: FormData, retry = true): Promise<T> {
@@ -104,7 +111,7 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   if (res.status === 401 && retry) {
     const newToken = await tryRefresh();
     if (newToken) return upload<T>(url, formData, false);
-    _token = null;
+    setApiToken(null);
     window.dispatchEvent(new Event('auth:logout'));
   }
   if (!res.ok) {
@@ -114,6 +121,7 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
   return res.json();
 }
 
+export interface CompanyProfile { name: string; tagline: string; email: string; phone: string; website: string; address: string }
 export interface ShortlistData {
   courses: {
     universityId: string; courseId: string; universityName: string; country: string; city: string; logo: string;
@@ -135,11 +143,18 @@ export const api = {
       }),
   },
   auth: {
+    // An account with two-factor sign-in gets a challenge instead of a session; send it back with a code to verifyTwoFactor.
     login: (email: string, password: string, device?: unknown) =>
-      req<{ token: string; user: any }>('/auth/login', {
+      req<{ token: string; user: any } | { twoFactorRequired: true; challengeToken: string }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, device }),
+      }),
+    verifyTwoFactor: (challengeToken: string, code: string, device?: unknown) =>
+      req<{ token: string; user: any; recoveryCodesRemaining?: number }>('/auth/2fa/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeToken, code, device }),
       }),
     me: () => req<any>('/auth/me', { headers: authHeaders() }),
     register: (data: { name: string; email: string; password: string; phone?: string; nationality?: string; ref?: string }) =>
@@ -166,6 +181,28 @@ export const api = {
     revokeSession: (id: string) => req<{ message: string }>(`/auth/sessions/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
+  },
+
+  // Self-service security for whoever is signed in (server/routes/account.js)
+  account: {
+    // Answers with a fresh access token: every session is replaced, this device's included.
+    changePassword: (currentPassword: string, newPassword: string) =>
+      req<{ message: string; token: string }>('/account/change-password', {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+    updateProfile: (data: { name?: string; phone?: string; bio?: string }) =>
+      req<any>('/account/profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    twoFactor: {
+      status: () => req<{ enabled: boolean; enabledAt: string | null; recoveryCodesRemaining: number; hasPassword: boolean }>('/account/2fa', { headers: authHeaders() }),
+      setup: (password: string) =>
+        req<{ secret: string; otpauthUri: string }>('/account/2fa/setup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password }) }),
+      enable: (code: string) =>
+        req<{ enabled: true; recoveryCodes: string[] }>('/account/2fa/enable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code }) }),
+      disable: (password: string, code: string) =>
+        req<{ enabled: false }>('/account/2fa/disable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password, code }) }),
+      newRecoveryCodes: (password: string, code: string) =>
+        req<{ recoveryCodes: string[] }>('/account/2fa/recovery-codes', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ password, code }) }),
+    },
   },
 
   countries: {
@@ -336,6 +373,28 @@ export const api = {
       req<any>(`/counselors/me/documents/${docId}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
+  privacy: {
+    myRequest: () => req<{ request: { id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string } | null; hasPassword: boolean }>('/privacy/deletion-request', { headers: authHeaders() }),
+    requestDeletion: (data: { reason?: string; password?: string; confirmEmail?: string }) =>
+      req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>('/privacy/deletion-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
+    cancelRequest: () => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>('/privacy/deletion-request', { method: 'DELETE', headers: authHeaders() }),
+    adminList: () => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }[]>('/privacy/deletion-requests', { headers: authHeaders() }),
+    complete: (id: string, note?: string) => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>(`/privacy/deletion-requests/${id}/complete`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm: true, note }) }),
+    decline: (id: string, note: string) => req<{ id: string; name: string; email: string; reason: string; status: 'pending' | 'completed' | 'declined' | 'cancelled'; requestedAt: string; handledAt: string | null; handledByName: string; adminNote: string }>(`/privacy/deletion-requests/${id}/decline`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ note }) }),
+    downloadExport: async () => {
+      const res = await fetch(`${BASE}/privacy/export`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-gradzest-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  },
+
   shortlist: {
     list: () => req<{ id: string; name: string; country: string; city: string; type: string; ranking: number | null; rating: number | null; acceptanceRate: number | null; currency: string; undergraduateFee: number | null; postgraduateFee: number | null; cheapestCourseFee: number | null; courseCount: number; scholarshipCount: number; intakes: string[]; nextDeadline: { intake: string; deadline: string } | null; internationalStudents: number | null; website: string }[]>('/students/me/shortlist', { headers: authHeaders() }),
     add: (universityId: string) => req<{ universityId: string; saved: boolean; count: number }>('/students/me/shortlist', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ universityId }) }),
@@ -480,6 +539,22 @@ export const api = {
     deleteAllStudents: (confirm: string) => req<{ message: string; deletedCount: number }>('/admin/danger/delete-all-students', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({ confirm }),
     }),
+    // Settings page
+    companyProfile: () => req<CompanyProfile>('/admin/settings/company', { headers: authHeaders() }),
+    saveCompanyProfile: (data: Partial<CompanyProfile>) =>
+      req<CompanyProfile>('/admin/settings/company', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
+    integrations: () => req<Record<'whatsapp' | 'email' | 'calls' | 'ai', { connected: boolean; env: string[] }>>('/admin/integrations', { headers: authHeaders() }),
+    // The CSV arrives as a file, not JSON, so this fetches it itself (with one token refresh, as req() does) and returns the blob.
+    exportCsv: async (kind: 'students' | 'applications' | 'meetings', retry = true): Promise<{ blob: Blob; filename: string; truncated: boolean }> => {
+      const res = await fetch(`${BASE}/admin/export/${kind}`, { credentials: 'include', headers: authHeaders() });
+      if (res.status === 401 && retry && await tryRefresh()) return api.admin.exportCsv(kind, false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Export failed' }));
+        throw new ApiError(err.message || 'Export failed', res.status);
+      }
+      const filename = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || `gradzest-${kind}.csv`;
+      return { blob: await res.blob(), filename, truncated: res.headers.get('x-export-truncated') === '1' };
+    },
     assignCounselor: (studentId: string, counselorId: string | null) => req<any>(`/admin/students/${studentId}/assign`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ counselorId }),
     }),
@@ -644,6 +719,7 @@ export const api = {
     },
     piiAudit: () => req<any>('/soc/pii-audit', { headers: authHeaders() }),
     auditTrail: (limit?: number) => req<any>(`/soc/audit-trail${limit ? `?limit=${limit}` : ''}`, { headers: authHeaders() }),
+    access: () => req<{ ok: boolean }>('/soc/access', { headers: authHeaders() }),
   },
 
   tasks: {
@@ -680,6 +756,7 @@ export const api = {
     create: (data: any) => req<any>('/users', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
     update: (id: string, data: any) => req<any>(`/users/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) }),
     remove: (id: string) => req<{ message: string }>(`/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    resetTwoFactor: (id: string) => req<{ message: string }>(`/users/${id}/two-factor/reset`, { method: 'POST', headers: authHeaders() }),
     profiles: () => req<{ catalogue: any; profiles: any[]; defaultId: string | null }>('/users/profiles', { headers: authHeaders() }),
     createProfile: (data: { name: string; description?: string; permissions: string[] }) =>
       req<any>('/users/profiles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
@@ -725,7 +802,7 @@ export const api = {
 
   dashboards: {
     counselorFollowups: () => req<{ stale: { studentId: string; name: string; days: number }[]; stuck: { studentId: string; name: string; universityName: string; status: string; days: number }[]; overdueTasks: { id: string; title: string; dueDate: string; studentId: string; studentName: string }[]; staleDays: number }>('/dashboards/counselor/followups', { headers: authHeaders() }),
-    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; openAlerts: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
+    teamWorkload: () => req<{ rows: { counselorId: string; name: string; leads: number; staleLeads: number; overdueTasks: number }[] }>('/dashboards/admin/team-workload', { headers: authHeaders() }),
     funnel: () => req<{ stages: { key: string; label: string; count: number }[]; total: number }>('/dashboards/admin/funnel', { headers: authHeaders() }),
     trends: () => req<{ weeks: { week: string; newLeads: number; offers: number }[] }>('/dashboards/trends', { headers: authHeaders() }),
     leadScores: () => req<{ leads: { studentId: string; name: string; email: string; leadStage: string; score: number; band: 'hot' | 'warm' | 'cool' | 'cold'; reasons: { text: string; points: number }[] }[]; bands: { hot: number; warm: number; cool: number; cold: number }; total: number }>('/dashboards/leads/scores', { headers: authHeaders() }),
@@ -763,12 +840,14 @@ export const api = {
       req<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask', {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, history }),
       }),
-    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives.
+    // Streams the answer as it is generated; onDelta gets each piece of text as it arrives, and onStatus (optional)
+    // gets a plain-words note such as "Checking your students…" when Zest starts a live lookup.
     // guest: a signed-out visitor on the public site — uses the unauthenticated, IP-limited endpoint.
     askStream: async (
       question: string,
       history: { role: 'user' | 'assistant'; text: string }[] | undefined,
       onDelta: (text: string) => void,
+      onStatus?: (text: string) => void,
       guest = false,
     ): Promise<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }> => {
       const res = await fetch(`${BASE}/zest/${guest ? 'public/ask-stream' : 'ask-stream'}`, {
@@ -795,6 +874,7 @@ export const api = {
           if (!line.startsWith('data:')) continue;
           const event = JSON.parse(line.slice(5));
           if (event.type === 'delta') onDelta(event.text);
+          else if (event.type === 'status') onStatus?.(event.text);
           else if (event.type === 'done') final = { answer: event.answer, sources: event.sources, logId: event.logId };
           else if (event.type === 'error') throw new Error(event.message);
         }
@@ -810,8 +890,6 @@ export const api = {
       if (history) fd.append('history', JSON.stringify(history));
       return upload<{ answer: string; sources: { documentId: string; title: string }[]; logId?: string }>('/zest/ask-with-file', fd);
     },
-    followupDraft: (studentId: string, channel: 'email' | 'whatsapp') =>
-      req<{ subject: string; body: string; channel: 'email' | 'whatsapp'; source: 'ai' | 'template'; studentName: string; email: string; phone: string; daysIdle: number }>('/zest/followup-draft', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ studentId, channel }) }),
     feedback: (logId: string, rating: 'up' | 'down', comment?: string) =>
       req<{ ok: true }>('/zest/feedback', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ logId, rating, comment }) }),
     analytics: (days = 30) => req<any>(`/zest/analytics?days=${days}`, { headers: authHeaders() }),
@@ -820,10 +898,10 @@ export const api = {
       req<{ message: string }>('/zest/public/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     addToKnowledge: (question: string, answer: string) =>
       req<any>('/zest/documents/from-answer', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question, answer }) }),
-    draftReply: (roomId: string) =>
-      req<{ draft: string }>('/zest/draft-reply', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) }),
     documents: () => req<any[]>('/zest/documents', { headers: authHeaders() }),
     uploadDocument: (formData: FormData) => upload<any>('/zest/documents', formData),
+    // Swaps the PDF behind an existing document and keeps its title.
+    replaceDocument: (id: string, formData: FormData) => upload<any>(`/zest/documents/${id}/replace`, formData),
     renameDocument: (id: string, title: string) => req<any>(`/zest/documents/${id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ title }),
     }),

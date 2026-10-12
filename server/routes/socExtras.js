@@ -3,6 +3,7 @@ const { sendServerError } = require('../lib/httpError');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/auth');
+const { sendServerError } = require('../lib/httpError');
 const { adminOnly } = require('./soc'); // the one owner gate every SOC route uses
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');

@@ -1,12 +1,10 @@
 const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
-const ChatRoom = require('../models/ChatRoom');
 const KnowledgeDocument = require('../models/KnowledgeDocument');
 const KnowledgeChunk = require('../models/KnowledgeChunk');
 const Notification = require('../models/Notification');
 const Task = require('../models/Task');
-const { setAnthropicClientForTests } = require('../lib/anthropicClient');
 const { recentTranscript, transcriptText, needsReply } = require('../lib/zestDraft');
 const { buildBrief } = require('../lib/counselorBrief');
 const { runCounselorBrief } = require('../jobs/counselorDailyBrief');
@@ -85,65 +83,6 @@ describe('POST /api/zest/documents/from-answer', () => {
     expect(chunks[0].text).toContain('500 rupees');
     await KnowledgeChunk.init();
     expect(await KnowledgeChunk.countDocuments({ $text: { $search: marker } })).toBeGreaterThan(0);
-  });
-});
-
-describe('POST /api/zest/draft-reply', () => {
-  const prevKey = process.env.ANTHROPIC_API_KEY;
-  beforeEach(() => { process.env.ANTHROPIC_API_KEY = 'fake-key-client-is-mocked'; });
-  afterEach(() => {
-    setAnthropicClientForTests(null);
-    if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = prevKey;
-  });
-
-  const fakeClient = (text, seen = {}) => ({
-    messages: { create: async (params) => { seen.params = params; return { stop_reason: 'end_turn', content: [{ type: 'text', text }] }; } },
-  });
-
-  async function room(counselor, student, messages) {
-    return ChatRoom.create({ participants: [counselor.id, student.id], participantNames: ['C', 'S'], type: 'student-counselor', messages });
-  }
-
-  it('drafts a reply to the latest student message for a staff member in that chat', async () => {
-    const counselor = await mk('counselor');
-    const student = await mk('student');
-    const r = await room(counselor, student, [{ senderId: student.id, senderRole: 'student', senderName: 'Asha', content: 'When is the IELTS deadline?' }]);
-    const seen = {};
-    setAnthropicClientForTests(fakeClient('  Hi Asha, I will confirm the date and get back to you today.  ', seen));
-
-    const res = await request(app).post('/api/zest/draft-reply').set(as(counselor)).send({ roomId: String(r._id) });
-    expect(res.status).toBe(200);
-    expect(res.body.draft).toBe('Hi Asha, I will confirm the date and get back to you today.');
-    expect(JSON.stringify(seen.params)).toContain('When is the IELTS deadline?');
-  });
-
-  it('refuses students, strangers to the chat, a chat with nothing to answer, and a missing id', async () => {
-    const counselor = await mk('counselor');
-    const stranger = await mk('counselor');
-    const student = await mk('student');
-    const waiting = await room(counselor, student, [{ senderId: student.id, senderRole: 'student', senderName: 'S', content: 'hello?' }]);
-    const answered = await room(counselor, student, [
-      { senderId: student.id, senderRole: 'student', senderName: 'S', content: 'hello?' },
-      { senderId: counselor.id, senderRole: 'counselor', senderName: 'C', content: 'Hi!' },
-    ]);
-    setAnthropicClientForTests(fakeClient('x'));
-
-    expect((await request(app).post('/api/zest/draft-reply').set(as(student)).send({ roomId: String(waiting._id) })).status).toBe(403);
-    expect((await request(app).post('/api/zest/draft-reply').set(as(stranger)).send({ roomId: String(waiting._id) })).status).toBe(404);
-    expect((await request(app).post('/api/zest/draft-reply').set(as(counselor)).send({ roomId: String(answered._id) })).status).toBe(400);
-    expect((await request(app).post('/api/zest/draft-reply').set(as(counselor)).send({})).status).toBe(400);
-  });
-
-  it('503s when Zest is not configured', async () => {
-    const counselor = await mk('counselor');
-    const student = await mk('student');
-    const r = await room(counselor, student, [{ senderId: student.id, senderRole: 'student', senderName: 'S', content: 'hi' }]);
-    process.env.ANTHROPIC_API_KEY = '';
-    const gemini = process.env.GEMINI_API_KEY;
-    process.env.GEMINI_API_KEY = '';
-    const res = await request(app).post('/api/zest/draft-reply').set(as(counselor)).send({ roomId: String(r._id) });
-    process.env.GEMINI_API_KEY = gemini ?? '';
-    expect(res.status).toBe(503);
   });
 });
 

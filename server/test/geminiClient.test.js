@@ -76,14 +76,14 @@ describe('geminiClient.askZest with a mocked @google/genai client', () => {
     expect(toolsUsed).toEqual([]);
   });
 
-  it('offers a student only the catalogue search, never a personal-data tool', async () => {
+  it("offers a student the catalogue search and their own progress, never a tool that can look up anyone else", async () => {
     const client = fakeGeminiClient([textResponse('You can see your own status under Applications.')]);
     setGeminiClientForTests(client);
 
     await askZest('What are my open tasks?', [], [], 'student', '', { id: 'student1', role: 'student' });
 
     const offered = client.calls[0].config.tools.flatMap(t => t.functionDeclarations.map(d => d.name));
-    expect(offered).toEqual(['search_universities']);
+    expect(offered).toEqual(['search_universities', 'my_status', 'my_upcoming']);
   });
 
   it('runs the real tool-use loop against a real executeTool call, scoped to the caller', async () => {

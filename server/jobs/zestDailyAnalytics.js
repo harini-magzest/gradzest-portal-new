@@ -124,7 +124,7 @@ async function runZestDailyAnalytics(mailer) {
     const title = `Zest: ${newCount} new lead alert${newCount === 1 ? '' : 's'} today`;
     const message = `${stale.length} stale, ${duplicates.length} possible duplicate, ${overdueTasks.length} overdue task, ${stuckApps.length} stuck application alert(s) flagged.`;
     await Promise.all(admins.map(a => pushNotification(a, {
-      title, message, link: '/admin/zest', priority: duplicates.length > 0 ? 'urgent' : 'normal',
+      title, message, link: '/admin?zest=alerts', priority: duplicates.length > 0 ? 'urgent' : 'normal',
     })));
   }
 
@@ -163,7 +163,7 @@ async function runZestDailyAnalytics(mailer) {
             <div style="background:#fff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
               <p style="font-size:15px;">Hi ${admin.name},</p>
               <p style="font-size:14px;color:#4b5563;">${all.length} lead(s) were flagged today: ${stale.length} stale, ${duplicates.length} possible duplicate, ${overdueTasks.length} overdue task, ${stuckApps.length} stuck application. Full list attached as an Excel sheet.</p>
-              <p style="font-size:13px;color:#6b7280;">Log in to your Gradzest admin portal → Zest to review and resolve.</p>
+              <p style="font-size:13px;color:#6b7280;">Log in to your Gradzest admin portal, open Zest (the graduation-cap button) and go to the Alerts tab to review and resolve.</p>
             </div>
           </div>`,
         attachments: [{ filename: `zest-lead-alerts-${dateStr}.xlsx`, content: buffer }],
