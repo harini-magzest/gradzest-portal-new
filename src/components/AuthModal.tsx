@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { X, GraduationCap, Eye, EyeOff, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +40,14 @@ export default function AuthModal() {
   const [showRegPw, setShowRegPw] = useState(false);
   const [regError, setRegError] = useState('');
   const [regLoading, setRegLoading] = useState(false);
+
+  // Escape closes the dialog, as it does everywhere else in the app (this hook runs before the early return below)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, close]);
 
   if (!isOpen) return null;
 
@@ -120,10 +128,16 @@ export default function AuthModal() {
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={handleBackdrop}
     >
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={tab === 'login' ? 'Sign in' : 'Create account'}
+        className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <div className="flex items-center gap-2">
@@ -204,8 +218,8 @@ export default function AuthModal() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                <input
+                <label htmlFor="auth-login-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                <input id="auth-login-email"
                   type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="your@email.com" required autoFocus
@@ -213,7 +227,7 @@ export default function AuthModal() {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <label htmlFor="auth-login-password" className="block text-sm font-medium text-gray-700">Password</label>
                   <Link
                     to="/forgot-password"
                     onClick={close}
@@ -223,12 +237,12 @@ export default function AuthModal() {
                   </Link>
                 </div>
                 <div className="relative">
-                  <input
+                  <input id="auth-login-password"
                     type={showLoginPw ? 'text' : 'password'} value={loginPassword} onChange={e => setLoginPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm pr-12"
                     placeholder="••••••••" required
                   />
-                  <button type="button" onClick={() => setShowLoginPw(!showLoginPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowLoginPw(!showLoginPw)} aria-label={showLoginPw ? 'Hide password' : 'Show password'} aria-pressed={showLoginPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showLoginPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -259,38 +273,38 @@ export default function AuthModal() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                <input
+                <label htmlFor="auth-register-name" className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                <input id="auth-register-name"
                   type="text" value={regName} onChange={e => setRegName(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Your full name" required autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                <input
+                <label htmlFor="auth-register-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                <input id="auth-register-email"
                   type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="your@email.com" required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <label htmlFor="auth-register-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
                 <div className="relative">
-                  <input
+                  <input id="auth-register-password"
                     type={showRegPw ? 'text' : 'password'} value={regPassword} onChange={e => setRegPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm pr-12"
                     placeholder="Min. 8 characters" required minLength={8}
                   />
-                  <button type="button" onClick={() => setShowRegPw(!showRegPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowRegPw(!showRegPw)} aria-label={showRegPw ? 'Hide password' : 'Show password'} aria-pressed={showRegPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showRegPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
                 <PasswordStrengthBar password={regPassword} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-                <input
+                <label htmlFor="auth-register-confirm" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+                <input id="auth-register-confirm"
                   type="password" value={regConfirm} onChange={e => setRegConfirm(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Repeat your password" required
