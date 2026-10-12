@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import TwoFactorStep from '../components/TwoFactorStep';
 import { safeRedirectPath } from '../lib/safeUrl';
+import { LOGOUT_MESSAGES, takeLogoutReason } from '../lib/sessionLogout';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,8 @@ export default function Login() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Why the person was signed out, if a time limit ended their session (shown once)
+  const [sessionNotice] = useState(() => { const r = takeLogoutReason(); return r ? LOGOUT_MESSAGES[r] : ''; });
 
   // Show success message when redirected from email verification
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function Login() {
       if (result.recoveryCodesRemaining !== undefined) {
         toast.warning(`You signed in with a recovery code. ${result.recoveryCodesRemaining} left; make new ones in Settings → Password & Security.`);
       }
-      const redirectTo = searchParams.get('redirect');
+      const redirectTo = safeRedirectPath(searchParams.get('redirect')); // same-site paths only (no open redirect)
       if (redirectTo) navigate(redirectTo);
       else redirectAfterLogin(result.role!, result.isAppTeam);
     } else if (result.twoFactor === undefined && result.code === 'CHALLENGE_EXPIRED') {
@@ -133,6 +136,9 @@ export default function Login() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
             <p className="text-gray-500 mt-2 text-sm">Sign in to access your dashboard</p>
+            {sessionNotice && (
+              <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{sessionNotice}</p>
+            )}
           </div>
 
           {challenge ? (
