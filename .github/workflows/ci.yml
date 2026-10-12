@@ -12,10 +12,11 @@
 name: CI
 
 on:
+  # Every pull request, whatever branch it targets: PRs merged into dev or into another feature branch used to skip
+  # these checks entirely and reached main unchecked.
   pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 # A newer push to the same branch/PR makes the older run pointless.
 concurrency:

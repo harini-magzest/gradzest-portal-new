@@ -17,6 +17,7 @@ const { validatePasswordStrength } = require('../lib/passwordPolicy');
 const { lockMessage, registerFailedAttempt } = require('../lib/loginAttempts');
 const twoFactor = require('../lib/twoFactor');
 const { issueAccessToken, issueRefreshToken, setRefreshCookie } = require('../lib/sessionTokens');
+const { sessionStatus, sessionPayload, SESSION_MESSAGES, SESSION_CODES } = require('../lib/sessionPolicy');
 const { validate } = require('../middleware/validate');
 const { z, email, password, text, requiredText, noBody, ids } = require('../lib/schemas');
 
@@ -173,7 +174,7 @@ async function completeLogin(user, req, res, { twoFactorMethod, recoveryCodesRem
   const userObj = user.toJSON();
   delete userObj.password;
 
-  res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj, ...(recoveryCodesRemaining !== undefined && { recoveryCodesRemaining }) });
+  res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj, session: sessionPayload(refreshExpires, user.role), ...(recoveryCodesRemaining !== undefined && { recoveryCodesRemaining }) });
 }
 
 // POST /auth/2fa/login — the second sign-in step: the challenge from /login plus a code from the authenticator app (or an
@@ -339,7 +340,7 @@ router.post('/register', validate({ body: registerBody }), async (req, res) => {
     setRefreshCookie(res, raw, expires);
     const userObj = user.toJSON();
     delete userObj.password;
-    res.status(201).json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
+    res.status(201).json({ token: accessToken, fileToken: issueFileToken(user), user: userObj, session: sessionPayload(expires, user.role) });
   } catch (err) {
     console.error('[auth/register]', err);
     sendServerError(res, err, 'Server error');
@@ -463,9 +464,7 @@ router.post('/refresh', validate({ body: noBody }), async (req, res) => {
   if (!raw) return res.status(401).json({ message: 'No refresh token' });
   try {
     const hash = crypto.createHash('sha256').update(raw).digest('hex');
-    const user = await User.findOne({
-      sessions: { $elemMatch: { tokenHash: hash, expires: { $gt: new Date() } } },
-    });
+    const user = await User.findOne({ 'sessions.tokenHash': hash });
     if (!user) return res.status(401).json({ message: 'Invalid or expired refresh token. Please log in again.' });
 
     // Deactivated or admin-locked accounts cannot mint new access tokens from an old refresh cookie.
@@ -478,17 +477,26 @@ router.post('/refresh', validate({ body: noBody }), async (req, res) => {
 
     const session = user.sessions.find((s) => s.tokenHash === hash);
 
-    // Rotate this session's token on every use (prevents token reuse attacks)
+    // Session limits (lib/sessionPolicy.js): too long idle, or past its hard end. The session is removed and the browser is told
+    // which limit it hit, so it can say so instead of showing a bare "sign in".
+    const status = sessionStatus(session, user.role);
+    if (!status.ok) {
+      user.sessions.pull({ tokenHash: hash });
+      await user.save();
+      res.clearCookie('refreshToken', { path: '/api/auth' });
+      return res.status(401).json({ message: SESSION_MESSAGES[status.reason], code: SESSION_CODES[status.reason] });
+    }
+
+    // Rotate this session's token on every use (prevents token reuse attacks). The hard end is NOT moved: using the site
+    // renews the access token and the idle clock, never the session's maximum life.
     const newRaw = crypto.randomBytes(40).toString('hex');
-    const newHash = crypto.createHash('sha256').update(newRaw).digest('hex');
-    const newExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    session.tokenHash = newHash;
-    session.expires = newExpires;
+    session.tokenHash = crypto.createHash('sha256').update(newRaw).digest('hex');
+    session.expires = status.expiresAt;
     session.lastUsedAt = new Date();
     await user.save();
 
-    setRefreshCookie(res, newRaw, newExpires);
-    res.json({ token: issueAccessToken(user), fileToken: issueFileToken(user) });
+    setRefreshCookie(res, newRaw, status.expiresAt);
+    res.json({ token: issueAccessToken(user), fileToken: issueFileToken(user), session: sessionPayload(status.expiresAt, user.role) });
   } catch (err) {
     console.error('[auth/refresh]', err);
     res.status(500).json({ message: 'Server error' });
@@ -539,6 +547,24 @@ router.get('/sessions', authMiddleware, async (req, res) => {
     res.json({ sessions });
   } catch (err) {
     console.error('[auth/sessions]', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE /auth/sessions: "sign out everywhere else". Revokes every session except the one making this request.
+router.delete('/sessions', authMiddleware, validate({ body: noBody }), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const currentRaw = req.cookies?.refreshToken;
+    const currentHash = currentRaw ? crypto.createHash('sha256').update(currentRaw).digest('hex') : null;
+    const keep = (user.sessions || []).filter((s) => currentHash && s.tokenHash === currentHash);
+    const revoked = (user.sessions || []).length - keep.length;
+    user.sessions = keep;
+    await user.save();
+    res.json({ message: revoked ? `Signed out of ${revoked} other device${revoked === 1 ? '' : 's'}.` : 'There were no other devices signed in.', revoked });
+  } catch (err) {
+    console.error('[auth/sessions delete-others]', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
