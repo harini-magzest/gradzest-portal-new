@@ -1,4 +1,4 @@
-import { createPdfReport } from './pdfReport';
+import { loadPdfReport } from './loadPdfReport';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft', submitted: 'Submitted', under_review: 'Under Review',
@@ -14,7 +14,9 @@ function fmtDate(d?: string) {
  * are optional, fuller records to pull extra detail (GPA, documents, counselor email) from
  * when the caller has them; the application's own denormalized fields are used otherwise.
  */
-export function downloadApplicationReportPdf(application: any, opts?: { student?: any; counselor?: any }) {
+export async function downloadApplicationReportPdf(application: any, opts?: { student?: any; counselor?: any }) {
+  const createPdfReport = await loadPdfReport();
+  if (!createPdfReport) return;
   const student = opts?.student;
   const counselor = opts?.counselor || application._counselor;
   const studentSummary = application._student || student || {};
