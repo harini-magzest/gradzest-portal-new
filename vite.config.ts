@@ -11,6 +11,13 @@ export default defineConfig({
     // Vite's default is already false — explicit here so it can't be flipped on
     // by accident and so DevTools can never reconstruct the original source.
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Rollup otherwise emits one tiny chunk per icon a page uses, and each is its
+        // own round trip. Grouping them keeps only the icons actually imported.
+        manualChunks: (id) => (id.includes('/node_modules/lucide-react/') ? 'icons' : undefined),
+      },
+    },
     // Terser instead of esbuild's default minifier: multi-pass compress + a stronger
     // mangler produce tighter, harder-to-follow output. Deliberately NOT using
     // mangle.properties — renaming object/class property names is the one Terser

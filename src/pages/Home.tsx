@@ -2141,6 +2141,8 @@ export default function Home() {
                   <img
                     src={`https://flagcdn.com/w80/${c.code}.png`}
                     alt={c.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
@@ -2174,6 +2176,8 @@ export default function Home() {
                   <img
                     src={uni.logo}
                     alt={uni.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       const t = e.currentTarget;
