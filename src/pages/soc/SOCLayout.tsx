@@ -55,7 +55,7 @@ export default function SOCLayout() {
             <span className="text-xs text-gray-400">{user?.name} · analyst</span>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => logout()}
               className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-100 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />

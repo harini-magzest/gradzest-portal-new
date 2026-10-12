@@ -23,13 +23,31 @@ function toQueryString(params: Record<string, string | number | undefined>): str
 }
 
 // Try once to get a new access token using the httpOnly refresh cookie
+// What the server says about the signed-in session (server/lib/sessionPolicy.js): when it ends no matter what, and how long
+// the person may be idle. Pushed to the app as an 'auth:session' event whenever the access token is renewed.
+export interface SessionInfo { expiresAt: string; idleTimeoutMs: number }
+
+// Why the last renewal was refused ('SESSION_IDLE', 'SESSION_EXPIRED', ...), so the app can explain the sign-out afterwards
+let lastRefreshFailure: string | null = null;
+export function takeRefreshFailure(): string | null { const c = lastRefreshFailure; lastRefreshFailure = null; return c; }
+
 let refreshing: Promise<string | null> | null = null;
 async function tryRefresh(): Promise<string | null> {
   if (refreshing) return refreshing;
   refreshing = fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
-    .then(r => r.ok ? r.json() : null)
+    .then(async r => {
+      if (r.ok) return r.json();
+      const body = await r.json().catch(() => null);
+      lastRefreshFailure = typeof body?.code === 'string' ? body.code : null;
+      return null;
+    })
     .then(data => {
-      if (data?.token) { setToken(data.token); rememberFileToken(data); return data.token; }
+      if (data?.token) {
+        setToken(data.token);
+        rememberFileToken(data);
+        if (data.session) window.dispatchEvent(new CustomEvent<SessionInfo>('auth:session', { detail: data.session }));
+        return data.token;
+      }
       return null;
     })
     .catch(() => null)
@@ -89,7 +107,7 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
     }
     // Refresh failed — force logout
     setApiToken(null);
-    window.dispatchEvent(new Event('auth:logout'));
+    window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: takeRefreshFailure() } }));
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
@@ -112,7 +130,7 @@ async function upload<T>(url: string, formData: FormData, retry = true): Promise
     const newToken = await tryRefresh();
     if (newToken) return upload<T>(url, formData, false);
     setApiToken(null);
-    window.dispatchEvent(new Event('auth:logout'));
+    window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: takeRefreshFailure() } }));
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Upload failed' }));
@@ -133,13 +151,13 @@ export const api = {
   auth: {
     // An account with two-factor sign-in gets a challenge instead of a session; send it back with a code to verifyTwoFactor.
     login: (email: string, password: string, device?: unknown) =>
-      req<{ token: string; user: any } | { twoFactorRequired: true; challengeToken: string }>('/auth/login', {
+      req<{ token: string; user: any; session?: SessionInfo } | { twoFactorRequired: true; challengeToken: string }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, device }),
       }),
     verifyTwoFactor: (challengeToken: string, code: string, device?: unknown) =>
-      req<{ token: string; user: any; recoveryCodesRemaining?: number }>('/auth/2fa/login', {
+      req<{ token: string; user: any; session?: SessionInfo; recoveryCodesRemaining?: number }>('/auth/2fa/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ challengeToken, code, device }),
@@ -167,6 +185,10 @@ export const api = {
     logout: () => fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {}),
     sessions: () => req<{ sessions: any[] }>('/auth/sessions', { headers: authHeaders() }),
     revokeSession: (id: string) => req<{ message: string }>(`/auth/sessions/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }),
+    // "Sign out everywhere else": every device except this one
+    revokeOtherSessions: () => req<{ message: string; revoked: number }>('/auth/sessions', {
       method: 'DELETE', headers: authHeaders(),
     }),
   },
