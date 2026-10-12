@@ -73,7 +73,9 @@ async function confirmSetup(user, code) {
   const { codes, hashes } = generateRecoveryCodes();
   await User.updateOne({ _id: user._id }, {
     $set: {
-      'twoFactor.enabled': true, 'twoFactor.enabledAt': new Date(), 'twoFactor.secret': user.twoFactor.pendingSecret,
+      // Encrypt `pending` here instead of copying what was read: the User model decrypts the values it loads (the encrypted-
+      // at-rest PII fields use the same read hook), so the field is plaintext by now and copying it would store the key unprotected.
+      'twoFactor.enabled': true, 'twoFactor.enabledAt': new Date(), 'twoFactor.secret': encrypt(pending),
       'twoFactor.recoveryCodes': hashes, 'twoFactor.lastStep': step,
     },
     $unset: { 'twoFactor.pendingSecret': 1 },
