@@ -14,6 +14,14 @@ const ZestQueryLogSchema = new mongoose.Schema({
   toolsUsed: [{ type: String }],
   // True when the answer came from the knowledge-base fallback because the AI was unavailable
   degraded: { type: Boolean, default: false },
+  // Tokens this answer used, summed over every model call it took (lib/anthropicClient.js). cacheReadTokens above 0
+  // means the prompt cache served part of the prompt. All zero on a degraded answer and on the other model backend.
+  usage: {
+    inputTokens: { type: Number, default: 0 },
+    outputTokens: { type: Number, default: 0 },
+    cacheReadTokens: { type: Number, default: 0 },
+    cacheWriteTokens: { type: Number, default: 0 },
+  },
   // The asker's thumbs up/down on this answer (POST /api/zest/feedback). The comment is free text, so it is
   // encrypted like the question.
   feedback: {

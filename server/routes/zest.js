@@ -168,9 +168,9 @@ async function answerQuestion(req, question, history, onText, onStatus) {
   const sourceDocIds = [...new Set(matches.map(m => String(m.documentId)))];
   const sources = [...new Map(matches.map(m => [String(m.documentId), { documentId: m.documentId, title: m.documentTitle }])).values()];
 
-  let answer, toolsUsed;
+  let answer, toolsUsed, usage;
   try {
-    ({ text: answer, toolsUsed } = await askZest(
+    ({ text: answer, toolsUsed, usage } = await askZest(
       question, matches.map(m => ({ title: m.documentTitle, text: m.text })), history, role, '', req.user ? await callerFor(req) : null, onText, { ip: req.ip, io: req.app.get('io'), onStatus },
     ));
   } catch (err) {
@@ -180,7 +180,7 @@ async function answerQuestion(req, question, history, onText, onStatus) {
     return { answer: fallback, sources, degraded: true, ...(userId ? { logId: String(log._id) } : {}) };
   }
 
-  const log = await ZestQueryLog.create({ userId, userRole: role, question, answer, sourceDocIds, toolsUsed });
+  const log = await ZestQueryLog.create({ userId, userRole: role, question, answer, sourceDocIds, toolsUsed, usage });
   // No logId for guests: feedback needs a signed-in owner, so there is nothing for them to rate against.
   return { answer, sources, ...(userId ? { logId: String(log._id) } : {}) };
 }
@@ -277,15 +277,15 @@ router.post('/ask-with-file', authMiddleware, askLimiter, upload.single('file'),
     }
     if (!attachedDocText.trim()) return res.status(400).json({ message: 'No extractable text found in this file (it may be a scanned image)' });
 
-    let answer, toolsUsed;
+    let answer, toolsUsed, usage;
     try {
-      ({ text: answer, toolsUsed } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') }));
+      ({ text: answer, toolsUsed, usage } = await askZest(question, [], history, req.user.role, attachedDocText, await callerFor(req), null, { ip: req.ip, io: req.app.get('io') }));
     } catch (err) {
       return res.status(503).json({ message: UNAVAILABLE });
     }
     const log = await ZestQueryLog.create({
       userId: req.user.id, userRole: req.user.role,
-      question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed,
+      question: `[attached: ${req.file.originalname}] ${question}`, answer, sourceDocIds: [], toolsUsed, usage,
     });
     res.json({ answer, sources: [], logId: String(log._id) });
   } catch (err) {
