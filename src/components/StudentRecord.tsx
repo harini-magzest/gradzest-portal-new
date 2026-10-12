@@ -7,11 +7,11 @@ import {
 import { TaskStatusPill, TASK_STATUS, type TaskStatus } from './TaskProgress';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { uploadUrl } from '../utils/uploadUrl';
 import LeadStageSelect, { PIPELINE_STAGES, leadStageOf } from './LeadStageSelect';
 import StudentNotes from './StudentNotes';
 import ApplicationTimeline from './dashboards/ApplicationTimeline';
 import DocumentChecklist from './dashboards/DocumentChecklist';
+import SignedFileLink from './SignedFileLink';
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export type RecordTab = 'timeline' | 'notes' | 'messages' | 'activities' | 'emails' | 'pipelines' | 'files';
@@ -170,7 +170,7 @@ function MessageBubble({ m, mine }: { m: any; mine: boolean }) {
       </div>
     );
   }
-  if (m.type === 'file') body = <a href={uploadUrl(m.fileUrl)} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1"><FileText className="w-4 h-4" />{m.fileName || 'File'}</a>;
+  if (m.type === 'file') body = <SignedFileLink href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1"><FileText className="w-4 h-4" />{m.fileName || 'File'}</SignedFileLink>;
   if (m.type === 'meeting') body = <span className="inline-flex items-center gap-1"><CalendarDays className="w-4 h-4" />Meeting: {m.meetingDate} at {m.meetingTime}{m.meetingNotes ? ` — ${m.meetingNotes}` : ''}</span>;
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -603,8 +603,8 @@ function FilesList({ student }: { student: any }) {
           </div>
           <span className={`text-[11px] font-semibold px-2 py-1 rounded-full capitalize ${badge[d.status] || badge.pending}`}>{d.status || 'pending'}</span>
           {d.url && (
-            <a href={uploadUrl(d.url)} target="_blank" rel="noopener noreferrer" aria-label={`Open ${d.name}`}
-              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"><Download className="w-4 h-4" /></a>
+            <SignedFileLink href={d.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${d.name}`}
+              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"><Download className="w-4 h-4" /></SignedFileLink>
           )}
         </li>
       ))}

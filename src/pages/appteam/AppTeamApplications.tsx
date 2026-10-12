@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -11,6 +10,7 @@ import {
   AlertCircle, BookOpen, Globe, DollarSign, MessageSquare,
   Send, ChevronDown, ChevronUp, GraduationCap,
 } from 'lucide-react';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const STATUSES = [
   { key: 'draft',          label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400',   ring: 'ring-gray-300',   border: 'border-gray-300' },
@@ -645,11 +645,11 @@ export default function AppTeamApplications() {
                           </div>
                         </div>
                         {doc.url ? (
-                          <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                          <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-xs font-semibold flex-shrink-0">
                             <Download className="w-3 h-3" /> Download
-                          </a>
+                          </SignedFileLink>
                         ) : (
                           <span className="text-xs text-gray-300 italic flex-shrink-0">No file</span>
                         )}

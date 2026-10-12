@@ -199,9 +199,10 @@ describe('chat rooms are private to their participants', () => {
     expect(spyCall.status).toBe(400);
   });
 
-  it('a malformed room id is a clean 404 and malformed participant lists a clean 400', async () => {
+  it('a malformed room id and malformed participant lists are a clean 400', async () => {
     const u = await mk('student');
-    expect((await request(app).get('/api/chat/rooms/not-an-id').set(as(u))).status).toBe(404);
+    // Malformed ids are refused by request validation (middleware/validate.js) before any lookup
+    expect((await request(app).get('/api/chat/rooms/not-an-id').set(as(u))).status).toBe(400);
     expect((await request(app).post('/api/chat/rooms').set(as(u)).send({ participantIds: [u.id] })).status).toBe(400);
     expect((await request(app).post('/api/chat/rooms').set(as(u)).send({})).status).toBe(400);
   });

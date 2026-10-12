@@ -1,9 +1,9 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../../api';
 import { Search, X, ChevronRight, User, FileText, Download, Layers, UserCog } from 'lucide-react';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 import { downloadStudentProfilePdf } from '../../utils/studentProfilePdf';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   draft:          { label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100' },
@@ -265,10 +265,10 @@ export default function BoardStudents() {
                         </div>
                       </div>
                       {doc.url && (
-                        <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                        <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium flex-shrink-0">
                           <Download className="w-3.5 h-3.5" /> Download
-                        </a>
+                        </SignedFileLink>
                       )}
                     </div>
                   ))}

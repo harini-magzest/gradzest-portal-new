@@ -19,6 +19,62 @@ const WRITABLE = (paths, extra = []) => [...new Set(Object.keys(paths).map(p => 
 const COURSE_FIELDS = WRITABLE(University.schema.path('courses').schema.paths, ['id']);
 const COUNTRY_FIELDS = WRITABLE(Country.schema.paths, ['id']);
 const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {}).filter(([k]) => fields.includes(k)));
+const { validate, idParam } = require('../middleware/validate');
+const { z, objectId, email, password, text, requiredText, textList, noBody, modelFields } = require('../lib/schemas');
+
+// ── Request schemas (middleware/validate.js); unknown fields are refused ──
+// Several routes below used to copy the whole body into the account (`...rest`, `...updates`), so a request could set
+// any field: these lists are what the admin forms actually send.
+const staffProfile = {
+  specialization: textList(30, 100).optional(), experience: z.number().min(0).max(80).optional(),
+  title: text(100).optional(), phone: text(30).optional(), bio: text(2000).optional(), smartfloAgent: text(100).optional(),
+  nationality: text(60).optional(), dateOfBirth: text(30).optional(), gender: text(30).optional(),
+  languages: textList(30, 60).optional(), certifications: textList(30, 200).optional(),
+  linkedIn: text(300).optional(), website: text(300).optional(),
+  address: z.object({
+    street: text(200).optional(), city: text(100).optional(), state: text(100).optional(),
+    country: text(100).optional(), postalCode: text(20).optional(),
+  }).strict().optional(),
+  educationBackground: z.object({
+    degree: text(100).optional(), institution: text(200).optional(), graduationYear: z.union([text(10), z.number()]).optional(),
+  }).strict().optional(),
+};
+const createCounselorBody = z.object({ name: requiredText(100), email, password, ...staffProfile }).strict();
+// The edit form sends a password only when one was typed
+const updateCounselorBody = z.object({ name: requiredText(100).optional(), email: email.optional(), password: password.optional(), ...staffProfile }).strict();
+const createAppTeamBody = z.object({ name: requiredText(100), email, password }).strict();
+const updateAppTeamBody = z.object({ name: requiredText(100).optional(), email: email.optional(), password: password.optional() }).strict();
+const markAppTeamBody = z.object({ isAppTeam: z.boolean() }).strict();
+const createStudentBody = z.object({
+  name: requiredText(100), email, password,
+  phone: text(30).optional(), nationality: text(60).optional(), educationLevel: text(60).optional(),
+  gpa: z.number().min(0).max(100).optional(), budget: z.number().min(0).optional(),
+  englishScore: z.object({ type: text(30), score: z.number().min(0).max(1000) }).strict().optional(),
+  preferredCountries: textList(30, 100).optional(), interestedCourses: textList(30, 200).optional(),
+  counselorId: objectId.optional(),
+}).strict();
+const leadStatusBody = z.object({ leadStatus: z.enum(['new', 'contacted']) }).strict();
+const studentStatusBody = z.object({ status: requiredText(40) }).strict();
+const deleteAllStudentsBody = z.object({ confirm: text(20) }).strict();
+// null (or '') unassigns
+const assignCounselorBody = z.object({ counselorId: z.union([objectId, z.literal(''), z.null()]) }).strict();
+const createApplicationBody = z.object({
+  studentId: objectId, universityName: requiredText(300), courseName: requiredText(300),
+  intake: text(60).nullish(), universityId: text(120).nullish(), courseId: text(120).nullish(),
+}).strict();
+const updateApplicationBody = z.object({ status: text(60).optional(), notes: text(5000).optional(), offerType: text(60).nullish() }).strict();
+// Universities, courses and countries are edited as whole documents: any field their model defines, nothing else
+const universityBody = modelFields(University.schema, { omit: ['_id', '__v', 'enrichedAt', 'enrichmentStatus'] });
+const courseBody = modelFields(University.schema.path('courses').schema, { omit: ['_id'] });
+const countryBody = modelFields(Country.schema, { omit: ['_id', '__v', 'createdAt', 'updatedAt'] });
+const updateSubscriberBody = z.object({ leadStatus: text(30).optional(), notes: text(5000).optional() }).strict();
+// counselorId may be empty: the route answers "Select a counselor" itself
+const assignSubscriberBody = z.object({
+  counselorId: z.union([objectId, z.literal('')]).optional(), priority: text(20).optional(),
+  dueDate: text(40).optional(), instructions: text(5000).optional(),
+}).strict();
+const periodQuery = z.object({ period: text(10).optional() });
+const daysQuery = z.object({ days: z.string().regex(/^\d{1,4}$/, 'Must be a number of days').optional() });
 const Subscriber = require('../models/Subscriber');
 const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
@@ -31,6 +87,8 @@ const attachUserEmail = require('../middleware/attachUserEmail');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 
 const router = express.Router();
+// Every :id, :studentId, :appId and :courseId below is a MongoDB ObjectId: a malformed one is a 400 before any handler
+for (const name of ['id', 'studentId', 'appId', 'courseId']) router.param(name, idParam);
 
 // Grants of admin-level access are rare and high-impact; the SOC raises an incident for each.
 function logPrivilegeChange(req, message) {
@@ -85,7 +143,7 @@ router.get('/counselors', authMiddleware, adminOnly, async (req, res) => {
 
 // Counselor performance: call stats (in-app + Tata Smartflo), workload, and an activity timeline.
 // GET /api/admin/counselors/:id/performance?days=1|7|30|90   (days=1 means "today")
-router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTeam, validate({ query: daysQuery }), async (req, res) => {
   try {
     const counselor = await User.findOne({ _id: req.params.id, role: 'counselor' }).select('name email smartfloAgent');
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
@@ -96,7 +154,7 @@ router.get('/counselors/:id/performance', authMiddleware, adminOnly, blockAppTea
 });
 
 // Create counselor (admin only)
-router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, validate({ body: createCounselorBody }), async (req, res) => {
   const { name, email, password, ...rest } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
@@ -118,7 +176,7 @@ router.post('/counselors', authMiddleware, adminOnly, blockAppTeam, async (req, 
 });
 
 // Update counselor
-router.put('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/counselors/:id', authMiddleware, adminOnly, blockAppTeam, validate({ body: updateCounselorBody }), async (req, res) => {
   const { password, role, _id, ...updates } = req.body;
   try {
     const counselor = await User.findOneAndUpdate(
@@ -156,7 +214,7 @@ router.get('/appteam-users', authMiddleware, adminOnly, blockAppTeam, async (req
 });
 
 // Toggle isAppTeam for an admin user
-router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, validate({ body: markAppTeamBody }), async (req, res) => {
   const makeAppTeam = !!req.body.isAppTeam;
   try {
     // Reclassifying the very last non-appteam admin into Application Team would leave no one
@@ -179,6 +237,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attach
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+    require('../lib/accountState').invalidate(user._id); // the new access applies to their next request, not in 10s
     if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
   } catch (err) {
@@ -189,7 +248,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attach
 
 // Create an Application Team member (admin-role account, isAppTeam: true). Open to any
 // admin — same permission as creating a counselor, not restricted to non-appteam admins.
-router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, validate({ body: createAppTeamBody }), async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
@@ -212,7 +271,7 @@ router.post('/appteam', authMiddleware, adminOnly, blockAppTeam, attachUserEmail
 
 // Update an Application Team member — scoped to isAppTeam admins only, so this can never
 // touch a non-appteam admin account even if someone guesses another user's id.
-router.put('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, validate({ body: updateAppTeamBody }), async (req, res) => {
   const { password, role, isAppTeam, _id, ...updates } = req.body;
   try {
     if (password) updates.password = await bcrypt.hash(password, 10);
@@ -240,7 +299,7 @@ router.delete('/appteam/:id', authMiddleware, adminOnly, blockAppTeam, async (re
 });
 
 // Create student (admin only)
-router.post('/students', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/students', authMiddleware, adminOnly, blockAppTeam, validate({ body: createStudentBody }), async (req, res) => {
   const { name, email, password, phone, nationality, educationLevel, gpa, englishScore, budget, preferredCountries, interestedCourses, counselorId } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
   try {
@@ -300,7 +359,7 @@ router.get('/leads/count', authMiddleware, adminOnly, blockAppTeam, async (req, 
 });
 
 // Mark a lead as contacted (or back to new)
-router.put('/students/:id/lead-status', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/students/:id/lead-status', authMiddleware, adminOnly, blockAppTeam, validate({ body: leadStatusBody }), async (req, res) => {
   const { leadStatus } = req.body || {};
   if (!['new', 'contacted'].includes(leadStatus)) {
     return res.status(400).json({ message: "leadStatus must be 'new' or 'contacted'" });
@@ -320,7 +379,7 @@ router.put('/students/:id/lead-status', authMiddleware, adminOnly, blockAppTeam,
 });
 
 // Update student status
-router.put('/students/:id/status', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/students/:id/status', authMiddleware, adminOnly, blockAppTeam, validate({ body: studentStatusBody }), async (req, res) => {
   const { status } = req.body;
   try {
     const student = await User.findOneAndUpdate(
@@ -349,7 +408,7 @@ router.delete('/students/:id', authMiddleware, adminOnly, blockAppTeam, async (r
 // Danger Zone (Settings): delete every student account. Applications and document records
 // live on the student's User doc, so they go with it. The typed confirmation is re-checked
 // here so a stray request can't wipe the data.
-router.post('/danger/delete-all-students', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, async (req, res) => {
+router.post('/danger/delete-all-students', authMiddleware, adminOnly, blockAppTeam, attachUserEmail, validate({ body: deleteAllStudentsBody }), async (req, res) => {
   if (req.body?.confirm !== 'DELETE') return res.status(400).json({ message: 'Type DELETE to confirm' });
   try {
     const { deletedCount } = await User.deleteMany({ role: 'student' });
@@ -365,7 +424,7 @@ router.post('/danger/delete-all-students', authMiddleware, adminOnly, blockAppTe
 });
 
 // Assign student to counselor (or unassign)
-router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, validate({ body: assignCounselorBody }), async (req, res) => {
   const { counselorId } = req.body;
   try {
     const student = await User.findOne({ _id: req.params.id, role: 'student' });
@@ -436,7 +495,7 @@ router.put('/students/:id/assign', authMiddleware, adminOnly, blockAppTeam, asyn
 });
 
 // Create application for a student (admin or counselor)
-router.post('/applications', authMiddleware, can('applications.create'), async (req, res) => {
+router.post('/applications', authMiddleware, can('applications.create'), validate({ body: createApplicationBody }), async (req, res) => {
   if (!['admin', 'counselor'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
@@ -508,7 +567,7 @@ router.get('/applications', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // Update application status (admin only)
-router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, async (req, res) => {
+router.put('/applications/:studentId/:appId', authMiddleware, adminOnly, validate({ body: updateApplicationBody }), async (req, res) => {
   const { status, notes, offerType } = req.body;
   try {
     const existing = await User.findOne({ _id: req.params.studentId, 'applications._id': req.params.appId }).select('applications.$');
@@ -572,7 +631,7 @@ router.get('/universities', authMiddleware, adminOnly, blockAppTeam, async (req,
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
-router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/universities', authMiddleware, adminOnly, blockAppTeam, validate({ body: universityBody }), async (req, res) => {
   try {
     const { name, country, city, ranking, type, founded, website, description,
             logo, coverImage,
@@ -632,7 +691,7 @@ router.post('/universities', authMiddleware, adminOnly, blockAppTeam, async (req
 });
 
 // Bulk enrich all universities missing logo or cover image
-router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam, validate({ body: noBody }), async (req, res) => {
   try {
     const unis = await University.find({
       $or: [{ logo: '' }, { logo: null }, { coverImage: '' }, { coverImage: null }],
@@ -673,7 +732,7 @@ router.post('/universities/enrich-all', authMiddleware, adminOnly, blockAppTeam,
 });
 
 // Force-refresh enrichment data for a university (clears cache too)
-router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam, validate({ body: noBody }), async (req, res) => {
   try {
     const uni = await University.findById(req.params.id);
     if (!uni) return res.status(404).json({ message: 'University not found' });
@@ -701,11 +760,11 @@ router.post('/universities/:id/enrich', authMiddleware, adminOnly, blockAppTeam,
     res.json(updated);
   } catch (err) {
     console.error('Enrich error:', err.message);
-    sendServerError(res, err, 'Enrichment failed');
+    res.status(500).json({ message: 'Enrichment failed: ' + (err.message || 'Unknown error') });
   }
 });
 
-router.put('/universities/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/universities/:id', authMiddleware, adminOnly, blockAppTeam, validate({ body: universityBody }), async (req, res) => {
   try {
     const { _id, __v, ...updates } = req.body;
     if (!(await validImageUrl(updates.logo)) || !(await validImageUrl(updates.coverImage))) {
@@ -725,7 +784,7 @@ router.delete('/universities/:id', authMiddleware, adminOnly, blockAppTeam, asyn
 });
 
 // Course CRUD within a university
-router.post('/universities/:id/courses', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/universities/:id/courses', authMiddleware, adminOnly, blockAppTeam, validate({ body: courseBody }), async (req, res) => {
   try {
     const uni = await University.findById(req.params.id);
     if (!uni) return res.status(404).json({ message: 'University not found' });
@@ -736,7 +795,7 @@ router.post('/universities/:id/courses', authMiddleware, adminOnly, blockAppTeam
   } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
-router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/universities/:id/courses/:courseId', authMiddleware, adminOnly, blockAppTeam, validate({ body: courseBody }), async (req, res) => {
   try {
     const uni = await University.findById(req.params.id);
     if (!uni) return res.status(404).json({ message: 'University not found' });
@@ -767,7 +826,7 @@ router.get('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, re
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
-router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/countries', authMiddleware, adminOnly, blockAppTeam, validate({ body: countryBody }), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Country name is required' });
@@ -777,7 +836,7 @@ router.post('/countries', authMiddleware, adminOnly, blockAppTeam, async (req, r
   } catch (err) { sendServerError(res, err, 'Server error'); }
 });
 
-router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/countries/:id', authMiddleware, adminOnly, blockAppTeam, validate({ body: countryBody }), async (req, res) => {
   try {
     const { _id, __v, id: customId, ...updates } = req.body;
     const country = await Country.findByIdAndUpdate(req.params.id, updates, { new: true });
@@ -794,7 +853,7 @@ router.delete('/countries/:id', authMiddleware, adminOnly, blockAppTeam, async (
 });
 
 // Analytics overview
-router.get('/analytics', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.get('/analytics', authMiddleware, adminOnly, blockAppTeam, validate({ query: periodQuery }), async (req, res) => {
   try {
     const period = req.query.period || '30d';
     const periodDays = period === '7d' ? 7 : period === '90d' ? 90 : period === '1yr' ? 365 : 30;
@@ -903,7 +962,7 @@ router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, 
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
-router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, validate({ body: updateSubscriberBody }), async (req, res) => {
   try {
     const update = {};
     if (req.body.leadStatus !== undefined) {
@@ -914,7 +973,7 @@ router.put('/subscribers/:id', authMiddleware, adminOnly, blockAppTeam, async (r
     const sub = await Subscriber.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!sub) return res.status(404).json({ message: 'Subscriber not found' });
     res.json(sub);
-  } catch (err) { console.error('[admin/subscribers]', err); res.status(400).json({ message: 'Failed to update subscriber' }); }
+  } catch (err) { res.status(400).json({ message: err.message || 'Failed to update subscriber' }); }
 });
 
 // Unread-badge support: when the current admin last viewed the subscriber list
@@ -925,7 +984,7 @@ router.get('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
 });
 
-router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, validate({ body: noBody }), async (req, res) => {
   try {
     const seenAt = new Date();
     await User.updateOne({ _id: req.user.id }, { subscribersSeenAt: seenAt });
@@ -934,7 +993,7 @@ router.post('/subscribers/seen', authMiddleware, adminOnly, blockAppTeam, async 
 });
 
 // Assign a subscriber to a counselor as a follow-up task
-router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+router.post('/subscribers/:id/assign', authMiddleware, adminOnly, blockAppTeam, validate({ body: assignSubscriberBody }), async (req, res) => {
   const { counselorId, priority, dueDate, instructions } = req.body;
   if (!counselorId) return res.status(400).json({ message: 'Select a counselor' });
   try {

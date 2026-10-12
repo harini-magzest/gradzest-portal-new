@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -9,6 +8,7 @@ import {
   Edit2, Send, Clock, Award, CheckCircle, XCircle, BookOpen,
   GraduationCap, Calendar, FileText, User, UserCog, Globe, Save,
 } from 'lucide-react';
+import SignedFileLink from '../../components/SignedFileLink';
 
 const STATUSES = [
   { value: 'draft',          label: 'Draft',          icon: Edit2,        color: 'text-gray-600',   bg: 'bg-gray-100',   border: 'border-gray-300',   col: 'bg-gray-50' },
@@ -400,10 +400,10 @@ function DetailPanel({
                     <p className="text-[10px] text-gray-400">{doc.type} · {doc.status}</p>
                   </div>
                   {doc.url && (
-                    <a href={uploadUrl(doc.url)} download target="_blank" rel="noopener noreferrer"
+                    <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                       className="p-1 rounded hover:bg-indigo-100 text-indigo-600 transition-colors flex-shrink-0">
                       <Download className="w-3.5 h-3.5" />
-                    </a>
+                    </SignedFileLink>
                   )}
                 </div>
               ))}

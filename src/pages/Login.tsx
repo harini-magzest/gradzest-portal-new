@@ -51,30 +51,15 @@ export default function Login() {
     }
   };
 
-  const handleCode = async (code: string) => {
-    if (!challenge) return;
-    setSubmitting(true);
-    setCodeError('');
-    const result = await verifyTwoFactor(challenge, code);
-    setSubmitting(false);
-    if (result.success) {
-      if (result.recoveryCodesRemaining !== undefined) {
-        toast.warning(`You signed in with a recovery code. ${result.recoveryCodesRemaining} left; make new ones in Settings → Password & Security.`);
-      }
-      const redirectTo = searchParams.get('redirect');
-      if (redirectTo) navigate(redirectTo);
-      else redirectAfterLogin(result.role!, result.isAppTeam);
-    } else if (result.twoFactor === undefined && result.code === 'CHALLENGE_EXPIRED') {
-      // The five minutes ran out: start again from the password.
-      setChallenge(null);
-      toast.error(result.message || 'Your sign-in session expired. Please sign in again.');
-    } else {
-      setCodeError((result.twoFactor === undefined && result.message) || 'That code did not work. Please try again.');
-    }
-  };
-
-  const loginAs = async (demoEmail: string, demoPassword: string, redirectTo?: string) => {
+  const loginAs = async (demoEmail: string, redirectTo?: string) => {
     setEmail(demoEmail);
+    // No password is kept in the code: the seed prints one (or uses SEED_DEMO_PASSWORD), and VITE_DEMO_PASSWORD in
+    // .env.local makes these buttons sign in directly. Without it they only fill in the email.
+    if (!demoPassword) {
+      setPassword('');
+      toast.info('Email filled in. Type the demo password the seed printed, or set VITE_DEMO_PASSWORD in .env.local.');
+      return;
+    }
     setPassword(demoPassword);
     setSubmitting(true);
     const result = await login(demoEmail, demoPassword);
@@ -90,22 +75,25 @@ export default function Login() {
     }
   };
 
-  const demoAccounts = {
+  // Demo logins for local development only. The data itself is behind import.meta.env.DEV (which the production build
+  // folds to false), not just the buttons, so none of it ships in a production bundle.
+  const demoPassword = import.meta.env.DEV ? (import.meta.env.VITE_DEMO_PASSWORD || '') : '';
+  const demoAccounts = import.meta.env.DEV ? {
     admin: [
-      { email: 'admin@eduabroad.com', password: 'admin123', name: 'Admin', initials: 'AD' },
+      { email: 'admin@eduabroad.com', name: 'Admin', initials: 'AD' },
     ],
     counselors: [
-      { email: 'kavitha@eduabroad.com', password: 'counselor123', name: 'Dr. Kavitha Reddy', initials: 'KR' },
-      { email: 'rajesh@eduabroad.com', password: 'counselor123', name: 'Mr. Rajesh Kumar', initials: 'RK' },
+      { email: 'kavitha@eduabroad.com', name: 'Dr. Kavitha Reddy', initials: 'KR' },
+      { email: 'rajesh@eduabroad.com', name: 'Mr. Rajesh Kumar', initials: 'RK' },
     ],
     students: [
-      { email: 'aryan@example.com', password: 'student123', name: 'Aryan Sharma', initials: 'AS' },
-      { email: 'priya@example.com', password: 'student123', name: 'Priya Patel', initials: 'PP' },
-      { email: 'rashid@example.com', password: 'student123', name: 'Mohammed Al-Rashid', initials: 'MA' },
-      { email: 'lan@example.com', password: 'student123', name: 'Nguyen Thi Lan', initials: 'NL' },
-      { email: 'sara@example.com', password: 'student123', name: 'Sara Ahmed', initials: 'SA' },
+      { email: 'aryan@example.com', name: 'Aryan Sharma', initials: 'AS' },
+      { email: 'priya@example.com', name: 'Priya Patel', initials: 'PP' },
+      { email: 'rashid@example.com', name: 'Mohammed Al-Rashid', initials: 'MA' },
+      { email: 'lan@example.com', name: 'Nguyen Thi Lan', initials: 'NL' },
+      { email: 'sara@example.com', name: 'Sara Ahmed', initials: 'SA' },
     ],
-  };
+  } : { admin: [], counselors: [], students: [] };
 
   const anyLoading = submitting;
 
@@ -176,7 +164,7 @@ export default function Login() {
                 <p className="text-xs font-semibold text-purple-600 mb-2">Admin</p>
                 <div className="grid grid-cols-1 gap-2">
                   {demoAccounts.admin.map(a => (
-                    <button key={a.email} type="button" onClick={() => loginAs(a.email, a.password)} disabled={anyLoading}
+                    <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
                       <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">
@@ -192,7 +180,7 @@ export default function Login() {
                 <p className="text-xs font-semibold text-orange-600 mb-2">Application Team</p>
                 <div className="grid grid-cols-1 gap-2">
                   {demoAccounts.admin.map(a => (
-                    <button key={`appteam-${a.email}`} type="button" onClick={() => loginAs(a.email, a.password, '/appteam')} disabled={anyLoading}
+                    <button key={`appteam-${a.email}`} type="button" onClick={() => loginAs(a.email, '/appteam')} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-orange-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
                       <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs flex-shrink-0">AT</div>
                       <div className="flex-1 min-w-0">
@@ -208,7 +196,7 @@ export default function Login() {
                 <p className="text-xs font-semibold text-green-600 mb-2">Counselors</p>
                 <div className="grid grid-cols-1 gap-2">
                   {demoAccounts.counselors.map(a => (
-                    <button key={a.email} type="button" onClick={() => loginAs(a.email, a.password)} disabled={anyLoading}
+                    <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs flex-shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">
@@ -224,7 +212,7 @@ export default function Login() {
                 <p className="text-xs font-semibold text-[#0d1b4b] mb-2">Students</p>
                 <div className="grid grid-cols-1 gap-2">
                   {demoAccounts.students.map(a => (
-                    <button key={a.email} type="button" onClick={() => loginAs(a.email, a.password)} disabled={anyLoading}
+                    <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-blue-200 rounded-lg hover:border-sky-500 hover:bg-sky-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
                       <div className="w-8 h-8 bg-[#f0f4ff] rounded-full flex items-center justify-center text-[#0d1b4b] font-bold text-xs flex-shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">

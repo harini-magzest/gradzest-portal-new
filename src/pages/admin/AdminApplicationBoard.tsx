@@ -1,4 +1,3 @@
-import { uploadUrl } from '../../utils/uploadUrl';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FileText, Search, X, RefreshCw, AlertTriangle, Download,
@@ -9,6 +8,7 @@ import {
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import { usePortalName } from '../../hooks/usePortalName';
+import SignedFileLink from '../../components/SignedFileLink';
 
 /* ─── Constants ─────────────────────────────────────────────────────────────── */
 
@@ -377,8 +377,8 @@ function DetailPanel({
                     </div>
                   </div>
                   {doc.url ? (
-                    <a
-                      href={uploadUrl(doc.url)}
+                    <SignedFileLink
+                      href={doc.url}
                       download
                       target="_blank"
                       rel="noreferrer"
@@ -387,7 +387,7 @@ function DetailPanel({
                     >
                       <Download className="w-3 h-3" />
                       Download
-                    </a>
+                    </SignedFileLink>
                   ) : (
                     <span className="flex-shrink-0 text-[10px] text-gray-400 italic px-1">No file</span>
                   )}

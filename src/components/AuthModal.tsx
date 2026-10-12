@@ -25,10 +25,12 @@ export default function AuthModal() {
 
   // Development only. These are the seeded demo logins (server/seed.js); they must never be in a production bundle,
   // so both the data and the UI below sit behind import.meta.env.DEV, which the build folds to `false` and removes.
+  // No password is kept in the code: VITE_DEMO_PASSWORD (.env.local) fills it in, otherwise type the one the seed printed.
+  const DEMO_PASSWORD = import.meta.env.DEV ? (import.meta.env.VITE_DEMO_PASSWORD || '') : '';
   const DEMO_ACCOUNTS = import.meta.env.DEV ? [
-    { label: 'Student', email: 'aryan@example.com', password: 'student123', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-    { label: 'Counselor', email: 'kavitha@eduabroad.com', password: 'counselor123', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
-    { label: 'Admin', email: 'admin@eduabroad.com', password: 'admin123', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
+    { label: 'Student', email: 'aryan@example.com', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+    { label: 'Counselor', email: 'kavitha@eduabroad.com', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
+    { label: 'Admin', email: 'admin@eduabroad.com', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
   ] : [];
 
   const [regName, setRegName] = useState('');
@@ -186,7 +188,7 @@ export default function AuthModal() {
                     <button
                       key={acc.label}
                       type="button"
-                      onClick={() => { setLoginEmail(acc.email); setLoginPassword(acc.password); setLoginError(''); }}
+                      onClick={() => { setLoginEmail(acc.email); setLoginPassword(DEMO_PASSWORD); setLoginError(''); }}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${acc.color}`}
                     >
                       {acc.label}

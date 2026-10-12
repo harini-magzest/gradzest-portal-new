@@ -13,6 +13,35 @@ const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured
 const { recordStaffActivity } = require('../lib/staffActivity');
 
 const router = express.Router();
+const { validate, idParam } = require('../middleware/validate');
+const { z, objectId, text, textList, noBody } = require('../lib/schemas');
+
+// :roomId, :messageId and a group's :id are MongoDB ObjectIds (a call's :callId is not: phone-system calls have their own)
+for (const name of ['roomId', 'messageId', 'id']) router.param(name, idParam);
+
+// ── Request schemas (middleware/validate.js); unknown fields are refused ──
+const idList = (max) => z.array(objectId).max(max);
+const createGroupBody = z.object({ studentId: objectId, memberIds: idList(50).optional(), name: text(100).optional() }).strict();
+const updateGroupBody = z.object({ add: idList(50).optional(), remove: idList(50).optional(), name: text(100).optional() }).strict();
+// Message text is kept exactly as typed (no trimming)
+const sendMessageBody = z.object({ content: z.string().max(10000), senderName: text(100).optional(), replyToId: objectId.nullish() }).strict();
+const callHistoryQuery = z.object({
+  days: z.string().regex(/^\d{1,3}$/, 'Must be a number of days').optional(),
+  since: text(40).optional(), userId: objectId.optional(),
+});
+const callIdParams = z.object({ callId: z.string().min(1).max(200) }).strict();
+const callSummaryBody = z.object({ summary: z.string().max(5000), otherPartyName: text(200).optional(), startedAt: text(40).optional() }).strict();
+const reactionBody = z.object({ emoji: z.string().min(1).max(32) }).strict();
+const callLogBody = z.object({
+  participantIds: idList(20), callStatus: text(30), callDuration: z.number().min(0).max(86400), callerName: text(100).optional(),
+}).strict();
+// Multipart form fields (multer has already stored the file)
+const chatFileFields = z.object({ senderName: text(100).optional(), isOfferLetter: z.enum(['true', 'false']).optional() }).strict();
+const meetingBody = z.object({
+  senderName: text(100).optional(), meetingDate: text(20), meetingTime: text(20), meetingNotes: text(2000).optional(),
+}).strict();
+const roomTypeBody = z.object({ type: text(30) }).strict();
+const createRoomBody = z.object({ participantIds: idList(20), participantNames: textList(20, 100), type: text(30).optional() }).strict();
 
 // A room's messages, files and settings are private to its participants. These helpers are the only way
 // room-by-id routes should look a room up; a non-member gets the same 404 as a room that doesn't exist.
@@ -68,7 +97,7 @@ const notifyRoom = (req, room, exceptId) => {
 };
 
 // POST /api/chat/groups { studentId, memberIds[], name? }
-router.post('/groups', authMiddleware, async (req, res) => {
+router.post('/groups', authMiddleware, validate({ body: createGroupBody }), async (req, res) => {
   try {
     if (!(await isFullAdmin(req))) return res.status(403).json({ message: 'Only admins can create groups' });
     const { studentId, memberIds = [], name } = req.body;
@@ -107,7 +136,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
 // PUT /api/chat/groups/:id/members { add: [ids], remove: [ids], name? } — full admins.
 // Every add/remove/rename gets its own small system-message line in the room, WhatsApp-style,
 // so anyone opening the chat later can see what changed and when.
-router.put('/groups/:id/members', authMiddleware, async (req, res) => {
+router.put('/groups/:id/members', authMiddleware, validate({ body: updateGroupBody }), async (req, res) => {
   try {
     if (!(await isFullAdmin(req))) return res.status(403).json({ message: 'Only admins can change groups' });
     const room = await ChatRoom.findOne({ _id: req.params.id, type: 'group' });
@@ -218,7 +247,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 });
 
 // Send message
-router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
+router.post('/rooms/:roomId/messages', authMiddleware, validate({ body: sendMessageBody }), async (req, res) => {
   const { content, senderName, replyToId } = req.body;
   try {
     const target = await ChatRoom.findOne(memberFilter(req)).select('type participants messages._id messages.senderName messages.content messages.fileName');
@@ -272,9 +301,13 @@ router.post('/rooms/:roomId/messages', authMiddleware, async (req, res) => {
 const recordingUpload = (req, res, next) => upload.recording.single('recording')(req, res, err =>
   err ? res.status(400).json({ message: err.message }) : next());
 
-router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, async (req, res) => {
+router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, validate({ body: noBody }), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No recording uploaded' });
+    if (!upload.isRealRecording(req.file.path)) {
+      require('fs').unlink(req.file.path, () => {});
+      return res.status(400).json({ message: 'Only audio recordings are allowed' });
+    }
     const me = req.user.id.toString();
     const room = await ChatRoom.findOne({ participants: me, 'messages._id': req.params.messageId });
     const msg = room?.messages.id(req.params.messageId);
@@ -293,7 +326,7 @@ router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, asyn
 // Call history (in-app calls + Tata Smartflo phone calls) with recordings.
 // Everyone sees calls they took part in; full admins (not App Team) see all, optionally ?userId=.
 // GET /api/chat/calls/history?days=7|30|90&userId=   (or &since=<ISO date>, e.g. the start of today)
-router.get('/calls/history', authMiddleware, async (req, res) => {
+router.get('/calls/history', authMiddleware, validate({ query: callHistoryQuery }), async (req, res) => {
   const smartflo = require('../lib/smartflo');
   try {
     const me = req.user.id.toString();
@@ -357,13 +390,13 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     });
     res.json({ calls: page, smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
-    sendServerError(res, err);
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
 // Write or edit the summary of a call. Staff only; for in-app calls, only someone who was on the call.
 // PUT /api/chat/calls/:callId/summary  { summary, otherPartyName?, startedAt? }
-router.put('/calls/:callId/summary', authMiddleware, async (req, res) => {
+router.put('/calls/:callId/summary', authMiddleware, validate({ params: callIdParams, body: callSummaryBody }), async (req, res) => {
   if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
   const summary = typeof req.body.summary === 'string' ? req.body.summary.trim() : '';
   if (!summary) return res.status(400).json({ message: 'Summary required' });
@@ -408,7 +441,7 @@ router.put('/calls/:callId/summary', authMiddleware, async (req, res) => {
 
 // Toggle an emoji reaction on a message (members only). POST { emoji }
 const REACTIONS = ['👍', '❤️', '😂', '😮', '🙏', '✅'];
-router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, async (req, res) => {
+router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, validate({ body: reactionBody }), async (req, res) => {
   const { emoji } = req.body;
   if (!REACTIONS.includes(emoji)) return res.status(400).json({ message: 'Unsupported reaction' });
   try {
@@ -436,7 +469,7 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, asyn
 });
 
 // Log a call event into the shared room
-router.post('/rooms/call-log', authMiddleware, async (req, res) => {
+router.post('/rooms/call-log', authMiddleware, validate({ body: callLogBody }), async (req, res) => {
   const { participantIds, callStatus, callDuration, callerName } = req.body;
   const bad = participantListError(req, participantIds);
   if (bad) return res.status(400).json({ message: bad });
@@ -487,7 +520,7 @@ router.post('/rooms/call-log', authMiddleware, async (req, res) => {
 });
 
 // Send file in chat (+ auto-handle offer letters)
-router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUserEmail, upload.single('file'), scanUploadedFile, recordUpload('chat_file'), uploadToS3IfConfigured, async (req, res) => {
+router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUserEmail, upload.single('file'), validate({ body: chatFileFields }), scanUploadedFile, recordUpload('chat_file'), uploadToS3IfConfigured, async (req, res) => {
   const { senderName, isOfferLetter } = req.body;
   try {
     const fileUrl = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : null;
@@ -572,7 +605,7 @@ router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUse
 });
 
 // Schedule a meeting
-router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
+router.post('/rooms/:roomId/meetings', authMiddleware, validate({ body: meetingBody }), async (req, res) => {
   const { senderName, meetingDate, meetingTime, meetingNotes } = req.body;
   try {
     const displayRole = await resolveDisplayRole(req.user.id, req.user.role);
@@ -620,7 +653,7 @@ router.post('/rooms/:roomId/meetings', authMiddleware, async (req, res) => {
 });
 
 // Update room type (counselor relabels admin vs appteam rooms)
-router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
+router.patch('/rooms/:roomId', authMiddleware, validate({ body: roomTypeBody }), async (req, res) => {
   const { type } = req.body;
   try {
     const room = await ChatRoom.findOneAndUpdate(
@@ -636,7 +669,7 @@ router.patch('/rooms/:roomId', authMiddleware, async (req, res) => {
 
 // Mark all messages from others as read — for this user only. In a group, one member opening the chat
 // must not clear it for everyone else, so readers are tracked per message in readBy.
-router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
+router.put('/rooms/:roomId/read', authMiddleware, validate({ body: noBody }), async (req, res) => {
   try {
     const me = req.user.id.toString();
     const room = await ChatRoom.findOne(memberFilter(req)).select('participants');
@@ -652,7 +685,7 @@ router.put('/rooms/:roomId/read', authMiddleware, async (req, res) => {
 });
 
 // Create or get existing room
-router.post('/rooms', authMiddleware, async (req, res) => {
+router.post('/rooms', authMiddleware, validate({ body: createRoomBody }), async (req, res) => {
   const { participantIds, participantNames, type } = req.body;
   const bad = participantListError(req, participantIds);
   if (bad) return res.status(400).json({ message: bad });

@@ -1,7 +1,6 @@
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const { verifyAccessToken, verifyFileToken } = require('./lib/tokens');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -21,15 +20,23 @@ if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
   console.error('Missing required env vars: JWT_SECRET and MONGODB_URI must be set in server/.env');
   process.exit(1);
 }
-// A short or guessable signing secret lets anyone forge tokens for any account. Production refuses to start with one;
-// elsewhere it is a warning so local setups keep working. Generate one with:
-//   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-if (process.env.JWT_SECRET.length < 32) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('JWT_SECRET must be at least 32 characters in production.');
+// A weak or placeholder signing secret would let anyone forge admin tokens: refuse it in production, warn elsewhere.
+// FILE_URL_SECRET signs the short-lived /uploads links (lib/fileLinks.js). Outside production a missing one is derived
+// from JWT_SECRET; production needs its own, so a leak of one secret does not give away the other.
+{
+  const { secretProblem } = require('./lib/jwt');
+  const problems = [secretProblem(process.env.JWT_SECRET, 'JWT_SECRET')];
+  if (process.env.FILE_URL_SECRET || process.env.NODE_ENV === 'production') {
+    problems.push(secretProblem(process.env.FILE_URL_SECRET, 'FILE_URL_SECRET'));
+    if (process.env.FILE_URL_SECRET === process.env.JWT_SECRET) problems.push('FILE_URL_SECRET must differ from JWT_SECRET');
+  }
+  const found = problems.filter(Boolean);
+  if (found.length && process.env.NODE_ENV === 'production') {
+    for (const problem of found) console.error(problem);
+    console.error(`Generate a secret with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`);
     process.exit(1);
   }
-  console.warn('[warn] JWT_SECRET is shorter than 32 characters — use a long random value before deploying.');
+  if (process.env.NODE_ENV !== 'test') for (const problem of found) console.warn(`[security] ${problem} (allowed outside production only)`);
 }
 if (!process.env.SMTP_PASS) {
   console.warn('[warn] SMTP_PASS is not set — emails will not be delivered. Set SMTP_PASS in server/.env to enable email features.');
@@ -57,13 +64,10 @@ const httpServer = createServer(app);
 // included) — this depends on trust proxy being set above for req.ip to be correct.
 app.use(ipBlockMiddleware);
 
-// Only the verbs the API actually uses. TRACE/TRACK (cross-site tracing), CONNECT and any made-up method are refused
-// before routing, so they can't slip past middleware that only expects the usual verbs.
-const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+// TRACE/TRACK echo a request back (cross-site tracing) and CONNECT is for proxies: none is ever valid here
 app.use((req, res, next) => {
-  if (ALLOWED_METHODS.has(req.method)) return next();
-  res.set('Allow', [...ALLOWED_METHODS].join(', '));
-  res.status(405).json({ message: 'Method not allowed' });
+  if (!['TRACE', 'TRACK', 'CONNECT'].includes(req.method)) return next();
+  res.set('Allow', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS').status(405).json({ message: 'Method not allowed' });
 });
 markActive('ip_block', 'server/middleware/ipBlock.js mounted before CORS/helmet');
 refreshBlockedIps().catch(() => {});
@@ -226,22 +230,35 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Uploaded files: a signed-in user is not enough. Each download is resolved to its owner (a chat room, a student's
 // or counselor's document, an offer letter) and checked — see lib/fileAccess.js. Unknown files are admin-only.
-// A link (<img src>, new tab) can't send a header, so it carries ?token= — but only a file token (lib/tokens.js), never
-// the API access token: URLs end up in history, proxy logs and Referer headers.
+// The browser opens a file with a short-lived signed link (POST /api/files/:name/link, lib/fileLinks.js). The older
+// way, the access token in ?token=, put a token for the whole API into URLs; it only works while
+// ALLOW_LEGACY_UPLOAD_TOKENS allows it (off in production unless turned on for the switch-over).
 app.use('/uploads', async (req, res, next) => {
-  const headerToken = req.headers.authorization?.split(' ')[1];
-  const queryToken = typeof req.query.token === 'string' ? req.query.token : '';
-  if (!headerToken && !queryToken) return res.status(401).json({ message: 'Authentication required' });
-  let decoded;
+  const { isBlocked, tokenRevoked, currentAccess } = require('./lib/accountState');
+  const { checkSignedUpload, legacyUploadTokensAllowed } = require('./lib/fileLinks');
   try {
-    decoded = headerToken ? verifyAccessToken(headerToken) : verifyFileToken(queryToken);
-  } catch {
-    return res.status(401).json({ message: 'Invalid or expired token' });
-  }
-  try {
-    if (await require('./lib/accountState').isBlocked(decoded.id)) return res.status(401).json({ message: 'This account is no longer active.' });
     const name = decodeURIComponent(req.path).replace(/^\/+/, '');
-    if (!(await require('./lib/fileAccess').canAccessUpload(decoded, name))) return res.status(404).json({ message: 'File not found' });
+    let user;
+    if (req.query.sig !== undefined) {
+      const link = checkSignedUpload(name, req.query);
+      if (link.error === 'expired') return res.status(403).json({ message: 'This link has expired. Open the file again from the app.' });
+      if (link.error) return res.status(403).json({ message: 'Invalid link' });
+      // The account's current role, not one captured when the link was made; and "sign out everywhere" ends links too
+      user = await currentAccess(link.userId);
+      if (!user || await tokenRevoked({ id: link.userId, iatMs: link.issuedAt })) {
+        return res.status(401).json({ message: 'This account is no longer active.' });
+      }
+    } else {
+      const token = req.headers.authorization?.split(' ')[1] || (legacyUploadTokensAllowed() ? req.query.token : undefined);
+      if (!token) return res.status(401).json({ message: 'Authentication required' });
+      try {
+        user = require('./lib/jwt').verifyAccessToken(token);
+      } catch {
+        return res.status(401).json({ message: 'Invalid or expired token' });
+      }
+      if (await isBlocked(user.id) || await tokenRevoked(user)) return res.status(401).json({ message: 'This account is no longer active.' });
+    }
+    if (!(await require('./lib/fileAccess').canAccessUpload(user, name))) return res.status(404).json({ message: 'File not found' });
     next();
   } catch {
     res.status(404).json({ message: 'File not found' });
@@ -382,6 +399,7 @@ app.use('/api/users',         require('./routes/users'));
 app.use('/api/zest',          require('./routes/zest'));
  app.use('/api/dashboards',    require('./routes/dashboards'));
 app.use('/api/forms',         require('./routes/forms'));
+app.use('/api/files',         require('./routes/files'));
 
 // Health check — no auth required, used by hosting platforms and monitoring. Says only whether the service is up:
 // no environment name, versions or uptime for an unauthenticated caller.
@@ -393,6 +411,7 @@ app.get('/api/health', (req, res) => {
   res.status(ok ? 200 : 503).json({
     status: ok ? 'ok' : 'degraded',
     db: dbStatus,
+    uptime,
     timestamp: new Date().toISOString(),
   });
 });
@@ -402,8 +421,9 @@ io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('Unauthorized'));
   try {
-    const decoded = verifyAccessToken(token);
-    if (await require('./lib/accountState').isBlocked(decoded.id)) return next(new Error('Unauthorized'));
+    const decoded = require('./lib/jwt').verifyAccessToken(token);
+    const { isBlocked, tokenRevoked } = require('./lib/accountState');
+    if (await isBlocked(decoded.id) || await tokenRevoked(decoded)) return next(new Error('Unauthorized'));
     socket.data.userId = String(decoded.id);
     socket.data.role = decoded.role;
     socket.data.isAppTeam = !!decoded.isAppTeam;
@@ -539,6 +559,10 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// Unknown API paths (or a known path with a method it doesn't support) get a plain JSON 404, not Express's HTML page
+// naming the method and path
+app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
 
 // Global error handler — catches anything thrown in routes
 app.use((err, req, res, next) => {

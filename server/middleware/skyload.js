@@ -15,10 +15,10 @@
 // server genuinely can defend against.
 
 const { scoreRequest } = require('../lib/skyload/botDetection');
+const { redactUrl } = require('../lib/redactUrl');
 const { tryAcquire, release } = require('../lib/skyload/connectionThrottle');
 const { bump } = require('../lib/skyload/riskRegistry');
 const { logSecurityEvent } = require('./logSecurityEvent');
-const { verifyAccessToken } = require('../lib/tokens');
 const { clientKey, isAssetRequest } = require('../lib/clientKey');
 
 // Pool size for logo/favicon image requests, separate from the data-call cap (NORMAL_LIMIT in connectionThrottle.js)
@@ -40,7 +40,7 @@ function isTrustedSocAdmin(req) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return false;
   try {
-    const p = verifyAccessToken(token);
+    const p = require('../lib/jwt').verifyAccessToken(token);
     return p.role === 'admin' && !p.isAppTeam;
   } catch {
     return false;
@@ -82,7 +82,7 @@ function skyload(req, res, next) {
       severity: score >= 6 ? 'high' : 'medium',
       ip: req.ip,
       userAgent: req.headers['user-agent'] || '',
-      message: `Skyload flagged ${req.method} ${req.originalUrl} (score ${score}): ${reasons.join(', ')}`,
+      message: `Skyload flagged ${req.method} ${redactUrl(req.originalUrl)} (score ${score}): ${reasons.join(', ')}`,
       meta: { score, reasons },
     }).catch(() => {});
   }

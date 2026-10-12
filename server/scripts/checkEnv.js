@@ -23,6 +23,18 @@ const aiMissing = !aiKeys.some((k) => process.env[k]);
 const key = process.env.DATA_ENCRYPTION_KEY;
 const problems = [];
 if (key && !/^[0-9a-fA-F]{64}$/.test(key)) problems.push('DATA_ENCRYPTION_KEY must be exactly 64 hex characters');
+// The same strength rules the server applies at start-up (it refuses to start in production when one fails)
+const { secretProblem } = require('../lib/jwt');
+if (process.env.JWT_SECRET) {
+  const p = secretProblem(process.env.JWT_SECRET, 'JWT_SECRET');
+  if (p) problems.push(p);
+}
+// Signs the short-lived file links. Required in production; a development machine derives one from JWT_SECRET.
+if (process.env.FILE_URL_SECRET || process.env.NODE_ENV === 'production') {
+  const p = secretProblem(process.env.FILE_URL_SECRET, 'FILE_URL_SECRET');
+  if (p) problems.push(p);
+  else if (process.env.FILE_URL_SECRET === process.env.JWT_SECRET) problems.push('FILE_URL_SECRET must differ from JWT_SECRET');
+}
 
 for (const [k, why] of missing) console.log(`MISSING  ${k}  (${why})`);
 if (aiMissing) console.log(`MISSING  one of ${aiKeys.join(' / ')}  (${aiWhy})`);

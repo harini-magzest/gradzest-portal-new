@@ -931,6 +931,12 @@ export const api = {
   },
 
   // Marketing web forms (Admin → Settings → Forms) and their public pages at /f/:slug
+  // A five-minute link to one stored file (/uploads/<name>) for the signed-in person; see utils/uploadUrl.ts
+  files: {
+    link: (name: string) =>
+      req<{ url: string; expiresAt: string }>(`/files/${encodeURIComponent(name)}/link`, { method: 'POST', headers: authHeaders() }),
+  },
+
   forms: {
     list: () => req<LeadForm[]>('/forms', { headers: authHeaders() }),
     create: (data: LeadFormInput) => req<LeadForm>('/forms', { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) }),
