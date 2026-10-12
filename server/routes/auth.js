@@ -2,7 +2,6 @@ const express = require('express');
 const { logError } = require('../lib/logError');
 const { sendServerError } = require('../lib/httpError');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
@@ -27,7 +26,7 @@ function createMailer() {
 const router = express.Router();
 
 function issueAccessToken(user) {
-  return jwt.sign({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, process.env.JWT_SECRET, { expiresIn: '15m' });
+  return require('../lib/jwt').signAccessToken({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, { expiresIn: '15m' });
 }
 
 const MAX_SESSIONS = 5;

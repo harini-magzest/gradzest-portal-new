@@ -10,28 +10,12 @@ const net = require('net');
 // (the hostname's answer changes between this check and the real fetch, milliseconds later) is
 // a known residual risk. Accepted here because the threat model is a trusted admin pasting a
 // URL or an automated scrape of a third-party page, not an anonymous attacker racing DNS.
-function isPrivateIPv4(ip) {
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return true;
-  const [a, b] = parts;
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 0) return true;
-  if (a === 169 && b === 254) return true; // link-local, includes the cloud metadata IP
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-  return false;
-}
-
-function isPrivateIPv6(ip) {
-  const lower = ip.toLowerCase();
-  if (lower === '::1') return true;
-  if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local, fc00::/7
-  if (/^fe[89ab]/.test(lower)) return true; // link-local, fe80::/10
-  if (lower.startsWith('::ffff:')) return isPrivateIPv4(lower.slice(7)); // IPv4-mapped
-  return false;
-}
+// Both checks use safeHttp's address test, the stricter of the two the app had: this one used to let through the IPv6
+// unspecified address (::, which can reach the local machine), multicast ranges and NAT64 (64:ff9b::/96, which can
+// wrap a private IPv4 address).
+const { isPrivateAddress } = require('./safeHttp');
+const isPrivateIPv4 = (ip) => isPrivateAddress(ip);
+const isPrivateIPv6 = (ip) => isPrivateAddress(ip);
 
 /**
  * Throws if the URL isn't a plain http(s) URL pointing at a public address.

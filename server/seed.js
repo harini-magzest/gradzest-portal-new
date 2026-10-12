@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const User = require('./models/User');
@@ -166,6 +167,10 @@ const universityData = [
 ];
 
 async function run() {
+  // Wipes every user and recreates demo accounts with passwords that are in this file. Never against production data.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production: it deletes all users and creates accounts with known passwords.');
+  }
   await User.deleteMany({});
   await University.deleteMany({});
   await ChatRoom.deleteMany({});
@@ -174,10 +179,13 @@ async function run() {
   await University.insertMany(universityData);
   console.log('Universities seeded');
 
-  const studentPass = await bcrypt.hash('student123', 10);
-  const counselorPass = await bcrypt.hash('counselor123', 10);
-  const adminPass = await bcrypt.hash('admin123', 10);
-  const demoPass = await bcrypt.hash('demo123', 10);
+  // One password for every demo account, never one from the source code: SEED_DEMO_PASSWORD when set (so it can match
+  // VITE_DEMO_PASSWORD for the one-click demo logins), otherwise a random one printed at the end.
+  const demoPassword = process.env.SEED_DEMO_PASSWORD || crypto.randomBytes(18).toString('base64url');
+  const studentPass = await bcrypt.hash(demoPassword, 10);
+  const counselorPass = studentPass;
+  const adminPass = studentPass;
+  const demoPass = studentPass;
 
   await User.create({
     name: 'Admin', email: 'admin@eduabroad.com', password: adminPass, role: 'admin',
@@ -341,9 +349,10 @@ async function run() {
   console.log('Countries seeded');
 
   console.log('\n=== Seed complete! ===');
-  console.log('Admin login: admin@eduabroad.com / admin123');
-  console.log('Student login: aryan@example.com / student123');
-  console.log('Counselor login: kavitha@eduabroad.com / counselor123');
+  console.log('Demo logins: admin@eduabroad.com, kavitha@eduabroad.com, aryan@example.com (and the other seeded students)');
+  console.log(process.env.SEED_DEMO_PASSWORD
+    ? 'Password for all of them: the value of SEED_DEMO_PASSWORD'
+    : `Password for all of them (shown once): ${demoPassword}`);
 }
 
 const countryData = [

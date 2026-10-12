@@ -275,6 +275,10 @@ const recordingUpload = (req, res, next) => upload.recording.single('recording')
 router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No recording uploaded' });
+    if (!upload.isRealRecording(req.file.path)) {
+      require('fs').unlink(req.file.path, () => {});
+      return res.status(400).json({ message: 'Only audio recordings are allowed' });
+    }
     const me = req.user.id.toString();
     const room = await ChatRoom.findOne({ participants: me, 'messages._id': req.params.messageId });
     const msg = room?.messages.id(req.params.messageId);
@@ -357,7 +361,7 @@ router.get('/calls/history', authMiddleware, async (req, res) => {
     });
     res.json({ calls: page, smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 

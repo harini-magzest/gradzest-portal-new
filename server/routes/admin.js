@@ -179,6 +179,7 @@ router.put('/users/:id/appteam', authMiddleware, adminOnly, blockAppTeam, attach
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+    require('../lib/accountState').invalidate(user._id); // the new access applies to their next request, not in 10s
     if (makeAppTeam) logPrivilegeChange(req, `Application Team access granted to ${user.email}`);
     res.json(user.toJSON());
   } catch (err) {

@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendServerError } = require('../lib/httpError');
 const { logError } = require('../lib/logError');
 const User = require('../models/User');
 const { buildCounselorPerformance } = require('../lib/counselorPerformance');
@@ -80,7 +81,7 @@ router.get('/me/performance', authMiddleware, async (req, res) => {
     if (!counselor) return res.status(404).json({ message: 'Counselor not found' });
     res.json(await buildCounselorPerformance(counselor, req.query.days));
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 

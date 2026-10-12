@@ -1,4 +1,10 @@
 const axios = require("axios");
+const { fetchPublicPage } = require("./safeHttp");
+
+// The two website fetches below used plain axios; this keeps their axios-style `{ data }` shape while routing them
+// through the SSRF-safe fetcher (public addresses only, re-checked on every redirect, size-capped).
+const fetchPublicPageAsResponse = (url, { timeout, headers } = {}) =>
+  fetchPublicPage(url, { timeout, headers }).then((data) => ({ data }));
 
 const WIKI_HEADERS = {
   "User-Agent":
@@ -435,7 +441,9 @@ async function fetchCoursesFromWebsite(website, currency) {
   // Fetch homepage first to discover course-listing links
   let discoveredPaths = [];
   try {
-    const homeRes = await axios.get(base, {
+    // The website comes from an admin or from Wikidata, so it goes through the SSRF-safe fetcher: a website set to an
+    // internal address (http://169.254.169.254/, http://localhost:5000, 10.x…) is refused instead of fetched.
+    const homeRes = await fetchPublicPageAsResponse(base, {
       timeout: 6000,
       headers: {
         "User-Agent":
@@ -483,8 +491,7 @@ async function fetchCoursesFromWebsite(website, currency) {
 
   const htmlPages = await Promise.allSettled(
     allPaths.map((p) =>
-      axios
-        .get(base + p, {
+      fetchPublicPageAsResponse(base + p, {
           timeout: 6000,
           headers: {
             "User-Agent":

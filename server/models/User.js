@@ -302,6 +302,8 @@ const UserSchema = new mongoose.Schema({
   // Active login sessions — one per device, each with its own refresh token
   // (stored as a SHA-256 hash), so logging in on a new device doesn't invalidate others.
   sessions: { type: [SessionSchema], default: [] },
+  // Access tokens issued before this moment are refused ("sign out everywhere"; see lib/accountState.js)
+  sessionsRevokedAt: { type: Date, default: null },
 
   // Two-factor sign-in with an authenticator app (see lib/twoFactor.js). Everything secret is `select: false`, so no
   // query returns it unless a route asks for it by name ('+twoFactor.secret'); toJSON below also cuts the block down to
@@ -356,6 +358,15 @@ UserSchema.set('toJSON', {
   // which applies public/private visibility (lib/studentNotes.js).
   transform: (doc, ret) => {
     delete ret.counselorNotes;
+    // Credentials and their hashes never leave the server, whichever route serialises the user: the password hash,
+    // each session's refresh-token hash, and pending email-verification / password-reset tokens. Routes that need them
+    // (sign-in, refresh, reset, the SOC session list) read the document's fields directly, never through toJSON.
+    delete ret.password;
+    delete ret.sessions;
+    delete ret.emailVerifyToken;
+    delete ret.emailVerifyExpires;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpires;
     // Whatever was selected, a user object never carries 2FA secrets, only whether it is on.
     if (ret.twoFactor) ret.twoFactor = { enabled: !!ret.twoFactor.enabled };
     return ret;

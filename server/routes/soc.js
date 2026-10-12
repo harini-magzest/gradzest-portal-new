@@ -401,7 +401,7 @@ router.get('/incidents/:id', authMiddleware, adminOnly, async (req, res) => {
     if (!incident) return res.status(404).json({ message: 'Incident not found' });
     res.json({ incident, slaPolicy: SLA_POLICY });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -531,7 +531,7 @@ router.patch('/incidents/bulk', authMiddleware, adminOnly, attachUserEmail, asyn
     }
     res.json({ updated, failed });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -782,7 +782,7 @@ router.post('/investigate/user/:id/lock', authMiddleware, adminOnly, attachUserE
     logAnalystAction({ analyst: req.user, action: locked ? 'lock_account' : 'unlock_account', targetType: 'user', targetId: user._id, reason: String(req.body?.reason || '').slice(0, 300) || (locked ? `Locked ${user.email}` : `Unlocked ${user.email}`), io: req.app.get('io') });
     res.json({ locked, message: locked ? 'Account locked and all sessions revoked.' : 'Account unlocked.' });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -842,7 +842,7 @@ router.get('/uploads', authMiddleware, adminOnly, async (req, res) => {
       summary: byStatus.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {}),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -880,7 +880,7 @@ router.post('/uploads/:id/quarantine', authMiddleware, adminOnly, attachUserEmai
     logAnalystAction({ analyst: req.user, action: `${action}_upload`, targetType: 'upload', targetId: rec._id, reason: `${rec.originalName}${req.body?.reason ? ' — ' + String(req.body.reason).slice(0, 200) : ''}`, io });
     res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -912,7 +912,7 @@ router.post('/uploads/:id/review', authMiddleware, adminOnly, attachUserEmail, a
     }
     res.json({ ...rec.toObject(), vtLink: vtLink(rec.sha256) });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -955,7 +955,7 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
       users: users.map((u) => ({ userId: u._id, email: u.email, role: u.role, actions: u.actions, distinctPages: u.distinctPages, lastActive: u.lastActive })),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -989,7 +989,7 @@ router.get('/ui-activity/export.csv', authMiddleware, adminOnly, attachUserEmail
       { label: 'IP', key: 'ip' },
     ], rows);
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
@@ -1010,7 +1010,7 @@ router.get('/ui-activity', authMiddleware, adminOnly, async (req, res) => {
     }
     res.json({ activity: rows, total, skip, limit, truncated, trackedRoles: require('./uiTrail').trackedRoles() });
   } catch (err) {
-    res.status(500).json({ message: err.message || 'Server error' });
+    sendServerError(res, err); // logs the details server-side; the client gets a generic message
   }
 });
 
