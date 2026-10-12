@@ -13,6 +13,10 @@ const { fireEvent } = require('../lib/automation');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
 const { recordSignInActivity } = require('../lib/recordSignIn');
 const { isAdminLocked, invalidate: invalidateAccountState } = require('../lib/accountState');
+const { validatePasswordStrength } = require('../lib/passwordPolicy');
+const { lockMessage, registerFailedAttempt } = require('../lib/loginAttempts');
+const twoFactor = require('../lib/twoFactor');
+const { issueAccessToken, issueRefreshToken, setRefreshCookie } = require('../lib/sessionTokens');
 const { validate } = require('../middleware/validate');
 const { z, email, password, text, requiredText, noBody, ids } = require('../lib/schemas');
 
@@ -30,6 +34,9 @@ const emailOnlyBody = z.object({ email }).strict();
 const resetPasswordBody = z.object({ token: requiredText(200), password }).strict();
 // Not strict: the link arrives from an email, and mail tracking may add its own parameters
 const verifyEmailQuery = z.object({ token: requiredText(200) });
+// The second step of a two-factor sign-in: the challenge from the password step and the 6-digit (or recovery) code.
+// A missing challenge is left to the route, which answers it like an expired one (401: sign in again).
+const twoFactorLoginBody = z.object({ challengeToken: text(4000).optional(), code: requiredText(40), device: deviceHints.optional() }).strict();
 
 function createMailer() {
   return nodemailer.createTransport({
@@ -42,9 +49,8 @@ function createMailer() {
 
 const router = express.Router();
 
-function issueAccessToken(user) {
-  return require('../lib/jwt').signAccessToken({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, { expiresIn: '15m' });
-}
+// Access tokens come from lib/sessionTokens (signed in lib/tokens); the download-only file token from lib/tokens
+const { issueFileToken } = require('../lib/tokens');
 
 const MAX_SESSIONS = 5;
 
@@ -167,12 +173,12 @@ async function completeLogin(user, req, res, { twoFactorMethod, recoveryCodesRem
   const userObj = user.toJSON();
   delete userObj.password;
 
-  res.json({ token: accessToken, user: userObj, ...(recoveryCodesRemaining !== undefined && { recoveryCodesRemaining }) });
+  res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj, ...(recoveryCodesRemaining !== undefined && { recoveryCodesRemaining }) });
 }
 
 // POST /auth/2fa/login — the second sign-in step: the challenge from /login plus a code from the authenticator app (or an
 // unused recovery code). A wrong code counts toward the same lockout as a wrong password.
-router.post('/2fa/login', async (req, res) => {
+router.post('/2fa/login', validate({ body: twoFactorLoginBody }), async (req, res) => {
   const { challengeToken, code } = req.body || {};
   const expired = { message: 'Your sign-in session expired. Please sign in again.', code: 'CHALLENGE_EXPIRED' };
   const userId = twoFactor.readChallenge(challengeToken);
@@ -202,7 +208,18 @@ router.post('/2fa/login', async (req, res) => {
       });
     }
 
-    res.json({ token: accessToken, fileToken: issueFileToken(user), user: userObj });
+    // Restored from c06a546: the merge of #128 replaced this with a line that referenced variables this route never had
+    if (result.method === 'recovery') {
+      logSecurityEvent('two_factor_change', {
+        severity: 'medium', userId: user._id, email: user.email, role: user.role,
+        ip: req.ip, userAgent: req.headers['user-agent'] || '',
+        message: `Signed in with a recovery code (${result.remaining} left)`, meta: { action: 'recovery_used', remaining: result.remaining },
+      }).catch(() => {});
+    }
+    await completeLogin(user, req, res, {
+      twoFactorMethod: result.method,
+      recoveryCodesRemaining: result.method === 'recovery' ? result.remaining : undefined,
+    });
   } catch (err) {
     console.error('[auth/2fa/login]', err);
     res.status(500).json({ message: 'Server error' });

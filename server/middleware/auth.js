@@ -1,4 +1,4 @@
-const { verifyAccessToken } = require('../lib/jwt');
+const { verifyAccessToken } = require('../lib/tokens');
 const { logSecurityEvent } = require('./logSecurityEvent');
 const { redactUrl } = require('../lib/redactUrl');
 const { isBlocked, tokenRoleIsCurrent, tokenRevoked } = require('../lib/accountState');

@@ -24,7 +24,7 @@ const key = process.env.DATA_ENCRYPTION_KEY;
 const problems = [];
 if (key && !/^[0-9a-fA-F]{64}$/.test(key)) problems.push('DATA_ENCRYPTION_KEY must be exactly 64 hex characters');
 // The same strength rules the server applies at start-up (it refuses to start in production when one fails)
-const { secretProblem } = require('../lib/jwt');
+const { secretProblem } = require('../lib/tokens');
 if (process.env.JWT_SECRET) {
   const p = secretProblem(process.env.JWT_SECRET, 'JWT_SECRET');
   if (p) problems.push(p);

@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import TwoFactorStep from '../components/TwoFactorStep';
 import { safeRedirectPath } from '../lib/safeUrl';
-import TwoFactorStep from '../components/TwoFactorStep';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -48,6 +47,28 @@ export default function Login() {
     } else {
       // Show the server's reason (wrong password, account locked, too many attempts…)
       toast.error(result.message || 'Invalid email or password.');
+    }
+  };
+
+  const handleCode = async (code: string) => {
+    if (!challenge) return;
+    setSubmitting(true);
+    setCodeError('');
+    const result = await verifyTwoFactor(challenge, code);
+    setSubmitting(false);
+    if (result.success) {
+      if (result.recoveryCodesRemaining !== undefined) {
+        toast.warning(`You signed in with a recovery code. ${result.recoveryCodesRemaining} left; make new ones in Settings → Password & Security.`);
+      }
+      const redirectTo = searchParams.get('redirect');
+      if (redirectTo) navigate(redirectTo);
+      else redirectAfterLogin(result.role!, result.isAppTeam);
+    } else if (result.twoFactor === undefined && result.code === 'CHALLENGE_EXPIRED') {
+      // The five minutes ran out: start again from the password.
+      setChallenge(null);
+      toast.error(result.message || 'Your sign-in session expired. Please sign in again.');
+    } else {
+      setCodeError((result.twoFactor === undefined && result.message) || 'That code did not work. Please try again.');
     }
   };
 

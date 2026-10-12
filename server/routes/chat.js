@@ -390,7 +390,7 @@ router.get('/calls/history', authMiddleware, validate({ query: callHistoryQuery 
     });
     res.json({ calls: page, smartflo: sf, canSeeAll: fullAdmin });
   } catch (err) {
-    sendServerError(res, err); // logs the details server-side; the client gets a generic message
+    sendServerError(res, err);
   }
 });
 

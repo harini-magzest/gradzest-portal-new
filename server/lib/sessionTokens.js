@@ -1,15 +1,12 @@
 // Access tokens, refresh-token sessions and the refresh cookie. Shared by every route that starts a session: sign-in
 // (routes/auth.js) and the password change (routes/account.js), which replaces this device's session after revoking the rest.
 
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+// Signed in one place (lib/tokens.js): algorithm pinned, and the millisecond issue time session revocation relies on
+const { issueAccessToken } = require('./tokens');
 
 const MAX_SESSIONS = 5;
-
-function issueAccessToken(user) {
-  return jwt.sign({ id: user._id, role: user.role, isAppTeam: !!user.isAppTeam }, process.env.JWT_SECRET, { expiresIn: '15m' });
-}
 
 // Issues a new refresh token as its own session, independent of any other
 // device the user is already logged in on (up to MAX_SESSIONS at a time;

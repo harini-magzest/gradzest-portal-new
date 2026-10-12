@@ -10,7 +10,6 @@ import { api } from '../../api';
 import { useMarkRoomRead, unreadCount, unreadInRooms } from '../../hooks/useMarkRoomRead';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
-import DraftWithZest from '../../components/zest/DraftWithZest';
 import SignedFileLink from '../../components/SignedFileLink';
 
 const formatDuration = (s: number) => {

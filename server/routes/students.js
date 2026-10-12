@@ -705,7 +705,8 @@ router.post('/:id/emails', authMiddleware, can('students.email'), async (req, re
     });
     res.json({ ok: true });
   } catch (err) {
-    res.status(502).json({ message: `Email could not be sent: ${err.message}` });
+    console.error('[students/email]', err);
+    res.status(502).json({ message: 'Email could not be sent. Please try again later.' });
   }
 });
 

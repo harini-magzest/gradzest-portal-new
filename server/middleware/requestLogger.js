@@ -1,5 +1,6 @@
 const RequestLog = require('../models/RequestLog');
 const { checkSuspiciousIpRule } = require('../lib/detectIncidents');
+const { createRequestLogBuffer, DEFAULT_FLUSH_MS } = require('../lib/requestLogBuffer');
 const { redactUrl } = require('../lib/redactUrl');
 
 // Response codes worth an immediate live ping to admins, on top of the
@@ -33,13 +34,15 @@ function requestLogger(req, res, next) {
       userAgent: req.headers['user-agent'] || '',
       userId: req.user?.id || null,
       role: req.user?.role || '',
-    }).then((entry) => {
-      if (ALERTABLE_STATUSES.includes(res.statusCode)) {
-        req.app.get('io')?.to('admin-room').emit('security_request_alert', {
-          method: req.method, path: redactUrl(req.originalUrl), status: res.statusCode, ip: req.ip, at: new Date(),
-        });
-        checkSuspiciousIpRule(entry, req.app.get('io')).catch((err) => console.error('[detectIncidents] Failed:', err.message));
-      }
+    };
+
+    if (!ALERTABLE_STATUSES.includes(res.statusCode)) { buffer.add(row); return; }
+
+    RequestLog.create(row).then((entry) => {
+      req.app.get('io')?.to('admin-room').emit('security_request_alert', {
+        method: req.method, path: row.path, status: res.statusCode, ip: req.ip, at: new Date(),
+      });
+      checkSuspiciousIpRule(entry, req.app.get('io')).catch((err) => console.error('[detectIncidents] Failed:', err.message));
     }).catch((err) => console.error('[requestLogger] Failed:', err.message));
   });
 

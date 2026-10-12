@@ -19,6 +19,7 @@ const { redactUrl } = require('../lib/redactUrl');
 const { tryAcquire, release } = require('../lib/skyload/connectionThrottle');
 const { bump } = require('../lib/skyload/riskRegistry');
 const { logSecurityEvent } = require('./logSecurityEvent');
+const { verifyAccessToken } = require('../lib/tokens');
 const { clientKey, isAssetRequest } = require('../lib/clientKey');
 
 // Pool size for logo/favicon image requests, separate from the data-call cap (NORMAL_LIMIT in connectionThrottle.js)
@@ -40,7 +41,7 @@ function isTrustedSocAdmin(req) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return false;
   try {
-    const p = require('../lib/jwt').verifyAccessToken(token);
+    const p = verifyAccessToken(token);
     return p.role === 'admin' && !p.isAppTeam;
   } catch {
     return false;

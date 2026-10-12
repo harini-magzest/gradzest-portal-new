@@ -376,11 +376,15 @@ describe('two-factor sign-in', () => {
       const { agent, token } = await signIn(admin);
 
       const res = await agent.put(`/api/admin/counselors/${staff.id}`).set(bearer(token)).send({ title: 'Senior', twoFactor: { enabled: false } });
-      expect(res.status).toBe(200);
+      // Request validation (middleware/validate.js) refuses fields the edit form does not have, instead of ignoring them
+      expect(res.status).toBe(400);
+      expect(res.body.errors.map((e) => e.field)).toContain('twoFactor');
       const after = await User.findById(staff.id).select(twoFactor.SECRET_FIELDS);
-      expect(after.title).toBe('Senior');
       expect(after.twoFactor.enabled).toBe(true);
       expect(after.twoFactor.secret).toBeTruthy();
+      // the same edit without the 2FA field goes through
+      expect((await agent.put(`/api/admin/counselors/${staff.id}`).set(bearer(token)).send({ title: 'Senior' })).status).toBe(200);
+      expect((await User.findById(staff.id)).title).toBe('Senior');
     });
 
     it("a student cannot switch off their own 2FA through their profile", async () => {

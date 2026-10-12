@@ -167,9 +167,10 @@ const universityData = [
 ];
 
 async function run() {
-  // Wipes every user and recreates demo accounts with passwords that are in this file. Never against production data.
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Refusing to run the demo seed with NODE_ENV=production: it deletes all users and creates accounts with known passwords.');
+  // Wipes every user and recreates the demo accounts: never against a production database. ALLOW_DEMO_SEED=true
+  // overrides this, for a disposable environment only.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production (set ALLOW_DEMO_SEED=true to override).');
   }
   await User.deleteMany({});
   await University.deleteMany({});

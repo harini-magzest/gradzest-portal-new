@@ -79,10 +79,11 @@ describe('POST /api/zest/documents/:id/replace', () => {
     expect((await request(app).post(`/api/zest/documents/${d._id}/replace`).set(as(student))).status).toBe(403);
   });
 
-  it('says not found for an unknown or malformed id before any file is handled', async () => {
+  it('refuses an unknown or malformed id before any file is handled', async () => {
     const admin = await mk('admin');
     expect((await request(app).post('/api/zest/documents/000000000000000000000000/replace').set(as(admin))).status).toBe(404);
-    expect((await request(app).post('/api/zest/documents/not-an-id/replace').set(as(admin))).status).toBe(404);
+    // A malformed id is refused by request validation (middleware/validate.js), before the upload is read
+    expect((await request(app).post('/api/zest/documents/not-an-id/replace').set(as(admin))).status).toBe(400);
   });
 });
 
