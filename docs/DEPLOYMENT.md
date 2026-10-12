@@ -18,6 +18,14 @@ address into the Content-Security-Policy. If `VITE_API_URL` is empty the CSP all
 
 Never put a secret in a `VITE_*` variable: everything with that prefix is copied into the public JavaScript.
 
+**Search and sharing files.** Before `finalize-dist` runs, `scripts/generate-seo.mjs` writes `dist/robots.txt` and
+`dist/sitemap.xml` for the address in `SITE_URL` (default `https://gradzest.com`, the one `index.html` names in its canonical and
+Open Graph tags: change both together). The sitemap lists the home page, the public list pages, the policy pages and every blog
+post; university pages come from the API and are not listed. `robots.txt` keeps the signed-in areas out of search results; it does
+not protect them. **Not generated:** `index.html` points link previews at `/og-image.png`, which has to be added to `public/`
+(1200x630), and the site has no PNG favicon or apple-touch icon yet. Note too that the app renders in the browser, so search
+engines see the page shell until the public pages are prerendered.
+
 ## 2. Serve `dist/` (pick one)
 
 ### A. Static host: Cloudflare Pages, Netlify

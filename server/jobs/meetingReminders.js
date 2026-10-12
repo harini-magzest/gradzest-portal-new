@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const Meeting = require('../models/Meeting');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
+const { wantsEmail, sendExtraChannels, withReminderFooter } = require('../lib/notificationChannels');
 
 // Ordered so the 24h window is always evaluated (and recorded) before the 1h window
 const REMINDER_WINDOWS = [
@@ -48,7 +48,7 @@ async function runMeetingReminderCheck(io, userSockets, mailer) {
 
       const people = await User.find({
         _id: { $in: meeting.participants.filter(p => p.userId).map(p => p.userId) },
-      }).select('email phone notificationPrefs').lean();
+      }).select('email phone role notificationPrefs').lean();
       const personById = new Map(people.map(u => [String(u._id), u]));
       for (const u of people) sendExtraChannels(u, `${title}. ${message}${link ? ` Join: ${link}` : ''}`);
 
@@ -59,7 +59,7 @@ async function runMeetingReminderCheck(io, userSockets, mailer) {
           if (person && !wantsEmail(person)) continue;
           const to = p.email || person?.email;
           if (!to) continue;
-          mailer.sendMail({
+          mailer.sendMail(withReminderFooter({
             from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
             to, subject: title,
             html: `
@@ -76,7 +76,7 @@ async function runMeetingReminderCheck(io, userSockets, mailer) {
                   ${link ? `<p style="text-align:center;margin:24px 0;"><a href="${link}" style="background:#7c3aed;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:15px;">Join Meeting</a></p>` : ''}
                 </div>
               </div>`,
-          }).catch(() => {});
+          }, person?.role)).catch(() => {});
         }
       }
 

@@ -8,7 +8,7 @@
     "client": "vite",
     "server": "cd server && npm run dev",
     "build": "tsc && vite build",
-    "postbuild": "node scripts/finalize-dist.mjs",
+    "postbuild": "node scripts/generate-seo.mjs && node scripts/finalize-dist.mjs",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 71",
     "test": "vitest run",
