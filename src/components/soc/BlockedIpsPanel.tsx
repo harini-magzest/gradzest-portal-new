@@ -20,6 +20,7 @@ export default function BlockedIpsPanel() {
   const [hours, setHours] = useState(24);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [result, setResult] = useState<{ blocked: string[]; rejected: { ip: string; reason: string }[] } | null>(null);
 
   const load = useCallback(async () => {
@@ -39,7 +40,11 @@ export default function BlockedIpsPanel() {
     setBusy(false);
   };
 
-  const unblock = async (ip: string) => { await api.soc.unblockIp(ip); await load(); };
+  const unblock = async (ip: string) => {
+    setActionError('');
+    try { await api.soc.unblockIp(ip); await load(); }
+    catch (e) { setActionError(errorText(e)); }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
@@ -72,6 +77,7 @@ export default function BlockedIpsPanel() {
             </div>
           )}
           {loadError && <p className="text-sm text-red-600 mb-2">{loadError} <button type="button" onClick={load} className="underline font-semibold">Retry</button></p>}
+          {actionError && <p className="text-sm text-red-600 mb-2">{actionError}</p>}
           {rows.length === 0 ? <p className="text-sm text-gray-400 italic">Nothing is blocked.</p> : (
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {rows.map(r => (

@@ -42,7 +42,11 @@ export default function SuppressionPanel() {
     setSaving(false);
   };
 
-  const remove = async (id: string) => { await api.soc.removeSuppression(id); await load(); };
+  const remove = async (id: string) => {
+    setError('');
+    try { await api.soc.removeSuppression(id); await load(); }
+    catch (err: any) { setError(err.message || 'Could not remove rule.'); }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">

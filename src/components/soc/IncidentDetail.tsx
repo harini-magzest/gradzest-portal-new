@@ -70,8 +70,9 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
     setSaving(true);
     try {
       onUpdate(await api.soc.addIncidentNote(incident._id, note.trim()));
-      setNote('');
-    } finally { setSaving(false); }
+      setNote(''); setActionMsg(null);
+    } catch (err) { setActionMsg({ text: errorText(err), ok: false }); }
+    finally { setSaving(false); }
   };
 
   const sla = slaState(incident, slaPolicy);
