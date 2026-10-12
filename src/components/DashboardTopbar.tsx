@@ -5,7 +5,6 @@ import { GraduationCap, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { usePortalName } from '../hooks/usePortalName';
-import { LanguageSwitcher } from '../i18n/LanguageContext';
 
 const ICON_BTN = 'w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors flex-shrink-0';
 
@@ -66,7 +65,6 @@ export default function DashboardTopbar({
               <GlobalSearch basePath={user.role === 'counselor' ? '/counselor/students' : '/admin/students'} />
             </div>
           )}
-          <LanguageSwitcher />
           <NotificationBell buttonClassName={`relative ${ICON_BTN}`} />
 
           <div className="relative" ref={profileRef}>

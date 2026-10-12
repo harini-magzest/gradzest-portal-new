@@ -1,28 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { translate, TRANSLATIONS, LANGUAGES } from './translations';
-import { LanguageProvider, LanguageSwitcher, useT } from './LanguageContext';
+import { LanguageProvider, useT } from './LanguageContext';
 import SkipLink from '../components/SkipLink';
 
 describe('translate', () => {
-  it('returns the text for the language, falling back to English for a missing key', () => {
+  it('returns the text for the language, and the key itself for one nobody defined', () => {
     expect(translate('en', 'nav.chat')).toBe('Chat');
-    expect(translate('hi', 'nav.chat')).toBe('चैट');
-    const hi = TRANSLATIONS.hi as Record<string, string>;
-    const saved = hi['nav.chat'];
-    delete hi['nav.chat'];
-    expect(translate('hi', 'nav.chat')).toBe('Chat');
-    hi['nav.chat'] = saved;
+    expect(translate('en', 'no.such.key' as never)).toBe('no.such.key');
   });
 
   it('fills {placeholders} and leaves unknown ones visible', () => {
     expect(translate('en', 'dataAccess.showAll', { n: 7 })).toBe('Show all 7');
-    expect(translate('hi', 'dataAccess.showAll', { n: 7 })).toContain('7');
     expect(translate('en', 'dataAccess.showAll')).toBe('Show all {n}');
   });
 
-  it('has a Hindi entry for every English string, so nothing silently stays English', () => {
+  it('has an entry for every English string in every language, so nothing silently stays English', () => {
     const en = Object.keys(TRANSLATIONS.en);
     for (const lang of Object.keys(LANGUAGES) as (keyof typeof LANGUAGES)[]) {
       const missing = en.filter(k => !(k in TRANSLATIONS[lang]));
@@ -37,28 +30,24 @@ function Label() {
 }
 
 describe('LanguageProvider', () => {
-  beforeEach(() => { localStorage.clear(); document.documentElement.lang = 'en'; });
+  beforeEach(() => { localStorage.clear(); document.documentElement.lang = ''; });
 
-  it('switches the text, remembers the choice and sets the page language', async () => {
-    const { unmount } = render(<LanguageProvider><LanguageSwitcher /><Label /></LanguageProvider>);
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Language' }), 'hi');
-    expect(screen.getByText('डैशबोर्ड')).toBeInTheDocument();
-    expect(document.documentElement.lang).toBe('hi');
-    expect(localStorage.getItem('gz_lang')).toBe('hi');
-
-    unmount();
-    render(<LanguageProvider><Label /></LanguageProvider>); // a fresh visit starts in the saved language
-    expect(screen.getByText('डैशबोर्ड')).toBeInTheDocument();
-  });
-
-  it('ignores a bad saved value and works without a provider', () => {
-    localStorage.setItem('gz_lang', 'xx');
+  it('shows English and sets the page language', () => {
     render(<LanguageProvider><Label /></LanguageProvider>);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('ignores a bad saved value, including Hindi saved before it was removed, and works without a provider', () => {
+    for (const saved of ['xx', 'hi']) {
+      localStorage.setItem('gz_lang', saved);
+      const { unmount } = render(<LanguageProvider><Label /></LanguageProvider>);
+      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(document.documentElement.lang).toBe('en');
+      unmount();
+    }
     render(<Label />);
-    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(1);
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 });
 

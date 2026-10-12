@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { LANGUAGES, LangCode, TranslationKey, isLangCode, translate } from './translations';
+import { LangCode, TranslationKey, isLangCode, translate } from './translations';
 
 const STORAGE_KEY = 'gz_lang';
 
@@ -39,17 +39,3 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useT = () => useContext(Ctx);
-
-export function LanguageSwitcher({ className = '' }: { className?: string }) {
-  const { lang, setLang, t } = useT();
-  return (
-    <select
-      value={lang}
-      onChange={e => { if (isLangCode(e.target.value)) setLang(e.target.value); }}
-      aria-label={t('lang.label')}
-      className={`text-sm border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 bg-white ${className}`}
-    >
-      {(Object.keys(LANGUAGES) as LangCode[]).map(code => <option key={code} value={code}>{LANGUAGES[code]}</option>)}
-    </select>
-  );
-}

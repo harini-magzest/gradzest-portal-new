@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const SPEECH_LANGS: { code: string; label: string }[] = [
   { code: 'en-IN', label: 'English' },
-  { code: 'hi-IN', label: 'हिन्दी' },
   { code: 'te-IN', label: 'తెలుగు' },
   { code: 'ta-IN', label: 'தமிழ்' },
   { code: 'mr-IN', label: 'मराठी' },
