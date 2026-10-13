@@ -271,6 +271,25 @@ app.use('/uploads', async (req, res, next) => {
   }
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Not on this server's disk: with S3 storage the file is a private object in the bucket (lib/uploadToS3.js). The checks
+// above have already run, so it is streamed from here rather than handed out as a bucket URL.
+app.use('/uploads', async (req, res, next) => {
+  const { isS3Configured, getFromS3 } = require('./lib/uploadToS3');
+  if (!isS3Configured() || !['GET', 'HEAD'].includes(req.method)) return next();
+  try {
+    const object = await getFromS3(decodeURIComponent(req.path));
+    if (!object) return res.status(404).json({ message: 'File not found' });
+    res.set('Content-Type', object.contentType || 'application/octet-stream');
+    res.set('Cache-Control', 'private, no-store');
+    if (object.contentLength != null) res.set('Content-Length', String(object.contentLength));
+    if (req.method === 'HEAD') return res.end();
+    object.body.on('error', () => res.destroy());
+    object.body.pipe(res);
+  } catch (err) {
+    require('./lib/logError').logError('uploads/s3', err);
+    res.status(502).json({ message: 'File storage is temporarily unavailable. Please try again.' });
+  }
+});
 
 // Share io and userSockets with route handlers
 const userSockets = new Map(); // userId -> Set<socketId>

@@ -5,6 +5,7 @@ const path = require('path');
 const authMiddleware = require('../middleware/auth');
 const { canAccessUpload } = require('../lib/fileAccess');
 const { signedUploadPath, isStoredName } = require('../lib/fileLinks');
+const { existsInS3 } = require('../lib/uploadToS3');
 const { sendServerError } = require('../lib/httpError');
 const { validate } = require('../middleware/validate');
 const { z, noBody } = require('../lib/schemas');
@@ -19,7 +20,8 @@ const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 router.post('/:name/link', authMiddleware, validate({ params: linkParams, body: noBody }), async (req, res) => {
   try {
     const { name } = req.params;
-    if (!isStoredName(name) || !(await canAccessUpload(req.user, name)) || !fs.existsSync(path.join(UPLOAD_DIR, name))) {
+    const stored = async () => fs.existsSync(path.join(UPLOAD_DIR, name)) || existsInS3(name); // on disk, or a private S3 object
+    if (!isStoredName(name) || !(await canAccessUpload(req.user, name)) || !(await stored())) {
       return res.status(404).json({ message: 'File not found' });
     }
     res.json(signedUploadPath(name, req.user.id));

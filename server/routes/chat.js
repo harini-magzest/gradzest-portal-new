@@ -523,7 +523,7 @@ router.post('/rooms/call-log', authMiddleware, validate({ body: callLogBody }), 
 router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUserEmail, upload.single('file'), validate({ body: chatFileFields }), scanUploadedFile, recordUpload('chat_file'), uploadToS3IfConfigured, async (req, res) => {
   const { senderName, isOfferLetter } = req.body;
   try {
-    const fileUrl = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : null;
+    const fileUrl = req.file ? (`/uploads/${req.file.filename}`) : null;
     const fileName = req.file?.originalname || 'File';
     const fileSize = req.file?.size || 0;
     const offerFlag = isOfferLetter === 'true';

@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const KnowledgeDocumentSchema = new mongoose.Schema({
   title: { type: String, required: true },
   originalFilename: { type: String, default: '' },
-  storagePath: { type: String, required: true }, // local /uploads/... path or an s3Url
+  storagePath: { type: String, required: true }, // /uploads/<name>, served from disk or S3 (an older record may hold an S3 URL: scripts/migrateS3Urls.js)
   uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   mimeType: { type: String, default: '' },
   fileSize: { type: Number, default: 0 },

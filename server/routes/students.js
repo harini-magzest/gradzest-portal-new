@@ -246,7 +246,7 @@ router.get('/:id/timeline', authMiddleware, can('students.view'), async (req, re
 router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), validate({ body: studentDocumentFields }), scanUploadedFile, recordUpload('student_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ message: 'Forbidden' });
   const { name, type, url: preExistingUrl } = req.body;
-  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : (preExistingUrl || undefined);
+  const url = req.file ? (`/uploads/${req.file.filename}`) : (preExistingUrl || undefined);
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };

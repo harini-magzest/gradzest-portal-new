@@ -64,7 +64,7 @@ router.get('/me/documents', authMiddleware, async (req, res) => {
 router.post('/me/documents', authMiddleware, attachUserEmail, upload.single('file'), validate({ body: counselorDocumentFields }), scanUploadedFile, recordUpload('counselor_document'), uploadToS3IfConfigured, async (req, res) => {
   if (req.user.role !== 'counselor') return res.status(403).json({ message: 'Forbidden' });
   const { name, type } = req.body;
-  const url = req.file ? (req.file.s3Url || `/uploads/${req.file.filename}`) : undefined;
+  const url = req.file ? (`/uploads/${req.file.filename}`) : undefined;
   const docName = (name || req.file?.originalname || 'Document').trim();
   try {
     const doc = { name: docName, type: type || 'Other', url, uploadedDate: new Date().toISOString().split('T')[0], status: 'pending' };
