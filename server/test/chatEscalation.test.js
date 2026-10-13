@@ -2,9 +2,9 @@
 // the sender's display role ("Student"), which the job used to compare with "student", so it never fired.
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const ChatRoom = require('../models/ChatRoom');
 const Notification = require('../models/Notification');
 const { runChatEscalationCheck } = require('../jobs/chatEscalation');
+const { createRoom } = require('./helpers');
 
 const HASH = bcrypt.hashSync('TestPass123!', 4);
 let n = 0;
@@ -17,7 +17,7 @@ beforeAll(async () => { admin = await mk({ role: 'admin', name: 'Escalation Admi
 async function roomWith(last) {
   const counselor = await mk({ role: 'counselor', name: `Counselor ${n}` });
   const student = await mk({ role: 'student', name: `Waiting Student ${n}` });
-  await ChatRoom.create({
+  await createRoom({
     type: 'student-counselor', studentId: String(student._id),
     participants: [String(student._id), String(counselor._id)], participantNames: [student.name, counselor.name],
     messages: [{ senderId: String(student._id), senderName: student.name, content: 'Any news?', ...last }],
