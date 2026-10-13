@@ -2,13 +2,8 @@ export const API_ORIGIN = import.meta.env.VITE_API_URL || '';
 const BASE = `${API_ORIGIN}/api`;
 
 let _token: string | null = null;
-// Download-only token for /uploads links (<img src> can't send a header). The server issues it with every access token
-// and refuses it on the API, so a link that leaks through history or logs can't be used to call the API.
-let _fileToken: string | null = null;
-export function setApiToken(t: string | null) { _token = t; if (!t) _fileToken = null; }
+export function setApiToken(t: string | null) { _token = t; }
 export function getApiToken(): string | null { return _token; }
-export function getFileToken(): string | null { return _fileToken; }
-function rememberFileToken(data: any) { if (typeof data?.fileToken === 'string') _fileToken = data.fileToken; }
 
 function getToken() { return _token; }
 function setToken(t: string) { _token = t; }
@@ -44,7 +39,6 @@ async function tryRefresh(): Promise<string | null> {
     .then(data => {
       if (data?.token) {
         setToken(data.token);
-        rememberFileToken(data);
         if (data.session) window.dispatchEvent(new CustomEvent<SessionInfo>('auth:session', { detail: data.session }));
         return data.token;
       }
@@ -114,9 +108,7 @@ async function req<T>(url: string, options?: RequestInit, retry = true): Promise
     // status, code and the whole body ride along for callers that react to specific errors (e.g. duplicate mobile)
     throw new ApiError(err.message || 'Request failed', res.status, typeof err.code === 'string' ? err.code : undefined, err);
   }
-  const data = await res.json();
-  if (url.startsWith('/auth/')) rememberFileToken(data);
-  return data;
+  return res.json();
 }
 
 async function upload<T>(url: string, formData: FormData, retry = true): Promise<T> {

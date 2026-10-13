@@ -61,6 +61,16 @@ function loadStored(uid: string | null): AppNotification[] {
   } catch { return []; }
 }
 
+// Every cached list on this browser, whoever it belonged to: forgotten at sign-out so the next person can't read it
+function forgetStored() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i) || '';
+      if (k.startsWith('gradzest_notifications')) localStorage.removeItem(k);
+    }
+  } catch {}
+}
+
 // Leftovers from the old browser-side "smart" alerts and demo notifications — never read again
 function clearLegacyKeys() {
   try {
@@ -85,7 +95,7 @@ const fromServer = (n: any): AppNotification => ({
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const userId   = user?.id   ?? null;
   const userRole = user?.role ?? null;
   const isAppTeam = !!(user as any)?.isAppTeam;
@@ -118,10 +128,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [isAuthenticated, userId, reload]);
 
-  // Write-through cache to localStorage as offline fallback
+  // Write-through cache to localStorage as offline fallback, only while someone is signed in
   useEffect(() => {
+    if (!userId) return;
     localStorage.setItem(storageKey(userId), JSON.stringify(notifications.slice(0, MAX_NOTIFICATIONS)));
   }, [notifications, userId]);
+
+  // Signed out: forget the list and its cache. While the session is still being restored the user is briefly
+  // unknown, which must not be mistaken for a sign-out.
+  useEffect(() => {
+    if (authLoading || isAuthenticated) return;
+    setNotifications([]);
+    forgetStored();
+  }, [authLoading, isAuthenticated]);
 
   // ── Core addNotif: a real notification has just arrived ──────────────────
   const addNotif = useCallback((notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>, opts?: AddNotifOptions) => {
