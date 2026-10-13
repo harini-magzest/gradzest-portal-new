@@ -1,5 +1,6 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { app } = require('../app');
 const User = require('../models/User');
@@ -109,7 +110,9 @@ describe('two-factor sign-in', () => {
     it('stores the secret encrypted and the recovery codes only as hashes', async () => {
       const u = await makeUser();
       const { secret, recoveryCodes } = await enableTwoFactor(u);
-      const raw = await User.findById(u.id).select(twoFactor.SECRET_FIELDS).lean();
+      // Through the driver, not the model: the User model decrypts the encrypted-at-rest fields it reads (including this
+      // one), and this test is about what is stored
+      const raw = await User.collection.findOne({ _id: new mongoose.Types.ObjectId(u.id) });
       expect(raw.twoFactor.secret.startsWith('enc:v1:')).toBe(true);
       expect(raw.twoFactor.secret).not.toContain(secret);
       const stored = JSON.stringify(raw.twoFactor.recoveryCodes);

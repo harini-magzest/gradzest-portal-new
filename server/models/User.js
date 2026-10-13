@@ -357,6 +357,25 @@ UserSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { email:
 UserSchema.index({ 'sessions.tokenHash': 1 });
 UserSchema.index({ role: 1, counselorId: 1 });
 
+// Encrypts the most sensitive student PII at rest (see lib/encryptedFields.js). Scope is
+// deliberately narrower than every field logPiiAccess.js tracks access to:
+//  - phone/altPhone are EXCLUDED on purpose. Two real features depend on regex/substring
+//    matching against the plaintext value — students.js's findByPhone() (format-insensitive
+//    duplicate-phone detection) and dashboards.js's global search-by-phone-digits — and
+//    regex/substring matching against ciphertext can never match (documented limitation of
+//    this scheme). Encrypting phone would silently break both. Doing that properly needs a
+//    separate blind-index (e.g. a hashed-last-10-digits side field), which is a bigger,
+//    deliberate follow-up, not something to fold in here.
+//  - documents[] and the duplicate personal-info snapshot embedded in applications[] are also
+//    excluded from this pass — different data shape/risk profile, left for a follow-up.
+UserSchema.plugin(require('../lib/encryptedFields'), {
+  fields: [
+    'dateOfBirth',
+    'passport.number', 'passport.issueDate', 'passport.expiryDate', 'passport.issuingCountry',
+    'address.street', 'address.city', 'address.state', 'address.country', 'address.postalCode',
+  ],
+});
+
 UserSchema.set('toJSON', {
   virtuals: true,
   // Staff notes never travel inside a user object — that would hand them to the student and
