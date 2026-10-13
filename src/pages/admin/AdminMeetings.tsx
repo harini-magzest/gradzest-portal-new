@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   CalendarDays, Plus, X, Video, ExternalLink, Trash2, Clock,
   Users, Search, Check, RefreshCw, CalendarCheck, CalendarX,
@@ -6,6 +6,8 @@ import {
 import { api } from '../../api';
 import { usePortalName } from '../../hooks/usePortalName';
 import { openExternal } from '../../lib/safeUrl';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import ListPager from '../../components/ListPager';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -351,9 +353,24 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+// Meetings come from the server a page at a time (server/routes/meetings.js)
+const PAGE_SIZE = 30;
+
+// This browser's clock as YYYY-MM-DDTHH:MM: meeting times are local, so "upcoming" is decided against it
+function localNow() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function AdminMeetings() {
   const { portal } = usePortalName();
+  // This page of the tab, how many match, and how many meetings each tab holds
   const [meetings, setMeetings] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [pastCount, setPastCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [students, setStudents] = useState<any[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -362,42 +379,53 @@ export default function AdminMeetings() {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [search, setSearch] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
-    try {
-      const [m, s, c] = await Promise.all([
-        api.meetings.list(),
-        api.admin.students(),
-        api.admin.counselors(),
-      ]);
-      setMeetings(m);
-      setStudents(s);
-      setCounselors(c);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load meetings.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const searchText = useDebouncedValue(search.trim());
+  const query = useMemo(() => ({ when: tab, q: searchText }), [tab, searchText]);
+  useEffect(() => { setPage(1); }, [query]);
 
-  useEffect(() => { load(); }, [load]);
+  // Only the newest request may fill the grid, however the answers arrive
+  const latestRequest = useRef(0);
+  const loadPage = useCallback(async () => {
+    const request = ++latestRequest.current;
+    try {
+      const res = await api.meetings.page({ ...query, now: localNow(), page, limit: PAGE_SIZE });
+      if (request !== latestRequest.current) return;
+      setMeetings(res.items); setTotal(res.total); setUpcomingCount(res.upcoming); setPastCount(res.past);
+    } catch (err: any) {
+      if (request === latestRequest.current) setError(err.message || 'Failed to load meetings.');
+    }
+  }, [query, page]);
+
+  // First load and Refresh: the counselors and this page, behind the loading spinner
+  const load = async () => {
+    setLoading(true); setError('');
+    try { setCounselors(await api.admin.counselors()); } catch (err: any) { setError(err.message || 'Failed to load meetings.'); }
+    await loadPage();
+    setLoading(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens; tabs, searches and pages load below
+  useEffect(() => { load(); }, []);
+  const firstPage = useRef(true);
+  useEffect(() => { if (firstPage.current) { firstPage.current = false; return; } loadPage(); }, [loadPage]);
+
+  // The student picker in the schedule dialog needs every student: fetched when the dialog first opens
+  const studentsAsked = useRef(false);
+  useEffect(() => {
+    if (!showSchedule || studentsAsked.current) return;
+    studentsAsked.current = true;
+    api.admin.students().then(setStudents).catch(() => { studentsAsked.current = false; });
+  }, [showSchedule]);
 
   const handleDelete = async (id: string) => {
     await api.meetings.delete(id);
     setMeetings(prev => prev.filter(m => normalId(m) !== id));
+    loadPage();
   };
 
   const handleJoin = (link: string) => {
     openExternal(link);
   };
 
-  const filtered = meetings
-    .filter(m => (tab === 'upcoming') === isFuture(m.scheduledDate, m.scheduledTime))
-    .filter(m => !search || m.title?.toLowerCase().includes(search.toLowerCase()) ||
-      m.participants?.some((p: any) => p.name?.toLowerCase().includes(search.toLowerCase())));
-
-  const upcomingCount = meetings.filter(m => isFuture(m.scheduledDate, m.scheduledTime)).length;
-  const pastCount = meetings.length - upcomingCount;
 
   return (
     <>
@@ -406,7 +434,7 @@ export default function AdminMeetings() {
           students={students}
           counselors={counselors}
           onClose={() => setShowSchedule(false)}
-          onCreated={m => { setMeetings(prev => [m, ...prev]); setShowSchedule(false); setTab('upcoming'); }}
+          onCreated={() => { setShowSchedule(false); if (tab === 'upcoming') loadPage(); else setTab('upcoming'); }}
         />
       )}
 
@@ -491,7 +519,7 @@ export default function AdminMeetings() {
         )}
 
         {/* Meeting grid */}
-        {!loading && filtered.length === 0 && (
+        {!loading && meetings.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <CalendarDays className="w-12 h-12 mb-3 opacity-30" />
             <p className="text-base font-medium">
@@ -506,17 +534,16 @@ export default function AdminMeetings() {
           </div>
         )}
 
-        {!loading && filtered.length > 0 && (
+        {!loading && meetings.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered
-              .sort((a, b) => {
-                const da = new Date(`${a.scheduledDate}T${a.scheduledTime}`).getTime();
-                const db = new Date(`${b.scheduledDate}T${b.scheduledTime}`).getTime();
-                return tab === 'upcoming' ? da - db : db - da;
-              })
-              .map(m => (
-                <MeetingCard key={normalId(m)} meeting={m} onDelete={handleDelete} onJoin={handleJoin} />
-              ))}
+            {meetings.map(m => (
+              <MeetingCard key={normalId(m)} meeting={m} onDelete={handleDelete} onJoin={handleJoin} />
+            ))}
+          </div>
+        )}
+        {!loading && (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden empty:hidden">
+            <ListPager page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
           </div>
         )}
       </div>

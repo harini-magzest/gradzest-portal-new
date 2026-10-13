@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users, UserCog, Plus, Trash2, X, GraduationCap,
@@ -7,7 +7,7 @@ import {
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
   ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Phone,
 } from 'lucide-react';
-import { api } from '../../api';
+import { api, type StudentCounts } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
 import StatusBadge from '../../components/StatusBadge';
@@ -790,8 +790,8 @@ function NewStudentModal({ onClose, onCreated, counselors }: {
 }
 
 // ── New application modal ────────────────────────────────────────────────────
-function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }: {
-  allStudents: any[]; initialStudent?: any; onClose: () => void; onCreated: () => void;
+function NewApplicationModal({ initialStudent, onClose, onCreated }: {
+  initialStudent?: any; onClose: () => void; onCreated: () => void;
 }) {
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -810,12 +810,19 @@ function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const matchedStudents = studentQuery.trim().length >= 1
-    ? allStudents.filter(s =>
-        s.name?.toLowerCase().includes(studentQuery.toLowerCase()) ||
-        s.email?.toLowerCase().includes(studentQuery.toLowerCase())
-      ).slice(0, 8)
-    : [];
+  // The first 8 students whose name, email or phone matches, searched on the server as the admin types
+  const [matchedStudents, setMatchedStudents] = useState<any[]>([]);
+  useEffect(() => {
+    const q = studentQuery.trim();
+    if (!q) { setMatchedStudents([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api.admin.studentsPage({ q, page: 1, limit: 8 })
+        .then(res => { if (!cancelled) setMatchedStudents(res.items); })
+        .catch(() => { if (!cancelled) setMatchedStudents([]); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [studentQuery]);
 
   // Fetch full student profile whenever selection changes (ensures all eligibility fields are present)
   useEffect(() => {
@@ -1056,7 +1063,11 @@ export default function AdminStudents() {
     if (on) next.set('lead', 'new'); else next.delete('lead');
     return next;
   }, { replace: true });
+  // One page of students, filtered and sorted by the server (server/lib/adminLists.js), with the totals the tiles show
   const [students, setStudents] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<StudentCounts>({ total: 0, active: 0, inactive: 0, enrolled: 0, unassigned: 0, newLeads: 0 });
+  const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [counselors, setCounselors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -1081,57 +1092,55 @@ export default function AdminStudents() {
   const [pageSize, setPageSize] = useState(25);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const loadData = useCallback(async () => {
-    setLoading(true); setLoadError('');
-    try {
-      const [sd, cd] = await Promise.all([api.admin.students(), api.admin.counselors()]);
-      setStudents(sd); setCounselors(cd);
-    } catch (err: any) { setLoadError(err.message || 'Failed to load data.'); }
-    finally { setLoading(false); }
-  }, []);
+  // The filters as the server reads them. The joined-date range does not apply to the new-leads view.
+  const listQuery = useMemo(() => ({
+    q: search, status: filterStatus, stage: filterStage, country: filterCountry,
+    counselorId: filterCounselorId === '__unassigned__' ? 'unassigned' : filterCounselorId,
+    lead: filterLead ? 'new' : undefined,
+    from: filterLead ? undefined : filterDateStart, to: filterLead ? undefined : filterDateEnd,
+  }), [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterLead, filterDateStart, filterDateEnd]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Only the newest request may fill the table, however the answers arrive
+  const latestRequest = useRef(0);
+  const loadPage = useCallback(async () => {
+    const request = ++latestRequest.current;
+    try {
+      const res = await api.admin.studentsPage({ ...listQuery, page, limit: pageSize });
+      if (request !== latestRequest.current) return;
+      setStudents(res.items); setTotal(res.total); setCounts(res.counts); setCountryOptions(res.countries);
+      setLoadError('');
+    } catch (err: any) {
+      if (request === latestRequest.current) setLoadError(err.message || 'Failed to load data.');
+    }
+  }, [listQuery, page, pageSize]);
+
+  // First load and Refresh: the counselors and the page that is showing, behind the loading spinner
+  const loadData = async () => {
+    setLoading(true); setLoadError('');
+    try { setCounselors(await api.admin.counselors()); } catch (err: any) { setLoadError(err.message || 'Failed to load data.'); }
+    await loadPage();
+    setLoading(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens; a new page or filter is fetched below
+  useEffect(() => { loadData(); }, []);
   useEffect(() => { setPage(1); }, [search, filterStatus, filterStage, filterCountry, filterCounselorId, filterIntake, filterDateStart, filterDateEnd, filterLead]);
+  // A new page or filter: fetch it, keeping the table on screen meanwhile
+  const firstPage = useRef(true);
+  useEffect(() => {
+    if (firstPage.current) { firstPage.current = false; return; }
+    loadPage();
+  }, [loadPage]);
 
   const counselorNameById = Object.fromEntries(counselors.map(c => [normalId(c), c.name]));
-  const countryOptions = Array.from(new Set(students.flatMap(s => s.preferredCountries || []).filter(Boolean))).sort() as string[];
 
-  const filtered = students.filter(s => {
-    if (filterLead && s.leadStatus !== 'new') return false;
-    if (filterStatus && s.status !== filterStatus) return false;
-    if (filterStage && leadStageOf(s).value !== filterStage) return false;
-    if (filterCountry && !(s.preferredCountries || []).includes(filterCountry)) return false;
-    if (filterCounselorId) {
-      if (filterCounselorId === '__unassigned__') { if (s.counselorId) return false; }
-      else if (s.counselorId?.toString() !== filterCounselorId) return false;
-    }
-    const jd = (s.joinedDate || '').slice(0, 10);
-    if (!filterLead && filterDateStart && jd < filterDateStart) return false;
-    if (!filterLead && filterDateEnd && jd > filterDateEnd) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!s.name?.toLowerCase().includes(q) && !s.email?.toLowerCase().includes(q) && !s.phone?.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }).sort((a, b) => new Date(b.joinedDate || b.createdAt || 0).getTime() - new Date(a.joinedDate || a.createdAt || 0).getTime());
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-  const counts = {
-    total: students.length,
-    active: students.filter(s => !['enrolled', 'inactive'].includes(s.status)).length,
-    inactive: students.filter(s => s.status === 'inactive').length,
-    enrolled: students.filter(s => s.status === 'enrolled').length,
-    unassigned: students.filter(s => !s.counselorId).length,
-    newLeads: students.filter(s => s.leadStatus === 'new').length,
-  };
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const paginated = students;
   const pct = (n: number) => counts.total > 0 ? `${Math.round((n / counts.total) * 100)}%` : '0%';
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this student? This cannot be undone.')) return;
     setDeletingId(id);
-    try { await api.admin.deleteStudent(id); setStudents(prev => prev.filter(s => normalId(s) !== id)); notifyLeadsChanged(); }
+    try { await api.admin.deleteStudent(id); setStudents(prev => prev.filter(s => normalId(s) !== id)); notifyLeadsChanged(); loadPage(); }
     catch { alert('Failed to delete student.'); }
     setDeletingId(null);
   };
@@ -1140,6 +1149,7 @@ export default function AdminStudents() {
   const handleStatusChange = async (id: string, status: string) => {
     const updated = await api.admin.updateStudentStatus(id, status);
     setStudents(prev => prev.map(s => normalId(s) === id ? updated : s));
+    loadPage(); // the counts, and whether the student still matches the filters
   };
 
   const handleInlineAssign = async (studentId: string, counselorId: string) => {
@@ -1151,6 +1161,7 @@ export default function AdminStudents() {
         ? { ...s, counselorId: counselorId || undefined, ...(counselorId && s.leadStatus === 'new' ? { leadStatus: 'contacted' } : {}) }
         : s));
       notifyLeadsChanged();
+      loadPage();
     } catch { alert('Failed to assign counselor.'); }
     setAssigningIds(prev => { const n = new Set(prev); n.delete(studentId); return n; });
   };
@@ -1159,11 +1170,17 @@ export default function AdminStudents() {
   const handleLeadStage = async (id: string, leadStage: string) => {
     const updated = await api.students.setLeadStage(id, leadStage);
     setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, leadStage: updated.leadStage } : s));
+    loadPage();
   };
 
-  // Open the full student page; pass the filtered order so ‹ › can step through it
-  const openStudent = (id: string) =>
-    navigate(`/admin/students/${id}`, { state: { ids: filtered.map(normalId) } });
+  // Open the full student page; pass every match, in list order, so ‹ › can step through them
+  const openStudent = async (id: string) => {
+    let ids = students.map(normalId);
+    if (total > students.length) {
+      try { ids = (await api.admin.studentIds(listQuery)).ids; } catch { /* step through this page only */ }
+    }
+    navigate(`/admin/students/${id}`, { state: { ids } });
+  };
 
   const handleMarkContacted = async (id: string) => {
     setMarkingId(id);
@@ -1171,12 +1188,16 @@ export default function AdminStudents() {
       const updated = await api.admin.setLeadStatus(id, 'contacted');
       setStudents(prev => prev.map(s => normalId(s) === id ? updated : s));
       notifyLeadsChanged();
+      loadPage();
     } catch { alert('Failed to update lead.'); }
     setMarkingId(null);
   };
 
-  const handleExport = () => {
-    exportRowsToCsv('students.csv', filtered.map(s => ({
+  // Every match, not just this page
+  const handleExport = async () => {
+    let rows: any[];
+    try { rows = (await api.admin.studentsExport(listQuery)).items; } catch { alert('Failed to export students.'); return; }
+    exportRowsToCsv('students.csv', rows.map(s => ({
       Name: s.name || '', Email: s.email || '', Nationality: s.nationality || '',
       Status: s.status || '', 'Lead Stage': leadStageOf(s).label, Counselor: counselorNameById[s.counselorId] || 'Unassigned',
       'Joined Date': s.joinedDate || '',
@@ -1220,9 +1241,9 @@ export default function AdminStudents() {
     <>
       {showNewLead && (
         <StudentEditForm basePath="/admin/students" onClose={() => setShowNewLead(false)}
-          onSaved={s => { setStudents(prev => [s, ...prev]); setShowNewLead(false); navigate(`/admin/students/${normalId(s)}`); }} />
+          onSaved={s => { loadPage(); setShowNewLead(false); navigate(`/admin/students/${normalId(s)}`); }} />
       )}
-      {showNewStudent && <NewStudentModal counselors={counselors} onClose={() => setShowNewStudent(false)} onCreated={s => { setStudents(prev => [s, ...prev]); setShowNewStudent(false); }} />}
+      {showNewStudent && <NewStudentModal counselors={counselors} onClose={() => setShowNewStudent(false)} onCreated={() => { loadPage(); setShowNewStudent(false); }} />}
       {openStudentId && (
         <AdminStudentPage studentId={openStudentId}
           listStudent={(() => {
@@ -1233,7 +1254,7 @@ export default function AdminStudents() {
           onNewApplication={st => { setNewAppStudent(st); setShowNewApp(true); }}
           onStudentChange={(id, patch) => setStudents(prev => prev.map(s => normalId(s) === id ? { ...s, ...patch } : s))} />
       )}
-      {showNewApp && <NewApplicationModal allStudents={students} initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
+      {showNewApp && <NewApplicationModal initialStudent={newAppStudent || undefined} onClose={() => { setShowNewApp(false); setNewAppStudent(null); }} onCreated={() => loadData()} />}
       {meetingStudent && <GroupMeetingModal student={meetingStudent} counselors={counselors} onClose={() => setMeetingStudent(null)} />}
 
       {/* Page wrapper — kept mounted (hidden) while a student page is open so filters survive Back */}
@@ -1536,7 +1557,7 @@ export default function AdminStudents() {
                 <span>entries</span>
                 <span className="hidden sm:inline text-gray-300 mx-1">·</span>
                 <span className="hidden sm:inline text-gray-400 text-xs">
-                  Showing {filtered.length === 0 ? '0' : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)}`} of {filtered.length.toLocaleString()}
+                  Showing {total === 0 ? '0' : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)}`} of {total.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center gap-1">

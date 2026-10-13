@@ -15,4 +15,7 @@ const subscriberSchema = new mongoose.Schema({
   taskId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Task', default: null },
 });
 
+// The admin list pages newest first (lib/adminLists.js)
+subscriberSchema.index({ subscribedAt: -1 });
+
 module.exports = mongoose.model('Subscriber', subscriberSchema);
