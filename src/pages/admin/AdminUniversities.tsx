@@ -962,7 +962,7 @@ export default function AdminUniversities() {
   const [countryFilter, setCountryFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editingUni, setEditingUni] = useState<any>(null);
-  const [, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [applyTarget, setApplyTarget] = useState<{ course: any; universityName: string } | null>(null);
 
   const load = useCallback(async () => {
