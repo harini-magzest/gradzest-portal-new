@@ -84,7 +84,7 @@ export default function BoardCounselors() {
               placeholder="Search name, email, specialty..."
               className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-            {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
+            {search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export default function BoardCounselors() {
       {selected ? (
         <div className="flex-1 bg-white overflow-y-auto">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <button onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
+            <button type="button" aria-label="Back to list" onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
               <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
             </button>
             <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">

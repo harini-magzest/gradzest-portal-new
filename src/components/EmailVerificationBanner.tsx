@@ -42,7 +42,7 @@ export default function EmailVerificationBanner() {
           </button>
         )}
       </p>
-      <button onClick={() => setDismissed(true)} className="p-1 hover:bg-amber-100 rounded transition-colors">
+      <button type="button" aria-label="Dismiss" onClick={() => setDismissed(true)} className="p-1 hover:bg-amber-100 rounded transition-colors">
         <X className="w-4 h-4 text-amber-600" />
       </button>
     </div>
