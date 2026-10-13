@@ -9,6 +9,7 @@ const Task = require('../models/Task');
 const Event = require('../models/Event');
 const Meeting = require('../models/Meeting');
 const ChatRoom = require('../models/ChatRoom');
+const { createRoom, roomMessages } = require('./helpers');
 const DeletionRequest = require('../models/DeletionRequest');
 const { eraseStudent } = require('../lib/studentData');
 
@@ -40,7 +41,7 @@ async function richStudent() {
   await Task.create({ title: 'Call', assignedBy: counselor.id, studentId: s.id, studentName: 'Priya Sharma' });
   const ev = await Event.create({ title: 'Webinar', startsAt: new Date(Date.now() + 1e9), createdBy: counselor.id, registrations: [{ userId: s.id, name: 'Priya Sharma', email: s.email }] });
   const meeting = await Meeting.create({ title: 'Call', scheduledDate: '2030-01-01', scheduledTime: '10:00', participants: [{ userId: s.id, name: 'Priya Sharma', role: 'student', email: s.email }] });
-  const room = await ChatRoom.create({
+  const { room } = await createRoom({
     participants: [s.id, counselor.id], participantNames: ['Priya Sharma', 'Counselor'],
     messages: [{ senderId: s.id, senderName: 'Priya Sharma', content: 'my secret chat message' }, { senderId: counselor.id, senderName: 'Counselor', content: 'counselor reply' }],
   });
@@ -145,8 +146,10 @@ describe('an admin handles requests', () => {
     expect((await Event.findById(ev._id)).registrations).toHaveLength(0);
     expect((await Meeting.findById(meeting._id)).participants[0]).toMatchObject({ name: 'Deleted student', email: '' });
     const chat = await ChatRoom.findById(room._id);
-    expect(chat.messages.map((m) => m.content)).toEqual(['[deleted]', 'counselor reply']);
+    const messages = await roomMessages(room._id);
+    expect(messages.map((m) => m.content)).toEqual(['[deleted]', 'counselor reply']);
     expect(JSON.stringify(chat)).not.toContain('Priya Sharma');
+    expect(JSON.stringify(messages)).not.toContain('Priya Sharma');
 
     // The account can no longer be used: the old token stops working and the credentials are gone
     expect((await request(app).get('/api/students/me').set(as(s))).status).toBeGreaterThanOrEqual(401);

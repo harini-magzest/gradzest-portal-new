@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
-const ChatRoom = require('../models/ChatRoom');
+const { createRoom } = require('./helpers');
 
 let n = 0;
 async function login(role, name = `Call ${role}`) {
@@ -15,11 +15,11 @@ const auth = (t) => ({ Authorization: `Bearer ${t}` });
 
 // A finished in-app call between a counselor and a student, as the call-log route stores it
 async function makeCall(counselor, student, at = new Date()) {
-  const room = await ChatRoom.create({
+  const { messages } = await createRoom({
     participants: [counselor.id, student.id], participantNames: [counselor.name, student.name],
     messages: [{ senderId: counselor.id, senderName: counselor.name, type: 'call', callStatus: 'answered', callDuration: 95, timestamp: at }],
   });
-  return String(room.messages[0]._id);
+  return String(messages[0]._id);
 }
 
 describe('call summaries', () => {

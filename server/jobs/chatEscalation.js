@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const ChatRoom = require('../models/ChatRoom');
+const { latestByRoom } = require('../lib/chatMessages');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 
@@ -8,8 +9,8 @@ const RENOTIFY_HOURS = 12;   // don't re-escalate the same room more often than 
 
 async function runChatEscalationCheck(io, userSockets) {
   const now = Date.now();
-  const rooms = await ChatRoom.find({ type: 'student-counselor', 'messages.0': { $exists: true } })
-    .select('participants participantNames studentId messages');
+  const rooms = await ChatRoom.find({ type: 'student-counselor' }).select('participants participantNames studentId').lean();
+  const lastOf = await latestByRoom(rooms.map(r => r._id));
 
   const admins = await User.find({ role: 'admin', isAppTeam: { $ne: true } }).select('_id').lean();
   if (!admins.length) return;
@@ -18,6 +19,8 @@ async function runChatEscalationCheck(io, userSockets) {
     const last = room.messages[room.messages.length - 1];
     // Messages store the display role ("Student"); older ones and the demo data use "student"
     if (!last || String(last.senderRole || '').toLowerCase() !== 'student' || last.read) continue;
+    const last = lastOf.get(String(room._id));
+    if (!last || last.senderRole !== 'student' || last.read) continue;
 
     const hoursUnread = (now - new Date(last.timestamp).getTime()) / 3600000;
     if (hoursUnread < ESCALATION_HOURS) continue;

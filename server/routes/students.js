@@ -602,6 +602,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
   const EmailLog = require('../models/EmailLog');
   const Meeting = require('../models/Meeting');
   const ChatRoom = require('../models/ChatRoom');
+  const ChatMessage = require('../models/ChatMessage');
   try {
     const student = await User.findOne({ _id: req.params.id, role: 'student' }).select('name email createdAt joinedDate source applications documents counselorId counselorNotes');
     if (!student) return res.status(404).json({ message: 'Student not found' });
@@ -624,6 +625,11 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
 
     // Counselors see only their own conversation with the student; admins see all of them
     const rooms = req.user.role === 'admin' ? allRooms : allRooms.filter(r => r.participants.includes(me));
+    // Calls and chat-scheduled meetings from every room, and the latest 200 messages of each room the viewer may read
+    const [eventMessages, roomMessages] = await Promise.all([
+      ChatMessage.find({ roomId: { $in: allRooms.map(r => r._id) }, type: { $in: ['call', 'meeting'] } }).sort({ timestamp: 1, _id: 1 }).lean(),
+      Promise.all(rooms.map(r => ChatMessage.find({ roomId: r._id }).sort({ timestamp: -1, _id: -1 }).limit(200).lean())),
+    ]);
 
     // ── Timeline ──
     const SOURCE = { self_signup: 'signed up via email', github: 'signed up via GitHub', facebook: 'signed up via Facebook', admin_created: 'added by admin', counselor_created: 'added by counselor', web_form: 'submitted a website form', zest_chat: 'shared details in the Zest chat' };
@@ -652,7 +658,7 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
     }));
     allRooms.forEach(r => {
       const other = r.participantNames?.[r.participants.findIndex(p => p !== sid)] || 'Staff';
-      (r.messages || []).forEach(m => {
+      eventMessages.filter(m => String(m.roomId) === String(r._id)).forEach(m => {
         if (m.type === 'call') activities.push({
           id: String(m._id), type: 'call', title: `${m.senderId === sid ? 'Call from student to' : 'Call from'} ${m.senderId === sid ? other : m.senderName || other}`,
           at: m.timestamp, status: m.callStatus, duration: m.callDuration,
@@ -671,9 +677,9 @@ router.get('/:id/record', authMiddleware, can('students.view'), async (req, res)
       tasks: tasks.map(t => ({ ...t, id: String(t._id) })),
       owner: owner ? { id: String(owner._id), name: owner.name, title: owner.title || '' } : null,
       emails: emails.map(e => ({ ...e, id: String(e._id) })),
-      rooms: rooms.map(r => ({
+      rooms: rooms.map((r, i) => ({
         id: String(r._id), type: r.type, participants: r.participants, participantNames: r.participantNames,
-        messages: (r.messages || []).slice(-200).map(m => ({ ...m, id: String(m._id) })),
+        messages: roomMessages[i].reverse().map(({ roomId, ...m }) => ({ ...m, id: String(m._id) })),
       })),
     });
   } catch (err) {

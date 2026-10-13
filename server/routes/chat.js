@@ -2,6 +2,8 @@ const express = require('express');
 const { logError } = require('../lib/logError');
 const { sendServerError } = require('../lib/httpError');
 const ChatRoom = require('../models/ChatRoom');
+const ChatMessage = require('../models/ChatMessage');
+const { addMessage, messagePage, roomWithMessages, listMessages } = require('../lib/chatMessages');
 const User = require('../models/User');
 const CallSummary = require('../models/CallSummary');
 const authMiddleware = require('../middleware/auth');
@@ -41,6 +43,7 @@ const meetingBody = z.object({
   senderName: text(100).optional(), meetingDate: text(20), meetingTime: text(20), meetingNotes: text(2000).optional(),
 }).strict();
 const roomTypeBody = z.object({ type: text(30) }).strict();
+const olderMessagesQuery = z.object({ before: objectId, limit: z.string().regex(/^\d{1,3}$/, 'Must be a number').optional() });
 const createRoomBody = z.object({ participantIds: idList(20), participantNames: textList(20, 100), type: text(30).optional() }).strict();
 
 // A room's messages, files and settings are private to its participants. These helpers are the only way
@@ -119,15 +122,15 @@ router.post('/groups', authMiddleware, validate({ body: createGroupBody }), asyn
       createdBy: me,
       participants: people.map(p => p.id),
       participantNames: people.map(p => p.name),
-      messages: [{
-        senderId: me, senderName: creator?.name || 'Admin', senderRole: 'Admin Team',
-        content: `${creator?.name || 'Admin'} created the group with ${people.filter(p => p.id !== me).map(p => p.name).join(', ')}.`,
-        type: 'system',
-        timestamp: new Date(), read: false,
-      }],
+    });
+    await addMessage(room._id, {
+      senderId: me, senderName: creator?.name || 'Admin', senderRole: 'Admin Team',
+      content: `${creator?.name || 'Admin'} created the group with ${people.filter(p => p.id !== me).map(p => p.name).join(', ')}.`,
+      type: 'system',
+      timestamp: new Date(), read: false,
     });
     notifyRoom(req, room, me);
-    res.status(201).json(room.toJSON());
+    res.status(201).json(await roomWithMessages(room));
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -169,17 +172,17 @@ router.put('/groups/:id/members', authMiddleware, validate({ body: updateGroupBo
       room.name = newName;
     }
 
-    changeNotes.forEach(content => {
-      room.messages.push({
-        senderId: me, senderName: actorName, senderRole: 'Admin Team',
-        content, type: 'system', timestamp: new Date(), read: false,
-      });
-    });
-
     room.markModified('participants'); room.markModified('participantNames');
     await room.save();
+    if (changeNotes.length) {
+      const at = Date.now();
+      await ChatMessage.insertMany(changeNotes.map((content, i) => ({
+        roomId: room._id, senderId: me, senderName: actorName, senderRole: 'Admin Team',
+        content, type: 'system', timestamp: new Date(at + i), read: false,
+      })));
+    }
     notifyRoom(req, room, me);
-    res.json(room.toJSON());
+    res.json(await roomWithMessages(room));
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -216,7 +219,9 @@ router.get('/rooms', authMiddleware, async (req, res) => {
     }
     if (saves.length > 0) await Promise.all(saves);
 
-    res.json(rooms.map(r => r.toJSON()));
+    // Each room carries its latest message and the caller's unread ones: what the chat lists show and count
+    const messages = await listMessages(rooms.map(r => r._id), req.user.id.toString());
+    res.json(rooms.map(r => ({ ...r.toJSON(), messages: messages.get(String(r._id)) || [] })));
   } catch (err) {
     logError('chat', err);
     res.status(500).json({ message: 'Server error' });
@@ -239,10 +244,22 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
       }
     }
 
-    res.json(room.toJSON());
+    res.json(await roomWithMessages(room));
   } catch (err) {
     logError('chat', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Older messages, as a conversation scrolls up: the page before message ?before (oldest first)
+router.get('/rooms/:roomId/messages', authMiddleware, validate({ query: olderMessagesQuery }), async (req, res) => {
+  try {
+    const room = await ChatRoom.findOne(memberFilter(req)).select('_id');
+    if (!room) return res.status(404).json({ message: 'Room not found' });
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    res.json(await messagePage(room._id, { before: req.query.before, limit }));
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
   }
 });
 
@@ -250,7 +267,7 @@ router.get('/rooms/:roomId', authMiddleware, async (req, res) => {
 router.post('/rooms/:roomId/messages', authMiddleware, validate({ body: sendMessageBody }), async (req, res) => {
   const { content, senderName, replyToId } = req.body;
   try {
-    const target = await ChatRoom.findOne(memberFilter(req)).select('type participants messages._id messages.senderName messages.content messages.fileName');
+    const target = await ChatRoom.findOne(memberFilter(req)).select('type participants');
     if (!target) return res.status(404).json({ message: 'Room not found' });
     // Only members can post in a group
     if (target.type === 'group' && !target.participants.includes(req.user.id.toString())) {
@@ -266,19 +283,14 @@ router.post('/rooms/:roomId/messages', authMiddleware, validate({ body: sendMess
       read: false,
     };
     if (replyToId) {
-      const quoted = target.messages.id(replyToId);
+      const quoted = await ChatMessage.findOne({ _id: replyToId, roomId: target._id }).select('senderName content fileName');
       if (quoted) message.replyTo = {
         messageId: String(quoted._id), senderName: quoted.senderName || '',
         content: String(quoted.content || quoted.fileName || '').slice(0, 200),
       };
     }
-    const room = await ChatRoom.findOneAndUpdate(
-      memberFilter(req),
-      { $push: { messages: message } },
-      { new: true }
-    );
-    if (!room) return res.status(404).json({ message: 'Room not found' });
-    const newMsg = room.messages[room.messages.length - 1];
+    const room = target;
+    const newMsg = await addMessage(room._id, message);
 
     // Notify other participants in real time
     const io = req.app.get('io');
@@ -309,14 +321,14 @@ router.post('/calls/:messageId/recording', authMiddleware, recordingUpload, vali
       return res.status(400).json({ message: 'Only audio recordings are allowed' });
     }
     const me = req.user.id.toString();
-    const room = await ChatRoom.findOne({ participants: me, 'messages._id': req.params.messageId });
-    const msg = room?.messages.id(req.params.messageId);
-    if (!msg || msg.type !== 'call' || msg.senderId !== me) {
+    const msg = await ChatMessage.findById(req.params.messageId);
+    const inRoom = msg && await ChatRoom.exists({ _id: msg.roomId, participants: me });
+    if (!inRoom || msg.type !== 'call' || msg.senderId !== me) {
       require('fs').unlink(req.file.path, () => {});
       return res.status(404).json({ message: 'Call not found' });
     }
     msg.recordingUrl = `/uploads/${req.file.filename}`;
-    await room.save();
+    await msg.save();
     res.json({ recordingUrl: msg.recordingUrl });
   } catch (err) {
     sendServerError(res, err, 'Server error');
@@ -339,22 +351,33 @@ router.get('/calls/history', authMiddleware, validate({ query: callHistoryQuery 
     const filterUser = fullAdmin && req.query.userId ? String(req.query.userId) : '';
 
     // ── In-app calls ──
-    const roomQuery = fullAdmin ? (filterUser ? { participants: filterUser } : { 'messages.type': 'call' }) : { participants: me };
-    const rooms = await ChatRoom.find(roomQuery).select('participants participantNames messages').lean();
+    // Calls in the caller's rooms (full admins: every room, or the chosen person's)
+    const roomQuery = fullAdmin ? (filterUser ? { participants: filterUser } : null) : { participants: me };
+    const callQuery = { type: 'call', timestamp: { $gte: since } };
+    let rooms = [];
+    if (roomQuery) {
+      rooms = await ChatRoom.find(roomQuery).select('participants participantNames').lean();
+      callQuery.roomId = { $in: rooms.map(r => r._id) };
+    }
+    // Only the newest 500 calls are ever shown
+    const callMessages = await ChatMessage.find(callQuery).sort({ timestamp: -1 }).limit(500).lean();
+    if (!roomQuery) {
+      rooms = await ChatRoom.find({ _id: { $in: [...new Set(callMessages.map(m => String(m.roomId)))] } }).select('participants participantNames').lean();
+    }
+    const roomById = new Map(rooms.map(r => [String(r._id), r]));
     const calls = [];
-    for (const r of rooms) {
+    for (const m of callMessages) {
+      const r = roomById.get(String(m.roomId));
+      if (!r) continue;
       const nameOf = id => r.participantNames?.[r.participants.indexOf(id)] || 'User';
-      for (const m of r.messages || []) {
-        if (m.type !== 'call' || new Date(m.timestamp) < since) continue;
-        const callee = r.participants.find(p => p !== m.senderId) || '';
-        calls.push({
-          id: String(m._id), source: 'in_app',
-          callerId: m.senderId, callerName: m.senderName || nameOf(m.senderId),
-          calleeId: callee, calleeName: nameOf(callee),
-          status: m.callStatus === 'answered' ? 'answered' : m.callStatus === 'declined' ? 'declined' : 'missed',
-          durationSec: m.callDuration || 0, startedAt: m.timestamp, recordingUrl: m.recordingUrl || '',
-        });
-      }
+      const callee = r.participants.find(p => p !== m.senderId) || '';
+      calls.push({
+        id: String(m._id), source: 'in_app',
+        callerId: m.senderId, callerName: m.senderName || nameOf(m.senderId),
+        calleeId: callee, calleeName: nameOf(callee),
+        status: m.callStatus === 'answered' ? 'answered' : m.callStatus === 'declined' ? 'declined' : 'missed',
+        durationSec: m.callDuration || 0, startedAt: m.timestamp, recordingUrl: m.recordingUrl || '',
+      });
     }
 
     // ── Smartflo phone calls: counselors see their own; full admins see all (or the filtered counselor's) ──
@@ -409,9 +432,9 @@ router.put('/calls/:callId/summary', authMiddleware, validate({ params: callIdPa
     let startedAt = req.body.startedAt ? new Date(req.body.startedAt) : null;
     if (!callId.startsWith('sf-')) {
       if (!/^[a-f0-9]{24}$/i.test(callId)) return res.status(404).json({ message: 'Call not found' });
-      const room = await ChatRoom.findOne({ participants: me, 'messages._id': callId }).select('participants participantNames messages.$');
-      const msg = room?.messages?.[0];
-      if (!msg || msg.type !== 'call') return res.status(404).json({ message: 'Call not found' });
+      const msg = await ChatMessage.findOne({ _id: callId, type: 'call' }).select('roomId timestamp type').lean();
+      const room = msg && await ChatRoom.findOne({ _id: msg.roomId, participants: me }).select('participants participantNames').lean();
+      if (!room) return res.status(404).json({ message: 'Call not found' });
       source = 'in_app';
       const otherId = room.participants.find(p => p !== me) || '';
       other = { id: otherId, name: room.participantNames?.[room.participants.indexOf(otherId)] || '' };
@@ -446,8 +469,8 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, vali
   if (!REACTIONS.includes(emoji)) return res.status(400).json({ message: 'Unsupported reaction' });
   try {
     const me = req.user.id.toString();
-    const room = await ChatRoom.findOne({ _id: req.params.roomId, participants: me });
-    const msg = room?.messages.id(req.params.messageId);
+    const room = await ChatRoom.findOne({ _id: req.params.roomId, participants: me }).select('participants');
+    const msg = room && await ChatMessage.findOne({ _id: req.params.messageId, roomId: room._id });
     if (!msg) return res.status(404).json({ message: 'Message not found' });
     const i = (msg.reactions || []).findIndex(r => r.userId === me && r.emoji === emoji);
     if (i >= 0) msg.reactions.splice(i, 1);
@@ -455,7 +478,7 @@ router.post('/rooms/:roomId/messages/:messageId/reactions', authMiddleware, vali
       const who = await User.findById(me).select('name');
       msg.reactions.push({ emoji, userId: me, userName: who?.name || '' });
     }
-    await room.save();
+    await msg.save();
     const io = req.app.get('io');
     const userSockets = req.app.get('userSockets');
     room.participants.filter(p => p !== me).forEach(pid => {
@@ -490,12 +513,8 @@ router.post('/rooms/call-log', authMiddleware, validate({ body: callLogBody }), 
       timestamp: new Date(),
       read: false,
     };
-    const updated = await ChatRoom.findByIdAndUpdate(
-      room._id,
-      { $push: { messages: message } },
-      { new: true }
-    );
-    const newMsg = updated.messages[updated.messages.length - 1];
+    const updated = room;
+    const newMsg = await addMessage(room._id, message);
 
     // Notify other participants in real time. 'call:logged' lets a staff member who received
     // the call (rather than placed it) be asked for a summary too.
@@ -543,13 +562,9 @@ router.post('/rooms/:roomId/files', authMiddleware, requireRoomMember, attachUse
       read: false,
     };
 
-    const room = await ChatRoom.findOneAndUpdate(
-      memberFilter(req),
-      { $push: { messages: message } },
-      { new: true }
-    );
+    const room = await ChatRoom.findOne(memberFilter(req));
     if (!room) return res.status(404).json({ message: 'Room not found' });
-    const newMsg = room.messages[room.messages.length - 1];
+    const newMsg = await addMessage(room._id, message);
 
     // If offer letter: auto-save to student's documents + update application status
     if (offerFlag && req.user.role === 'counselor') {
@@ -622,13 +637,9 @@ router.post('/rooms/:roomId/meetings', authMiddleware, validate({ body: meetingB
       read: false,
     };
 
-    const room = await ChatRoom.findOneAndUpdate(
-      memberFilter(req),
-      { $push: { messages: message } },
-      { new: true }
-    );
+    const room = await ChatRoom.findOne(memberFilter(req));
     if (!room) return res.status(404).json({ message: 'Room not found' });
-    const newMsg = room.messages[room.messages.length - 1];
+    const newMsg = await addMessage(room._id, message);
     const otherIdx = room.participants.findIndex(p => p !== req.user.id.toString());
     recordStaffActivity(req, {
       kind: 'meeting', title: 'Meeting scheduled in chat',
@@ -660,7 +671,7 @@ router.patch('/rooms/:roomId', authMiddleware, validate({ body: roomTypeBody }),
       memberFilter(req), { type }, { new: true }
     );
     if (!room) return res.status(404).json({ message: 'Room not found' });
-    res.json(room.toJSON());
+    res.json(await roomWithMessages(room));
   } catch (err) {
     logError('chat', err);
     res.status(500).json({ message: 'Server error' });
@@ -674,9 +685,9 @@ router.put('/rooms/:roomId/read', authMiddleware, validate({ body: noBody }), as
     const me = req.user.id.toString();
     const room = await ChatRoom.findOne(memberFilter(req)).select('participants');
     if (!room) return res.status(404).json({ message: 'Room not found' });
-    const update = { $addToSet: { 'messages.$[elem].readBy': me } };
-    if (room.participants.length === 2) update.$set = { 'messages.$[elem].read': true };
-    await ChatRoom.updateOne({ _id: room._id }, update, { arrayFilters: [{ 'elem.senderId': { $ne: me } }] });
+    const update = { $addToSet: { readBy: me } };
+    if (room.participants.length === 2) update.$set = { read: true };
+    await ChatMessage.updateMany({ roomId: room._id, senderId: { $ne: me } }, update);
     res.json({ ok: true });
   } catch (err) {
     logError('chat', err);
@@ -698,10 +709,10 @@ router.post('/rooms', authMiddleware, validate({ body: createRoomBody }), async 
         existing.participantNames = participantNames; changed = true;
       }
       if (changed) await existing.save();
-      return res.json(existing.toJSON());
+      return res.json(await roomWithMessages(existing));
     }
-    const room = await ChatRoom.create({ participants: participantIds, participantNames, type: type || 'student-counselor', messages: [] });
-    res.json(room.toJSON());
+    const room = await ChatRoom.create({ participants: participantIds, participantNames, type: type || 'student-counselor' });
+    res.json(await roomWithMessages(room));
   } catch (err) {
     logError('chat', err);
     res.status(500).json({ message: 'Server error' });

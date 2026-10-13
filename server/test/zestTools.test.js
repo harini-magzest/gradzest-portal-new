@@ -3,7 +3,7 @@ const { app } = require('../app');
 const User = require('../models/User');
 const Task = require('../models/Task');
 const LeadAlert = require('../models/LeadAlert');
-const ChatRoom = require('../models/ChatRoom');
+const { createRoom } = require('./helpers');
 const KnowledgeDocument = require('../models/KnowledgeDocument');
 const ZestQueryLog = require('../models/ZestQueryLog');
 const Meeting = require('../models/Meeting');
@@ -253,7 +253,7 @@ describe('my_day_brief', () => {
       { userId: counselor.id, name: 'C', role: 'counselor' }, { userId: quiet.id, name: 'Brief Quiet Lead', role: 'student' },
     ] });
     await Meeting.create({ title: 'Already happened', scheduledDate: todayIST(), scheduledTime: '00:00', participants: [{ userId: counselor.id, name: 'C', role: 'counselor' }] });
-    await ChatRoom.create({ participants: [counselor.id, chatty.id], participantNames: ['C', 'Brief Chatty'], type: 'student-counselor', messages: [said('student', 'Any news on my visa?')] });
+    await createRoom({ participants: [counselor.id, chatty.id], participantNames: ['C', 'Brief Chatty'], type: 'student-counselor', messages: [said('student', 'Any news on my visa?')] });
     await Task.create({ title: 'Due today task', assignedTo: counselor.id, assignedBy: counselor.id, status: 'pending', dueDate: todayUTC() });
     await Task.create({ title: 'Overdue task', assignedTo: counselor.id, assignedBy: counselor.id, status: 'pending', dueDate: '2020-01-01' });
     await Task.create({ title: "Someone else's overdue task", assignedTo: other.id, assignedBy: other.id, status: 'pending', dueDate: '2020-01-01' });
@@ -439,7 +439,7 @@ describe('draft_followup_message', () => {
 });
 
 describe('get_chat_for_reply', () => {
-  const room = (counselor, student, messages) => ChatRoom.create({
+  const room = (counselor, student, messages) => createRoom({
     participants: [counselor.id, student.id], participantNames: ['Counselor', 'Student'], type: 'student-counselor', messages,
   });
   const said = (who, content) => ({ senderRole: who, senderName: who, content });
@@ -469,8 +469,8 @@ describe('get_chat_for_reply', () => {
     const counselor = await mk('counselor');
     const waiting = await mk('student', { name: 'Waiting Wanda List', counselorId: counselor.id });
     const answered = await mk('student', { name: 'Answered Arun List', counselorId: counselor.id });
-    await ChatRoom.create({ participants: [counselor.id, waiting.id], participantNames: ['Counselor', 'Waiting Wanda List'], type: 'student-counselor', messages: [said('student', 'Any update on my visa?')] });
-    await ChatRoom.create({ participants: [counselor.id, answered.id], participantNames: ['Counselor', 'Answered Arun List'], type: 'student-counselor', messages: [said('student', 'hi'), said('counselor', 'hello')] });
+    await createRoom({ participants: [counselor.id, waiting.id], participantNames: ['Counselor', 'Waiting Wanda List'], type: 'student-counselor', messages: [said('student', 'Any update on my visa?')] });
+    await createRoom({ participants: [counselor.id, answered.id], participantNames: ['Counselor', 'Answered Arun List'], type: 'student-counselor', messages: [said('student', 'hi'), said('counselor', 'hello')] });
 
     const result = await executeTool('get_chat_for_reply', {}, { id: counselor.id, role: 'counselor' });
     expect(result.waitingForReply).toEqual([{ student: 'Waiting Wanda List', lastMessage: 'Any update on my visa?' }]);

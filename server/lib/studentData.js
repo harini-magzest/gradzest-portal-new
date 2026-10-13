@@ -17,6 +17,7 @@ const Task = require('../models/Task');
 const Meeting = require('../models/Meeting');
 const Event = require('../models/Event');
 const ChatRoom = require('../models/ChatRoom');
+const ChatMessage = require('../models/ChatMessage');
 const Referral = require('../models/Referral');
 const ParentLink = require('../models/ParentLink');
 const crypto = require('crypto');
@@ -44,13 +45,16 @@ async function exportStudentData(userId) {
     Notification.find({ userId: id }).sort({ createdAt: -1 }).limit(1000).select('type title message createdAt').lean(),
     ZestQueryLog.find({ userId: id }).sort({ createdAt: -1 }).limit(1000).select('question answer feedback createdAt').lean(),
     EmailLog.find({ studentId: id }).sort({ createdAt: -1 }).limit(1000).select('subject status createdAt').lean(),
-    ChatRoom.find({ participants: id }).select('type name participantNames messages').lean(),
+    ChatRoom.find({ participants: id }).select('type name participantNames').lean(),
     Meeting.find({ 'participants.userId': id }).select('title scheduledDate scheduledTime duration status notes').lean(),
     Event.find({ 'registrations.userId': id }).select('title startsAt registrations').lean(),
     Referral.countDocuments({ referrerId: id }),
     Referral.findOne({ referredId: id }).select('createdAt').lean(),
     ParentLink.find({ studentId: id }).select('label createdAt expiresAt revokedAt lastViewedAt viewCount').lean(),
   ]);
+
+  // Only the messages you wrote
+  const mine = await ChatMessage.find({ roomId: { $in: rooms.map((r) => r._id) }, senderId: id }).sort({ timestamp: 1, _id: 1 }).lean();
 
   return stripSecrets({
     exportedAt: new Date().toISOString(),
@@ -59,8 +63,7 @@ async function exportStudentData(userId) {
     notifications,
     zestConversations: zest,
     emailsSentToYou: emails,
-    // Only the messages you wrote
-    chatMessages: rooms.flatMap((r) => (r.messages || []).filter((m) => String(m.senderId) === id).map((m) => ({ room: r.name || r.type, at: m.timestamp, type: m.type, content: m.content, fileName: m.fileName }))),
+    chatMessages: rooms.flatMap((r) => mine.filter((m) => String(m.roomId) === String(r._id)).map((m) => ({ room: r.name || r.type, at: m.timestamp, type: m.type || 'text', content: m.content || '', fileName: m.fileName }))),
     meetings,
     events: events.map((e) => ({ title: e.title, startsAt: e.startsAt, registeredAt: (e.registrations || []).find((r) => String(r.userId) === id)?.registeredAt })),
     referrals: { made: referralsMade, referredByAFriend: !!referredBy },
@@ -100,14 +103,12 @@ async function eraseStudent(userId) {
   const rooms = await ChatRoom.find({ participants: id });
   for (const room of rooms) {
     room.participantNames = room.participants.map((p, i) => (p === id ? REMOVED_NAME : room.participantNames[i]));
-    for (const m of room.messages) {
-      if (String(m.senderId) !== id) continue;
-      m.senderName = REMOVED_NAME;
-      m.content = '[deleted]';
-      m.fileUrl = undefined; m.fileName = undefined; m.recordingUrl = undefined;
-    }
     await room.save();
   }
+  await ChatMessage.updateMany(
+    { roomId: { $in: rooms.map((r) => r._id) }, senderId: id },
+    { $set: { senderName: REMOVED_NAME, content: '[deleted]' }, $unset: { fileUrl: '', fileName: '', recordingUrl: '' } },
+  );
 
   // The account itself: keep only what is needed for counts and for staff records to still make sense
   const applications = (user.applications || []).map((a) => Object.fromEntries(KEEP_APPLICATION.filter((k) => a[k] !== undefined).map((k) => [k, a[k]])));

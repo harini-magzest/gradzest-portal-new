@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const ChatRoom = require('../models/ChatRoom');
+const ChatMessage = require('../models/ChatMessage');
 const Meeting = require('../models/Meeting');
 const StaffActivity = require('../models/StaffActivity');
 const CallSummary = require('../models/CallSummary');
@@ -28,14 +29,16 @@ async function buildCounselorPerformance(counselor, daysParam) {
   });
 
   // ── In-app chat + calls ──
-  const rooms = await ChatRoom.find({ participants: cid }).select('participants participantNames messages');
+  const rooms = await ChatRoom.find({ participants: cid }).select('participants participantNames').lean();
+  const inPeriod = await ChatMessage.find({ roomId: { $in: rooms.map(r => r._id) }, timestamp: { $gte: from, $lte: to } })
+    .select('roomId senderId type callStatus callDuration timestamp').sort({ timestamp: 1, _id: 1 }).lean();
   let messagesSent = 0;
   const calls = [];
   const timeline = [];
   for (const room of rooms) {
     const otherIdx = room.participants.findIndex(p => p !== cid);
     const otherName = room.participantNames?.[otherIdx] || room.participantNames?.find(n => n !== counselor.name) || 'User';
-    for (const m of room.messages) {
+    for (const m of inPeriod.filter(x => String(x.roomId) === String(room._id))) {
       if (!inRange(m.timestamp)) continue;
       if (m.type === 'call') {
         const outbound = m.senderId === cid;
