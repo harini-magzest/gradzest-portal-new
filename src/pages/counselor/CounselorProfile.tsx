@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';
 import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
-import TwoFactorCard from '../../components/TwoFactorCard';
 import NotificationPreferences from '../../components/NotificationPreferences';
 import SignedFileLink from '../../components/SignedFileLink';
 

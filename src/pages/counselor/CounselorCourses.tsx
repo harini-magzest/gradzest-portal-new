@@ -184,7 +184,7 @@ function ApplyModal({ course, students, country, onClose }: {
                       className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400"
                     />
                     {studentSearch && (
-                      <button type="button" onClick={() => setStudentSearch('')}>
+                      <button aria-label="Clear search" type="button" onClick={() => setStudentSearch('')}>
                         <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
                       </button>
                     )}

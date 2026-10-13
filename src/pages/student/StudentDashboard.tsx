@@ -214,6 +214,9 @@ export default function StudentDashboard() {
 
       setRecsLoading(false);
     }).catch(() => setRecsLoading(false));
+    // Loads the university list once and scores it against the student as loaded. Listing each student field would
+    // download the whole list again every time one of them changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch meetings from API and filter for call-type upcoming ones

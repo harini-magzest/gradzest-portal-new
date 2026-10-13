@@ -427,7 +427,7 @@ function CountryModal({ country, onClose, onSaved }: {
                     {form.eligibility.restrictedNationalities.map((n: string, i: number) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs px-2.5 py-1 rounded-full border border-red-100">
                         {n}
-                        <button type="button"
+                        <button aria-label={`Remove ${n}`} type="button"
                           onClick={() => setElig('restrictedNationalities', form.eligibility.restrictedNationalities.filter((_: string, j: number) => j !== i))}
                           className="text-red-400 hover:text-red-700 ml-0.5"><X className="w-3 h-3" /></button>
                       </span>

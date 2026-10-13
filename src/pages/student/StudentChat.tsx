@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Send, Search, MessageSquare, Phone, PhoneMissed, PhoneOff, Video,
@@ -185,7 +185,7 @@ export default function StudentChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const loadRooms = async (opts?: { silent?: boolean }) => {
+  const loadRooms = useCallback(async (opts?: { silent?: boolean }) => {
     try {
       const list = await api.chat.rooms();
       setRooms(list);
@@ -197,23 +197,23 @@ export default function StudentChat() {
     } catch {
       if (!opts?.silent) toast.error('Failed to load conversations.');
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (!user) return;
     loadRooms();
-  }, [user]);
+  }, [user, loadRooms]);
 
   useEffect(() => {
     if (!lastMessageTime) return;
     loadRooms({ silent: true });
-  }, [lastMessageTime]);
+  }, [lastMessageTime, loadRooms]);
 
   useEffect(() => {
     if (!user) return;
     const id = setInterval(() => loadRooms({ silent: true }), 15000);
     return () => clearInterval(id);
-  }, [user]);
+  }, [user, loadRooms]);
 
   useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 

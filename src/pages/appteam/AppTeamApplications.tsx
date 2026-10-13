@@ -114,6 +114,9 @@ function ChatPanel({ counselor, currentUser }: { counselor: any; currentUser: an
       }
     }).catch(() => setRoom(null))
       .finally(() => setLoadingRoom(false));
+    // Opens (or creates) the chat room once per counselor. Listing the signed-in user and the display names would
+    // re-run it, and could create a second room, whenever a name is edited while this page is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [counselorId]);
 
   // Poll for new messages every 10s

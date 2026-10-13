@@ -7,8 +7,10 @@ import { describe, it, expect } from 'vitest';
 // Every component source file as text (tests excluded), loaded by Vite so no Node file APIs are needed.
 const sources = import.meta.glob(['../**/*.tsx', '!../**/*.test.tsx'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
-const BUTTON = /<button\b([^>]*?)>(.*?)<\/button>/gs;
-const ICON_ONLY = /^<(X|RefreshCw|Send|Bookmark|PenLine|Trash2|Eye|EyeOff)\b[^<>]*?(?:\{[^{}]*\}[^<>]*?)*\/>$/s;
+// The opening tag may hold `=>` inside {...} (onClick={() => ...}), so braces are matched rather than stopping at the
+// first '>'. Any lone component element counts as an icon (a lucide icon, or a variable such as <Icon />).
+const BUTTON = /<button\b((?:[^>{]|\{(?:[^{}]|\{[^{}]*\})*\})*)>(.*?)<\/button>/gs;
+const ICON_ONLY = /^<[A-Z]\w*\b[^<>{]*?(?:\{(?:[^{}]|\{[^{}]*\})*\}[^<>{]*?)*\/>$/s;
 
 describe('accessibility rules', () => {
   it('finds the source files', () => {

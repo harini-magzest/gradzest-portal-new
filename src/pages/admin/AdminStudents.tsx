@@ -5,7 +5,7 @@ import {
   Eye, EyeOff, Check, Search, ExternalLink, Pencil,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp,
   BookOpen, DollarSign, MapPin, CheckCircle, Download, RefreshCw,
-  ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Mail, Phone,
+  ChevronLeft, ChevronRight, UserX, Activity, Video, Copy, ArrowLeft, Phone,
 } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -120,7 +120,7 @@ function GroupMeetingModal({ student, counselors, onClose }: { student: any; cou
   const [created, setCreated] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, []);
+  useEffect(() => { api.admin.appteamUsers().then(setAdminUsers).catch(() => toast.error('Failed to load staff list.')); }, [toast]);
 
   const selfId = String(user?.id ?? '');
   const groups = [
@@ -1540,7 +1540,7 @@ export default function AdminStudents() {
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                <button aria-label="Previous page" type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1555,7 +1555,7 @@ export default function AdminStudents() {
                     </button>
                   )
                 )}
-                <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                <button aria-label="Next page" type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 transition-colors">
                   <ChevronRight className="w-4 h-4" />
                 </button>

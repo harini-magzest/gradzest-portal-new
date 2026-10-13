@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { useCallContext } from '../../context/CallContext';
-import { PresenceDot, PresenceLabel } from '../../components/Presence';
+import { PresenceLabel } from '../../components/Presence';
 import { usePortalName } from '../../hooks/usePortalName';
 
 // ── Constants ────────────────────────────────────────────────────────────────

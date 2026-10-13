@@ -90,7 +90,7 @@ export default function CourseCustomDataModal({ course, uniId, knownTags = [], k
               <input value={tagText} onChange={e => setTagText(e.target.value)} maxLength={40}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagText); } }}
                 placeholder="Type a tag and press Enter" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <button type="button" onClick={() => addTag(tagText)} disabled={!tagText.trim()} className="px-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"><Plus className="w-4 h-4" /></button>
+              <button aria-label="Add tag" type="button" onClick={() => addTag(tagText)} disabled={!tagText.trim()} className="px-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"><Plus className="w-4 h-4" /></button>
             </div>
             <div className="flex flex-wrap gap-1 mt-2">
               {tagSuggestions.slice(0, 14).map(s => (

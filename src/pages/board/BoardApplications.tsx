@@ -141,7 +141,7 @@ export default function BoardApplications() {
             placeholder="Search student, university..."
             className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
-          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
+          {search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -150,7 +150,7 @@ export default function BoardApplications() {
         </select>
         <div className="flex rounded-lg border border-gray-200 overflow-hidden ml-auto">
           {[{ v: 'board', icon: LayoutGrid }, { v: 'list', icon: List }].map(({ v, icon: Icon }) => (
-            <button key={v} onClick={() => setViewMode(v as any)}
+            <button type="button" aria-label={v === 'board' ? 'Board view' : 'List view'} aria-pressed={viewMode === v} key={v} onClick={() => setViewMode(v as any)}
               className={`px-3 py-1.5 ${viewMode === v ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <Icon className="w-4 h-4" />
             </button>

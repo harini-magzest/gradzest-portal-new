@@ -62,6 +62,8 @@ function Toast({ notification: n, onDismiss }: ToastProps) {
       }
     }, 50);
     return () => clearInterval(tick);
+    // One timer for the life of the toast: `duration` and the dismiss callback are read once when it appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDismiss = () => {

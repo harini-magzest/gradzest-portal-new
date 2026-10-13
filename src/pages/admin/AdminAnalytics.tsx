@@ -85,7 +85,7 @@ export default function AdminAnalytics() {
               <h1 className="text-2xl font-bold leading-tight">Analytics</h1>
             </div>
           </div>
-          <button type="button" onClick={() => load(period)} disabled={loading}
+          <button aria-label="Refresh" type="button" onClick={() => load(period)} disabled={loading}
             className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>

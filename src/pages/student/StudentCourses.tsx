@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import ApplicationModal from '../../components/ApplicationModal';
 import { checkCourseEligibility, ELIGIBILITY_BADGE } from '../../utils/eligibility';
-import { useT } from '../../i18n/LanguageContext';
 
 const LEVELS = ['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'];
 const LEVEL_COLORS: Record<string, string> = {
@@ -46,7 +45,6 @@ export default function StudentCourses() {
   const [countryFilter, setCountryFilter] = useState('');
   const [eligibleOnly, setEligibleOnly] = useState(false);
   const [applyModal, setApplyModal] = useState<{ course: any; uni: any } | null>(null);
-  const { t } = useT();
 
   const loadCourses = () => {
     setLoadError('');

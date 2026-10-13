@@ -71,7 +71,7 @@ export default function OnboardingChecklist({ defaultCollapsed = false }: { defa
         </div>
         <div className="flex items-center gap-2">
           {allDone && (
-            <button onClick={e => { e.stopPropagation(); handleDismiss(); }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+            <button type="button" aria-label="Dismiss checklist" onClick={e => { e.stopPropagation(); handleDismiss(); }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
               <X className="w-4 h-4 text-gray-400" />
             </button>
           )}

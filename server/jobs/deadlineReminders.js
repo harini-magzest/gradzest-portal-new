@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
-const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
+const { wantsEmail, sendExtraChannels, withReminderFooter } = require('../lib/notificationChannels');
 
 const REMIND_DAYS = [30, 7, 1];
 
@@ -71,7 +71,7 @@ async function runDeadlineCheck(io, userSockets, mailer) {
       sendExtraChannels(student, `${title}. ${message}`);
 
       if (mailer && student.email && wantsEmail(student)) {
-        mailer.sendMail({
+        mailer.sendMail(withReminderFooter({
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: student.email,
           subject: `${title} — ${app.universityName}`,
@@ -89,7 +89,7 @@ async function runDeadlineCheck(io, userSockets, mailer) {
                 <p style="font-size:14px;color:#6b7280;">Log in to your Gradzest portal to review your application status.</p>
               </div>
             </div>`,
-        }).catch(() => {});
+        }, 'student')).catch(() => {});
       }
     }
   }

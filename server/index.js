@@ -1,4 +1,4 @@
-const { app, io, httpServer, userSockets, mailer } = require('./app');
+const { io, httpServer, userSockets, mailer } = require('./app');
 const { connectDB } = require('./db');
 const { jobsEnabled } = require('./lib/runJobs');
 const { installConsoleBridgeFromEnv } = require('./lib/logger');

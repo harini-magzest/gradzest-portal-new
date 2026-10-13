@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FileText, RefreshCw, Search, X, ChevronDown, AlertTriangle,
   CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2,
-  GraduationCap, Plus, Trash2, ChevronUp, ArrowRight, Download, FileDown,
+  GraduationCap, Plus, Trash2, ChevronUp, Download, FileDown,
 } from 'lucide-react';
 import { api } from '../../api';
 import StatusBadge from '../../components/StatusBadge';

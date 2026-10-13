@@ -1,5 +1,4 @@
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
-import ZestIcon from '../../components/zest/ZestIcon';
 import { LayoutDashboard, Users, UserCog, FileText, GraduationCap, BookOpen, CalendarDays, MessageSquare, Activity, BarChart2, Globe, Settings, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { loginRedirect } from '../../lib/loginRedirect';

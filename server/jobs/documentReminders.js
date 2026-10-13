@@ -16,7 +16,7 @@ const University = require('../models/University');
 const Country = require('../models/Country');
 const Notification = require('../models/Notification');
 const { buildChecklist, destinationNames } = require('../lib/documentChecklist');
-const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
+const { wantsEmail, sendExtraChannels, withReminderFooter } = require('../lib/notificationChannels');
 const { parseIntakeDate } = require('./deadlineReminders');
 
 const DAY = 86400000;
@@ -156,12 +156,12 @@ async function runDocumentReminders(io, userSockets, mailer, { now = new Date(),
     sendExtraChannels(student, `${title}. ${message}`);
     if (mailer && student.email && wantsEmail(student)) {
       try {
-        await mailer.sendMail({
+        await mailer.sendMail(withReminderFooter({
           from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
           to: student.email,
           subject: `${title} — Gradzest`,
           html: emailHtml(student, urgent, shown, items.length - shown.length),
-        });
+        }, 'student'));
         stats.emailed++;
       } catch { /* a bounced email must not stop the rest of the run */ }
     }

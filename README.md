@@ -89,7 +89,7 @@ Zest answers from the uploaded knowledge base, the university catalogue and role
 
 ## Checks and merging
 
-Every pull request into `main` runs automatic checks (`.github/workflows/ci.yml`): **lint**, **typecheck-build**, **backend-tests**, **ui-tests** and **api-image**. They are the same commands as step 4 above (plus `npm run lint`), so run those locally before you open the pull request. `npm run lint` fails on errors and on any *new* warning: if you remove warnings, lower the `--max-warnings` number in the `lint` script in `package.json` to match, so they can't come back.
+Every pull request into `main` runs automatic checks (`.github/workflows/ci.yml`): **lint**, **typecheck-build**, **backend-tests**, **ui-tests** and **api-image**. They are the same commands as step 4 above (plus `npm run lint`), so run those locally before you open the pull request. `npm run lint` fails on errors and on any warning at all (the ceiling in `package.json` is `--max-warnings 0`). Fix the warning; when a React effect is deliberately run-once or run-on-change, say why with an `// eslint-disable-next-line react-hooks/exhaustive-deps` comment above it, and ESLint will flag that comment if the effect is ever fixed and it is no longer needed.
 
 - **Update your branch before merging.** `git fetch origin && git merge origin/main`, then fix conflicts by reading *both* sides. A branch built from an old snapshot can silently overwrite newer work on `main` when it is merged, and the checks only catch it if you run them on the merged result.
 - **Don't share one working folder.** Two people (or two tools) committing in the same checkout can reset each other's branch and wipe uncommitted work. Use separate clones, or `git worktree add ../my-work -b my-branch origin/main`.

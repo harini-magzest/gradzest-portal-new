@@ -23,9 +23,10 @@ export default function Login() {
   const [sessionNotice] = useState(() => { const r = takeLogoutReason(); return r ? LOGOUT_MESSAGES[r] : ''; });
 
   // Show success message when redirected from email verification
+  const justVerified = searchParams.get('verified') === '1';
   useEffect(() => {
-    if (searchParams.get('verified') === '1') toast.success('Email verified! You can now sign in.');
-  }, []);
+    if (justVerified) toast.success('Email verified! You can now sign in.');
+  }, [justVerified, toast]);
 
   function redirectAfterLogin(role: string, isAppTeam?: boolean) {
     if (role === 'admin') navigate(isAppTeam ? '/appteam' : '/admin');

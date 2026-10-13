@@ -456,7 +456,7 @@ export default function StudentLearning() {
               className="text-xs font-semibold bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors">
               Open
             </a>
-            <button type="button" onClick={() => setNextUp(null)} className="text-gray-400 hover:text-gray-600">
+            <button aria-label="Dismiss" type="button" onClick={() => setNextUp(null)} className="text-gray-400 hover:text-gray-600">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -757,11 +757,11 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${LEVEL_COLORS[r.level]}`}>{r.level}</span>
                         </div>
                         <div className="flex gap-1.5 flex-shrink-0">
-                          <button type="button" onClick={() => onBookmark(r.id)}
+                          <button aria-label={bm ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bm} type="button" onClick={() => onBookmark(r.id)}
                             className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${bm ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-300 hover:text-amber-400'}`}>
                             <Bookmark className="w-3.5 h-3.5" fill={bm ? 'currentColor' : 'none'} />
                           </button>
-                          <button type="button" onClick={() => onToggleNote(r.id)}
+                          <button aria-label="Note" type="button" onClick={() => onToggleNote(r.id)}
                             className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${comments[r.id] || en ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-300 hover:text-blue-400'}`}>
                             <PenLine className="w-3.5 h-3.5" />
                           </button>
