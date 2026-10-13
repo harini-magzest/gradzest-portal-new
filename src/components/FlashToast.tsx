@@ -25,7 +25,7 @@ export default function FlashToast() {
             <div className={`h-full w-1 ${s.bar} absolute left-0 top-0 bottom-0 rounded-l-xl`} />
             <IconEl className={`w-5 h-5 mt-0.5 flex-shrink-0 ${s.icon}`} />
             <p className="text-sm text-gray-800 flex-1 leading-snug">{t.message}</p>
-            <button type="button" onClick={() => dismiss(t.id)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+            <button aria-label="Dismiss" type="button" onClick={() => dismiss(t.id)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>

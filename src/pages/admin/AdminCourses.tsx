@@ -432,7 +432,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
               {form.requirements.map((r: string, i: number) => (
                 <span key={i} className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs px-2.5 py-1 rounded-full border border-purple-100">
                   {r}
-                  <button type="button" onClick={() => set('requirements', form.requirements.filter((_: string, j: number) => j !== i))} className="text-purple-400 hover:text-purple-700 ml-0.5">
+                  <button aria-label={`Remove ${r}`} type="button" onClick={() => set('requirements', form.requirements.filter((_: string, j: number) => j !== i))} className="text-purple-400 hover:text-purple-700 ml-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -514,7 +514,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
                     {form.eligibility.englishRequirements.map((r: any, i: number) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-100">
                         {r.test} ≥ {r.minScore}
-                        <button type="button"
+                        <button aria-label={`Remove ${r.test}`} type="button"
                           onClick={() => setElig('englishRequirements', form.eligibility.englishRequirements.filter((_: any, j: number) => j !== i))}
                           className="text-blue-400 hover:text-blue-700 ml-0.5"><X className="w-3 h-3" /></button>
                       </span>
@@ -535,7 +535,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
                     {form.eligibility.restrictedNationalities.map((n: string, i: number) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs px-2.5 py-1 rounded-full border border-red-100">
                         {n}
-                        <button type="button"
+                        <button aria-label={`Remove ${n}`} type="button"
                           onClick={() => setElig('restrictedNationalities', form.eligibility.restrictedNationalities.filter((_: string, j: number) => j !== i))}
                           className="text-red-400 hover:text-red-700 ml-0.5"><X className="w-3 h-3" /></button>
                       </span>

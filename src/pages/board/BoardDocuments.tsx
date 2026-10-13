@@ -102,7 +102,7 @@ export default function BoardDocuments() {
               placeholder="Search student..."
               className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-            {searchStudent && <button onClick={() => setSearchStudent('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
+            {searchStudent && <button type="button" aria-label="Clear search" onClick={() => setSearchStudent('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
           </div>
         </div>
 
@@ -137,7 +137,7 @@ export default function BoardDocuments() {
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 flex-shrink-0">
-            <button onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
+            <button type="button" aria-label="Back to list" onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
               <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
             </button>
             <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -161,7 +161,7 @@ export default function BoardDocuments() {
                   placeholder="Search documents..."
                   className="w-full pl-8 pr-7 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
-                {searchDoc && <button onClick={() => setSearchDoc('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-gray-400" /></button>}
+                {searchDoc && <button type="button" aria-label="Clear search" onClick={() => setSearchDoc('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-gray-400" /></button>}
               </div>
               {allDocTypes.length > 0 && (
                 <div className="flex items-center gap-1.5">
