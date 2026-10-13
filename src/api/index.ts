@@ -319,6 +319,9 @@ export const api = {
     staff: () => req<any[]>('/chat/staff', { headers: authHeaders() }),
     presence: () => req<{ online: string[]; lastSeen: Record<string, string> }>('/chat/presence', { headers: authHeaders() }),
     room: (roomId: string) => req<any>(`/chat/rooms/${roomId}`, { headers: authHeaders() }),
+    // The page of messages before `beforeId`, oldest first (a room opens on its latest 50)
+    olderMessages: (roomId: string, beforeId: string) =>
+      req<{ messages: any[]; hasOlder: boolean }>(`/chat/rooms/${roomId}/messages?before=${encodeURIComponent(beforeId)}`, { headers: authHeaders() }),
     send: (roomId: string, content: string, senderName: string, replyToId?: string) =>
       req<any>(`/chat/rooms/${roomId}/messages`, {
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ content, senderName, replyToId }),

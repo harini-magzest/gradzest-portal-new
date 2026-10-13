@@ -10,6 +10,8 @@ import { useCallContext } from '../../context/CallContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../api';
 import { useMarkRoomRead, unreadCount, unreadInRooms, unreadWithPeople } from '../../hooks/useMarkRoomRead';
+import { useOpenRoom, withLoadedMessages } from '../../hooks/useOpenRoom';
+import EarlierMessages from '../../components/chat/EarlierMessages';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 import SignedFileLink from '../../components/SignedFileLink';
@@ -302,6 +304,7 @@ export default function AdminChat() {
   const [meetingForm, setMeetingForm] = useState({ date: '', time: '', notes: '' });
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesBoxRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -352,7 +355,7 @@ export default function AdminChat() {
       setRooms(roomList);
       if (selectedRoom) {
         const updated = roomList.find((r: any) => r.id === selectedRoom.id);
-        if (updated) setSelectedRoom(updated);
+        if (updated) setSelectedRoom((open: any) => withLoadedMessages(updated, open));
       }
     }).catch(() => toast.error('Failed to refresh conversations.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,17 +368,21 @@ export default function AdminChat() {
         setRooms(roomList);
         // Keep the open conversation in step with the fresh list. Going through the setter means this always sees the
         // current room, so the timer does not have to be restarted each time a different conversation is opened.
-        setSelectedRoom((prev: any) => (prev ? roomList.find((r: any) => r.id === prev.id) ?? prev : prev));
+        setSelectedRoom((prev: any) => (prev ? withLoadedMessages(roomList.find((r: any) => r.id === prev.id), prev) ?? prev : prev));
       }).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
   }, [user]);
 
   useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
+  // The open conversation's latest messages, and older ones as the reader scrolls up
+  const openRoom = useOpenRoom(selectedRoom, setSelectedRoom, { refresh: lastMessageTime, containerRef: messagesBoxRef });
+  const { consumeOlderAdded } = openRoom;
 
   useEffect(() => {
+    if (consumeOlderAdded()) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedRoom?.messages]);
+  }, [selectedRoom?.messages, consumeOlderAdded]);
 
   const clearFileInputs = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -676,7 +683,8 @@ export default function AdminChat() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div ref={messagesBoxRef} onScroll={openRoom.onScroll} className="flex-1 overflow-y-auto p-5 space-y-4">
+              <EarlierMessages hasOlder={openRoom.hasOlder} loading={openRoom.loadingOlder} onLoad={openRoom.loadOlder} />
               {(selectedRoom.messages || []).length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <MessageSquare className="w-12 h-12 text-gray-300 mb-3" />

@@ -4,6 +4,7 @@ const { app } = require('../app');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const ChatRoom = require('../models/ChatRoom');
+const { roomMessages } = require('./helpers');
 const ActivityLog = require('../models/ActivityLog');
 const { logActivity, initActivityLogger } = require('../middleware/logActivity');
 
@@ -187,8 +188,9 @@ describe('chat rooms are private to their participants', () => {
     // marking read from outside changes nothing
     await request(app).put(`/api/chat/rooms/${roomId}/read`).set(as(intruder));
     const room = await ChatRoom.findById(roomId).lean();
-    expect(room.messages.map((m) => m.content)).toEqual(['private text']);
-    expect(room.messages[0].read).toBe(false);
+    const messages = await roomMessages(roomId);
+    expect(messages.map((m) => m.content)).toEqual(['private text']);
+    expect(messages[0].read).toBe(false);
     expect(room.type).not.toBe('group');
 
     // asking for someone else's conversation by naming its participants is refused

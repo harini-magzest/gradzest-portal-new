@@ -25,6 +25,7 @@ const { checklistFor, timelineFor } = require('./studentProgress');
 const { nextStepFor } = require('./nextStep');
 const { gatherFacts, templateDraft, CHANNELS } = require('./followupDraft');
 const { recentTranscript, transcriptText, needsReply, DRAFT_INSTRUCTION } = require('./zestDraft');
+const { lastMessages: recentMessages } = require('./chatMessages');
 const { buildInsights, documentUsage } = require('./zestInsights');
 
 const RESULT_CAP = 15;
@@ -407,11 +408,14 @@ async function draftFollowupMessage({ student, channel } = {}, user, ctx = {}) {
 
 const SNIPPET = 140;
 const chatsOf = (user) => ({ participants: String(user.id), type: { $ne: 'group' } });
-const LAST_MESSAGES = { participants: 1, participantNames: 1, updatedAt: 1, messages: { $slice: -12 } };
+const ROOM_FIELDS = 'participants participantNames updatedAt';
+// A chat with its last 12 messages, which is all a reply draft reads
+const withRecentMessages = async (room) => ({ ...room, messages: await recentMessages(room._id, 12) });
 
 // The caller's own one-to-one chats where the student wrote last, most recently active first.
 async function waitingChats(user) {
-  const rooms = await ChatRoom.find(chatsOf(user)).select(LAST_MESSAGES).sort({ updatedAt: -1 }).limit(50).lean();
+  const found = await ChatRoom.find(chatsOf(user)).select(ROOM_FIELDS).sort({ updatedAt: -1 }).limit(50).lean();
+  const rooms = await Promise.all(found.map(withRecentMessages));
   const waiting = [];
   for (const room of rooms) {
     const lines = recentTranscript(room.messages);
@@ -425,7 +429,6 @@ async function waitingChats(user) {
 async function getChatForReply({ student } = {}, user) {
   if (user.role === 'student') return { error: 'Not available for students.' };
   const mine = chatsOf(user);
-  const lastMessages = LAST_MESSAGES;
 
   const q = safeQuery(student);
   if (!q) {
@@ -438,8 +441,9 @@ async function getChatForReply({ student } = {}, user) {
   if (students.length > 1) return { error: 'More than one student matches. Ask which one is meant.', matches: students.map(s => s.name) };
   const lead = students[0];
 
-  const room = await ChatRoom.findOne({ ...mine, participants: { $all: [String(user.id), String(lead._id)] } }).select(lastMessages).lean();
-  if (!room) return { error: `You are not in a chat with ${lead.name}.` };
+  const found = await ChatRoom.findOne({ ...mine, participants: { $all: [String(user.id), String(lead._id)] } }).select(ROOM_FIELDS).lean();
+  if (!found) return { error: `You are not in a chat with ${lead.name}.` };
+  const room = await withRecentMessages(found);
   const lines = recentTranscript(room.messages);
   if (!lines.length) return { error: `There are no messages yet in your chat with ${lead.name}.` };
   if (!needsReply(lines)) {

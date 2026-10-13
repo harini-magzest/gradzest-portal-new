@@ -10,6 +10,7 @@
 
 const path = require('path');
 const ChatRoom = require('../models/ChatRoom');
+const ChatMessage = require('../models/ChatMessage');
 const UploadRecord = require('../models/UploadRecord');
 const User = require('../models/User');
 const { loadAccess, canView } = require('./access');
@@ -20,7 +21,8 @@ async function canAccessUpload(user, storedName) {
   const url = `/uploads/${name}`;
   const me = String(user.id);
 
-  const room = await ChatRoom.findOne({ $or: [{ 'messages.fileUrl': url }, { 'messages.recordingUrl': url }] }).select('participants').lean();
+  const message = await ChatMessage.findOne({ $or: [{ fileUrl: url }, { recordingUrl: url }] }).select('roomId').lean();
+  const room = message && await ChatRoom.findById(message.roomId).select('participants').lean();
   if (room) return room.participants.map(String).includes(me);
 
   let ownerId = null;
