@@ -5,7 +5,7 @@ const jsonwebtoken = require('jsonwebtoken');
 const request = require('supertest');
 const { app } = require('../app');
 const User = require('../models/User');
-const ChatRoom = require('../models/ChatRoom');
+const { createRoom } = require('./helpers');
 const { jwtSecretProblem } = require('../lib/tokens');
 const { fetchPublicPage } = require('../lib/safeHttp');
 const { isPrivateIPv6, isPrivateIPv4 } = require('../lib/ssrfGuard');
@@ -111,11 +111,11 @@ describe('call recording uploads', () => {
   async function callRoom() {
     const counselor = await login('counselor');
     const student = await login('student');
-    const room = await ChatRoom.create({
+    const { messages } = await createRoom({
       participants: [counselor.id, student.id], participantNames: ['C', 'S'],
       messages: [{ senderId: counselor.id, senderName: 'C', type: 'call', callStatus: 'answered' }],
     });
-    return { counselor, msgId: String(room.messages[0]._id) };
+    return { counselor, msgId: String(messages[0]._id) };
   }
 
   it('refuses a file that only claims to be audio, whatever its name', async () => {

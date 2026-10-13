@@ -6,11 +6,10 @@ const { io: ioClient } = require('socket.io-client');
 const { app, httpServer } = require('../app');
 const User = require('../models/User');
 const Role = require('../models/Role');
-const ChatRoom = require('../models/ChatRoom');
 const UiActivity = require('../models/UiActivity');
 const { buildDevice, sanitizeHints } = require('../lib/device');
 const { recordSignInActivity } = require('../lib/recordSignIn');
-const { waitUntil } = require('./helpers');
+const { waitUntil, createRoom } = require('./helpers');
 
 const UPLOADS = path.join(__dirname, '..', 'uploads');
 let n = 0;
@@ -215,7 +214,7 @@ describe('uploaded files are only served to people entitled to them', () => {
     const intruder = await mk('student');
     const admin = await mk('admin');
     const name = putFile('private chat file');
-    await ChatRoom.create({ participants: [a.id, c.id], participantNames: ['A', 'C'], type: 'student-counselor',
+    await createRoom({ participants: [a.id, c.id], participantNames: ['A', 'C'], type: 'student-counselor',
       messages: [{ senderId: a.id, senderName: 'A', content: 'f.pdf', type: 'file', fileUrl: `/uploads/${name}`, fileName: 'f.pdf' }] });
     expect((await get(a, name)).status).toBe(200);
     expect((await get(c, name)).status).toBe(200);

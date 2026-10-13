@@ -11,6 +11,8 @@ import {
   Send, ChevronDown, ChevronUp, GraduationCap,
 } from 'lucide-react';
 import SignedFileLink from '../../components/SignedFileLink';
+import { useOpenRoom } from '../../hooks/useOpenRoom';
+import EarlierMessages from '../../components/chat/EarlierMessages';
 
 const STATUSES = [
   { key: 'draft',          label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400',   ring: 'ring-gray-300',   border: 'border-gray-300' },
@@ -119,18 +121,15 @@ function ChatPanel({ counselor, currentUser }: { counselor: any; currentUser: an
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [counselorId]);
 
-  // Poll for new messages every 10s
-  useEffect(() => {
-    if (!room?.id) return;
-    const id = setInterval(() => {
-      api.chat.room(room.id).then(updated => setRoom(updated)).catch(() => {});
-    }, 10000);
-    return () => clearInterval(id);
-  }, [room?.id]);
+  // The latest messages every 10s, and older ones as the reader scrolls up
+  const messagesBoxRef = useRef<HTMLDivElement>(null);
+  const openRoom = useOpenRoom(room, setRoom, { containerRef: messagesBoxRef, pollMs: 10000 });
+  const { consumeOlderAdded } = openRoom;
 
   useEffect(() => {
+    if (consumeOlderAdded()) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [room?.messages?.length]);
+  }, [room?.messages?.length, consumeOlderAdded]);
 
   useEffect(() => {
     if (room?.id) api.chat.markRead(room.id).catch(() => {});
@@ -169,7 +168,8 @@ function ChatPanel({ counselor, currentUser }: { counselor: any; currentUser: an
   return (
     <div className="flex flex-col gap-0">
       {/* Messages */}
-      <div className="h-56 overflow-y-auto space-y-2 px-1 py-1 bg-gray-50 rounded-lg mb-2">
+      <div ref={messagesBoxRef} onScroll={openRoom.onScroll} className="h-56 overflow-y-auto space-y-2 px-1 py-1 bg-gray-50 rounded-lg mb-2">
+        <EarlierMessages hasOlder={openRoom.hasOlder} loading={openRoom.loadingOlder} onLoad={openRoom.loadOlder} />
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <MessageSquare className="w-8 h-8 text-gray-200 mb-1" />

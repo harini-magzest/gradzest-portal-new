@@ -10,6 +10,8 @@ import { useCallContext } from '../../context/CallContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../api';
 import { useMarkRoomRead, unreadCount } from '../../hooks/useMarkRoomRead';
+import { useOpenRoom, withLoadedMessages } from '../../hooks/useOpenRoom';
+import EarlierMessages from '../../components/chat/EarlierMessages';
 import { MessageActions, ReplyQuote, ReplyingBar } from '../../components/GroupMessageExtras';
 import { PresenceDot, PresenceLabel, GroupPresence } from '../../components/Presence';
 import SignedFileLink from '../../components/SignedFileLink';
@@ -191,7 +193,7 @@ export default function StudentChat() {
       setRooms(list);
       setSelectedRoom((prev: any) => {
         if (!prev && list.length > 0) return list[0];
-        if (prev) return list.find((r: any) => r.id === prev.id) ?? prev;
+        if (prev) return withLoadedMessages(list.find((r: any) => r.id === prev.id), prev) ?? prev;
         return prev;
       });
     } catch {
@@ -216,15 +218,19 @@ export default function StudentChat() {
   }, [user, loadRooms]);
 
   useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
+  // The open conversation's latest messages, and older ones as the reader scrolls up
+  const openRoom = useOpenRoom(selectedRoom, setSelectedRoom, { refresh: lastMessageTime, containerRef: messagesContainerRef });
+  const { consumeOlderAdded } = openRoom;
 
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const roomChanged = selectedRoom?.id !== prevRoomIdRef.current;
     prevRoomIdRef.current = selectedRoom?.id ?? null;
+    if (consumeOlderAdded()) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     if (roomChanged || nearBottom) el.scrollTop = el.scrollHeight;
-  }, [selectedRoom?.messages, selectedRoom?.id]);
+  }, [selectedRoom?.messages, selectedRoom?.id, consumeOlderAdded]);
 
   const clearFileInputs = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -392,7 +398,8 @@ export default function StudentChat() {
           </div>
 
           {/* Messages */}
-          <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+          <div ref={messagesContainerRef} onScroll={openRoom.onScroll} className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+            <EarlierMessages hasOlder={openRoom.hasOlder} loading={openRoom.loadingOlder} onLoad={openRoom.loadOlder} />
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
                 <MessageSquare className="w-12 h-12 text-gray-300 mb-3" />

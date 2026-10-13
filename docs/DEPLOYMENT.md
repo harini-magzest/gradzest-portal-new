@@ -100,6 +100,14 @@ users on one instance with sticky sessions and store uploads in S3.
   exception or unhandled rejection. The last two still end the process, as Node does by default; the report is flushed first.
 * The API's own `/soc` security logging (RequestLog, SecurityEvent) is separate and unchanged.
 
+### Upgrading to separate chat messages
+Chat messages moved out of their rooms into their own collection. On the release that makes this change, move them with
+`server/scripts/migrateChatMessages.js` (dry run by default; back up the database first):
+1. `node scripts/migrateChatMessages.js --apply` before deploying: copies every message, and the old server keeps working.
+2. Deploy.
+3. `node scripts/migrateChatMessages.js --apply --remove-embedded`: copies what arrived in between, then removes the old
+   arrays. Run it again if it reports rooms that changed meanwhile.
+
 ## 4. Verify a deployment
 ```bash
 # 1. The dev server must not be there. Each of these must NOT return JavaScript or source (a static host's single-page

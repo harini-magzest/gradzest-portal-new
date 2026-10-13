@@ -7,6 +7,7 @@ const User = require('./models/User');
 const University = require('./models/University');
 const Country = require('./models/Country');
 const ChatRoom = require('./models/ChatRoom');
+const ChatMessage = require('./models/ChatMessage');
 
 const universityData = [
   {
@@ -175,6 +176,7 @@ async function run() {
   await User.deleteMany({});
   await University.deleteMany({});
   await ChatRoom.deleteMany({});
+  await ChatMessage.deleteMany({});
   console.log('Cleared existing data');
 
   await University.insertMany(universityData);
@@ -318,7 +320,7 @@ async function run() {
   const now = new Date();
   const ts = (minutesAgo) => new Date(now.getTime() - minutesAgo * 60000);
 
-  await ChatRoom.create([
+  const seededRooms = [
     {
       participants: [aryan._id.toString(), kavitha._id.toString()],
       participantNames: ['Aryan Sharma', 'Dr. Kavitha Reddy'],
@@ -341,7 +343,12 @@ async function run() {
         { senderId: kavitha._id.toString(), senderName: 'Dr. Kavitha Reddy', senderRole: 'counselor', content: "Edinburgh Medicine typically has a Multiple Mini Interview (MMI). I'll share preparation resources.", timestamp: ts(185), read: true },
       ],
     },
-  ]);
+  ];
+  // Messages live in their own collection (models/ChatMessage.js)
+  for (const { messages, ...room } of seededRooms) {
+    const created = await ChatRoom.create(room);
+    await ChatMessage.insertMany(messages.map((m) => ({ ...m, roomId: created._id })));
+  }
   console.log('Chat rooms seeded');
 
   // ── Countries ────────────────────────────────────────────────────────────
