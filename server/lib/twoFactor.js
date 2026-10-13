@@ -33,7 +33,7 @@ const signChallenge = (userId) => jwt.sign({ sub: String(userId), purpose: '2fa'
 
 function readChallenge(token) {
   try {
-    const payload = jwt.verify(String(token || ''), derivedKey('2fa-challenge:v1'));
+    const payload = jwt.verify(String(token || ''), derivedKey('2fa-challenge:v1'), { algorithms: ['HS256'] });
     return payload.purpose === '2fa' ? String(payload.sub) : null;
   } catch {
     return null;

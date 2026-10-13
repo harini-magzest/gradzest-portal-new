@@ -238,6 +238,14 @@ describe('two-factor sign-in', () => {
       expect((await secondStep(expired, code)).status).toBe(401);
     });
 
+    it('a challenge signed with the right key but another algorithm is refused: the algorithm is pinned', () => {
+      const key = require('crypto').createHmac('sha256', process.env.JWT_SECRET).update('2fa-challenge:v1').digest();
+      const sign = (algorithm) => jwt.sign({ sub: 'u-1', purpose: '2fa' }, key, { algorithm, expiresIn: 60 });
+      expect(twoFactor.readChallenge(sign('HS256'))).toBe('u-1');
+      expect(twoFactor.readChallenge(sign('HS384'))).toBeNull();
+      expect(twoFactor.readChallenge(sign('HS512'))).toBeNull();
+    });
+
     it('and a challenge cannot be used as an access token', async () => {
       const u = await makeUser();
       await enableTwoFactor(u);
