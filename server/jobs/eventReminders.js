@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const Event = require('../models/Event');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { wantsEmail, sendExtraChannels } = require('../lib/notificationChannels');
+const { wantsEmail, sendExtraChannels, withReminderFooter } = require('../lib/notificationChannels');
 
 // Evaluated in order, so a 24h reminder is recorded before the 1h one
 const WINDOWS = [
@@ -20,7 +20,7 @@ async function runEventReminderCheck(io, userSockets, mailer, now = new Date()) 
 
       const title = `Event ${w.label}: ${event.title}`;
       const message = `"${event.title}" starts ${event.startsAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST.`;
-      const people = await User.find({ _id: { $in: event.registrations.map((r) => r.userId) } }).select('name email phone notificationPrefs').lean();
+      const people = await User.find({ _id: { $in: event.registrations.map((r) => r.userId) } }).select('name email phone role notificationPrefs').lean();
 
       for (const p of people) {
         const n = await Notification.create({ userId: p._id, type: 'event', priority: w.priority, title, message, link: '/student/activities?tab=events' });
@@ -28,11 +28,11 @@ async function runEventReminderCheck(io, userSockets, mailer, now = new Date()) 
         if (io && sids) sids.forEach((sid) => io.to(sid).emit('event:reminder', { notificationId: String(n._id), priority: w.priority, title, message, link: n.link, eventId: String(event._id) }));
         sendExtraChannels(p, `${title}. ${message}${event.link ? ` Join: ${event.link}` : ''}`);
         if (mailer && p.email && wantsEmail(p)) {
-          mailer.sendMail({
+          mailer.sendMail(withReminderFooter({
             from: `"Gradzest" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
             to: p.email, subject: title,
             text: `Hi ${p.name || 'there'},\n\n${message}\n${event.link ? `\nJoin: ${event.link}\n` : ''}\nSee you there!\nGradzest`,
-          }).catch(() => {});
+          }, p.role)).catch(() => {});
         }
       }
 
