@@ -20,6 +20,7 @@ const STATUSES = [
   { value: 'enrolled',       label: 'Enrolled',       icon: BookOpen,     color: 'text-indigo-700', bg: 'bg-indigo-100', border: 'border-indigo-300', col: 'bg-indigo-50/40' },
 ];
 
+
 function Avi({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
   const sz = size === 'md' ? 'w-10 h-10 text-base' : 'w-7 h-7 text-xs';
   return (

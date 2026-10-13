@@ -573,8 +573,8 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   );
 }
 
-function UniversityRow({ uni, onEdit, onDelete, onUniUpdated, onApply, onEnrich }: {
-  uni: any; onEdit: (u: any) => void; onDelete: (id: string) => void; onUniUpdated: (u: any) => void;
+function UniversityRow({ uni, onEdit, onDelete, deleting, onUniUpdated, onApply, onEnrich }: {
+  uni: any; onEdit: (u: any) => void; onDelete: (id: string) => void; deleting: boolean; onUniUpdated: (u: any) => void;
   onApply: (course: any, universityName: string) => void; onEnrich: (id: string) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -650,8 +650,8 @@ function UniversityRow({ uni, onEdit, onDelete, onUniUpdated, onApply, onEnrich 
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors">
               <Edit2 className="w-3.5 h-3.5" />Edit
             </button>
-            <button type="button" onClick={() => onDelete(mongoId)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors">
+            <button type="button" onClick={() => onDelete(mongoId)} disabled={deleting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50">
               <Trash2 className="w-3.5 h-3.5" />Delete
             </button>
             <button type="button" onClick={() => setExpanded(!expanded)}
@@ -985,7 +985,7 @@ export default function AdminUniversities() {
     setDeletingId(null);
   };
 
-  const handleSaved = (saved: any, _isNew = false) => {
+  const handleSaved = (saved: any) => {
     setUniversities(prev => {
       const idx = prev.findIndex(u => normalId(u) === normalId(saved));
       return idx >= 0 ? prev.map((u, i) => i === idx ? saved : u) : [...prev, saved];
@@ -1144,6 +1144,7 @@ export default function AdminUniversities() {
                 uni={uni}
                 onEdit={u => setEditingUni(u)}
                 onDelete={handleDelete}
+                deleting={deletingId === normalId(uni)}
                 onUniUpdated={handleSaved}
                 onApply={(course, universityName) => setApplyTarget({ course, universityName })}
                 onEnrich={handleEnrich}

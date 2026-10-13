@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, 
+  PieChart, Pie, Cell,
 } from 'recharts';
 import { BarChart2, TrendingUp, Users, Award, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
@@ -9,6 +9,7 @@ import { SkeletonStat } from '../../components/Skeleton';
 import { usePortalName } from '../../hooks/usePortalName';
 
 type Period = '7d' | '30d' | '90d' | '1yr';
+
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string | number; sub?: string; color: string }) {
   return (

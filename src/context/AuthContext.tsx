@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+﻿import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { api, setApiToken, takeRefreshFailure, type SessionInfo } from '../api';
 import { reasonFromCode, setLogoutReason, type LogoutReason } from '../lib/sessionLogout';

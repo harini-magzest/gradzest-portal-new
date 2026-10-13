@@ -789,7 +789,6 @@ function NewStudentModal({ onClose, onCreated, counselors }: {
   );
 }
 
-// ── Assign counselor modal ───────────────────────────────────────────────────
 // ── New application modal ────────────────────────────────────────────────────
 function NewApplicationModal({ allStudents, initialStudent, onClose, onCreated }: {
   allStudents: any[]; initialStudent?: any; onClose: () => void; onCreated: () => void;
