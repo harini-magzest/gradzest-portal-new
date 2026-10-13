@@ -16,6 +16,9 @@ async function runChatEscalationCheck(io, userSockets) {
   if (!admins.length) return;
 
   for (const room of rooms) {
+    const last = room.messages[room.messages.length - 1];
+    // Messages store the display role ("Student"); older ones and the demo data use "student"
+    if (!last || String(last.senderRole || '').toLowerCase() !== 'student' || last.read) continue;
     const last = lastOf.get(String(room._id));
     if (!last || last.senderRole !== 'student' || last.read) continue;
 
