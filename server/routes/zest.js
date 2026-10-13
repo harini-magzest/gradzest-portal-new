@@ -67,6 +67,18 @@ function adminOnly(req, res, next) {
 
 /* ── Knowledge base management (admin only) ─────────────────────────────── */
 
+// multer's shared fileFilter (middleware/upload.js) also allows doc/docx/images for other routes. Anything but a PDF is
+// refused here, before the antivirus scan and before pdf-parse: otherwise it would fail later and leave a "failed"
+// knowledge document and an orphaned upload behind. The frontend's accept="application/pdf" is easily bypassed, so
+// this check is the one that counts.
+function requirePdf(req, res, next) {
+  if (!req.file) return next();
+  if (req.file.mimetype !== 'application/pdf') {
+    return fs.unlink(req.file.path, () => res.status(400).json({ message: 'Only PDF files are supported for the knowledge base.' }));
+  }
+  next();
+}
+
 // Reads and chunks the PDF while it's still on local disk — must run before
 // uploadToS3IfConfigured, which deletes the local copy once S3 is configured.
 async function extractAndChunk(req, res, next) {
@@ -82,7 +94,7 @@ async function extractAndChunk(req, res, next) {
   next();
 }
 
-router.post('/documents', authMiddleware, adminOnly, upload.single('file'), validate({ body: knowledgeDocumentFields }), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
+router.post('/documents', authMiddleware, adminOnly, upload.single('file'), requirePdf, validate({ body: knowledgeDocumentFields }), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
   const storagePath = req.file.s3Url || `/uploads/${req.file.filename}`;
   const title = (req.body.title || req.file.originalname || 'Document').trim();
@@ -121,7 +133,7 @@ function requireReadable(req, res, next) {
   res.status(400).json({ message: `${req.zestExtractError}. The existing document was left as it was.` });
 }
 
-router.post('/documents/:id/replace', authMiddleware, adminOnly, loadKbDocument, upload.single('file'), scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, requireReadable, uploadToS3IfConfigured, async (req, res) => {
+router.post('/documents/:id/replace', authMiddleware, adminOnly, loadKbDocument, upload.single('file'), requirePdf, scanUploadedFile, recordUpload('zest_kb'), extractAndChunk, requireReadable, uploadToS3IfConfigured, async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'A PDF file is required' });
   const updated = await replaceDocument(req.kbDoc, {
     storagePath: req.file.s3Url || `/uploads/${req.file.filename}`,
