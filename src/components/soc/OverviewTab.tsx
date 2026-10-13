@@ -6,7 +6,7 @@ import {
   KeyRound, Lock, ShieldAlert, Globe2, RefreshCw, AlertCircle, Pause, Play, Trash2, Wifi, WifiOff,
   LogIn, LogOut, Download, Search, Loader2,
 } from 'lucide-react';
-import { api, API_ORIGIN } from '../../api';
+import { api } from '../../api';
 import { useSocSocket } from './SocketContext';
 import { SkeletonStat } from '../Skeleton';
 import OverviewInsights, { deltaLabel } from './OverviewInsights';

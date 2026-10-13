@@ -106,6 +106,9 @@ const BoardDocuments    = lazy(() => import('./pages/board/BoardDocuments'));
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
+  // Back to the top on a page change, but not when the link carries a #fragment (the browser scrolls to that itself).
+  // `hash` is read when the path changes; re-running when only the hash changes would throw the reader back to the top.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!hash) window.scrollTo(0, 0); }, [pathname]);
   return null;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Routes, Route, Link, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
-  Search, X, Download, FileText, BookOpen, Phone, Mail, MapPin, UserCog, Users, MessageSquare,
+  Search, X, Download, FileText, BookOpen, Phone, UserCog, Users, MessageSquare,
   CheckCircle, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Activity, UserX, Layers, AlertTriangle, Eye, Pencil,
 } from 'lucide-react';
 import { api } from '../../api';

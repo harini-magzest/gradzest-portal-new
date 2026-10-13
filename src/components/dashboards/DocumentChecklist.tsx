@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Circle, Clock, Upload, XCircle, FileQuestion } from 'lucide-react';
 import { api } from '../../api';
 
@@ -34,11 +34,11 @@ export default function DocumentChecklist({ studentId }: { studentId?: string })
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef<ChecklistItem | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try { setData(await (studentId ? api.students.checklist(studentId) : api.students.myChecklist())); setError(''); }
     catch (err: any) { setError(err.message || 'Could not load the document checklist.'); }
-  };
-  useEffect(() => { load(); }, [studentId]);
+  }, [studentId]);
+  useEffect(() => { load(); }, [load]);
 
   const pick = (item: ChecklistItem) => { pending.current = item; fileRef.current?.click(); };
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

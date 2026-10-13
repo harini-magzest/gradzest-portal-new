@@ -19,7 +19,7 @@ export default defineConfig([
       'no-empty': ['error', { allowEmptyCatch: true }],
       // An error thrown from a catch block can't carry `cause` under this project's ES2020 lib setting
       'preserve-caught-error': 'off',
-      // Unused names are worth a look but not worth blocking: warned, and held at today's count by --max-warnings
+      // Reported as warnings so an editor shows them as hints, but `npm run lint` allows none (--max-warnings 0): an unused name is dead code to delete
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true }],
     },
   },

@@ -209,16 +209,15 @@ export default function CounselorChat() {
       }).catch(() => setChatLoadError('Failed to load conversations.'));
   };
 
+  // Initial load, once. `loadChats` is re-created on every render, so listing it would reload the chats each time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadChats(); }, []);
 
   useEffect(() => {
     if (!lastMessageTime) return;
     api.chat.rooms().then(roomList => {
       setRooms(roomList);
-      if (selectedRoom) {
-        const updated = roomList.find((r: any) => r.id === selectedRoom.id);
-        if (updated) setSelectedRoom(updated);
-      }
+      setSelectedRoom((prev: any) => (prev ? roomList.find((r: any) => r.id === prev.id) ?? prev : prev));
     }).catch(() => {});
   }, [lastMessageTime]);
 
@@ -228,14 +227,11 @@ export default function CounselorChat() {
       api.chat.rooms()
         .then(roomList => {
           setRooms(roomList);
-          if (selectedRoom) {
-            const updated = roomList.find((r: any) => r.id === selectedRoom.id);
-            if (updated) setSelectedRoom(updated);
-          }
+          setSelectedRoom((prev: any) => (prev ? roomList.find((r: any) => r.id === prev.id) ?? prev : prev));
         }).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
-  }, [user, selectedRoom?.id]);
+  }, [user]);
 
   useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 
@@ -243,7 +239,7 @@ export default function CounselorChat() {
     const isRoomChange = prevRoomIdRef.current !== (selectedRoom?.id ?? null);
     prevRoomIdRef.current = selectedRoom?.id ?? null;
     bottomRef.current?.scrollIntoView({ behavior: isRoomChange ? 'instant' : 'smooth' });
-  }, [selectedRoom?.messages]);
+  }, [selectedRoom?.messages, selectedRoom?.id]);
 
   const clearFileInputs = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';

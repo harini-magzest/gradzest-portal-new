@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, CalendarDays, Check, ChevronDown, ChevronRight, FileCheck, FileText, GitBranch, Mail,
-  MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, Trash2, UserPlus, Video,
+  MessageCircle, MessageSquare, Phone, PhoneMissed, Send, StickyNote, UserPlus, Video,
   AlertCircle, Download, Clock, XCircle, Plus, CheckSquare, Square, ChevronLeft,
 } from 'lucide-react';
 import { TaskStatusPill, TASK_STATUS, type TaskStatus } from './TaskProgress';

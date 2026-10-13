@@ -53,8 +53,6 @@ const router = express.Router();
 // Access tokens come from lib/sessionTokens (signed in lib/tokens); the download-only file token from lib/tokens
 const { issueFileToken } = require('../lib/tokens');
 
-const MAX_SESSIONS = 5;
-
 // Request fields must be real, non-empty strings. A JSON object or number (e.g. {"$ne":null}) used to reach
 // email.toLowerCase() / bcrypt and surface as a 500; it is a plain bad request.
 const isString = (v) => typeof v === 'string' && v.length > 0;

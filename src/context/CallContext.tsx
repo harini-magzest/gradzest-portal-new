@@ -398,6 +398,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
     socket.on('chat:new-message', () => { setLastMessageTime(Date.now()); });
 
     return () => { socket.disconnect(); socketRef.current = null; };
+    // One socket per signed-in person. The role is read when an event arrives and does not change during a session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const startCall = useCallback((targetId: string, targetName: string, targetRole = '') => {

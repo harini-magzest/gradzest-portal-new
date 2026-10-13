@@ -129,7 +129,7 @@ export default function NamasteIntro() {
   useEffect(() => {
     if (show || !eligible || !isNewVisitor()) return;
     setShow(true);
-  }, [eligible]);
+  }, [eligible, show]);
 
   // Remembered from the moment it starts, so refreshing mid-intro doesn't replay it.
   useEffect(() => {

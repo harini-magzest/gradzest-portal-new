@@ -60,7 +60,7 @@ export default function BoardOverview() {
       if (cid) map[cid] = (map[cid] || 0) + 1;
     });
     return map;
-  }, [students, counselors]);
+  }, [students]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">

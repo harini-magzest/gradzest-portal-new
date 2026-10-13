@@ -363,14 +363,13 @@ export default function AdminChat() {
     const id = setInterval(() => {
       api.chat.rooms().then(roomList => {
         setRooms(roomList);
-        if (selectedRoom) {
-          const updated = roomList.find((r: any) => r.id === selectedRoom.id);
-          if (updated) setSelectedRoom(updated);
-        }
+        // Keep the open conversation in step with the fresh list. Going through the setter means this always sees the
+        // current room, so the timer does not have to be restarted each time a different conversation is opened.
+        setSelectedRoom((prev: any) => (prev ? roomList.find((r: any) => r.id === prev.id) ?? prev : prev));
       }).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
-  }, [user, selectedRoom?.id]);
+  }, [user]);
 
   useMarkRoomRead(selectedRoom, String(user?.id ?? ''), setRooms, setSelectedRoom);
 

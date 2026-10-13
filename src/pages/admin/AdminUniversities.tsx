@@ -962,7 +962,7 @@ export default function AdminUniversities() {
   const [countryFilter, setCountryFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editingUni, setEditingUni] = useState<any>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [, setDeletingId] = useState<string | null>(null);
   const [applyTarget, setApplyTarget] = useState<{ course: any; universityName: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -973,7 +973,7 @@ export default function AdminUniversities() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, []);
+  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, [toast]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this university and all its courses? This cannot be undone.')) return;
@@ -985,7 +985,7 @@ export default function AdminUniversities() {
     setDeletingId(null);
   };
 
-  const handleSaved = (saved: any, isNew = false) => {
+  const handleSaved = (saved: any, _isNew = false) => {
     setUniversities(prev => {
       const idx = prev.findIndex(u => normalId(u) === normalId(saved));
       return idx >= 0 ? prev.map((u, i) => i === idx ? saved : u) : [...prev, saved];

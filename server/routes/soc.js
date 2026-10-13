@@ -328,7 +328,7 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
 const INCIDENT_SEARCH_FIELDS = ['title', 'relatedIp', 'relatedEmail'];
 // assignedTo: 'me' and 'unassigned' are resolved against the caller before this runs,
 // since this function has no access to req.user — see the two routes below.
-function buildIncidentQuery({ status, severity, type, q, assignedTo }) {
+function buildIncidentQuery({ status, severity, type, assignedTo }) {
   const query = {};
   if (status && status !== 'all') query.status = status;
   if (severity && severity !== 'all') query.severity = severity;
@@ -967,7 +967,7 @@ router.get('/feature-usage', authMiddleware, adminOnly, async (req, res) => {
 const uiRowValues = (r) => [r.element?.label, r.element?.id, r.element?.href, r.file, r.page, r.context, ...(r.files || []).map((f) => f.name)];
 const searchUi = (query, q) => searchRows(UiActivity, query, q, uiRowValues);
 
-function buildUiQuery({ userId, email, kind, q, page, since }) {
+function buildUiQuery({ userId, email, kind, page, since }) {
   const query = {};
   if (userId && isObjectId(userId)) query.userId = userId;
   if (email && email.trim()) query.email = { $in: [email.trim().slice(0, 100), email.trim().slice(0, 100).toLowerCase()] }; // exact: stored encrypted

@@ -8,7 +8,6 @@
 const cron = require('node-cron');
 const SecurityIncident = require('../models/SecurityIncident');
 const SecurityEvent = require('../models/SecurityEvent');
-const User = require('../models/User');
 
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // 14 days with no update
 

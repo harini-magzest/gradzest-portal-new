@@ -469,6 +469,9 @@ export default function StudentApplications() {
   const [accepting, setAccepting] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
 
+  // Refresh once when the page opens. `refreshUser` is re-created on every render and itself changes `user`, so listing
+  // it would refresh in a loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { refreshUser(); }, []);
 
   if (!student) return null;
