@@ -238,7 +238,8 @@ router.post('/ask-stream', authMiddleware, askLimiter, streamAnswer);
 
 // The same stream for signed-out visitors on the public site (landing page etc.): no auth, IP-limited,
 // knowledge base + catalogue search only. No file upload or feedback — those stay signed-in.
-router.post('/public/ask-stream', guestLimiter, streamAnswer);
+// Per IP first, then the overall daily cap for all signed-out visitors (lib/zestGuestCap.js)
+router.post('/public/ask-stream', guestLimiter, require('../lib/zestGuestCap').guestDailyCap, streamAnswer);
 
 // The "Talk to a counselor" form inside the guest chat. Zest itself never saves anything (its tools are read-only),
 // so the widget collects the details in a real form and they go through the same lead path as a marketing form:

@@ -464,5 +464,5 @@ module.exports = {
   checkLoginFailureRules, checkCredentialStuffingRule, checkLockoutRule, checkSuspiciousIpRule,
   checkPaymentAnomalyRule, checkBulkPiiAccessRule, checkWafBlockRule, checkSkyloadBotRule,
   checkPasswordResetAbuseRule, checkPrivilegeChangeRule, checkMassExportRule, raiseAnalystFlaggedUploadIncident, raiseUnsafeUploadIncident, checkImpossibleTravelRule,
-  checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm,
+  checkOffHoursAdminRule, checkNewDevicePrivilegedRule, haversineKm, raiseIncident,
 };

@@ -15,7 +15,7 @@ const securityIncidentSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "impossible_travel", "credential_stuffing", "privilege_escalation", "off_hours_admin", "new_device_privileged", "password_reset_abuse", "mass_export", "manual"],
+      enum: ["brute_force", "suspicious_ip", "payment_anomaly", "account_lockout", "pii_bulk_access", "malware_upload", "waf_block", "skyload_bot_activity", "impossible_travel", "credential_stuffing", "privilege_escalation", "off_hours_admin", "new_device_privileged", "password_reset_abuse", "mass_export", "ai_usage", "manual"],
       required: true,
     },
     severity: {
