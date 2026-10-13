@@ -24,5 +24,7 @@ const MeetingSchema = new mongoose.Schema({
 // Upcoming meetings (reminder job, dashboards) and one person's upcoming meetings
 MeetingSchema.index({ status: 1, scheduledDate: 1 });
 MeetingSchema.index({ 'participants.userId': 1, scheduledDate: 1 });
+// The admin's paged list, soonest first (routes/meetings.js)
+MeetingSchema.index({ scheduledDate: 1, scheduledTime: 1 });
 
 module.exports = mongoose.model('Meeting', MeetingSchema);

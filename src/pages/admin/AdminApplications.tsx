@@ -1,15 +1,20 @@
-﻿import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, RefreshCw, Search, X, ChevronDown, AlertTriangle,
   CheckCircle, Clock, Send, Award, XCircle, BookOpen, Edit2, FileDown, Download,
   Users, Mail, Phone, CalendarDays, MessageCircle, Copy, Trash2, StickyNote,
 } from 'lucide-react';
-import { api } from '../../api';
+import { api, type SubscriberStats } from '../../api';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import ListPager from '../../components/ListPager';
 import StatusBadge from '../../components/StatusBadge';
 import { usePortalName } from '../../hooks/usePortalName';
 import { exportRowsToCsv } from '../../utils/exportCsv';
 import { downloadApplicationReportPdf } from '../../utils/applicationReportPdf';
+
+// Both lists come from the server a page at a time (server/lib/adminLists.js)
+const PAGE_SIZE = 50;
 
 const ALL_STATUSES = [
   { value: 'draft',          label: 'Draft',          color: 'gray' },
@@ -371,8 +376,18 @@ function UpdateStatusModal({
 export default function AdminApplications() {
   const { portal } = usePortalName();
   const [viewMode, setViewMode] = useState<'applications' | 'subscribers'>('applications');
+  const navigate = useNavigate();
+  // This page of each list, how many match, and the counts the tiles show (over everything, whatever the filter)
   const [applications, setApplications] = useState<any[]>([]);
+  const [appTotal, setAppTotal] = useState(0);
+  const [appStatusTotals, setAppStatusTotals] = useState<Record<string, number>>({});
+  const [appPage, setAppPage] = useState(1);
   const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [subTotal, setSubTotal] = useState(0);
+  const [subStats, setSubStats] = useState<SubscriberStats>({ total: 0, thisWeek: 0, withPhone: 0, unread: 0 });
+  const [subStatusTotals, setSubStatusTotals] = useState<Record<string, number>>({});
+  const [subPage, setSubPage] = useState(1);
+  const [unreadSubs, setUnreadSubs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
@@ -384,92 +399,110 @@ export default function AdminApplications() {
   const [editingSub, setEditingSub] = useState<any>(null);
   const [copiedId, setCopiedId] = useState('');
   const [deletingId, setDeletingId] = useState('');
-  const [subsSeenAt, setSubsSeenAt] = useState<number | null>(null);
 
-  const loadData = useCallback(async () => {
+  // The filters as the server reads them; typing in a search box asks once the typing pauses
+  const appSearch = useDebouncedValue(search.trim());
+  const subSearchText = useDebouncedValue(subSearch.trim());
+  const appQuery = useMemo(() => ({ q: appSearch, status: statusFilter === 'all' ? undefined : statusFilter }), [appSearch, statusFilter]);
+  const subQuery = useMemo(() => ({
+    q: subSearchText,
+    leadStatus: subStatusFilter === 'all' ? undefined : subStatusFilter,
+    days: subDateFilter === 'all' ? undefined : subDateFilter,
+  }), [subSearchText, subStatusFilter, subDateFilter]);
+  useEffect(() => { setAppPage(1); }, [appQuery]);
+  useEffect(() => { setSubPage(1); }, [subQuery]);
+
+  // Only the newest request may fill a list, however the answers arrive
+  const latestApps = useRef(0);
+  const loadApps = useCallback(async () => {
+    const request = ++latestApps.current;
+    try {
+      const res = await api.admin.applicationsPage({ ...appQuery, page: appPage, limit: PAGE_SIZE });
+      if (request !== latestApps.current) return;
+      setApplications(res.items); setAppTotal(res.total); setAppStatusTotals(res.statusCounts);
+    } catch (err: any) {
+      if (request === latestApps.current) setLoadError(err.message || 'Failed to load data.');
+    }
+  }, [appQuery, appPage]);
+
+  const latestSubs = useRef(0);
+  const loadSubs = useCallback(async () => {
+    const request = ++latestSubs.current;
+    // "This week" starts at local midnight seven days ago
+    const now = new Date();
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
+    try {
+      const res = await api.admin.subscribersPage({ ...subQuery, page: subPage, limit: PAGE_SIZE, weekStart });
+      if (request !== latestSubs.current) return;
+      setSubscribers(res.items); setSubTotal(res.total); setSubStats(res.stats); setSubStatusTotals(res.statusCounts);
+      setUnreadSubs(res.stats.unread);
+    } catch (err: any) {
+      if (request === latestSubs.current) setLoadError(err.message || 'Failed to load data.');
+    }
+  }, [subQuery, subPage]);
+
+  // First load, Refresh and Retry: both lists, behind the loading spinner
+  const loadData = async () => {
     setLoading(true);
     setLoadError('');
-    try {
-      const [apps, subs, seen] = await Promise.all([
-        api.admin.applications(),
-        api.admin.subscribers(),
-        api.admin.subscribersSeen().catch(() => ({ seenAt: null })),
-      ]);
-      setApplications(apps);
-      setSubscribers(subs);
-      setSubsSeenAt(seen.seenAt ? new Date(seen.seenAt).getTime() : 0);
-    } catch (err: any) {
-      setLoadError(err.message || 'Failed to load data.');
-    }
+    await Promise.all([loadApps(), loadSubs()]);
     setLoading(false);
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  const unreadSubs = subsSeenAt === null
-    ? 0
-    : subscribers.filter(s => new Date(s.subscribedAt).getTime() > subsSeenAt).length;
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens; pages and filters load below
+  useEffect(() => { loadData(); }, []);
+  // A new page or filter: fetch it, keeping the list on screen meanwhile
+  const firstApps = useRef(true);
+  useEffect(() => { if (firstApps.current) { firstApps.current = false; return; } loadApps(); }, [loadApps]);
+  const firstSubs = useRef(true);
+  useEffect(() => { if (firstSubs.current) { firstSubs.current = false; return; } loadSubs(); }, [loadSubs]);
 
   // Opening the New Subscribers tab marks everything in it as read
   useEffect(() => {
     if (viewMode !== 'subscribers' || unreadSubs === 0) return;
-    setSubsSeenAt(Date.now());
-    api.admin.markSubscribersSeen()
-      .then(r => setSubsSeenAt(new Date(r.seenAt).getTime()))
-      .catch(() => { /* badge reappears on next load if this failed */ });
+    setUnreadSubs(0);
+    api.admin.markSubscribersSeen().catch(() => { /* badge reappears on next load if this failed */ });
   }, [viewMode, unreadSubs]);
 
-  const statusCounts = ALL_STATUSES.map(s => ({
-    ...s,
-    count: applications.filter(a => a.status === s.value).length,
-  }));
+  const statusCounts = ALL_STATUSES.map(s => ({ ...s, count: appStatusTotals[s.value] || 0 }));
+  const allApplications = Object.values(appStatusTotals).reduce((sum, n) => sum + n, 0);
 
-  const filtered = applications
-    .filter(a => {
-      const matchesSearch =
-        a.studentName?.toLowerCase().includes(search.toLowerCase()) ||
-        a.universityName?.toLowerCase().includes(search.toLowerCase()) ||
-        a.courseName?.toLowerCase().includes(search.toLowerCase()) ||
-        a.studentEmail?.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      const ta = new Date(a.updatedDate || a.updatedAt || a.submittedDate || a.createdAt || 0).getTime();
-      const tb = new Date(b.updatedDate || b.updatedAt || b.submittedDate || b.createdAt || 0).getTime();
-      return tb - ta;
-    });
+  // Open a student's profile, passing the students behind every match, in list order, so ‹ › can step through them.
+  // A click that opens a new tab just follows the link.
+  const openStudent = async (e: React.MouseEvent, studentId: string) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    let ids = [...new Set(applications.map(a => String(a.studentId)))];
+    if (appTotal > applications.length) {
+      try { ids = (await api.admin.applicationStudentIds(appQuery)).ids; } catch { /* this page's students only */ }
+    }
+    navigate(`/admin/students/${studentId}`, { state: { ids } });
+  };
+  // This page's students, for a profile opened in a new tab
+  const studentNav = { ids: [...new Set(applications.map(a => String(a.studentId)))] };
 
-  // Unique students in the visible order, so the profile's arrows step through them
-  const studentNav = { ids: [...new Set(filtered.map(a => String(a.studentId)))] };
+  const subStatusCounts = LEAD_STATUSES.map(l => ({ ...l, count: subStatusTotals[l.value] || 0 }));
 
-  const filteredSubs = subscribers.filter(s => {
-    const q = subSearch.toLowerCase();
-    const matchesSearch =
-      s.name?.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q) ||
-      s.phone?.toLowerCase().includes(q) ||
-      s.notes?.toLowerCase().includes(q);
-    const matchesStatus = subStatusFilter === 'all' || (s.leadStatus || 'new') === subStatusFilter;
-    const matchesDate = subDateFilter === 'all' ||
-      new Date(s.subscribedAt).getTime() >= Date.now() - Number(subDateFilter) * 86400000;
-    return matchesSearch && matchesStatus && matchesDate;
-  });
-
-  const subStatusCounts = LEAD_STATUSES.map(l => ({
-    ...l,
-    count: subscribers.filter(s => (s.leadStatus || 'new') === l.value).length,
-  }));
+  // Every match, not just this page
+  const exportApplications = async () => {
+    try { exportApplicationsToCSV((await api.admin.applicationsExport(appQuery)).items); }
+    catch { alert('Failed to export applications.'); }
+  };
+  const exportSubscribers = async () => {
+    try { exportSubscribersToCSV((await api.admin.subscribersExport(subQuery)).items); }
+    catch { alert('Failed to export subscribers.'); }
+  };
 
   const handleSubUpdated = (updated: any) => {
     setSubscribers(prev => prev.map(s => (s._id === updated._id ? updated : s)));
     setEditingSub(null);
+    loadSubs();
   };
 
   const handleQuickStatus = async (sub: any, leadStatus: string) => {
     try {
       const updated = await api.admin.updateSubscriber(sub._id, { leadStatus });
       setSubscribers(prev => prev.map(s => (s._id === updated._id ? updated : s)));
+      loadSubs();
     } catch (e: any) {
       alert(e.message || 'Failed to update status.');
     }
@@ -481,6 +514,7 @@ export default function AdminApplications() {
     try {
       await api.admin.deleteSubscriber(sub._id);
       setSubscribers(prev => prev.filter(s => s._id !== sub._id));
+      loadSubs();
     } catch (e: any) {
       alert(e.message || 'Failed to delete subscriber.');
     }
@@ -503,6 +537,7 @@ export default function AdminApplications() {
           : a
       )
     );
+    loadApps(); // the counts, and whether it still matches the filter
   };
 
   return (
@@ -593,22 +628,18 @@ export default function AdminApplications() {
           {viewMode === 'subscribers' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-white/10 border border-white/20 rounded-xl p-4">
-                <div className="text-3xl font-bold">{loading ? '…' : subscribers.length}</div>
+                <div className="text-3xl font-bold">{loading ? '…' : subStats.total}</div>
                 <div className="text-xs text-white/70 mt-1">Total Registrations</div>
               </div>
               <div className="bg-white/10 border border-white/20 rounded-xl p-4">
                 <div className="text-3xl font-bold">
-                  {loading ? '…' : subscribers.filter(s => {
-                    const d = new Date(s.subscribedAt);
-                    const now = new Date();
-                    return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-                  }).length}
+                  {loading ? '…' : subStats.thisWeek}
                 </div>
                 <div className="text-xs text-white/70 mt-1">This Week</div>
               </div>
               <div className="bg-white/10 border border-white/20 rounded-xl p-4">
                 <div className="text-3xl font-bold">
-                  {loading ? '…' : subscribers.filter(s => s.phone).length}
+                  {loading ? '…' : subStats.withPhone}
                 </div>
                 <div className="text-xs text-white/70 mt-1">With Phone Number</div>
               </div>
@@ -666,7 +697,7 @@ export default function AdminApplications() {
                   aria-label="Filter by status"
                   className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
                 >
-                  <option value="all">All Statuses ({applications.length})</option>
+                  <option value="all">All Statuses ({allApplications})</option>
                   {ALL_STATUSES.map(s => (
                     <option key={s.value} value={s.value}>
                       {s.label} ({statusCounts.find(c => c.value === s.value)?.count ?? 0})
@@ -681,11 +712,11 @@ export default function AdminApplications() {
                   <X className="w-3.5 h-3.5" />Clear
                 </button>
               )}
-              <p className="text-xs text-gray-400 ml-auto">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 ml-auto">{appTotal} result{appTotal !== 1 ? 's' : ''}</p>
               <button
                 type="button"
-                onClick={() => exportApplicationsToCSV(filtered)}
-                disabled={filtered.length === 0}
+                onClick={exportApplications}
+                disabled={appTotal === 0}
                 title="Download filtered applications as Excel"
                 className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
               >
@@ -699,14 +730,14 @@ export default function AdminApplications() {
                 <Spinner size={5} />
                 <span className="text-sm">Loading applications…</span>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : applications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                 <FileText className="w-8 h-8 mb-2 opacity-40" />
                 <p className="text-sm">{search || statusFilter !== 'all' ? 'No applications match your filter.' : 'No applications found.'}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {filtered.map(app => {
+                {applications.map(app => {
                   const appId = app._id || app.id;
                   return (
                     <div key={`${app.studentId}-${appId}`}
@@ -718,7 +749,7 @@ export default function AdminApplications() {
 
                       {/* Student info */}
                       <div className="w-36 flex-shrink-0 min-w-0">
-                        <Link to={`/admin/students/${app.studentId}`} state={studentNav} title="Open student profile"
+                        <Link to={`/admin/students/${app.studentId}`} state={studentNav} onClick={e => openStudent(e, String(app.studentId))} title="Open student profile"
                           className="text-sm font-semibold text-gray-900 hover:text-purple-700 hover:underline truncate block">{app.studentName}</Link>
                         <p className="text-xs text-gray-400 truncate">{app.studentNationality || app.studentEmail}</p>
                       </div>
@@ -782,6 +813,7 @@ export default function AdminApplications() {
                 })}
               </div>
             )}
+            <ListPager page={appPage} total={appTotal} pageSize={PAGE_SIZE} onPage={setAppPage} />
           </div>
         )}
 
@@ -806,7 +838,7 @@ export default function AdminApplications() {
                   aria-label="Filter by lead status"
                   className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
                 >
-                  <option value="all">All Statuses ({subscribers.length})</option>
+                  <option value="all">All Statuses ({subStats.total})</option>
                   {subStatusCounts.map(s => (
                     <option key={s.value} value={s.value}>{s.label} ({s.count})</option>
                   ))}
@@ -832,11 +864,11 @@ export default function AdminApplications() {
                   <X className="w-3.5 h-3.5" />Clear
                 </button>
               )}
-              <p className="text-xs text-gray-400 ml-auto">{filteredSubs.length} result{filteredSubs.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-gray-400 ml-auto">{subTotal} result{subTotal !== 1 ? 's' : ''}</p>
               <button
                 type="button"
-                onClick={() => exportSubscribersToCSV(filteredSubs)}
-                disabled={filteredSubs.length === 0}
+                onClick={exportSubscribers}
+                disabled={subTotal === 0}
                 title="Download filtered subscribers as Excel"
                 className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
               >
@@ -850,14 +882,14 @@ export default function AdminApplications() {
                 <Spinner size={5} />
                 <span className="text-sm">Loading subscribers…</span>
               </div>
-            ) : filteredSubs.length === 0 ? (
+            ) : subscribers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                 <Users className="w-8 h-8 mb-2 opacity-40" />
                 <p className="text-sm">{subSearch ? 'No subscribers match your search.' : 'No registrations yet.'}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {filteredSubs.map((sub, i) => (
+                {subscribers.map((sub, i) => (
                   <div key={sub._id || sub.email || i}
                     className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/30 transition-colors">
                     {/* Avatar */}
@@ -953,6 +985,7 @@ export default function AdminApplications() {
                 ))}
               </div>
             )}
+            <ListPager page={subPage} total={subTotal} pageSize={PAGE_SIZE} onPage={setSubPage} />
           </div>
         )}
       </div>

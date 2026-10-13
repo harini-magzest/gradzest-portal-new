@@ -12,6 +12,12 @@ function authHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
 }
 
+// One page of a long list, with the filters it was asked for (server/lib/paging.js)
+export interface Page<T> { items: T[]; total: number; page: number; limit: number }
+export type ListQuery = Record<string, string | number | undefined>;
+export interface StudentCounts { total: number; active: number; inactive: number; enrolled: number; unassigned: number; newLeads: number }
+export interface SubscriberStats { total: number; thisWeek: number; withPhone: number; unread: number }
+
 function toQueryString(params: Record<string, string | number | undefined>): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
   return new URLSearchParams(entries as [string, string][]).toString();
@@ -453,6 +459,7 @@ export const api = {
 
   meetings: {
     list: () => req<any[]>('/meetings', { headers: authHeaders() }),
+    page: (params: ListQuery) => req<Page<any> & { upcoming: number; past: number }>(`/meetings?${toQueryString(params)}`, { headers: authHeaders() }),
     create: (data: any) => req<any>('/meetings', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -496,6 +503,10 @@ export const api = {
       method: 'DELETE', headers: authHeaders(),
     }),
     students: () => req<any[]>('/admin/students', { headers: authHeaders() }),
+    studentsPage: (params: ListQuery) =>
+      req<Page<any> & { counts: StudentCounts; countries: string[] }>(`/admin/students?${toQueryString(params)}`, { headers: authHeaders() }),
+    studentIds: (params: ListQuery) => req<{ ids: string[] }>(`/admin/students?${toQueryString({ ...params, view: 'ids' })}`, { headers: authHeaders() }),
+    studentsExport: (params: ListQuery) => req<{ items: any[] }>(`/admin/students?${toQueryString({ ...params, view: 'export' })}`, { headers: authHeaders() }),
     createStudent: (data: any) => req<any>('/admin/students', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -561,6 +572,12 @@ export const api = {
         method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
       }),
     applications: () => req<any[]>('/admin/applications', { headers: authHeaders() }),
+    applicationsPage: (params: ListQuery) =>
+      req<Page<any> & { statusCounts: Record<string, number> }>(`/admin/applications?${toQueryString(params)}`, { headers: authHeaders() }),
+    applicationStudentIds: (params: ListQuery) =>
+      req<{ ids: string[] }>(`/admin/applications?${toQueryString({ ...params, view: 'studentIds' })}`, { headers: authHeaders() }),
+    applicationsExport: (params: ListQuery) =>
+      req<{ items: any[] }>(`/admin/applications?${toQueryString({ ...params, view: 'export' })}`, { headers: authHeaders() }),
     updateApplication: (studentId: string, appId: string, data: { status?: string; notes?: string; offerType?: string }) =>
       req<any>(`/admin/applications/${studentId}/${appId}`, {
         method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
@@ -577,6 +594,10 @@ export const api = {
     }),
     analytics: (period: string) => req<any>(`/admin/analytics?period=${period}`, { headers: authHeaders() }),
     subscribers: () => req<any[]>('/admin/subscribers', { headers: authHeaders() }),
+    subscribersPage: (params: ListQuery) =>
+      req<Page<any> & { stats: SubscriberStats; statusCounts: Record<string, number> }>(`/admin/subscribers?${toQueryString(params)}`, { headers: authHeaders() }),
+    subscribersExport: (params: ListQuery) =>
+      req<{ items: any[] }>(`/admin/subscribers?${toQueryString({ ...params, view: 'export' })}`, { headers: authHeaders() }),
     updateSubscriber: (id: string, data: { leadStatus?: string; notes?: string }) => req<any>(`/admin/subscribers/${id}`, {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify(data),
     }),

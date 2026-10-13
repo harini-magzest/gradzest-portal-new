@@ -13,6 +13,9 @@ const User = require('../models/User');
 const { computeSlots } = require('../lib/meetingSlots');
 const { buildIcs } = require('../lib/ics');
 const { normalizeHttpUrl } = require('../lib/safeUrl');
+const { validate } = require('../middleware/validate');
+const { z } = require('../lib/schemas');
+const { readPaging, pageQuery, containsText } = require('../lib/paging');
 
 // Free group room on the public Jitsi server — anyone with the link can join, so the
 // room name must be unguessable.
@@ -22,9 +25,41 @@ function generateJitsiLink() {
 
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Admin: list all meetings
-router.get('/', auth, async (req, res) => {
+// One page of meetings (lib/paging.js): upcoming (soonest first) or past (latest first), searched by title or
+// participant. "Upcoming" is decided against the viewer's own clock (`now`, their local YYYY-MM-DDTHH:MM), as the page
+// did, since meeting times are local. `upcoming` and `past` count every meeting, whatever the search.
+const meetingListQuery = z.object({
+  ...pageQuery, when: z.enum(['upcoming', 'past']).optional(),
+  now: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Must be YYYY-MM-DDTHH:MM').optional(),
+});
+const startsAt = { $concat: [{ $ifNull: ['$scheduledDate', ''] }, 'T', { $ifNull: ['$scheduledTime', ''] }] };
+const isUpcoming = (now) => ({ $expr: { $gt: [startsAt, now] } });
+
+async function meetingPage(base, q, paging) {
+  const now = q.now || new Date().toISOString().slice(0, 16);
+  const and = [base];
+  if (q.when) and.push(q.when === 'upcoming' ? isUpcoming(now) : { $expr: { $lte: [startsAt, now] } });
+  const rx = containsText(q.q);
+  if (rx) and.push({ $or: [{ title: rx }, { 'participants.name': rx }] });
+  const filter = { $and: and };
+  const dir = q.when === 'past' ? -1 : 1;
+  const [items, total, upcoming, all] = await Promise.all([
+    Meeting.find(filter).sort({ scheduledDate: dir, scheduledTime: dir, _id: dir }).skip(paging.skip).limit(paging.limit),
+    Meeting.countDocuments(filter),
+    Meeting.countDocuments({ $and: [base, isUpcoming(now)] }),
+    Meeting.countDocuments(base),
+  ]);
+  return { items, total, page: paging.page, limit: paging.limit, upcoming, past: all - upcoming };
+}
+
+// Admin: list all meetings (or one page of them, with ?page / ?limit)
+router.get('/', auth, validate({ query: meetingListQuery }), async (req, res) => {
   try {
+    const paging = readPaging(req.query, 50);
+    if (paging) {
+      const base = req.user.role === 'admin' ? {} : { 'participants.userId': req.user.id };
+      return res.json(await meetingPage(base, req.query, paging));
+    }
     if (req.user.role === 'admin') {
       const meetings = await Meeting.find().sort({ scheduledDate: 1, scheduledTime: 1 });
       return res.json(meetings);

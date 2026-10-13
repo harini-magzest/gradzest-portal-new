@@ -23,6 +23,8 @@ const { sendCsv } = require('../lib/csv');
 const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {}).filter(([k]) => fields.includes(k)));
 const { validate, idParam } = require('../middleware/validate');
 const { z, objectId, email, password, text, requiredText, textList, noBody, modelFields } = require('../lib/schemas');
+const { readPaging, pageQuery, isoDay } = require('../lib/paging');
+const adminLists = require('../lib/adminLists');
 
 // ── Request schemas (middleware/validate.js); unknown fields are refused ──
 // Several routes below used to copy the whole body into the account (`...rest`, `...updates`), so a request could set
@@ -77,6 +79,18 @@ const assignSubscriberBody = z.object({
 }).strict();
 const periodQuery = z.object({ period: text(10).optional() });
 const daysQuery = z.object({ days: z.string().regex(/^\d{1,4}$/, 'Must be a number of days').optional() });
+// The big lists: the whole list as before, or with ?page / ?limit one page searched and filtered in the database
+// (lib/paging.js, lib/adminLists.js). ?view= answers the ids or the export columns of every match instead.
+const studentListQuery = z.object({
+  ...pageQuery, status: text(40).optional(), stage: text(40).optional(), country: text(100).optional(),
+  counselorId: z.union([objectId, z.literal('unassigned')]).optional(), lead: z.literal('new').optional(),
+  from: isoDay.optional(), to: isoDay.optional(), view: z.enum(['ids', 'export']).optional(),
+});
+const applicationListQuery = z.object({ ...pageQuery, status: text(60).optional(), view: z.enum(['studentIds', 'export']).optional() });
+const subscriberListQuery = z.object({
+  ...pageQuery, leadStatus: text(30).optional(), days: z.enum(['7', '30']).optional(), weekStart: text(40).optional(),
+  view: z.literal('export').optional(),
+});
 const Subscriber = require('../models/Subscriber');
 const Task = require('../models/Task');
 const authMiddleware = require('../middleware/auth');
@@ -339,9 +353,13 @@ router.post('/students', authMiddleware, adminOnly, blockAppTeam, validate({ bod
   }
 });
 
-// List all students
-router.get('/students', authMiddleware, adminOnly, async (req, res) => {
+// List all students, or one page of them (see studentListQuery)
+router.get('/students', authMiddleware, adminOnly, validate({ query: studentListQuery }), async (req, res) => {
   try {
+    if (req.query.view === 'ids') return res.json(await adminLists.studentIds(req.query));
+    if (req.query.view === 'export') return res.json(await adminLists.studentExport(req.query));
+    const paging = readPaging(req.query);
+    if (paging) return res.json(await adminLists.studentPage(req.query, paging));
     const students = await User.find({ role: 'student' }).select('-password');
     res.json(students.map(s => s.toJSON()));
   } catch (err) {
@@ -545,9 +563,13 @@ router.post('/applications', authMiddleware, can('applications.create'), validat
   }
 });
 
-// List all applications across all students
-router.get('/applications', authMiddleware, adminOnly, async (req, res) => {
+// List all applications across all students, or one page of them (see applicationListQuery)
+router.get('/applications', authMiddleware, adminOnly, validate({ query: applicationListQuery }), async (req, res) => {
   try {
+    if (req.query.view === 'studentIds') return res.json(await adminLists.applicationStudentIds(req.query));
+    if (req.query.view === 'export') return res.json(await adminLists.applicationExport(req.query));
+    const paging = readPaging(req.query, 50);
+    if (paging) return res.json(await adminLists.applicationPage(req.query, paging));
     const students = await User.find({ role: 'student' }).select('-password');
     const applications = [];
     for (const student of students) {
@@ -957,9 +979,12 @@ router.get('/analytics', authMiddleware, adminOnly, blockAppTeam, validate({ que
   }
 });
 
-// Email subscribers
-router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, async (req, res) => {
+// Email subscribers: all of them, or one page (see subscriberListQuery)
+router.get('/subscribers', authMiddleware, adminOnly, blockAppTeam, validate({ query: subscriberListQuery }), async (req, res) => {
   try {
+    if (req.query.view === 'export') return res.json(await adminLists.subscriberExport(req.query));
+    const paging = readPaging(req.query, 50);
+    if (paging) return res.json(await adminLists.subscriberPage(req.query, paging, { userId: req.user.id }));
     const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
     res.json(subscribers);
   } catch (err) { logError('admin', err); res.status(500).json({ message: 'Server error' }); }
