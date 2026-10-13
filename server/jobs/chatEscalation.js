@@ -16,7 +16,8 @@ async function runChatEscalationCheck(io, userSockets) {
 
   for (const room of rooms) {
     const last = room.messages[room.messages.length - 1];
-    if (!last || last.senderRole !== 'student' || last.read) continue;
+    // Messages store the display role ("Student"); older ones and the demo data use "student"
+    if (!last || String(last.senderRole || '').toLowerCase() !== 'student' || last.read) continue;
 
     const hoursUnread = (now - new Date(last.timestamp).getTime()) / 3600000;
     if (hoursUnread < ESCALATION_HOURS) continue;
