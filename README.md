@@ -45,7 +45,7 @@ Generate the two secrets with Node (works on Windows, Mac and Linux). Run it twi
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Email (`SMTP_*`) and Google sign-in (`GOOGLE_*`) can stay blank for local work. Email won't send and Google login won't work. That also means a brand-new sign-up can't verify its email address, so log in with the seeded demo accounts (step 3) instead of registering new ones.
+Email (`SMTP_*`) can stay blank for local work. Email won't send, which also means a brand-new sign-up can't verify its email address, so log in with the seeded demo accounts (step 3) instead of registering new ones.
 
 ### 3. Run it
 
@@ -73,6 +73,14 @@ npm run build    # type-check and production build
 
 The tests never use your real `.env` model keys, and they use their own throwaway database.
 
+To see which of the outside services in your `.env` actually work (AI, email, WhatsApp, calls, file storage, virus scanning), run:
+
+```bash
+cd server && npm run check:integrations
+```
+
+It only reads: it sends no email or message, writes nothing to the database and never prints a key. A service you have not configured is reported as `skipped`, which is fine.
+
 ## Zest (the AI assistant)
 
 Zest answers from the uploaded knowledge base, the university catalogue and role-scoped live data. It needs one model key: `ANTHROPIC_API_KEY` (preferred) or `GEMINI_API_KEY` (free tier).
@@ -89,7 +97,7 @@ Zest answers from the uploaded knowledge base, the university catalogue and role
 
 ## Checks and merging
 
-Every pull request into `main` runs automatic checks (`.github/workflows/ci.yml`): **lint**, **typecheck-build**, **backend-tests**, **ui-tests** and **api-image**. They are the same commands as step 4 above (plus `npm run lint`), so run those locally before you open the pull request. `npm run lint` fails on errors and on any warning at all (the ceiling in `package.json` is `--max-warnings 0`). Fix the warning; when a React effect is deliberately run-once or run-on-change, say why with an `// eslint-disable-next-line react-hooks/exhaustive-deps` comment above it, and ESLint will flag that comment if the effect is ever fixed and it is no longer needed.
+Every pull request into `main` runs automatic checks (`.github/workflows/ci.yml`): **lint**, **typecheck-build**, **backend-tests**, **ui-tests** and **api-image**. They are the same commands as step 4 above (plus `npm run lint`), so run those locally before you open the pull request. `npm run lint` fails on errors and on any warning at all (the ceiling in `package.json` is `--max-warnings 0`). Fix the warning; when a React effect is deliberately run-once or run-on-change, say why with an `// eslint-disable-next-line react-hooks/exhaustive-deps` comment above it, and ESLint will flag that comment if the effect is ever fixed and it is no longer needed. For making these checks *required* before a merge, see `docs/BRANCH_PROTECTION.md`.
 
 - **Update your branch before merging.** `git fetch origin && git merge origin/main`, then fix conflicts by reading *both* sides. A branch built from an old snapshot can silently overwrite newer work on `main` when it is merged, and the checks only catch it if you run them on the merged result.
 - **Don't share one working folder.** Two people (or two tools) committing in the same checkout can reset each other's branch and wipe uncommitted work. Use separate clones, or `git worktree add ../my-work -b my-branch origin/main`.
