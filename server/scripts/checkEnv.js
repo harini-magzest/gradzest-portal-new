@@ -11,7 +11,6 @@ const REQUIRED = [
   ['SOC_OWNER_EMAILS', 'who may open the SOC'],
   ['FRONTEND_URL', 'e.g. http://localhost:5173'],
   ['SMTP_HOST', 'email'], ['SMTP_PORT', 'email'], ['SMTP_USER', 'email'], ['SMTP_PASS', 'email'], ['SMTP_FROM', 'email'],
-  ['GOOGLE_CLIENT_ID', 'Google sign-in'], ['GOOGLE_CLIENT_SECRET', 'Google sign-in'],
 ];
 // At least one of these must be set for Zest to answer (Anthropic is preferred; Gemini is the free fallback).
 const ONE_OF = [['ANTHROPIC_API_KEY', 'GEMINI_API_KEY'], 'Zest AI assistant'];

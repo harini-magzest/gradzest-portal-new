@@ -7,7 +7,7 @@
 #
 # To make these block bad merges, a repository admin turns on branch protection for `main`
 # (Settings → Branches → Add rule → "Require status checks to pass before merging" → select the jobs, and
-# "Require a pull request before merging"). See the README, "Checks and merging".
+# "Require a pull request before merging"). See the README, "Checks and merging", and docs/BRANCH_PROTECTION.md.
 
 name: CI
 

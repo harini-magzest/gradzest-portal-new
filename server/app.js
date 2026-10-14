@@ -210,9 +210,6 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/auth/forgot-password', authLimiter);
   app.use('/api/auth/reset-password', authLimiter);
   app.use('/api/auth/resend-verification', authLimiter);
-  app.use('/api/auth/facebook', authLimiter);
-  app.use('/api/auth/github', authLimiter);
-  app.use('/api/auth/github/callback', authLimiter);
   app.use('/api/forms/public', formSubmitLimiter);
   app.use('/api/zest/public/lead', formSubmitLimiter);
   app.use('/api/subscribe', formSubmitLimiter);
