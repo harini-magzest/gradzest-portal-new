@@ -251,20 +251,20 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Full Name</label>
-                  <input value={student?.name || ''} readOnly className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} />
+                  <label htmlFor="appm-full-name" className={labelCls}>Full Name</label>
+                  <input id="appm-full-name" value={student?.name || ''} readOnly className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} />
                 </div>
                 <div>
-                  <label className={labelCls}>Nationality</label>
-                  <input value={student?.nationality || ''} readOnly className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} />
+                  <label htmlFor="appm-nationality" className={labelCls}>Nationality</label>
+                  <input id="appm-nationality" value={student?.nationality || ''} readOnly className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} />
                 </div>
                 <div>
-                  <label className={labelCls}>Date of Birth <span className="text-red-500">*</span></label>
-                  <input type="date" value={personal.dateOfBirth} onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} className={inputCls} />
+                  <label htmlFor="appm-date-of-birth" className={labelCls}>Date of Birth <span className="text-red-500">*</span></label>
+                  <input id="appm-date-of-birth" type="date" value={personal.dateOfBirth} onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Gender <span className="text-red-500">*</span></label>
-                  <select value={personal.gender} onChange={e => setPersonal(p => ({ ...p, gender: e.target.value }))} className={`${inputCls} bg-white`}>
+                  <label htmlFor="appm-gender" className={labelCls}>Gender <span className="text-red-500">*</span></label>
+                  <select id="appm-gender" value={personal.gender} onChange={e => setPersonal(p => ({ ...p, gender: e.target.value }))} className={`${inputCls} bg-white`}>
                     <option value="">Select gender</option>
                     <option>Male</option>
                     <option>Female</option>
@@ -273,35 +273,35 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Passport Number <span className="text-red-500">*</span></label>
-                  <input type="text" value={personal.passportNumber} onChange={e => setPersonal(p => ({ ...p, passportNumber: e.target.value }))} placeholder="e.g. A12345678" className={inputCls} />
+                  <label htmlFor="appm-passport-number" className={labelCls}>Passport Number <span className="text-red-500">*</span></label>
+                  <input id="appm-passport-number" type="text" value={personal.passportNumber} onChange={e => setPersonal(p => ({ ...p, passportNumber: e.target.value }))} placeholder="e.g. A12345678" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Phone Number</label>
-                  <input type="tel" value={personal.phone} onChange={e => setPersonal(p => ({ ...p, phone: e.target.value }))} placeholder="+1 234 567 8900" className={inputCls} />
+                  <label htmlFor="appm-phone-number" className={labelCls}>Phone Number</label>
+                  <input id="appm-phone-number" type="tel" value={personal.phone} onChange={e => setPersonal(p => ({ ...p, phone: e.target.value }))} placeholder="+1 234 567 8900" className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Street Address</label>
-                <input type="text" value={personal.addressStreet} onChange={e => setPersonal(p => ({ ...p, addressStreet: e.target.value }))} placeholder="123 Main Street" className={inputCls} />
+                <label htmlFor="appm-street-address" className={labelCls}>Street Address</label>
+                <input id="appm-street-address" type="text" value={personal.addressStreet} onChange={e => setPersonal(p => ({ ...p, addressStreet: e.target.value }))} placeholder="123 Main Street" className={inputCls} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="sm:col-span-2">
-                  <label className={labelCls}>City <span className="text-red-500">*</span></label>
-                  <input type="text" value={personal.addressCity} onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} placeholder="City" className={inputCls} />
+                  <label htmlFor="appm-city" className={labelCls}>City <span className="text-red-500">*</span></label>
+                  <input id="appm-city" type="text" value={personal.addressCity} onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} placeholder="City" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>State / Province</label>
-                  <input type="text" value={personal.addressState} onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value }))} placeholder="State" className={inputCls} />
+                  <label htmlFor="appm-state-province" className={labelCls}>State / Province</label>
+                  <input id="appm-state-province" type="text" value={personal.addressState} onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value }))} placeholder="State" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Postal Code</label>
-                  <input type="text" value={personal.addressPostal} onChange={e => setPersonal(p => ({ ...p, addressPostal: e.target.value }))} placeholder="12345" className={inputCls} />
+                  <label htmlFor="appm-postal-code" className={labelCls}>Postal Code</label>
+                  <input id="appm-postal-code" type="text" value={personal.addressPostal} onChange={e => setPersonal(p => ({ ...p, addressPostal: e.target.value }))} placeholder="12345" className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Country of Residence <span className="text-red-500">*</span></label>
-                <input type="text" value={personal.addressCountry} onChange={e => setPersonal(p => ({ ...p, addressCountry: e.target.value }))} placeholder="Country" className={inputCls} />
+                <label htmlFor="appm-country-of-residence" className={labelCls}>Country of Residence <span className="text-red-500">*</span></label>
+                <input id="appm-country-of-residence" type="text" value={personal.addressCountry} onChange={e => setPersonal(p => ({ ...p, addressCountry: e.target.value }))} placeholder="Country" className={inputCls} />
               </div>
             </div>
           )}
@@ -322,8 +322,8 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className={labelCls}>Highest Education Level</label>
-                  <select value={academic.educationLevel} onChange={e => { setAcademic(a => ({ ...a, educationLevel: e.target.value })); setEducationLevelCustom(''); }} className={`${inputCls} bg-white`}>
+                  <label htmlFor="appm-highest-education-level" className={labelCls}>Highest Education Level</label>
+                  <select id="appm-highest-education-level" value={academic.educationLevel} onChange={e => { setAcademic(a => ({ ...a, educationLevel: e.target.value })); setEducationLevelCustom(''); }} className={`${inputCls} bg-white`}>
                     <option value="">Select level</option>
                     <option>High School</option>
                     <option>Diploma</option>
@@ -338,8 +338,8 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className={labelCls}>Graduation Year <span className="text-red-500">*</span></label>
-                  <select value={academic.graduationYear} onChange={e => { setAcademic(a => ({ ...a, graduationYear: e.target.value })); setGraduationYearCustom(''); }} className={`${inputCls} bg-white`}>
+                  <label htmlFor="appm-graduation-year" className={labelCls}>Graduation Year <span className="text-red-500">*</span></label>
+                  <select id="appm-graduation-year" value={academic.graduationYear} onChange={e => { setAcademic(a => ({ ...a, graduationYear: e.target.value })); setGraduationYearCustom(''); }} className={`${inputCls} bg-white`}>
                     <option value="">Select year</option>
                     {Array.from({ length: 17 }, (_, i) => 2027 - i).map(y => <option key={y}>{y}</option>)}
                     <option>Other</option>
@@ -351,22 +351,22 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Previous Institution / School <span className="text-red-500">*</span></label>
-                <input type="text" value={academic.previousInstitution} onChange={e => setAcademic(a => ({ ...a, previousInstitution: e.target.value }))} placeholder="e.g. Harvard University" className={inputCls} />
+                <label htmlFor="appm-previous-institution-school" className={labelCls}>Previous Institution / School <span className="text-red-500">*</span></label>
+                <input id="appm-previous-institution-school" type="text" value={academic.previousInstitution} onChange={e => setAcademic(a => ({ ...a, previousInstitution: e.target.value }))} placeholder="e.g. Harvard University" className={inputCls} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Degree / Certificate <span className="text-red-500">*</span></label>
-                  <input type="text" value={academic.previousDegree} onChange={e => setAcademic(a => ({ ...a, previousDegree: e.target.value }))} placeholder="e.g. B.Sc Computer Science" className={inputCls} />
+                  <label htmlFor="appm-degree-certificate" className={labelCls}>Degree / Certificate <span className="text-red-500">*</span></label>
+                  <input id="appm-degree-certificate" type="text" value={academic.previousDegree} onChange={e => setAcademic(a => ({ ...a, previousDegree: e.target.value }))} placeholder="e.g. B.Sc Computer Science" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Major / Field of Study</label>
-                  <input type="text" value={academic.previousMajor} onChange={e => setAcademic(a => ({ ...a, previousMajor: e.target.value }))} placeholder="e.g. Computer Science" className={inputCls} />
+                  <label htmlFor="appm-major-field-of-study" className={labelCls}>Major / Field of Study</label>
+                  <input id="appm-major-field-of-study" type="text" value={academic.previousMajor} onChange={e => setAcademic(a => ({ ...a, previousMajor: e.target.value }))} placeholder="e.g. Computer Science" className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>GPA / Percentage / Grade <span className="text-red-500">*</span></label>
-                <input type="text" value={academic.percentage} onChange={e => setAcademic(a => ({ ...a, percentage: e.target.value }))} placeholder="e.g. 3.8 / 4.0 GPA  or  85%  or  First Class Honours" className={inputCls} />
+                <label htmlFor="appm-gpa-percentage-grade" className={labelCls}>GPA / Percentage / Grade <span className="text-red-500">*</span></label>
+                <input id="appm-gpa-percentage-grade" type="text" value={academic.percentage} onChange={e => setAcademic(a => ({ ...a, percentage: e.target.value }))} placeholder="e.g. 3.8 / 4.0 GPA  or  85%  or  First Class Honours" className={inputCls} />
               </div>
             </div>
           )}
@@ -384,14 +384,14 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                 <h3 className="font-semibold text-gray-800 mb-3">Intake & Study Mode</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>Intake <span className="text-red-500">*</span></label>
-                    <select value={finance.intake} onChange={e => setFinance(f => ({ ...f, intake: e.target.value }))} className={`${inputCls} bg-white`}>
+                    <label htmlFor="appm-intake" className={labelCls}>Intake <span className="text-red-500">*</span></label>
+                    <select id="appm-intake" value={finance.intake} onChange={e => setFinance(f => ({ ...f, intake: e.target.value }))} className={`${inputCls} bg-white`}>
                       {(course.intake || []).map((i: string) => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className={labelCls}>Study Mode</label>
-                    <select value={finance.studyMode} onChange={e => setFinance(f => ({ ...f, studyMode: e.target.value }))} className={`${inputCls} bg-white`}>
+                    <label htmlFor="appm-study-mode" className={labelCls}>Study Mode</label>
+                    <select id="appm-study-mode" value={finance.studyMode} onChange={e => setFinance(f => ({ ...f, studyMode: e.target.value }))} className={`${inputCls} bg-white`}>
                       <option>Full-time</option>
                       <option>Part-time</option>
                     </select>
@@ -404,8 +404,8 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className={labelCls}>Test Type</label>
-                      <select aria-label="English test type" value={finance.englishTestType}
+                      <label htmlFor="appm-test-type" className={labelCls}>Test Type</label>
+                      <select id="appm-test-type" aria-label="English test type" value={finance.englishTestType}
                         onChange={e => setFinance(f => ({ ...f, englishTestType: e.target.value, englishTestScore: '', englishTestDate: '', moiInstitution: '', moiProgram: '', moiYear: '', profTestName: '', profTestScore: '', profTestInstitution: '' }))}
                         className={`${inputCls} bg-white`}>
                         <option value="">None / Not yet taken</option>
@@ -420,12 +420,12 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                     {finance.englishTestType && finance.englishTestType !== 'Not Attempted' && (
                       <>
                         <div>
-                          <label className={labelCls}>Score <span className="text-red-500">*</span></label>
-                          <input type="number" step="0.1" value={finance.englishTestScore} onChange={e => setFinance(f => ({ ...f, englishTestScore: e.target.value }))} placeholder="e.g. 7.5" className={inputCls} />
+                          <label htmlFor="appm-score" className={labelCls}>Score <span className="text-red-500">*</span></label>
+                          <input id="appm-score" type="number" step="0.1" value={finance.englishTestScore} onChange={e => setFinance(f => ({ ...f, englishTestScore: e.target.value }))} placeholder="e.g. 7.5" className={inputCls} />
                         </div>
                         <div>
-                          <label className={labelCls}>Exam Date</label>
-                          <input type="date" aria-label="Exam date" value={finance.englishTestDate} onChange={e => setFinance(f => ({ ...f, englishTestDate: e.target.value }))} className={inputCls} />
+                          <label htmlFor="appm-exam-date" className={labelCls}>Exam Date</label>
+                          <input id="appm-exam-date" type="date" aria-label="Exam date" value={finance.englishTestDate} onChange={e => setFinance(f => ({ ...f, englishTestDate: e.target.value }))} className={inputCls} />
                         </div>
                       </>
                     )}
@@ -437,16 +437,16 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                         <p className="text-xs font-bold text-gray-700 mb-2">Medium of Instruction (MOI)</p>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div>
-                            <label className={labelCls}>Institution Name</label>
-                            <input type="text" value={finance.moiInstitution} onChange={e => setFinance(f => ({ ...f, moiInstitution: e.target.value }))} placeholder="e.g. Delhi University" className={inputCls} />
+                            <label htmlFor="appm-institution-name" className={labelCls}>Institution Name</label>
+                            <input id="appm-institution-name" type="text" value={finance.moiInstitution} onChange={e => setFinance(f => ({ ...f, moiInstitution: e.target.value }))} placeholder="e.g. Delhi University" className={inputCls} />
                           </div>
                           <div>
-                            <label className={labelCls}>Program / Course</label>
-                            <input type="text" value={finance.moiProgram} onChange={e => setFinance(f => ({ ...f, moiProgram: e.target.value }))} placeholder="e.g. B.Tech Computer Science" className={inputCls} />
+                            <label htmlFor="appm-program-course" className={labelCls}>Program / Course</label>
+                            <input id="appm-program-course" type="text" value={finance.moiProgram} onChange={e => setFinance(f => ({ ...f, moiProgram: e.target.value }))} placeholder="e.g. B.Tech Computer Science" className={inputCls} />
                           </div>
                           <div>
-                            <label className={labelCls}>Year</label>
-                            <input type="text" value={finance.moiYear} onChange={e => setFinance(f => ({ ...f, moiYear: e.target.value }))} placeholder="e.g. 2023" className={inputCls} />
+                            <label htmlFor="appm-year" className={labelCls}>Year</label>
+                            <input id="appm-year" type="text" value={finance.moiYear} onChange={e => setFinance(f => ({ ...f, moiYear: e.target.value }))} placeholder="e.g. 2023" className={inputCls} />
                           </div>
                         </div>
                       </div>
@@ -454,16 +454,16 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                         <p className="text-xs font-bold text-gray-700 mb-2">English Proficiency Test Waiver</p>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div>
-                            <label className={labelCls}>Waiver Reference / ID</label>
-                            <input type="text" value={finance.profTestName} onChange={e => setFinance(f => ({ ...f, profTestName: e.target.value }))} placeholder="Waiver Reference / ID" className={inputCls} />
+                            <label htmlFor="appm-waiver-reference-id" className={labelCls}>Waiver Reference / ID</label>
+                            <input id="appm-waiver-reference-id" type="text" value={finance.profTestName} onChange={e => setFinance(f => ({ ...f, profTestName: e.target.value }))} placeholder="Waiver Reference / ID" className={inputCls} />
                           </div>
                           <div>
-                            <label className={labelCls}>Issue Date</label>
-                            <input type="text" value={finance.profTestScore} onChange={e => setFinance(f => ({ ...f, profTestScore: e.target.value }))} placeholder="e.g. Jan 2024" className={inputCls} />
+                            <label htmlFor="appm-issue-date" className={labelCls}>Issue Date</label>
+                            <input id="appm-issue-date" type="text" value={finance.profTestScore} onChange={e => setFinance(f => ({ ...f, profTestScore: e.target.value }))} placeholder="e.g. Jan 2024" className={inputCls} />
                           </div>
                           <div>
-                            <label className={labelCls}>Issuing Institution</label>
-                            <input type="text" value={finance.profTestInstitution} onChange={e => setFinance(f => ({ ...f, profTestInstitution: e.target.value }))} placeholder="Issuing Institution" className={inputCls} />
+                            <label htmlFor="appm-issuing-institution" className={labelCls}>Issuing Institution</label>
+                            <input id="appm-issuing-institution" type="text" value={finance.profTestInstitution} onChange={e => setFinance(f => ({ ...f, profTestInstitution: e.target.value }))} placeholder="Issuing Institution" className={inputCls} />
                           </div>
                         </div>
                       </div>
@@ -476,8 +476,8 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                 <h3 className="font-semibold text-gray-800 mb-3">Financial Information</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className={labelCls}>Funding Source <span className="text-red-500">*</span></label>
-                    <select aria-label="Funding source" value={finance.fundingSource} onChange={e => setFinance(f => ({ ...f, fundingSource: e.target.value }))} className={`${inputCls} bg-white`}>
+                    <label htmlFor="appm-funding-source" className={labelCls}>Funding Source <span className="text-red-500">*</span></label>
+                    <select id="appm-funding-source" aria-label="Funding source" value={finance.fundingSource} onChange={e => setFinance(f => ({ ...f, fundingSource: e.target.value }))} className={`${inputCls} bg-white`}>
                       <option value="">Select funding source</option>
                       <option>Self-funded</option>
                       <option>Family / Parent Sponsor</option>
@@ -489,8 +489,8 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                   </div>
                   {(finance.fundingSource === 'Family / Parent Sponsor' || finance.fundingSource === 'Employer Sponsor') && (
                     <div>
-                      <label className={labelCls}>Sponsor Name</label>
-                      <input type="text" value={finance.sponsorName} onChange={e => setFinance(f => ({ ...f, sponsorName: e.target.value }))} placeholder="Sponsor's full name or organization" className={inputCls} />
+                      <label htmlFor="appm-sponsor-name" className={labelCls}>Sponsor Name</label>
+                      <input id="appm-sponsor-name" type="text" value={finance.sponsorName} onChange={e => setFinance(f => ({ ...f, sponsorName: e.target.value }))} placeholder="Sponsor's full name or organization" className={inputCls} />
                     </div>
                   )}
                   <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100">
@@ -509,20 +509,20 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                 <h3 className="font-semibold text-gray-800 mb-3">Statement of Purpose</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className={labelCls}>Why do you want to study <em>{course.name}</em>? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
-                    <textarea rows={3} value={sop.whyCourse} onChange={e => setSop(s => ({ ...s, whyCourse: e.target.value }))}
+                    <label htmlFor="appm-why-do-you-want-to-study" className={labelCls}>Why do you want to study <em>{course.name}</em>? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <textarea id="appm-why-do-you-want-to-study" rows={3} value={sop.whyCourse} onChange={e => setSop(s => ({ ...s, whyCourse: e.target.value }))}
                       placeholder="Describe your motivation for choosing this course..."
                       className={`${inputCls} resize-none`} />
                   </div>
                   <div>
-                    <label className={labelCls}>What are your career goals? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
-                    <textarea rows={3} value={sop.careerGoals} onChange={e => setSop(s => ({ ...s, careerGoals: e.target.value }))}
+                    <label htmlFor="appm-what-are-your-career-goals" className={labelCls}>What are your career goals? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <textarea id="appm-what-are-your-career-goals" rows={3} value={sop.careerGoals} onChange={e => setSop(s => ({ ...s, careerGoals: e.target.value }))}
                       placeholder="Describe your career aspirations and how this program will help..."
                       className={`${inputCls} resize-none`} />
                   </div>
                   <div>
-                    <label className={labelCls}>Why did you choose <em>{uni.name}</em>? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
-                    <textarea rows={3} value={sop.whyUniversity} onChange={e => setSop(s => ({ ...s, whyUniversity: e.target.value }))}
+                    <label htmlFor="appm-why-did-you-choose" className={labelCls}>Why did you choose <em>{uni.name}</em>? <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <textarea id="appm-why-did-you-choose" rows={3} value={sop.whyUniversity} onChange={e => setSop(s => ({ ...s, whyUniversity: e.target.value }))}
                       placeholder="Explain what attracted you to this university..."
                       className={`${inputCls} resize-none`} />
                   </div>
