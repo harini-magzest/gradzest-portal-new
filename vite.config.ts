@@ -13,9 +13,19 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // Rollup otherwise emits one tiny chunk per icon a page uses, and each is its
-        // own round trip. Grouping them keeps only the icons actually imported.
-        manualChunks: (id) => (id.includes('/node_modules/lucide-react/') ? 'icons' : undefined),
+        // Rollup otherwise emits one tiny chunk per icon a page uses, and each is its own round trip. Grouping them
+        // keeps only the icons actually imported.
+        // The other groups are the libraries every visit needs. Left in the app's entry chunk they are downloaded
+        // again whenever any line of our own code changes; as their own files the browser keeps them across deploys,
+        // and no single file is over the 500 kB warning.
+        manualChunks: (id) => {
+          if (!id.includes('/node_modules/')) return undefined;
+          if (id.includes('/node_modules/lucide-react/')) return 'icons';
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
+          if (/\/node_modules\/(react-router|react-router-dom|@remix-run)\//.test(id)) return 'router';
+          if (/\/node_modules\/(socket\.io-client|engine\.io-client|socket\.io-parser|engine\.io-parser|@socket\.io)\//.test(id)) return 'socket';
+          return undefined;
+        },
       },
     },
     // Terser instead of esbuild's default minifier: multi-pass compress + a stronger
@@ -41,8 +51,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./server/test/setup.ts'],
     include: ['server/test/**/*.test.{js,ts}'],
-    testTimeout: 20000,
-    hookTimeout: 90000,
+    // Every test file starts its own in-memory MongoDB, so a busy machine (the whole suite running in parallel, or other
+    // work alongside it) stretches a test far beyond what it takes alone. The slowest ones (route sweeps, the chat
+    // history and pagination tests) took 20s+ under load and failed for that reason only: they pass alone. These
+    // limits are about telling a hung test from a slow machine, not about how fast a test should be.
+    testTimeout: 60000,
+    hookTimeout: 120000,
   },
   server: {
     // Development only. Reachable from this machine alone by default: the dev server serves unbuilt source and
