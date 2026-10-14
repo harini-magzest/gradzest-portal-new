@@ -69,7 +69,12 @@ The seed script creates accounts with well-known demo passwords. Run it only aga
 npm test         # backend tests, with an in-memory database (nothing real is touched)
 npm run test:ui  # front-end component tests
 npm run build    # type-check and production build
+
+npm run verify:quick  # type-check + lint (about half a minute)
+npm run verify        # type-check, lint, front-end tests and backend tests, stopping at the first failure
 ```
+
+`npm run verify` is the gate CI applies, minus the production build and the API Docker image (run `npm run build` too if you touched build config, `vite.config.ts` or `scripts/`).
 
 The tests never use your real `.env` model keys, and they use their own throwaway database.
 
