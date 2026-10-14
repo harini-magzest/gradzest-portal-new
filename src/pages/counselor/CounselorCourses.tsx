@@ -128,7 +128,7 @@ function ApplyModal({ course, students, country, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">

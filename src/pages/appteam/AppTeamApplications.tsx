@@ -13,6 +13,7 @@ import {
 import SignedFileLink from '../../components/SignedFileLink';
 import { useOpenRoom } from '../../hooks/useOpenRoom';
 import EarlierMessages from '../../components/chat/EarlierMessages';
+import { clickOnEnterOrSpace } from '../../lib/a11y';
 
 const STATUSES = [
   { key: 'draft',          label: 'Draft',          color: 'text-gray-600',   bg: 'bg-gray-100',   dot: 'bg-gray-400',   ring: 'ring-gray-300',   border: 'border-gray-300' },
@@ -436,7 +437,7 @@ export default function AppTeamApplications() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(app => (
-                  <tr key={app._id} onClick={() => handleSelect(app)}
+                  <tr key={app._id} onClick={() => handleSelect(app)} tabIndex={0} onKeyDown={clickOnEnterOrSpace}
                     className={`cursor-pointer hover:bg-orange-50 transition-colors ${
                       selected?._id === app._id ? 'bg-orange-50 border-l-[3px] border-orange-500' : ''
                     }`}>

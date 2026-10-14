@@ -12,6 +12,7 @@ import { StudentMeetingsPanel, StudentEventsPanel } from '../components/student/
 import { useAuth } from '../context/AuthContext';
 import CallHistory from '../components/CallHistory';
 import { TaskStatusPill, TaskTimeline, LatestTaskUpdate, taskUpdateCount } from '../components/TaskProgress';
+import { clickOnEnterOrSpace } from '../lib/a11y';
 
 const DEPT_LABEL: Record<string, string> = {
   student: 'Student', counselor: 'Counselor', appteam: 'Application Team', admin: 'Admin',
@@ -950,7 +951,7 @@ export default function Activities() {
                   <div className={`flex items-center gap-3 bg-white border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 transition-all ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
                     <button type="button" title="Mark complete" onClick={() => toggleApiTask(task._id, task.status)}
                       className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center flex-shrink-0 hover:border-gray-500 transition-colors" />
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
+                    <div className="flex-1 min-w-0 cursor-pointer" role="button" aria-expanded={expandedTask === task._id} tabIndex={0} onKeyDown={clickOnEnterOrSpace} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
                       <p className="text-sm font-medium text-gray-900">{task.title}</p>
                       {task.description && (
                         <p className={`text-xs text-gray-500 mt-0.5 ${expandedTask === task._id ? 'whitespace-pre-line' : 'truncate'}`}>{task.description}</p>
@@ -1026,7 +1027,7 @@ export default function Activities() {
                           className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
                           <Check className="w-3 h-3 text-white" />
                         </button>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
+                        <div className="flex-1 min-w-0 cursor-pointer" role="button" aria-expanded={expandedTask === task._id} tabIndex={0} onKeyDown={clickOnEnterOrSpace} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
                           <p className="text-sm text-gray-400 line-through">{task.title}</p>
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             {assigneeChip(task, true)}

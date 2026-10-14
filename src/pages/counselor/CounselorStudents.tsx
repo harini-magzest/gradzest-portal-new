@@ -45,7 +45,7 @@ function RequestDocumentModal({ studentId, onClose, onRequested }: { studentId: 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="presentation" className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Request Document</h2>

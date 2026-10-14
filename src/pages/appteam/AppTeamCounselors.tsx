@@ -562,7 +562,7 @@ function CounselorDrawer({ counselor: c, stats: st, students, appsByStudent, onC
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="counselor-drawer-title">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30" role="presentation" onClick={onClose} />
       <div className="relative w-full max-w-2xl h-full bg-gray-50 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">

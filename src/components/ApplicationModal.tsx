@@ -207,7 +207,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
   const labelCls = 'block text-sm font-medium text-gray-700 mb-1';
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="presentation" className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}

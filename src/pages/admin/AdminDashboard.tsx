@@ -199,7 +199,7 @@ function NewCounselorModal({ onClose, onCreated }: { onClose: () => void; onCrea
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
@@ -428,7 +428,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -593,7 +593,7 @@ function AssignCounselorModal({ student, counselors, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -677,7 +677,7 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
     allCounselors.find(c => normalId(c) === s.counselorId)?.name ?? 'another counselor';
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">

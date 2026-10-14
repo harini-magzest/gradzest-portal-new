@@ -23,7 +23,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
   const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 
   return (
-    <div
+    <div role="presentation"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >

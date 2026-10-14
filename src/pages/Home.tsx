@@ -1774,11 +1774,11 @@ function DetailModal({
   };
 
   return (
-    <div
+    <div role="presentation"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div
+      <div role="presentation"
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >

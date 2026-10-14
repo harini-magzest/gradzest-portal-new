@@ -4,6 +4,7 @@ import { Bell, X, CheckCheck, ChevronUp, ChevronDown, Calendar, FileText, UserPl
 import { useNotifications, AppNotification } from "../context/NotificationContext";
 import { devicePermission, requestDevicePermission, playNotificationSound, type DevicePermission } from "../lib/deviceNotifications";
 import { openExternal } from '../lib/safeUrl';
+import { clickOnEnterOrSpace } from '../lib/a11y';
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -164,6 +165,8 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
                 return (
                 <div key={n.id}
                   className={`flex gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${bgColor}`}
+                  tabIndex={0}
+                  onKeyDown={clickOnEnterOrSpace}
                   onClick={() => handleNotifClick(n)}>
                   <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${NOTIF_COLORS[n.type] ?? "bg-gray-100"}`}>
                     {NOTIF_ICONS[n.type] ?? <Bell className="w-4 h-4 text-gray-500" />}

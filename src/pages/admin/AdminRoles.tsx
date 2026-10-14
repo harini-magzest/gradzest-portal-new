@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Pencil, Trash2, X, Minus, Network, Users, UserPlus, RefreshCw } from 'lucide-react';
 import { api } from '../../api';
 import { useToast } from '../../context/ToastContext';
+import { clickOnEnterOrSpace } from '../../lib/a11y';
 
 interface Role { _id: string; name: string; description?: string; parentRole: string | null; peerVisibility?: boolean }
 interface Staff { _id: string; name: string; email: string; role: string; isAppTeam?: boolean; title?: string; hierarchyRole?: string | null }
@@ -50,8 +51,8 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
 
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500';
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
+    <div role="presentation" className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <form role="presentation" onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold text-gray-900">{role ? 'Edit Role' : 'Create New Role'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -74,11 +75,11 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
           <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-center gap-4">
             <span className="block text-sm text-gray-700 mb-1 sm:mb-0 sm:text-right">Peer Data Visibility</span>
             <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg">
-              <button type="button" role="switch" aria-checked={peerVisibility} aria-labelledby="peer-label" onClick={() => setPeerVisibility(v => !v)}
+              <button type="button" id="peer-toggle" role="switch" aria-checked={peerVisibility} aria-labelledby="peer-label" onClick={() => setPeerVisibility(v => !v)}
                 className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${peerVisibility ? 'bg-green-500' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${peerVisibility ? 'left-5' : 'left-0.5'}`} />
               </button>
-              <span id="peer-label" className="text-sm text-gray-700 cursor-pointer" onClick={() => setPeerVisibility(v => !v)}>Let users in this role see each other's data</span>
+              <label id="peer-label" htmlFor="peer-toggle" className="text-sm text-gray-700 cursor-pointer">Let users in this role see each other's data</label>
             </div>
           </div>
           <div className="sm:grid sm:grid-cols-[150px_1fr] sm:items-start gap-4">
@@ -183,6 +184,9 @@ export default function AdminRoles() {
       <div key={r._id}>
         <div
           onClick={() => setSelectedId(r._id)}
+          tabIndex={0}
+          onKeyDown={clickOnEnterOrSpace}
+          aria-current={active ? 'true' : undefined}
           className={`group flex items-center gap-2 py-2.5 pr-3 border-b border-gray-100 cursor-pointer ${active ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
           style={{ paddingLeft: 16 + depth * 28 }}
         >

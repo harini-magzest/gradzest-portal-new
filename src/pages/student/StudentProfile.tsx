@@ -9,6 +9,7 @@ import ActiveSessionsPanel from '../../components/ActiveSessionsPanel';
 import NotificationPreferences from '../../components/NotificationPreferences';
 import PrivacyCard from '../../components/PrivacyCard';
 import SignedFileLink from '../../components/SignedFileLink';
+import { clickOnEnterOrSpace } from '../../lib/a11y';
 
 const EDUCATION_LEVELS = ['10th Grade', '12th Grade / Intermediate', 'Diploma', "Bachelor's Degree", "Master's Degree", 'PhD', 'Other'];
 type AcadDoc = { name: string; url: string; docId: string; docType: string };
@@ -161,7 +162,7 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="presentation" className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Upload Document</h2>
@@ -170,6 +171,9 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* File drop zone */}
           <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={clickOnEnterOrSpace}
             onClick={() => fileRef.current?.click()}
             className="border-2 border-dashed border-gray-200 hover:border-blue-400 rounded-xl p-5 text-center cursor-pointer transition-colors group">
             <input ref={fileRef} type="file" className="hidden" aria-label="Choose document file"
