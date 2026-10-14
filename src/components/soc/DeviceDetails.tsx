@@ -89,7 +89,7 @@ export default function DeviceDetails({ event }: { event: DeviceEvent }) {
   const location = intel?.available ? [intel.city, intel.region, intel.country].filter(Boolean).join(', ') : '';
 
   return (
-    <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/70 p-3 grid grid-cols-1 md:grid-cols-2 gap-x-6" onClick={e => e.stopPropagation()}>
+    <div role="presentation" className="mt-2 rounded-xl border border-gray-100 bg-gray-50/70 p-3 grid grid-cols-1 md:grid-cols-2 gap-x-6" onClick={e => e.stopPropagation()}>
       <dl>
         <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Device</p>
         <Row label="Browser / client" value={ua.browser} />

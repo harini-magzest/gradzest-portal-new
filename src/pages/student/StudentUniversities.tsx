@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { checkCourseEligibility } from '../../utils/eligibility';
+import { clickOnEnter } from '../../lib/a11y';
 
 
 function UniLogoImg({ name, website, uniId }: { name: string; website?: string; uniId?: string }) {
@@ -31,6 +32,9 @@ export function UniversityCard({ uni, student }: { uni: any; student: any }) {
 
   return (
     <div
+      role="link"
+      tabIndex={0}
+      onKeyDown={clickOnEnter}
       onClick={() => navigate(`/university/${uni.id}`)}
       className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group">
       {/* Cover image */}

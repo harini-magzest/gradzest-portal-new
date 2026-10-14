@@ -264,8 +264,8 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
       </div>
 
       {reviewModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setReviewModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+        <div role="presentation" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setReviewModal(null)}>
+          <div role="presentation" className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between">
               <h3 className="text-sm font-bold text-gray-900">{reviewModal.status === 'flagged' ? 'Flag as malicious' : 'Mark clean'}</h3>
               <button onClick={() => setReviewModal(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
@@ -298,8 +298,8 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
           ? `Restore "${u.originalName}"? Its download link starts working again.`
           : `Permanently delete "${u.originalName}"? This cannot be undone.`;
         return (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setConfirmModal(null)}>
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+          <div role="presentation" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setConfirmModal(null)}>
+            <div role="presentation" className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
               <div className="flex items-start justify-between">
                 <h3 className="text-sm font-bold text-gray-900 capitalize">{action}</h3>
                 <button onClick={() => setConfirmModal(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>

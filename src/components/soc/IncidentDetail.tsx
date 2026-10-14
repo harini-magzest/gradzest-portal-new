@@ -78,8 +78,8 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
   const sla = slaState(incident, slaPolicy);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div role="presentation" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div role="presentation" className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase flex items-center gap-1.5">
