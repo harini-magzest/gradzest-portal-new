@@ -1,0 +1,111 @@
+const express = require('express');
+const { sendServerError } = require('../lib/httpError');
+const mongoose = require('mongoose');
+const University = require('../models/University');
+const { fetchEnrichmentData } = require('../lib/enrichUniversity');
+const { findUniversity } = require('../lib/findUniversity');
+const { summarise, compare } = require('../lib/universityCompare');
+const authMiddleware = require('../middleware/auth');
+
+const router = express.Router();
+
+function dbReady(res) {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({ message: 'Database not ready — please wait a moment and retry' });
+    return false;
+  }
+  return true;
+}
+
+// Auto-fill university details by name (uses 24h in-memory cache)
+// Admin form helper: it makes outbound requests to Wikipedia/Wikidata and the university's own website on the caller's
+// behalf, so it is not open to the public.
+const adminOnly = (req, res, next) => (req.user.role === 'admin' ? next() : res.status(403).json({ message: 'Forbidden' }));
+
+router.get('/autofill', authMiddleware, adminOnly, async (req, res) => {
+  const name = (req.query.name || '').trim();
+  if (!name) return res.status(400).json({ message: 'name query param required' });
+  try {
+    const data = await fetchEnrichmentData(name);
+    res.json(data);
+  } catch (err) {
+    console.error('autofill error:', err.message);
+    res.status(500).json({ message: 'Failed to fetch university details' });
+  }
+});
+
+// Side-by-side comparison of up to four universities: /api/universities/compare?ids=a,b,c
+router.get('/compare', async (req, res) => {
+  if (!dbReady(res)) return;
+  const ids = [...new Set(String(req.query.ids || '').split(',').map(s => s.trim()).filter(Boolean))];
+  if (ids.length < 2 || ids.length > 4) return res.status(400).json({ message: 'Pick between 2 and 4 universities to compare' });
+  try {
+    const found = await Promise.all(ids.map(findUniversity));
+    if (found.some(u => !u)) return res.status(404).json({ message: 'One of those universities was not found' });
+    res.json(compare(found.map(summarise)));
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
+  }
+});
+
+router.get('/', async (req, res) => {
+  if (!dbReady(res)) return;
+  try {
+    const unis = await University.find({});
+    res.json(unis);
+  } catch (err) {
+    console.error('GET /api/universities error:', err);
+    sendServerError(res, err, 'Server error');
+  }
+});
+
+// PUT /api/universities/:id/courses/:courseId/custom — course tags + custom fields (admins and counselors)
+router.put('/:id/courses/:courseId/custom', authMiddleware, async (req, res) => {
+  if (!['admin', 'counselor'].includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+  if (!dbReady(res)) return;
+  try {
+    const { id, courseId } = req.params;
+    let uni = await University.findOne({ id });
+    if (!uni && mongoose.Types.ObjectId.isValid(id)) uni = await University.findById(id);
+    if (!uni) return res.status(404).json({ message: 'University not found' });
+    const course = (mongoose.Types.ObjectId.isValid(courseId) && uni.courses.id(courseId)) || uni.courses.find(c => c.id === courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    if (Array.isArray(req.body.tags)) {
+      const seen = new Set();
+      course.tags = req.body.tags
+        .map(t => String(t).trim().slice(0, 40))
+        .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
+        .slice(0, 30);
+    }
+    if (Array.isArray(req.body.customFields)) {
+      course.customFields = req.body.customFields
+        .map(f => ({ key: String(f?.key || '').trim().slice(0, 60), value: String(f?.value ?? '').trim().slice(0, 200) }))
+        .filter(f => f.key && f.value)
+        .slice(0, 30);
+    }
+    await uni.save();
+    res.json(course);
+  } catch (err) {
+    sendServerError(res, err, 'Server error');
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  if (!dbReady(res)) return;
+  try {
+    const { id } = req.params;
+    // Try custom id field first, then fall back to MongoDB _id
+    let uni = await University.findOne({ id });
+    if (!uni && mongoose.Types.ObjectId.isValid(id)) {
+      uni = await University.findById(id);
+    }
+    if (!uni) return res.status(404).json({ message: 'University not found' });
+    res.json(uni);
+  } catch (err) {
+    console.error('GET /api/universities/:id error:', err);
+    sendServerError(res, err, 'Server error');
+  }
+});
+
+module.exports = router;

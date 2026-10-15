@@ -1,0 +1,17 @@
+.call-overlay-bg {
+  background: linear-gradient(160deg, #0f1f45 0%, #1a2e6e 40%, #0e4d3a 100%);
+}
+
+.call-audio-bar-bg {
+  background: linear-gradient(135deg, #1a2e6e 0%, #0e4d3a 100%);
+}
+
+@keyframes callRing {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+.call-ring-1 { animation: callRing 2.4s ease-in-out infinite; }
+.call-ring-2 { animation: callRing 2.4s ease-in-out 0.5s infinite; }
+.call-ring-3 { animation: callRing 2.4s ease-in-out 1s infinite; }
+.call-ring-4 { animation: callRing 2.5s ease-in-out infinite; }
+.call-ring-5 { animation: callRing 2.5s ease-in-out 0.8s infinite; }

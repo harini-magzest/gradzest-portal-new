@@ -1,0 +1,218 @@
+const express = require('express');
+const { logError } = require('../lib/logError');
+const Task = require('../models/Task');
+const User = require('../models/User');
+const Subscriber = require('../models/Subscriber');
+const authMiddleware = require('../middleware/auth');
+const { recordStaffActivity } = require('../lib/staffActivity');
+
+const router = express.Router();
+const { idParam } = require('../middleware/validate');
+router.param('id', idParam); // a task id is a MongoDB ObjectId: a malformed one is a 400 (middleware/validate.js)
+const { TASK_STATUSES } = Task;
+const STATUS_LABEL = { pending: 'Pending', in_progress: 'In progress', on_hold: 'On hold', completed: 'Completed' };
+
+// Real-time nudge to the other side of the task (creator ↔ assignee) when someone posts progress
+function notifyTaskUpdate(req, task, actorName, message) {
+  const io = req.app.get('io');
+  const userSockets = req.app.get('userSockets');
+  if (!io || !userSockets) return;
+  const targets = [task.assignedBy, task.assignedTo]
+    .filter(Boolean).map(String).filter(id => id !== String(req.user.id));
+  new Set(targets).forEach(uid => {
+    (userSockets.get(uid) || []).forEach(sid => io.to(sid).emit('task:updated', {
+      taskId: String(task._id), title: task.title, status: task.status, byName: actorName, message,
+    }));
+  });
+}
+
+// GET /api/tasks
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    let query = {};
+    if (req.user.role === 'student') {
+      query = { assignedTo: req.user.id };
+    } else {
+      // Staff see tasks they created and tasks assigned to them (e.g. by an admin)
+      query = { $or: [{ assignedBy: req.user.id }, { assignedTo: req.user.id }] };
+    }
+    const tasks = await Task.find(query).sort({ createdAt: -1 });
+    res.json(tasks);
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/tasks/assignees — staff directory for the "Assign to" list (any staff member)
+router.get('/assignees', authMiddleware, async (req, res) => {
+  if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const staff = await User.find({ role: { $in: ['counselor', 'admin'] } }).select('name role isAppTeam title').sort({ name: 1 });
+    res.json(staff.map(u => ({
+      _id: String(u._id), name: u.name, title: u.title || '',
+      dept: u.role === 'admin' ? (u.isAppTeam ? 'appteam' : 'admin') : 'counselor',
+    })));
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/tasks
+router.post('/', authMiddleware, async (req, res) => {
+  if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
+  const { title, description, assignedTo, priority, dueDate, studentId } = req.body;
+  if (!title?.trim()) return res.status(400).json({ message: 'Title required' });
+  try {
+    const creator = await User.findById(req.user.id).select('name');
+    let assignedToName = '';
+    let assignedToRole = '';
+    if (assignedTo) {
+      const assignee = await User.findById(assignedTo).select('name role isAppTeam');
+      if (!assignee) return res.status(400).json({ message: 'Assignee not found' });
+      assignedToName = assignee.name || '';
+      assignedToRole = assignee.role === 'admin' && assignee.isAppTeam ? 'appteam' : assignee.role;
+    }
+    let studentName = '';
+    if (studentId) {
+      const student = await User.findOne({ _id: studentId, role: 'student' }).select('name');
+      if (!student) return res.status(400).json({ message: 'Student not found' });
+      studentName = student.name || '';
+    }
+    const task = await Task.create({
+      studentId: studentId || null,
+      studentName,
+      title: title.trim(),
+      description: (description || '').trim(),
+      assignedTo: assignedTo || null,
+      assignedToName,
+      assignedToRole,
+      assignedBy: req.user.id,
+      assignedByName: creator?.name || '',
+      priority: priority || 'medium',
+      dueDate: dueDate || '',
+    });
+
+    if (task.studentId) {
+      recordStaffActivity(req, {
+        kind: 'task', title: 'Task created',
+        detail: `${task.title}${assignedToName ? ` · for ${assignedToName}` : ''}${task.dueDate ? ` · due ${task.dueDate}` : ''}`,
+        studentId: task.studentId, studentName: task.studentName,
+      });
+    }
+
+    // Real-time push to the assignee (not when assigning to yourself)
+    if (assignedTo && String(assignedTo) !== String(req.user.id)) {
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      const sids = userSockets?.get(String(assignedTo));
+      if (sids && io) {
+        sids.forEach(sid => io.to(sid).emit('task:assigned', {
+          taskId:        task._id,
+          title:         task.title,
+          priority:      task.priority,
+          dueDate:       task.dueDate,
+          assignedByName: task.assignedByName,
+        }));
+      }
+    }
+
+    res.status(201).json(task);
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT /api/tasks/:id
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    const isAssignee = task.assignedTo?.toString() === req.user.id;
+    const isCreator  = task.assignedBy.toString() === req.user.id;
+    if (!isAssignee && !isCreator && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    const { status } = req.body;
+    if (status && !TASK_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
+    const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 2000) : '';
+    const changed = !!status && status !== task.status;
+    const completedNow = status === 'completed' && task.status !== 'completed';
+    let poster = null;
+    if (changed) {
+      poster = await User.findById(req.user.id).select('name role');
+      task.history.push({ from: task.status, to: status, note, by: poster?.name || '', byRole: poster?.role || '' });
+      task.status = status;
+    }
+    await task.save();
+    if (changed) {
+      notifyTaskUpdate(req, task, poster?.name || 'Someone',
+        `moved "${task.title}" to ${STATUS_LABEL[status]}${note ? `: ${note}` : ''}`);
+    }
+    if (completedNow && task.subscriberId) {
+      // Completing a lead follow-up moves an untouched subscriber to "contacted"
+      await Subscriber.updateOne(
+        { _id: task.subscriberId, leadStatus: 'new' },
+        { leadStatus: 'contacted', contactedAt: new Date() },
+      );
+    }
+    if (completedNow) {
+      recordStaffActivity(req, {
+        kind: 'task', title: 'Task completed',
+        detail: `${task.title}${task.assignedByName && !isCreator ? ` · assigned by ${task.assignedByName}` : ''}`,
+        ...(task.studentId ? { studentId: task.studentId, studentName: task.studentName } : {}),
+      });
+    }
+    res.json(task);
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE /api/tasks/:id
+router.delete('/:id', authMiddleware, async (req, res) => {
+  if (req.user.role === 'student') return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+    // The creator or a full admin (not Application Team) can delete
+    if (task.assignedBy.toString() !== req.user.id && !(req.user.role === 'admin' && !req.user.isAppTeam)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    await task.deleteOne();
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/tasks/:id/comments
+router.post('/:id/comments', authMiddleware, async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    const isAssignee = task.assignedTo?.toString() === req.user.id;
+    const isCreator  = task.assignedBy.toString() === req.user.id;
+    if (!isAssignee && !isCreator && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    const poster = await User.findById(req.user.id).select('name role');
+    task.comments.push({ author: poster.name, authorRole: poster.role, text: text.trim() });
+    await task.save();
+    notifyTaskUpdate(req, task, poster.name, `commented on "${task.title}": ${text.trim()}`);
+    res.json(task);
+  } catch (err) {
+    logError('tasks', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;

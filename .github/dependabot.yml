@@ -1,0 +1,48 @@
+# Weekly dependency update PRs. Minor/patch bumps arrive as one grouped PR per ecosystem so they do not flood the queue.
+# Security-advisory PRs are separate and immediate once "Dependabot security updates" is on (Settings → Code security).
+#
+# MAJOR-version bumps are NOT proposed automatically (see `ignore` below). A major (React 19, Express 5, Mongoose 9, Tailwind 4,
+# TypeScript 7, ...) can need code changes and a coordinated set of other packages; a batch of them was once merged unreviewed
+# and left main unable to install. Upgrade a major by hand, one at a time, on its own branch, and only merge it with CI green.
+version: 2
+updates:
+  # Frontend (repo root)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    ignore:
+      - dependency-name: "*"
+        update-types: ['version-update:semver-major']
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # API
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    ignore:
+      - dependency-name: "*"
+        update-types: ['version-update:semver-major']
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Keeps the commit-SHA pins in .github/workflows current
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      actions:
+        patterns: ['*']

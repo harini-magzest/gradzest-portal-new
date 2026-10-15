@@ -1,0 +1,145 @@
+# Security checks, kept apart from ci.yml so a security failure says so and the build/test jobs stay fast.
+#   secret-scan  — gitleaks: the commits in the PR/push; the whole history on the nightly run
+#   dep-audit    — `npm audit` on production deps, for the frontend (root) and the API (server/) lockfiles
+#   sast         — semgrep: only findings a PR introduces; the whole repo on the nightly run
+#   actionlint   — lints the workflow files themselves (bad expressions, script-injection patterns)
+#
+# Only high/critical findings fail a job. Third-party actions are pinned to a commit SHA (Dependabot keeps the pins
+# fresh); downloaded binaries are pinned to a version and checked against the published checksums.
+#
+# To make these block bad merges, add the four job names to the required checks on `main` (Settings → Branches),
+# next to the three from ci.yml.
+
+name: Security
+
+on:
+  # Every pull request, whatever branch it targets: PRs merged into dev or into another feature branch used to skip
+  # these checks entirely and reached main unchecked.
+  pull_request:
+  push:
+    branches: [main, dev]
+  schedule:
+    # Nightly: catches advisories published against code that did not change, and the full-history/full-repo scans.
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: '8.30.1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$tarball" "$base/$tarball"
+          curl -sSfL -o checksums.txt "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${tarball}\$" checksums.txt | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      # PR: its commits. Push to main/dev: the pushed commits. Nightly/manual: everything. Matches are redacted in the log.
+      - name: Scan
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          args=(--redact --no-banner --verbose)
+          zeros=0000000000000000000000000000000000000000
+          if [ "$EVENT" = pull_request ]; then
+            args+=(--log-opts "${PR_BASE}..${PR_HEAD}")
+          elif [ "$EVENT" = push ] && [ "$PUSH_BEFORE" != "$zeros" ]; then
+            args+=(--log-opts "${PUSH_BEFORE}..${PUSH_AFTER}")
+          fi
+          gitleaks git "${args[@]}" .
+
+  dep-audit:
+    name: dep-audit (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two lockfiles: the SPA at the repo root and the API in server/.
+        dir: ['.', 'server']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      # Reads the lockfile only, so no install. Dev-only packages never ship, so they do not gate.
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: ${{ matrix.dir }}
+
+  sast:
+    name: sast
+    # A push to main/dev was already checked as a PR; the whole-repo pass runs nightly.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SEMGREP_VERSION: '1.180.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: python -m pip install "semgrep==${SEMGREP_VERSION}"
+      # On a PR, --baseline-commit reports only what the PR adds, so existing code never blocks an unrelated change.
+      - name: Scan
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          args=(--metrics=off --error --severity ERROR
+                --config p/javascript --config p/typescript --config p/nodejs
+                --config p/expressjs --config p/react --config p/jwt)
+          if [ "$EVENT" = pull_request ]; then
+            args+=(--baseline-commit "$PR_BASE")
+          fi
+          semgrep scan "${args[@]}" .
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: '1.7.12'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          base="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$tarball" "$base/$tarball"
+          curl -sSfL -o checksums.txt "$base/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          grep " ${tarball}\$" checksums.txt | sha256sum -c -
+          tar -xzf "$tarball" actionlint
+      - run: ./actionlint -color

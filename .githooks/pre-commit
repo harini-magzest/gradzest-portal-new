@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks commits that add credential-shaped strings. Enable once per clone:
+#   git config core.hooksPath .githooks
+exec node scripts/secret-scan.mjs
