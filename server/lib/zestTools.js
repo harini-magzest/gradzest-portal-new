@@ -165,7 +165,7 @@ const TOOL_SCHEMAS = {
     name: 'search_universities',
     description: "Search the portal's own university and course catalogue — for \"which universities in the UK offer an MBA\", "
       + '"cheapest masters in Germany", "scholarships at X". This is reference data, not personal data, so every role may use it. '
-      + 'Prefer it over general knowledge for anything about universities Gradzest works with. All filters are optional.',
+      + 'It is the only source for university, course, fee, intake and scholarship facts. All filters are optional.',
     input_schema: {
       type: 'object',
       properties: {
