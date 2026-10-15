@@ -18,7 +18,7 @@ const CHUNK_OVERLAP = 200;
 
 async function extractText(filePath) {
   if (!pdfParse) throw new Error('pdf-parse is not installed');
-  const buffer = fs.readFileSync(filePath);
+  const buffer = await fs.promises.readFile(filePath);
   const { text } = await pdfParse(buffer);
   return text || '';
 }

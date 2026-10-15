@@ -37,15 +37,28 @@ router.get('/admin/team-workload', authMiddleware, requireRole('admin'), async (
     status: { $in: ['pending', 'in_progress'] }, dueDate: { $ne: '', $lt: new Date().toISOString().slice(0, 10) },
   }).select('assignedTo').lean();
 
+  // Group once, then look each counselor up: the loop used to scan every student and every task once per counselor.
+  const leadsBy = new Map();
+  for (const s of students) {
+    const key = String(s.counselorId);
+    if (!leadsBy.has(key)) leadsBy.set(key, []);
+    leadsBy.get(key).push(s);
+  }
+  const overdueBy = new Map();
+  for (const t of overdue) {
+    const key = String(t.assignedTo);
+    overdueBy.set(key, (overdueBy.get(key) || 0) + 1);
+  }
+
   const rows = counselors.map(c => {
     const id = String(c._id);
-    const mine = students.filter(s => String(s.counselorId) === id);
+    const mine = leadsBy.get(id) || [];
     return {
       counselorId: id,
       name: c.name,
       leads: mine.length,
       staleLeads: mine.filter(s => !NON_STALE_STATUSES.includes(s.status) && (daysSinceStageChange(s) ?? -1) >= STALE_DAYS).length,
-      overdueTasks: overdue.filter(t => String(t.assignedTo) === id).length,
+      overdueTasks: overdueBy.get(id) || 0,
     };
   }).sort((a, b) => b.staleLeads - a.staleLeads || b.leads - a.leads);
 

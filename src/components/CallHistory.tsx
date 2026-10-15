@@ -59,7 +59,7 @@ export default function CallHistory() {
   const canSeeAll = data?.canSeeAll;
   useEffect(() => {
     if (!canSeeAll || people.length) return;
-    Promise.all([api.tasks.assignees().catch(() => []), api.admin.students().catch(() => [])]).then(([staff, students]) => {
+    Promise.all([api.tasks.assignees().catch(() => []), api.admin.students({ fields: ['name'] }).catch(() => [])]).then(([staff, students]) => {
       const dept: Record<string, string> = { counselor: 'Counselors', appteam: 'Application Team', admin: 'Admins' };
       setPeople([
         ...staff.map((s: any) => ({ _id: s._id, name: s.name, group: dept[s.dept] || 'Staff' })),

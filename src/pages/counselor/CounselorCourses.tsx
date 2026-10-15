@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, BookOpen, Calendar, Award, CheckCircle, X, Plus, ShieldCheck, AlertTriangle, AlertCircle, Tag, Download } from 'lucide-react';
 import { api } from '../../api';
-import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
+import { checkCourseEligibility, checkCountryEligibility, ELIGIBILITY_BADGE, ELIGIBILITY_STUDENT_FIELDS, EligibilityResult } from '../../utils/eligibility';
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
@@ -268,7 +268,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img src={src} alt={name} className="w-full h-full object-contain"
+    <img loading="lazy" decoding="async" src={src} alt={name} className="w-full h-full object-contain"
       onError={() => { if (stage === 'proxy' && domain) setStage('favicon'); else setStage('letter'); }} />
   );
 }
@@ -290,7 +290,7 @@ export default function CounselorCourses() {
 
   useEffect(() => {
     loadCourses();
-    api.students.list().then(setStudents).catch(() => {});
+    api.students.list({ fields: ELIGIBILITY_STUDENT_FIELDS }).then(setStudents).catch(() => {});
     api.countries.list().then(setCountries).catch(() => {});
   }, []);
 

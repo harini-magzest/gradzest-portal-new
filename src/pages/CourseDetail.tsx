@@ -126,8 +126,8 @@ export default function CourseDetail() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (user?.role === 'counselor') api.students.list().then(setStudents).catch(() => {});
-    else if (user?.role === 'admin') (api.admin as any).students().then(setStudents).catch(() => {});
+    if (user?.role === 'counselor') api.students.list({ fields: ['name', 'email'] }).then(setStudents).catch(() => {});
+    else if (user?.role === 'admin') (api.admin as any).students({ fields: ['name', 'email'] }).then(setStudents).catch(() => {});
   }, [isAuthenticated, user?.role]);
 
   if (loading) return (

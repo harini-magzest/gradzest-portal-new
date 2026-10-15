@@ -376,6 +376,10 @@ UserSchema.plugin(require('../lib/encryptedFields'), {
   ],
 });
 
+// Counts every write to a user, so cached summaries of the whole collection can be dropped the moment it changes
+// (lib/userVersion.js).
+UserSchema.plugin(require('../lib/userVersion').plugin);
+
 UserSchema.set('toJSON', {
   virtuals: true,
   // Staff notes never travel inside a user object — that would hand them to the student and

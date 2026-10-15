@@ -202,7 +202,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img
+    <img loading="lazy" decoding="async"
       src={src}
       alt={name}
       className="w-full h-full object-contain"
@@ -301,7 +301,7 @@ export default function CounselorUniversities() {
 
   useEffect(() => {
     loadUniversities();
-    api.students.list().then(setStudents).catch(() => {});
+    api.students.list({ fields: ['name', 'email'] }).then(setStudents).catch(() => {});
   }, []);
 
   const myStudents = user?.role === 'counselor'

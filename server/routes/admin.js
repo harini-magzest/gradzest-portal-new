@@ -24,6 +24,8 @@ const pickFields = (body, fields) => Object.fromEntries(Object.entries(body || {
 const { validate, idParam } = require('../middleware/validate');
 const { z, objectId, email, password, text, requiredText, textList, noBody, modelFields } = require('../lib/schemas');
 const { readPaging, pageQuery, isoDay } = require('../lib/paging');
+const { findStudentsJson } = require('../lib/studentList');
+const { toClientJson } = require('../lib/leanDoc');
 const adminLists = require('../lib/adminLists');
 
 // ── Request schemas (middleware/validate.js); unknown fields are refused ──
@@ -85,6 +87,8 @@ const studentListQuery = z.object({
   ...pageQuery, status: text(40).optional(), stage: text(40).optional(), country: text(100).optional(),
   counselorId: z.union([objectId, z.literal('unassigned')]).optional(), lead: z.literal('new').optional(),
   from: isoDay.optional(), to: isoDay.optional(), view: z.enum(['ids', 'export']).optional(),
+  // Unpaged list only: just these fields of each student (lib/fieldSelect.js); the page and view modes ignore it.
+  fields: text(600).optional(),
 });
 const applicationListQuery = z.object({ ...pageQuery, status: text(60).optional(), view: z.enum(['studentIds', 'export']).optional() });
 const subscriberListQuery = z.object({
@@ -360,8 +364,9 @@ router.get('/students', authMiddleware, adminOnly, validate({ query: studentList
     if (req.query.view === 'export') return res.json(await adminLists.studentExport(req.query));
     const paging = readPaging(req.query);
     if (paging) return res.json(await adminLists.studentPage(req.query, paging));
-    const students = await User.find({ role: 'student' }).select('-password');
-    res.json(students.map(s => s.toJSON()));
+    // `?fields=name,email` returns just those fields; without it, the whole record as before. Read as plain
+    // objects (lib/studentList.js): about a fifth of the time of loading whole documents.
+    res.json(await findStudentsJson({ role: 'student' }, req.query.fields));
   } catch (err) {
     logError('admin', err);
     res.status(500).json({ message: 'Server error' });
@@ -570,14 +575,17 @@ router.get('/applications', authMiddleware, adminOnly, validate({ query: applica
     if (req.query.view === 'export') return res.json(await adminLists.applicationExport(req.query));
     const paging = readPaging(req.query, 50);
     if (paging) return res.json(await adminLists.applicationPage(req.query, paging));
-    const students = await User.find({ role: 'student' }).select('-password');
+    // Only the four fields the result is built from, and only students who have an application at all. Loading whole
+    // student records (documents, notes, every other field) to read these was most of this route's time.
+    const rows = await User.find({ role: 'student', 'applications.0': { $exists: true } })
+      .select('name email nationality applications').lean();
+    const students = rows.map((row) => toClientJson(row, User, { only: ['name', 'email', 'nationality', 'applications'], subdocIds: false }));
     const applications = [];
     for (const student of students) {
-      for (const app of (student.applications || [])) {
-        const appObj = app.toJSON ? app.toJSON() : app;
+      for (const appObj of (student.applications || [])) {
         applications.push({
           ...appObj,
-          studentId: student._id.toString(),
+          studentId: String(student._id),
           studentName: student.name,
           studentEmail: student.email,
           studentNationality: student.nationality,

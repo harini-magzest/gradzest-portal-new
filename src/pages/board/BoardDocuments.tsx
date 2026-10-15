@@ -29,7 +29,7 @@ export default function BoardDocuments() {
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
-    api.admin.students()
+    api.admin.students({ fields: ['name', 'email', 'nationality', 'documents'] })
       .then(setStudents)
       .finally(() => setLoading(false));
   }, []);

@@ -4,7 +4,7 @@ import {
   Calendar, ChevronDown, ChevronUp, GraduationCap, CheckCircle, Tag, AlertCircle, Download,
 } from 'lucide-react';
 import { api } from '../../api';
-import { checkCourseEligibility, ELIGIBILITY_BADGE, EligibilityResult } from '../../utils/eligibility';
+import { checkCourseEligibility, ELIGIBILITY_BADGE, ELIGIBILITY_STUDENT_FIELDS, EligibilityResult } from '../../utils/eligibility';
 import { CourseFilters, EMPTY_FILTERS, filterOptions, flattenCourses, searchCourses } from '../../utils/courseSearch';
 import AdvancedCourseSearch from '../../components/AdvancedCourseSearch';
 import CourseCustomDataModal, { CourseCustomChips } from '../../components/CourseCustomData';
@@ -577,7 +577,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img src={src} alt={name} className="w-full h-full object-contain"
+    <img loading="lazy" decoding="async" src={src} alt={name} className="w-full h-full object-contain"
       onError={() => { if (stage === 'proxy' && domain) setStage('favicon'); else setStage('letter'); }} />
   );
 }
@@ -717,7 +717,7 @@ export default function AdminCourses() {
 
   useEffect(() => {
     fetchUniversities();
-    api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.'));
+    api.admin.students({ fields: ELIGIBILITY_STUDENT_FIELDS }).then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

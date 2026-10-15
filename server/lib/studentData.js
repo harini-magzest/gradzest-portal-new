@@ -118,6 +118,7 @@ async function eraseStudent(userId) {
     'name', 'email', 'password', 'active', 'status', 'applications', 'deletedAt']);
   const unset = Object.fromEntries(Object.keys(User.schema.paths).map((p) => p.split('.')[0]).filter((p) => !keep.has(p)).map((p) => [p, '']));
 
+  // (A raw write, so the model's hooks do not see it: tell the cached summaries themselves.)
   await User.collection.updateOne(
     { _id: user._id },
     {
@@ -135,6 +136,7 @@ async function eraseStudent(userId) {
     },
   );
 
+  require('./userVersion').bump();
   if (user.counselorId) await User.findByIdAndUpdate(user.counselorId, { $pull: { assignedStudents: id } });
   require('./accountState').invalidate?.(id);
   return { erased: true };

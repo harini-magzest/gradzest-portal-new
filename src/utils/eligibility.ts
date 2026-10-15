@@ -1,3 +1,11 @@
+// The fields of a student record that the checks below read, plus what a picker shows. A page that only needs to
+// run these checks asks the server for exactly these (`api.students.list({ fields })`) instead of every student's
+// whole record. eligibility.test.ts fails if a check starts reading a field that is not listed here.
+export const ELIGIBILITY_STUDENT_FIELDS = [
+  'name', 'email',
+  'educationLevel', 'gpa', 'englishScore', 'experienceDetails', 'dateOfBirth', 'nationality', 'budget',
+];
+
 // Education levels in ascending order
 const EDU_ORDER = [
   '12th Grade', 'Diploma', 'Certificate',

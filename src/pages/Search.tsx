@@ -133,7 +133,7 @@ export default function SearchPage() {
             {filtered.map(uni => (
               <Link key={uni.id} to={`/university/${uni.id}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1 overflow-hidden group flex flex-col">
                 <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
-                  <img src={uni.coverImage} alt={uni.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-75" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <img loading="lazy" decoding="async" src={uni.coverImage} alt={uni.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-75" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                   <div className="absolute top-3 left-3 flex gap-2">
                     <span className="bg-white/90 text-xs font-bold text-blue-800 px-2.5 py-1 rounded-full">#{uni.ranking} World</span>

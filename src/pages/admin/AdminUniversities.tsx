@@ -568,7 +568,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img src={src} alt={name} className="w-full h-full object-contain"
+    <img loading="lazy" decoding="async" src={src} alt={name} className="w-full h-full object-contain"
       onError={() => { if (stage === 'proxy' && domain) setStage('favicon'); else setStage('letter'); }} />
   );
 }
@@ -973,7 +973,7 @@ export default function AdminUniversities() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.admin.students().then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, [toast]);
+  useEffect(() => { api.admin.students({ fields: ['name', 'email'] }).then(setStudents).catch(() => toast.error('Failed to load students for eligibility checks.')); }, [toast]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this university and all its courses? This cannot be undone.')) return;

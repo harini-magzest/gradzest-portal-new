@@ -5,6 +5,7 @@
 const User = require('../models/User');
 const Subscriber = require('../models/Subscriber');
 const { containsText, matchWithDefault, firstDate, inOrder } = require('./paging');
+const userVersion = require('./userVersion');
 
 const facetPage = ({ skip, limit }) => ({ $facet: { rows: [{ $skip: skip }, { $limit: limit }], total: [{ $count: 'n' }] } });
 const unpackFacet = ([out]) => ({ rows: out.rows, total: out.total[0]?.n || 0 });
@@ -57,11 +58,28 @@ async function studentCounts() {
   return { total, active: total - inactive - enrolled, inactive, enrolled, unassigned, newLeads };
 }
 
+// The tab counts and the country list are the same for every page and every filter, and each one reads every student
+// (about 180 of 320 ms per page at 20,000 students). They are remembered while no user has been written
+// (lib/userVersion.js); the TTL is only the backstop for writes this process cannot see.
+let summaryTtlMs = process.env.NODE_ENV === 'test' ? 0 : 10000;
+let summaryCache = null;
+function setSummaryTtl(ms) { summaryTtlMs = ms; summaryCache = null; }
+
+async function studentSummary() {
+  const version = userVersion.current();
+  if (summaryTtlMs > 0 && summaryCache && summaryCache.version === version && Date.now() - summaryCache.at < summaryTtlMs) {
+    return summaryCache.value;
+  }
+  const value = await Promise.all([studentCounts(), User.distinct('preferredCountries', { role: 'student' })]);
+  // keyed by the version read BEFORE the queries: a write that lands while they run leaves the entry already stale
+  if (summaryTtlMs > 0) summaryCache = { version, at: Date.now(), value };
+  return value;
+}
+
 async function studentPage(q, paging) {
-  const [{ rows, total }, counts, countries] = await Promise.all([
+  const [{ rows, total }, [counts, countries]] = await Promise.all([
     User.aggregate([...studentOrder(q), facetPage(paging)]).then(unpackFacet),
-    studentCounts(),
-    User.distinct('preferredCountries', { role: 'student' }),
+    studentSummary(),
   ]);
   const ids = rows.map((r) => r._id);
   const docs = ids.length ? await User.find({ _id: { $in: ids } }).select('-password') : [];
@@ -222,4 +240,5 @@ module.exports = {
   studentFilter, studentPage, studentIds, studentExport,
   applicationPage, applicationStudentIds, applicationExport,
   subscriberFilter, subscriberPage, subscriberExport,
+  setSummaryTtl, // for tests: the summary cache is off under NODE_ENV=test unless a test turns it on
 };

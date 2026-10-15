@@ -37,7 +37,7 @@ export default function CounselorDashboard() {
 
   const refreshStudents = () => {
     setStudentsError('');
-    return api.students.list().then(all => {
+    return api.students.list({ fields: ['name', 'applications', 'documents'] }).then(all => {
       const mine = all.filter((s: any) => counselor.assignedStudents?.includes(s._id || s.id));
       setStudents(mine);
     }).catch(() => setStudentsError('Failed to load your students.'));

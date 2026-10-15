@@ -9,7 +9,7 @@ function UniMiniCard({ uni }: { uni: any }) {
   return (
     <Link to={`/university/${uni.id || uni._id}`}
       className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm min-w-0 hover:border-green-300 hover:shadow-md transition-all cursor-pointer">
-      <img
+      <img loading="lazy" decoding="async"
         src={`/api/unilogo/${uni.id || uni._id}`}
         alt=""
         className="w-8 h-8 rounded-lg object-contain bg-gray-50 border border-gray-100 flex-shrink-0"

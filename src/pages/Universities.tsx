@@ -52,7 +52,7 @@ function UniCard({ uni }: { uni: any }) {
         {/* Cover image */}
         <div className="relative h-48 overflow-hidden bg-gradient-to-br from-[#0d1b4b] via-blue-800 to-indigo-700">
           {uni.coverImage && !coverErr && (
-            <img
+            <img loading="lazy" decoding="async"
               src={uni.coverImage}
               alt={uni.name}
               className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500"
@@ -78,7 +78,7 @@ function UniCard({ uni }: { uni: any }) {
           {/* University logo */}
           {logoSrc && (
             <div className="absolute top-3 right-3 w-10 h-10 bg-white rounded-xl shadow-md p-1.5 flex items-center justify-center overflow-hidden">
-              <img
+              <img loading="lazy" decoding="async"
                 src={logoSrc}
                 alt=""
                 className="w-full h-full object-contain"

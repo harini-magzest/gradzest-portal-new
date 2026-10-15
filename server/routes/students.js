@@ -7,7 +7,9 @@ const upload = require('../middleware/upload');
 const { scanUploadedFile } = require('../middleware/scanUpload');
 const { recordUpload } = require('../middleware/recordUpload');
 const { uploadToS3IfConfigured } = require('../middleware/uploadToS3IfConfigured');
-const { logPiiAccess } = require('../lib/logPiiAccess');
+const { logPiiAccess, logPiiAccessBatch } = require('../lib/logPiiAccess');
+const { parseFields } = require('../lib/fieldSelect');
+const { findStudentsJson } = require('../lib/studentList');
 const { deleteStoredFile } = require('../lib/storedFile');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { recordStaffActivity } = require('../lib/staffActivity');
@@ -39,10 +41,18 @@ router.get('/', authMiddleware, attachUserEmail, async (req, res) => {
   try {
     // Honour the role hierarchy: a role-restricted counselor sees their team's students, not everyone.
     const teamFilter = studentFilter(await loadAccess(req));
-    const students = await User.find({ role: 'student', ...(teamFilter || {}) }).select('-password');
+    // `?fields=name,email` returns just those fields (lib/fieldSelect.js); without it, the whole record as before.
+    const students = await findStudentsJson({ role: 'student', ...(teamFilter || {}) }, req.query.fields);
     const io = req.app.get('io');
-    students.forEach((s) => logPiiAccess({ accessor: req.user, applicant: s, accessType: 'list', ip: req.ip, io }));
-    res.json(students.map(s => s.toJSON()));
+    // One batched write and one rule check for the whole list, not one of each per student (lib/logPiiAccess.js).
+    // A narrowed list is audited for the fields it actually selected, not for schema defaults it never loaded.
+    const selected = parseFields(req.query.fields);
+    logPiiAccessBatch({
+      accessor: req.user, applicants: students, accessType: 'list', ip: req.ip, io,
+      onlyFields: selected ? selected.map((f) => f.split('.')[0]) : null,
+      nestedFields: Object.keys(User.schema.nested), // address, passport: always "present" on a loaded document
+    });
+    res.json(students);
   } catch (err) {
     logError('students', err);
     res.status(500).json({ message: 'Server error' });

@@ -20,7 +20,9 @@ const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 router.post('/:name/link', authMiddleware, validate({ params: linkParams, body: noBody }), async (req, res) => {
   try {
     const { name } = req.params;
-    const stored = async () => fs.existsSync(path.join(UPLOAD_DIR, name)) || existsInS3(name); // on disk, or a private S3 object
+    // On disk, or a private S3 object. The disk check is asynchronous so a slow disk never stalls other requests.
+    const onDisk = () => fs.promises.access(path.join(UPLOAD_DIR, name)).then(() => true, () => false);
+    const stored = async () => (await onDisk()) || existsInS3(name);
     if (!isStoredName(name) || !(await canAccessUpload(req.user, name)) || !(await stored())) {
       return res.status(404).json({ message: 'File not found' });
     }

@@ -469,7 +469,7 @@ function CountryDetailModal({ country, unis, onClose }: { country: any; unis: an
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               {country.code ? (
-                <img
+                <img loading="lazy" decoding="async"
                   src={`https://flagcdn.com/w80/${country.code.toLowerCase()}.png`}
                   alt={`${country.name} flag`}
                   className="w-16 h-11 object-cover rounded-lg shadow-md border border-white/30"
@@ -638,7 +638,7 @@ function UniMiniCard({ uni }: { uni: any }) {
   return (
     <Link to={`/university/${uni.id || uni._id}`}
       className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm min-w-0 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer">
-      <img
+      <img loading="lazy" decoding="async"
         src={`/api/unilogo/${uni.id || uni._id}`}
         alt=""
         className="w-9 h-9 rounded-lg object-contain bg-gray-50 border border-gray-100 flex-shrink-0"

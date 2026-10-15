@@ -28,7 +28,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img src={src} alt={name} className="w-full h-full object-contain"
+    <img loading="lazy" decoding="async" src={src} alt={name} className="w-full h-full object-contain"
       onError={() => { if (stage === 'proxy' && domain) setStage('favicon'); else setStage('letter'); }} />
   );
 }

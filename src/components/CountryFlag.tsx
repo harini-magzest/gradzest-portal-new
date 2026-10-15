@@ -48,7 +48,7 @@ export function CountryFlag({
   }
 
   return (
-    <img
+    <img loading="lazy" decoding="async"
       src={`https://flagcdn.com/${quality}/${resolvedCode}.png`}
       alt={name || resolvedCode}
       onError={() => setImgErr(true)}

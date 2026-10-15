@@ -212,9 +212,9 @@ export default function Activities() {
 
   useEffect(() => {
     if (role === 'admin') {
-      api.admin.students().then(setStudents).catch(() => {});
+      api.admin.students({ fields: ['name'] }).then(setStudents).catch(() => {});
     } else if (role === 'counselor') {
-      api.students.list().then(setStudents).catch(() => {});
+      api.students.list({ fields: ['name'] }).then(setStudents).catch(() => {});
     }
     if (!isStudent && role !== 'board') api.tasks.assignees().then(setAssignees).catch(() => {});
   }, [role, isStudent]);

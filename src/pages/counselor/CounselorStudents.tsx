@@ -375,7 +375,11 @@ function StudentsList() {
 
   const loadStudents = useCallback(async () => {
     setLoading(true); setLoadError('');
-    try { setAllStudents(await api.students.list()); }
+    try {
+      setAllStudents(await api.students.list({
+        fields: ['name', 'email', 'phone', 'nationality', 'status', 'leadStage', 'counselorId', 'joinedDate', 'createdAt', 'preferredCountries', 'applications'],
+      }));
+    }
     catch (err: any) { setLoadError(err.message || 'Failed to load students.'); }
     finally { setLoading(false); }
   }, []);

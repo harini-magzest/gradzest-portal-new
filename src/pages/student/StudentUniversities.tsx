@@ -21,7 +21,7 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
   }
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
   return (
-    <img src={src} alt={name} className="w-full h-full object-contain"
+    <img loading="lazy" decoding="async" src={src} alt={name} className="w-full h-full object-contain"
       onError={() => { if (stage === 'proxy' && domain) setStage('favicon'); else setStage('letter'); }} />
   );
 }
@@ -39,7 +39,7 @@ export function UniversityCard({ uni, student }: { uni: any; student: any }) {
       className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group">
       {/* Cover image */}
       <div className="h-40 bg-gradient-to-br from-blue-400 to-indigo-600 relative overflow-hidden rounded-t-2xl">
-        <img src={uni.coverImage} alt={uni.name}
+        <img loading="lazy" decoding="async" src={uni.coverImage} alt={uni.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <div className="absolute top-2 left-2 bg-white/90 text-xs font-bold text-blue-800 px-2.5 py-1 rounded-full">

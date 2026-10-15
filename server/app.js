@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const { verifyAccessToken, verifyFileToken } = require('./lib/tokens');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { MongoRateLimitStore } = require('./lib/mongoRateLimitStore');
@@ -109,6 +110,16 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors(corsOptions));
+
+// Gzip for anything over 1 kB that is text-like (JSON, HTML, CSV). The API's JSON shrinks by about 95%: a 390 kB
+// university list goes out as 13 kB. A Server-Sent Events stream must NOT be compressed: the encoder buffers, so the
+// answer would arrive in one lump at the end instead of word by word (Zest's /ask-stream).
+app.use(compression({
+  filter: (req, res) => {
+    if (String(res.getHeader('Content-Type') || '').toLowerCase().startsWith('text/event-stream')) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // Security headers
 app.use(helmet({

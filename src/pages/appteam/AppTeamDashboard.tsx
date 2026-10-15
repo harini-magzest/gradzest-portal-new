@@ -32,7 +32,7 @@ export default function AppTeamDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([api.admin.applications(), api.admin.students(), api.admin.counselors()])
+    Promise.all([api.admin.applications(), api.admin.students({ fields: ['counselorId', 'name', 'nationality'] }), api.admin.counselors()])
       .then(([a, s, c]) => { setApps(a); setStudents(s); setCounselors(c); })
       .catch(err => setError(err.message || 'Could not load dashboard data. Refresh to try again.'))
       .finally(() => setLoading(false));

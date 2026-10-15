@@ -55,7 +55,7 @@ async function uploadToS3(localFilePath) {
   if (!isS3Configured()) return null;
 
   const key = s3KeyFor(localFilePath);
-  const body = fs.readFileSync(localFilePath);
+  const body = await fs.promises.readFile(localFilePath);
 
   await getClient().send(new PutObjectCommand({
     Bucket: bucket(),

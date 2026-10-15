@@ -293,7 +293,7 @@ export default function UniversityDetail() {
 
   useEffect(() => {
     if (user?.role === 'counselor') {
-      api.students.list().then(setCounselorStudents).catch(() => {});
+      api.students.list({ fields: ['name', 'email'] }).then(setCounselorStudents).catch(() => {});
     }
   }, [user?.role]);
 
@@ -496,7 +496,7 @@ export default function UniversityDetail() {
             {wikiPhoto && (
               <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
                 <div className="relative h-44">
-                  <img src={wikiPhoto} alt={`${uni.name} campus`} className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={wikiPhoto} alt={`${uni.name} campus`} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   <p className="absolute bottom-2 right-3 text-white/70 text-[10px]">Photo · Wikipedia</p>
                 </div>

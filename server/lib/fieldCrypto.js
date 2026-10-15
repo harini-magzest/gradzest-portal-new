@@ -17,6 +17,20 @@ const PREFIX = 'enc:v1:';
 let keys = null;
 let warnedUndecryptable = false;
 
+// Both directions are pure functions of the value: the key is fixed for the life of the process and the IV is derived
+// from the plaintext. The same few values come up again and again (an accessor's email and IP on every row a list
+// writes; the same IPs and emails across a page of SOC events), and each repeat costs ~75 µs of HMAC + AES-GCM. The
+// most recent results are remembered, so a repeat is a map lookup. Bounded, so it cannot grow without limit; the
+// oldest entry goes first. Failures (a ciphertext that does not authenticate) are never cached.
+const CACHE_MAX = 4096;
+const encryptCache = new Map();
+const decryptCache = new Map();
+function remember(cache, key, value) {
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(key, value);
+  return value;
+}
+
 function getKeys() {
   if (keys) return keys;
   let raw = process.env.DATA_ENCRYPTION_KEY;
@@ -62,17 +76,21 @@ function encrypt(value) {
   // merely starts with the prefix (a User-Agent, an email typed into a login form) must be encrypted like any other,
   // otherwise it is stored in the clear and reads back as '' - an easy way to blank a log line.
   if (isEncrypted(value) && decryptStrict(value) !== null) return value;
+  const cached = encryptCache.get(value);
+  if (cached !== undefined) return cached;
   const { enc, siv } = getKeys();
   const iv = crypto.createHmac('sha256', siv).update(value, 'utf8').digest().subarray(0, 12);
   const cipher = crypto.createCipheriv('aes-256-gcm', enc, iv);
   const ct = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-  return PREFIX + Buffer.concat([iv, cipher.getAuthTag(), ct]).toString('base64url');
+  return remember(encryptCache, value, PREFIX + Buffer.concat([iv, cipher.getAuthTag(), ct]).toString('base64url'));
 }
 
 function decrypt(value) {
   if (!isEncrypted(value)) return value;
+  const cached = decryptCache.get(value);
+  if (cached !== undefined) return cached;
   const plain = decryptStrict(value);
-  if (plain !== null) return plain;
+  if (plain !== null) return remember(decryptCache, value, plain);
   // Wrong key or tampered value: never hand ciphertext to a caller, but do not fail silently either.
   if (!warnedUndecryptable) {
     warnedUndecryptable = true;

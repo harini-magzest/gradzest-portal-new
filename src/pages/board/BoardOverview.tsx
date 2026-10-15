@@ -22,7 +22,7 @@ export default function BoardOverview() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([api.admin.applications(), api.admin.students(), api.admin.counselors()])
+    Promise.all([api.admin.applications(), api.admin.students({ fields: ['counselorId', 'documents'] }), api.admin.counselors()])
       .then(([apps, studs, couns]) => {
         setApplications(apps);
         setStudents(studs);

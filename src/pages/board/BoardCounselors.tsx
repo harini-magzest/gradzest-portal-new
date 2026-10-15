@@ -21,7 +21,7 @@ export default function BoardCounselors() {
   const [selected, setSelected] = useState<any>(null);
 
   useEffect(() => {
-    Promise.all([api.admin.counselors(), api.admin.students(), api.admin.applications()])
+    Promise.all([api.admin.counselors(), api.admin.students({ fields: ['counselorId'] }), api.admin.applications()])
       .then(([couns, studs, apps]) => {
         setCounselors(couns);
         setStudents(studs);

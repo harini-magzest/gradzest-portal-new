@@ -23,6 +23,12 @@ function toQueryString(params: Record<string, string | number | undefined>): str
   return new URLSearchParams(entries as [string, string][]).toString();
 }
 
+// `?fields=name,email` for the unpaged student lists (server/lib/fieldSelect.js), or nothing for the whole record.
+function fieldsQuery(fields?: string[]): string {
+  const list = (fields || []).filter(Boolean);
+  return list.length ? `?fields=${encodeURIComponent(list.join(','))}` : '';
+}
+
 // Try once to get a new access token using the httpOnly refresh cookie
 // What the server says about the signed-in session (server/lib/sessionPolicy.js): when it ends no matter what, and how long
 // the person may be idle. Pushed to the app as an 'auth:session' event whenever the access token is renewed.
@@ -230,7 +236,10 @@ export const api = {
   },
 
   students: {
-    list: () => req<any[]>('/students', { headers: authHeaders() }),
+    // `fields` asks the server for just those fields of each student (a picker needs name and email, not every
+    // application and document). Without it, whole records, as before.
+    list: (opts?: { fields?: string[] }) =>
+      req<any[]>(`/students${fieldsQuery(opts?.fields)}`, { headers: authHeaders() }),
     create: (data: any) => req<any>('/students', {
       method: 'POST', headers: authHeaders(), body: JSON.stringify(data),
     }),
@@ -505,7 +514,8 @@ export const api = {
     deleteCounselor: (id: string) => req<any>(`/admin/counselors/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }),
-    students: () => req<any[]>('/admin/students', { headers: authHeaders() }),
+    students: (opts?: { fields?: string[] }) =>
+      req<any[]>(`/admin/students${fieldsQuery(opts?.fields)}`, { headers: authHeaders() }),
     studentsPage: (params: ListQuery) =>
       req<Page<any> & { counts: StudentCounts; countries: string[] }>(`/admin/students?${toQueryString(params)}`, { headers: authHeaders() }),
     studentIds: (params: ListQuery) => req<{ ids: string[] }>(`/admin/students?${toQueryString({ ...params, view: 'ids' })}`, { headers: authHeaders() }),
