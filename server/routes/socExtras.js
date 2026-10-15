@@ -18,6 +18,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
 const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 const ADMIN_LOCK_FROM_YEAR = 2090;
+// How many open incidents the attention card reads. Beyond this the oldest are still all included (see the query's sort).
+const OPEN_SCAN = 5000;
 
 async function activeBlocklistMatcher() {
   const rows = await BlockedIp.find({ $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] }, 'ip').lean();
@@ -39,8 +41,10 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
     const since = new Date(now - DAY);
     const noisyTypes = ['login_failure', 'login_lockout', 'waf_block', 'skyload_bot_flag', 'token_invalid', 'privilege_change', 'data_export', 'malware_upload'];
 
-    const [openIncidents, userEvents, ipEvents, ipRequests, locked, flaggedUploads, needReview, unreviewed, blocklist] = await Promise.all([
-      SecurityIncident.find({ status: { $in: ['open', 'investigating'] } }).sort({ createdAt: -1 }).limit(500)
+    const [openIncidents, userEvents, ipEvents, ipRequests, locked, lockedTotal, openTotal, flaggedUploads, needReview, unreviewed, blocklist] = await Promise.all([
+      // Oldest first: the longest-waiting incidents are the ones that most need a human, so a backlog bigger than the cap
+      // must drop the newest, not the oldest. (It used to take the newest 500 and the overdue ones fell off the end.)
+      SecurityIncident.find({ status: { $in: ['open', 'investigating'] } }).sort({ createdAt: 1 }).limit(OPEN_SCAN)
         .select('type severity status title relatedIp relatedEmail relatedUserId createdAt acknowledgedAt assignedTo').lean(),
       SecurityEvent.aggregate([
         { $match: { createdAt: { $gte: since }, userId: { $ne: null }, type: { $in: noisyTypes } } },
@@ -57,6 +61,8 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
         { $group: { _id: '$ip', requests: { $sum: 1 } } }, { $sort: { requests: -1 } }, { $limit: 25 },
       ]),
       User.find({ lockedUntil: { $gt: new Date() } }).select('name email role lockedUntil').limit(10).lean(),
+      User.countDocuments({ lockedUntil: { $gt: new Date() } }),
+      SecurityIncident.countDocuments({ status: { $in: ['open', 'investigating'] } }),
       UploadRecord.countDocuments({ 'review.status': 'flagged' }),
       UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
       UploadRecord.countDocuments({ 'review.status': { $in: [null, 'unreviewed'] } }),
@@ -101,11 +107,11 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
       generatedAt: new Date(now).toISOString(),
       counts: {
         openCritical: openList.filter((i) => i.severity === 'critical').length,
-        openTotal: openList.length,
+        openTotal, // exact (a count query), not the length of the capped list above
         unacknowledged: unacked.length,
         slaBreached: openList.filter((i) => { const s = slaOf(i); return s.ackBreached || s.resolveBreached; }).length,
         flaggedUploads, uploadsNeedReview: needReview, uploadsUnreviewed: unreviewed,
-        lockedAccounts: locked.length, blockedIps: blocklist.count,
+        lockedAccounts: lockedTotal, blockedIps: blocklist.count,
       },
       unacknowledged: unacked.slice(0, 6).map((i) => ({
         _id: i._id, title: i.title, severity: i.severity, type: i.type, createdAt: i.createdAt, relatedIp: i.relatedIp || '', relatedEmail: i.relatedEmail || '',

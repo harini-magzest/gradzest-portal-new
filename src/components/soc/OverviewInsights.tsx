@@ -23,7 +23,7 @@ function MiniStat({ icon: Icon, label, value, sub, alert }: { icon: any; label: 
       <div className="min-w-0">
         <p className={`text-xl font-bold ${alert ? 'text-red-700' : 'text-gray-900'}`}>{value}</p>
         <p className="text-xs font-medium text-gray-600">{label}</p>
-        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        {sub && <p className="text-[11px] text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -38,7 +38,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-const Empty = ({ text }: { text: string }) => <p className="text-sm text-gray-400 italic py-4 text-center">{text}</p>;
+const Empty = ({ text }: { text: string }) => <p className="text-sm text-gray-500 italic py-4 text-center">{text}</p>;
 
 function Bar({ label, value, max, right }: { label: React.ReactNode; value: number; max: number; right?: React.ReactNode }) {
   return (
@@ -57,12 +57,14 @@ function Bar({ label, value, max, right }: { label: React.ReactNode; value: numb
 export default function OverviewInsights({ stats, period }: { stats: any; period: Period }) {
   const [geo, setGeo] = useState<{ countries: { country: string; countryCode: string; count: number; ips: number }[]; unresolved: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(true);
+  // Told apart from "nothing came from anywhere": a failed lookup must not read as an all-clear.
+  const [geoFailed, setGeoFailed] = useState(false);
 
   // Geolocation does live lookups, so it loads separately and never blocks the rest.
   useEffect(() => {
     let cancelled = false;
-    setGeoLoading(true);
-    api.soc.statsGeo(period).then(d => { if (!cancelled) setGeo(d); }).catch(() => { if (!cancelled) setGeo(null); })
+    setGeoLoading(true); setGeoFailed(false);
+    api.soc.statsGeo(period).then(d => { if (!cancelled) setGeo(d); }).catch(() => { if (!cancelled) { setGeo(null); setGeoFailed(true); } })
       .finally(() => { if (!cancelled) setGeoLoading(false); });
     return () => { cancelled = true; };
   }, [period]);
@@ -97,10 +99,10 @@ export default function OverviewInsights({ stats, period }: { stats: any; period
           )}
         </Card>
         <Card title="Where hostile traffic comes from">
-          {geoLoading ? <Empty text="Looking up locations…" /> : countries.length === 0 ? <Empty text="No geolocated activity in this period" /> : (
+          {geoLoading ? <Empty text="Looking up locations…" /> : geoFailed ? <Empty text="Could not look up locations. Switch period or refresh to try again." /> : countries.length === 0 ? <Empty text="No geolocated activity in this period" /> : (
             <div className="space-y-3">
               {countries.slice(0, 8).map(c => <Bar key={c.country} label={c.country} value={c.count} max={countryMax} right={`${c.count} · ${c.ips} IP${c.ips !== 1 ? 's' : ''}`} />)}
-              {geo && geo.unresolved > 0 && <p className="text-[11px] text-gray-400">{geo.unresolved} events from private/unlocatable addresses not shown.</p>}
+              {geo && geo.unresolved > 0 && <p className="text-[11px] text-gray-500">{geo.unresolved} events from private/unlocatable addresses not shown.</p>}
             </div>
           )}
         </Card>
@@ -116,7 +118,7 @@ export default function OverviewInsights({ stats, period }: { stats: any; period
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-gray-400 uppercase">
+                  <tr className="text-left text-gray-500 uppercase">
                     <th className="pb-2 font-semibold">Rule</th><th className="pb-2 font-semibold text-right">Total</th>
                     <th className="pb-2 font-semibold text-right">Open</th><th className="pb-2 font-semibold text-right">Resolved</th>
                     <th className="pb-2 font-semibold text-right" title="False positives ÷ (false positives + resolved)">FP rate</th>
@@ -136,7 +138,7 @@ export default function OverviewInsights({ stats, period }: { stats: any; period
                   ))}
                 </tbody>
               </table>
-              <p className="text-[11px] text-gray-400 mt-2">A high false-positive rate means the rule is noisy — tune its threshold or add a suppression rule.</p>
+              <p className="text-[11px] text-gray-500 mt-2">A high false-positive rate means the rule is noisy — tune its threshold or add a suppression rule.</p>
             </div>
           )}
         </Card>

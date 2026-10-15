@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { ShieldAlert, Activity, AlertTriangle, Search, ClipboardList, ClipboardCheck, MousePointerClick, FileSearch } from 'lucide-react';
+import { ShieldAlert, Activity, AlertTriangle, Search, ClipboardList, ClipboardCheck, MousePointerClick, FileSearch, type LucideIcon } from 'lucide-react';
 import { SocSocketProvider } from '../../components/soc/SocketContext';
 import OverviewTab from '../../components/soc/OverviewTab';
 import IncidentsTab from '../../components/soc/IncidentsTab';
@@ -14,7 +14,7 @@ import NeedsAttention from '../../components/soc/NeedsAttention';
 type Tab = 'overview' | 'incidents' | 'investigate' | 'activity' | 'uploads' | 'audit' | 'posture';
 const TAB_KEYS: Tab[] = ['overview', 'incidents', 'investigate', 'activity', 'uploads', 'audit', 'posture'];
 
-const TABS: { key: Tab; label: string; icon: any }[] = [
+const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: 'overview', label: 'Overview', icon: Activity },
   { key: 'incidents', label: 'Incidents', icon: AlertTriangle },
   { key: 'investigate', label: 'Investigate', icon: Search },
@@ -67,20 +67,20 @@ export default function SOCDashboard() {
             <GlobalSearch onOpenUser={openUser} onOpenIp={openIp} onOpenIncidents={() => setTab('incidents')} onOpenIncident={openIncident} onOpenUploads={() => setTab('uploads')} />
           </div>
         </div>
-        <div className="flex gap-1 p-1 bg-white/10 rounded-xl w-fit flex-wrap">
+        <nav aria-label="SOC sections" className="flex gap-1 p-1 bg-white/10 rounded-xl w-fit flex-wrap">
           {TABS.map(t => {
             const Icon = t.icon;
             return (
-              <button key={t.key} type="button" onClick={() => setTab(t.key)}
+              <button key={t.key} type="button" onClick={() => setTab(t.key)} aria-current={tab === t.key ? 'page' : undefined}
                 className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                   tab === t.key ? 'bg-white text-purple-700 shadow-md' : 'text-white/70 hover:text-white hover:bg-white/10'
                 }`}>
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 {t.label}
               </button>
             );
           })}
-        </div>
+        </nav>
       </div>
 
       {tab === 'overview' && (

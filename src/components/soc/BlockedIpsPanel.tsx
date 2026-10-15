@@ -36,7 +36,7 @@ export default function BlockedIpsPanel() {
       setResult(await api.soc.bulkBlockIps(ips, reason.trim() || 'Bulk block via SOC', hours || undefined));
       setText('');
       await load();
-    } catch (err: any) { setResult({ blocked: [], rejected: [{ ip: '—', reason: err.message || 'Request failed' }] }); }
+    } catch (err) { setResult({ blocked: [], rejected: [{ ip: '—', reason: errorText(err) }] }); }
     setBusy(false);
   };
 
@@ -48,22 +48,22 @@ export default function BlockedIpsPanel() {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
           <Ban className="w-4 h-4 text-red-500" /> Blocklist &amp; bulk block
-          <span className="text-xs font-normal text-gray-400">single IPs or CIDR ranges, permanent or temporary</span>
+          <span className="text-xs font-normal text-gray-500">single IPs or CIDR ranges, permanent or temporary</span>
         </span>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
       </button>
       {open && (
         <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={3}
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={3} aria-label="IP addresses or CIDR ranges to block"
             placeholder={'203.0.113.7\n198.51.100.0/24'}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
           <div className="flex flex-wrap items-center gap-2">
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason"
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason" aria-label="Reason for blocking"
               className="flex-1 min-w-[10rem] px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <select value={hours} onChange={e => setHours(Number(e.target.value))}
+            <select value={hours} onChange={e => setHours(Number(e.target.value))} aria-label="Block duration"
               className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
               {BLOCK_DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
             </select>
@@ -78,13 +78,13 @@ export default function BlockedIpsPanel() {
           )}
           {loadError && <p className="text-sm text-red-600 mb-2">{loadError} <button type="button" onClick={load} className="underline font-semibold">Retry</button></p>}
           {actionError && <p className="text-sm text-red-600 mb-2">{actionError}</p>}
-          {rows.length === 0 ? <p className="text-sm text-gray-400 italic">Nothing is blocked.</p> : (
+          {rows.length === 0 ? <p className="text-sm text-gray-500 italic">Nothing is blocked.</p> : (
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {rows.map(r => (
                 <div key={r._id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="min-w-0 text-sm">
                     <span className="font-mono text-gray-800">{r.ip}</span>
-                    <span className="text-xs text-gray-400"> · {r.expiresAt ? `until ${new Date(r.expiresAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'permanent'}
+                    <span className="text-xs text-gray-500"> · {r.expiresAt ? `until ${new Date(r.expiresAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'permanent'}
                       {r.reason ? ` · ${r.reason}` : ''}</span>
                   </div>
                   <button type="button" onClick={() => unblock(r.ip)} className="flex items-center gap-1 text-xs font-semibold text-green-700 hover:bg-green-50 px-2 py-1 rounded-lg">

@@ -38,46 +38,47 @@ export default function SuppressionPanel() {
       await api.soc.addSuppression({ kind, value: value.trim(), incidentTypes: types, reason: reason.trim(), expiresInHours: hours || undefined });
       setValue(''); setReason(''); setTypes([]);
       await load();
-    } catch (err: any) { setError(err.message || 'Failed to add rule'); }
+    } catch (err) { setError(errorText(err)); }
     setSaving(false);
   };
 
   const remove = async (id: string) => {
     setError('');
     try { await api.soc.removeSuppression(id); await load(); }
-    catch (err: any) { setError(err.message || 'Could not remove rule.'); }
+    catch (err) { setError(errorText(err)); }
   };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
           <BellOff className="w-4 h-4 text-purple-600" /> Suppression rules
-          <span className="text-xs font-normal text-gray-400">trusted IPs / emails that should not open incidents</span>
+          <span className="text-xs font-normal text-gray-500">trusted IPs / emails that should not open incidents</span>
         </span>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
       </button>
       {open && (
         <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-            <select value={kind} onChange={e => setKind(e.target.value as 'ip' | 'email')}
+            <select value={kind} onChange={e => setKind(e.target.value as 'ip' | 'email')} aria-label="Rule type"
               className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
               <option value="ip">IP / CIDR</option><option value="email">Email</option>
             </select>
             <input value={value} onChange={e => setValue(e.target.value)} placeholder={kind === 'ip' ? '203.0.113.0/24' : 'monitor@company.com'}
+              aria-label={kind === 'ip' ? 'IP address or CIDR range' : 'Email address'}
               className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Why (e.g. office VPN)"
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Why (e.g. office VPN)" aria-label="Why this is trusted"
               className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <select value={hours} onChange={e => setHours(Number(e.target.value))}
+            <select value={hours} onChange={e => setHours(Number(e.target.value))} aria-label="How long"
               className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
               {DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
             </select>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Applies to {types.length ? '' : '(all incident types)'}</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Applies to {types.length ? '' : '(all incident types)'}</p>
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(TYPE_LABEL).filter(([k]) => k !== 'manual').map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setTypes(t => t.includes(k) ? t.filter(x => x !== k) : [...t, k])}
+                <button key={k} type="button" onClick={() => setTypes(t => t.includes(k) ? t.filter(x => x !== k) : [...t, k])} aria-pressed={types.includes(k)}
                   className={`text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${types.includes(k) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`}>
                   {label}
                 </button>
@@ -90,16 +91,16 @@ export default function SuppressionPanel() {
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
-          {rules.length === 0 ? <p className="text-sm text-gray-400 italic">No suppression rules.</p> : (
+          {rules.length === 0 ? <p className="text-sm text-gray-500 italic">No suppression rules.</p> : (
             <div className="space-y-1.5">
               {rules.map(r => (
                 <div key={r._id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="min-w-0 text-sm">
                     <span className="font-mono text-gray-800">{r.value}</span>
-                    <span className="text-xs text-gray-400"> · {r.incidentTypes.length ? r.incidentTypes.map(t => TYPE_LABEL[t] || t).join(', ') : 'all types'}
+                    <span className="text-xs text-gray-500"> · {r.incidentTypes.length ? r.incidentTypes.map(t => TYPE_LABEL[t] || t).join(', ') : 'all types'}
                       {r.reason ? ` · ${r.reason}` : ''}{r.expiresAt ? ` · expires ${new Date(r.expiresAt).toLocaleDateString('en-IN')}` : ''}</span>
                   </div>
-                  <button type="button" onClick={() => remove(r._id)} aria-label="Remove rule" className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-white"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => remove(r._id)} aria-label="Remove rule" className="p-1.5 text-gray-500 hover:text-red-500 rounded-lg hover:bg-white"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               ))}
             </div>

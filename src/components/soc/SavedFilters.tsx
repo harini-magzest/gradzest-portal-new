@@ -18,7 +18,11 @@ function save<T>(storageKey: string, list: SavedFilter<T>[]) {
   try { localStorage.setItem(storageKey, JSON.stringify(list)); } catch { /* storage unavailable */ }
 }
 
-export default function SavedFilters<T>({ storageKey, current, onApply }: { storageKey: string; current: T; onApply: (filters: T) => void }) {
+// `onDark`: it sits directly on the dark page background (Incidents, Activity) rather than inside a white card, where the
+// lighter grey is what keeps its text legible.
+export default function SavedFilters<T>({ storageKey, current, onApply, onDark = false }: {
+  storageKey: string; current: T; onApply: (filters: T) => void; onDark?: boolean;
+}) {
   const [list, setList] = useState<SavedFilter<T>[]>([]);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
@@ -52,7 +56,7 @@ export default function SavedFilters<T>({ storageKey, current, onApply }: { stor
         </span>
       ) : (
         <button type="button" onClick={() => setNaming(true)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-purple-700 px-2 py-1 rounded-lg hover:bg-gray-100">
+          className={`inline-flex items-center gap-1 text-xs font-medium ${onDark ? 'text-gray-400' : 'text-gray-500'} hover:text-purple-700 px-2 py-1 rounded-lg hover:bg-gray-100`}>
           <Bookmark className="w-3 h-3" /> Save view
         </button>
       )}

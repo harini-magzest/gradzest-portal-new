@@ -36,8 +36,7 @@ export default function SOCLayout() {
       <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated) return <Navigate to={loginRedirect(location)} />;
-  if (!isAdmin) return <Navigate to={loginRedirect(location)} />;
+  if (!isAuthenticated || !isAdmin) return <Navigate to={loginRedirect(location)} />;
   if (access === 'denied') return <Navigate to="/admin" replace />;
 
   return (

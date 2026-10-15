@@ -22,10 +22,10 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
   }, [incidentId, refreshKey]);
 
   if (error) return <p className="text-xs text-red-600">Could not load context: {error}</p>;
-  if (!d) return <p className="text-xs text-gray-400">Loading context…</p>;
+  if (!d) return <p className="text-xs text-gray-500">Loading context…</p>;
 
   const Heading = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
-    <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase mb-2"><Icon className="w-3.5 h-3.5" />{children}</p>
+    <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-2"><Icon className="w-3.5 h-3.5" />{children}</p>
   );
 
   return (
@@ -35,7 +35,7 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
           <Heading icon={User}>Who it concerns</Heading>
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm">
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-800">{d.subject.name} <span className="text-[11px] text-gray-400 capitalize">· {d.subject.role}</span></p>
+              <p className="font-medium text-gray-800">{d.subject.name} <span className="text-[11px] text-gray-500 capitalize">· {d.subject.role}</span></p>
               <p className="text-xs text-gray-500 truncate">{d.subject.email}{d.subject.phone ? ` · ${d.subject.phone}` : ''}</p>
             </div>
             {onOpenUser && <button type="button" onClick={() => onOpenUser(d.subject.id)} className="text-xs font-semibold text-purple-600 hover:underline">Investigate</button>}
@@ -46,10 +46,10 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
       <div>
         <Heading icon={Activity}>Evidence</Heading>
         {d.evidence.events.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No individual events were recorded for this incident.</p>
+          <p className="text-sm text-gray-500 italic">No individual events were recorded for this incident.</p>
         ) : (
           <>
-            <p className="text-[11px] text-gray-400 mb-1">
+            <p className="text-[11px] text-gray-500 mb-1">
               {d.evidence.kind === 'recorded' ? 'Events that triggered this incident.' : 'This rule does not store its triggering events — showing what the same address / account did within 6 hours either side.'}
             </p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -57,7 +57,7 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
                 <div key={e._id} className="flex items-start gap-2 text-xs py-1 border-b border-gray-50 last:border-0">
                   <span className="font-semibold text-gray-700 capitalize whitespace-nowrap">{label(e.type)}</span>
                   <span className="text-gray-500 flex-1 truncate">{e.ip || ''}{e.email ? ` · ${e.email}` : ''}</span>
-                  <span className="text-gray-400 whitespace-nowrap">{when(e.createdAt)}</span>
+                  <span className="text-gray-500 whitespace-nowrap">{when(e.createdAt)}</span>
                 </div>
               ))}
             </div>
@@ -72,7 +72,7 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
             {d.related.map((r: any) => (
               <div key={r._id} className="flex items-center gap-2 text-xs">
                 <span className="truncate flex-1 text-gray-700">{r.title}</span>
-                <span className="text-gray-400 whitespace-nowrap">{r.severity} · {label(r.status)} · {when(r.createdAt)}</span>
+                <span className="text-gray-500 whitespace-nowrap">{r.severity} · {label(r.status)} · {when(r.createdAt)}</span>
               </div>
             ))}
           </div>
@@ -81,11 +81,11 @@ export default function IncidentContext({ incidentId, refreshKey, onOpenUser }: 
 
       <div>
         <Heading icon={History}>Actions taken</Heading>
-        {d.actions.length === 0 ? <p className="text-sm text-gray-400 italic">Nothing done yet.</p> : (
+        {d.actions.length === 0 ? <p className="text-sm text-gray-500 italic">Nothing done yet.</p> : (
           <div className="space-y-1">
             {d.actions.map((a: any) => (
               <div key={a._id} className="text-xs flex gap-2">
-                <span className="text-gray-400 whitespace-nowrap">{when(a.createdAt)}</span>
+                <span className="text-gray-500 whitespace-nowrap">{when(a.createdAt)}</span>
                 <span className="text-gray-700 flex-1">{label(a.action)}{a.reason ? ` — ${a.reason}` : ''}</span>
               </div>
             ))}

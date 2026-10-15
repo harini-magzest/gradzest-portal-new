@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Package, Construction, Activity, Bug } from 'lucide-react';
 import { api } from '../../api';
 import AlertChannelsCard from './AlertChannelsCard';
+import { ErrorBanner, errorText } from './ui';
 
 const FLAW_SEV_COLORS: Record<string, { backgroundColor: string; color: string }> = {
   critical: { backgroundColor: '#FCE8E8', color: '#8B1A1A' },
@@ -9,14 +10,14 @@ const FLAW_SEV_COLORS: Record<string, { backgroundColor: string; color: string }
   medium: { backgroundColor: '#FAEEDA', color: '#633806' },
 };
 
-const SEV_COLORS: Record<string, string> = { critical: '#8B1A1A', high: '#dc2626', moderate: '#ea580c', low: '#0891b2', info: '#6b7280' };
+const SEV_COLORS: Record<string, string> = { critical: '#8B1A1A', high: '#dc2626', moderate: '#c2410c', low: '#0e7490', info: '#6b7280' };
 
 function AuditCard({ title, audit }: { title: string; audit: any }) {
   if (audit.error) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Package className="w-4 h-4" /> {title}</h3>
-        <p className="text-sm text-gray-400">{audit.error}</p>
+        <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Package className="w-4 h-4" /> {title}</h2>
+        <p className="text-sm text-gray-500">{audit.error}</p>
       </div>
     );
   }
@@ -24,7 +25,7 @@ function AuditCard({ title, audit }: { title: string; audit: any }) {
   const total = audit.total ?? entries.reduce((sum: number, [, v]: any) => sum + (v || 0), 0);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"><Package className="w-4 h-4" /> {title}</h3>
+      <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"><Package className="w-4 h-4" /> {title}</h2>
       {total === 0 ? (
         <p className="text-sm text-green-700 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> No known vulnerabilities</p>
       ) : (
@@ -43,20 +44,25 @@ function AuditCard({ title, audit }: { title: string; audit: any }) {
 export default function PostureTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
+  // A failed check keeps the last result on screen (with the failure above it); with nothing to show yet it says so, rather
+  // than leaving the tab blank as if the posture had come back empty.
   const load = async (refresh = false) => {
-    setLoading(true);
+    setLoading(true); setError('');
     try { setData(await api.soc.posture(refresh)); }
+    catch (e) { setError(errorText(e)); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   return (
     <div className="space-y-6">
       <AlertChannelsCard />
+      {error && <ErrorBanner message={error} onRetry={() => { void load(true); }} />}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-400">
           {data?.cached ? 'Showing cached results' : 'Freshly checked'}{data?.checkedAt ? ` · last checked ${new Date(data.checkedAt).toLocaleString()}` : ''}
         </p>
         <button type="button" onClick={() => load(true)} disabled={loading}
@@ -66,15 +72,15 @@ export default function PostureTab() {
       </div>
 
       {loading && !data ? (
-        <div className="p-8 text-center text-sm text-gray-400">Running dependency audit — this can take a few seconds…</div>
+        <div role="status" className="p-8 text-center text-sm text-gray-500">Running dependency audit — this can take a few seconds…</div>
       ) : data && (
         <>
           {data.knownGaps?.length > 0 && (
             <div className="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-6">
-              <h3 className="text-sm font-bold text-amber-900 mb-1 flex items-center gap-2">
+              <h2 className="text-sm font-bold text-amber-900 mb-1 flex items-center gap-2">
                 <Construction className="w-4 h-4" /> Known incomplete work
-              </h3>
-              <p className="text-xs text-amber-700/80 mb-4">
+              </h2>
+              <p className="text-xs text-amber-800 mb-4">
                 Deliberately tracked here, not just in chat history — these are real, open gaps in this dashboard's own build-out. Update or remove an item the moment it's actually closed.
               </p>
               <div className="space-y-3">
@@ -85,7 +91,7 @@ export default function PostureTab() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-amber-900">{gap.label}</p>
-                      <p className="text-xs text-amber-700/90 mt-0.5">{gap.detail}</p>
+                      <p className="text-xs text-amber-800 mt-0.5">{gap.detail}</p>
                     </div>
                   </div>
                 ))}
@@ -99,8 +105,8 @@ export default function PostureTab() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Activity className="w-4 h-4" /> Active features (live)</h3>
-            <p className="text-xs text-gray-400 mb-4">Marked active at the exact line in server/app.js where each one actually mounted during this server's boot — not a separate hand-typed claim.</p>
+            <h2 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Activity className="w-4 h-4" /> Active features (live)</h2>
+            <p className="text-xs text-gray-500 mb-4">Marked active at the exact line in server/app.js where each one actually mounted during this server's boot — not a separate hand-typed claim.</p>
             <div className="space-y-2">
               {(data.activeFeatures || []).map((f: any) => (
                 <div key={f.name} className="flex items-center gap-2.5 py-1.5">
@@ -111,14 +117,14 @@ export default function PostureTab() {
                 </div>
               ))}
               {(!data.activeFeatures || data.activeFeatures.length === 0) && (
-                <p className="text-sm text-gray-400 italic">No features marked active yet — server may need a restart.</p>
+                <p className="text-sm text-gray-500 italic">No features marked active yet — server may need a restart.</p>
               )}
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Bug className="w-4 h-4" /> Code flags</h3>
-            <p className="text-xs text-gray-400 mb-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2"><Bug className="w-4 h-4" /> Code flags</h2>
+            <p className="text-xs text-gray-500 mb-4">
               A small, hand-picked set of anti-pattern checks (eval(), hardcoded secrets, console.log of request bodies, weak token randomness) —
               not a full static-analysis engine. Absence of flags here isn't proof of no flaws, just that these specific patterns weren't found.
             </p>
@@ -131,7 +137,7 @@ export default function PostureTab() {
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={FLAW_SEV_COLORS[flag.severity]}>{flag.severity}</span>
                     <div className="min-w-0">
                       <p className="text-sm text-gray-800">{flag.label}</p>
-                      <p className="text-xs font-mono text-gray-400 truncate">{flag.file}:{flag.line} — {flag.snippet}</p>
+                      <p className="text-xs font-mono text-gray-500 truncate">{flag.file}:{flag.line} — {flag.snippet}</p>
                     </div>
                   </div>
                 ))}

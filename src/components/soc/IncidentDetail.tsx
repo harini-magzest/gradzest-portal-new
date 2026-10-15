@@ -6,7 +6,7 @@ import {
 } from './incidentShared';
 import { BLOCK_DURATIONS } from './BlockedIpsPanel';
 import IncidentContext from './IncidentContext';
-import { errorText } from './ui';
+import { Modal, errorText } from './ui';
 
 const CLOSING = ['resolved', 'false_positive'];
 
@@ -32,11 +32,12 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
   const run = async (fn: () => Promise<any>, okText: string) => {
     setBusy(true); setActionMsg(null);
     try { await fn(); setActionMsg({ text: okText, ok: true }); }
-    catch (err: any) { setActionMsg({ text: err.message || 'Action failed', ok: false }); }
+    catch (err) { setActionMsg({ text: errorText(err), ok: false }); }
     setBusy(false);
   };
 
   const setStatus = async (status: string) => {
+    if (status === incident.status) return; // already there: nothing to save, and nothing to ask a reason for
     if (CLOSING.includes(status) && !CLOSING.includes(incident.status)) {
       setClosing(status);
       setReason(status === 'false_positive' ? 'benign_activity' : 'fixed');
@@ -66,7 +67,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
   };
 
   const addNote = async () => {
-    if (!note.trim()) return;
+    if (!note.trim() || saving) return; // Enter held down, or pressed again while the first is still saving, would post it twice
     setSaving(true);
     try {
       onUpdate(await api.soc.addIncidentNote(incident._id, note.trim()));
@@ -78,23 +79,22 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
   const sla = slaState(incident, slaPolicy);
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div role="presentation" className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal label={`Incident: ${incident.title}`} onClose={onClose} className="max-w-lg max-h-[85vh] flex flex-col">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase flex items-center gap-1.5">
+            <p className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1.5">
               {TYPE_LABEL[incident.type] || incident.type}
-              {incident.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 normal-case">Stale — 14+ days idle</span>}
+              {incident.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 normal-case">Stale — 14+ days idle</span>}
             </p>
-            <h3 className="text-base font-bold text-gray-900 mt-0.5">{incident.title}</h3>
+            <h2 className="text-base font-bold text-gray-900 mt-0.5">{incident.title}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-5 space-y-3 overflow-y-auto flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {['open', 'investigating', 'resolved', 'false_positive'].map(s => (
-              <button key={s} type="button" onClick={() => setStatus(s)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${incident.status === s ? 'ring-2 ring-offset-1 ring-purple-400' : 'opacity-60 hover:opacity-100'}`}
+              <button key={s} type="button" onClick={() => setStatus(s)} aria-pressed={incident.status === s}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${incident.status === s ? 'ring-2 ring-offset-1 ring-purple-400' : 'hover:brightness-95'}`}
                 style={STATUS_STYLE[s]}>
                 {s.replace('_', ' ')}
               </button>
@@ -109,11 +109,11 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
               <p className="text-xs font-semibold text-gray-600">
                 Mark as {closing.replace('_', ' ')} — why?
               </p>
-              <select value={reason} onChange={e => setReason(e.target.value)}
+              <select value={reason} onChange={e => setReason(e.target.value)} aria-label="Resolution reason"
                 className="w-full text-sm bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
                 {RESOLUTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
-              <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment"
+              <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment" aria-label="Resolution comment"
                 className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
               <div className="flex gap-2">
                 <button type="button" onClick={confirmClose} disabled={saving}
@@ -128,24 +128,24 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
           {CLOSING.includes(incident.status) && incident.resolutionReason && (
             <p className="text-sm text-gray-600">
               Outcome: <span className="font-medium">{RESOLUTION_REASONS.find(r => r.value === incident.resolutionReason)?.label || incident.resolutionReason}</span>
-              {incident.resolutionComment ? <span className="text-gray-400"> — {incident.resolutionComment}</span> : null}
+              {incident.resolutionComment ? <span className="text-gray-500"> — {incident.resolutionComment}</span> : null}
             </p>
           )}
           {incident.relatedIp && <p className="text-sm text-gray-600">IP: <span className="font-mono">{incident.relatedIp}</span></p>}
           {incident.relatedEmail && <p className="text-sm text-gray-600">Related: {incident.relatedEmail}</p>}
 
           <div className="flex items-center gap-2">
-            <UserCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <select value={incident.assignedTo?._id || ''} onChange={e => setAssignee(e.target.value)} disabled={assigning}
+            <UserCircle2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <select value={incident.assignedTo?._id || ''} onChange={e => setAssignee(e.target.value)} disabled={assigning} aria-label="Assignee"
               className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50">
               <option value="">Unassigned</option>
               {analysts.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
             </select>
-            {assigning && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin" />}
+            {assigning && <Loader2 className="w-3.5 h-3.5 text-gray-500 animate-spin" />}
           </div>
 
           <div className="rounded-xl border border-gray-100 p-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase">Actions</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase">Actions</p>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" disabled={busy} onClick={() => run(() => api.soc.download(`/incidents/${incident._id}/report.pdf`, `incident-${incident._id}.pdf`), 'Report downloaded.')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-semibold text-gray-700 disabled:opacity-50">
@@ -157,11 +157,11 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
                     <button type="button" disabled={busy}
                       onClick={() => run(() => api.soc.blockIp(incident.relatedIp!, `Blocked from incident: ${incident.title}`.slice(0, 200), blockHours || undefined),
                         `${incident.relatedIp} blocked${blockHours ? ` for ${BLOCK_DURATIONS.find(d => d.hours === blockHours)?.label}` : ''}.`)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 rounded-l-lg text-xs font-semibold text-red-600 disabled:opacity-50">
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 rounded-l-lg text-xs font-semibold text-red-700 disabled:opacity-50">
                       <Ban className="w-3.5 h-3.5" /> Block IP
                     </button>
                     <select value={blockHours} onChange={e => setBlockHours(Number(e.target.value))} aria-label="Block duration"
-                      className="text-xs bg-red-50 text-red-600 rounded-r-lg px-1.5 py-[7px] focus:outline-none">
+                      className="text-xs bg-red-50 text-red-700 rounded-r-lg px-1.5 py-[7px] focus:outline-none">
                       {BLOCK_DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
                     </select>
                   </span>
@@ -180,14 +180,14 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
           <IncidentContext incidentId={incident._id} refreshKey={`${incident.status}|${incident.notes.length}|${incident.assignedTo?._id || ''}`} />
 
           <div className="pt-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Notes</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</p>
             <div className="space-y-2">
-              {incident.notes.length === 0 && <p className="text-sm text-gray-400 italic">No notes yet.</p>}
+              {incident.notes.length === 0 && <p className="text-sm text-gray-500 italic">No notes yet.</p>}
               {incident.notes.map((n, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-semibold text-gray-800">{n.author}</span>
-                    <span className="text-[10px] text-gray-400">{new Date(n.createdAt).toLocaleString()}</span>
+                    <span className="text-[10px] text-gray-500">{new Date(n.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="text-sm text-gray-700">{n.text}</p>
                 </div>
@@ -196,14 +196,13 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
           </div>
         </div>
         <div className="p-4 border-t border-gray-100 flex items-center gap-2">
-          <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add an investigation note…"
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add an investigation note…" aria-label="Investigation note" maxLength={4000}
             onKeyDown={e => { if (e.key === 'Enter') addNote(); }}
             className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
-          <button onClick={addNote} disabled={saving || !note.trim()} aria-label="Add note" className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+          <button type="button" onClick={addNote} disabled={saving || !note.trim()} aria-label="Add note" className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

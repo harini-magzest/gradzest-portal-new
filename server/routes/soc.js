@@ -18,6 +18,7 @@ const AnalystAction = require('../models/AnalystAction');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const { refreshBlockedIps } = require('../middleware/ipBlock');
+const { revokeAllSessions } = require('../lib/accountState');
 const { logAnalystAction } = require('../lib/logAnalystAction');
 const attachUserEmail = require('../middleware/attachUserEmail');
 const { logSecurityEvent } = require('../middleware/logSecurityEvent');
@@ -308,16 +309,20 @@ router.get('/events', authMiddleware, adminOnly, async (req, res) => {
     const query = buildEventQuery(req.query);
 
     const searching = req.query.q && req.query.q.trim();
+    // The per-type totals cover the whole collection (up to six months of events) and nothing in the dashboard reads them,
+    // yet they were computed again for every page of the feed and every keystroke in its filters. Opt in with ?counts=1.
+    const wantCounts = req.query.counts === '1';
     const [events, total, rawCounts] = await Promise.all([
       searching
         ? searchRows(SecurityEvent, query, req.query.q, EVENT_SEARCH_FIELDS).then((m) => ({ m }))
         : SecurityEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       searching ? null : SecurityEvent.countDocuments(query),
-      SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+      wantCounts ? SecurityEvent.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]) : null,
     ]);
-    const counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
 
-    res.json({ events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, counts, truncated: !!(searching && events.m.truncated) });
+    const body = { events: searching ? events.m.slice(skip, skip + limit) : events, total: searching ? events.m.length : total, skip, limit, truncated: !!(searching && events.m.truncated) };
+    if (rawCounts) body.counts = rawCounts.reduce((acc, { _id, count }) => { acc[_id] = count; return acc; }, {});
+    res.json(body);
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -547,9 +552,14 @@ router.patch('/incidents/:id', authMiddleware, adminOnly, attachUserEmail, async
   }
 });
 
+const NOTE_MAX_LENGTH = 4000;
 router.post('/incidents/:id/notes', authMiddleware, adminOnly, async (req, res) => {
   const { text } = req.body || {};
-  if (!text?.trim()) return res.status(400).json({ message: 'Note text required' });
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ message: 'Note text required' });
+  // Refused rather than cut short: silently dropping the end of an investigation note is worse than asking for a shorter one.
+  if (text.trim().length > NOTE_MAX_LENGTH) {
+    return res.status(400).json({ message: `Note is too long (${NOTE_MAX_LENGTH.toLocaleString('en-US')} characters at most).` });
+  }
   try {
     if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'Incident not found' });
     const incident = await SecurityIncident.findById(req.params.id);
@@ -690,10 +700,12 @@ router.get('/investigate/user/:id', authMiddleware, adminOnly, async (req, res) 
 router.post('/investigate/user/:id/logout-everywhere', authMiddleware, adminOnly, attachUserEmail, async (req, res) => {
   try {
     if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'User not found' });
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).select('email');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    user.sessions = [];
-    await user.save();
+    // Clearing the session list only stops new refreshes; the access token already issued would keep working for up to
+    // 15 minutes. Moving sessionsRevokedAt makes every token issued before now refuse at once, and the live socket goes.
+    await revokeAllSessions(user._id);
+    req.app.get('io')?.in(`user:${user._id}`).disconnectSockets(true);
     logAnalystAction({ analyst: req.user, action: 'revoke_user_sessions', targetType: 'user', targetId: user._id, reason: `Sessions revoked for ${user.email}`, io: req.app.get('io') });
     res.json({ message: 'All sessions revoked for this user.' });
   } catch (err) {
@@ -737,6 +749,9 @@ router.post('/investigate/user/:id/force-password-reset', authMiddleware, adminO
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     user.sessions = [];
     await user.save();
+    // "Their current password stops working and every session is signed out" has to be true now, not in 15 minutes.
+    await revokeAllSessions(user._id);
+    req.app.get('io')?.in(`user:${user._id}`).disconnectSockets(true);
 
     let emailSent = false;
     const mailer = req.app.get('mailer');
@@ -1313,31 +1328,44 @@ const KNOWN_GAPS = [
   },
 ];
 
+// What the dashboard shows for one `npm audit --json` result: the vulnerability counts, or { error: <sentence> }. It never
+// returns an empty object, because the dashboard reads "no counts" as "no vulnerabilities" and draws a green all-clear.
+// When the audit cannot run (no network, registry timeout) npm prints an error object, not counts; passing that straight
+// through left the card blank, and a result without a metadata block looked like a clean bill of health.
+function summariseAudit(audit) {
+  const counts = audit?.metadata?.vulnerabilities;
+  if (counts && typeof counts === 'object') return counts;
+  const e = audit?.error;
+  const reason = typeof e === 'string' ? e : (e?.summary || e?.code || e?.message || '');
+  return { error: String(reason || 'npm audit returned no vulnerability data').slice(0, 300) };
+}
+
+// One audit at a time: a second "Re-check" while one is running shares it instead of starting two npm processes.
+let postureInflight = null;
+async function buildPosture(forceRefresh) {
+  const [rootAudit, serverAudit] = await Promise.all([
+    runNpmAudit(path.join(__dirname, '..', '..')),
+    runNpmAudit(path.join(__dirname, '..')),
+  ]);
+  postureCache = {
+    checkedAt: new Date().toISOString(),
+    dependencyAudit: { frontend: summariseAudit(rootAudit), backend: summariseAudit(serverAudit) },
+    knownGaps: KNOWN_GAPS,
+    activeFeatures: getActiveFeatures(),
+    codeAnalysis: getCodeAnalysis(forceRefresh),
+  };
+  postureCacheAt = Date.now();
+  return postureCache;
+}
+
 router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
   try {
     const forceRefresh = req.query.refresh === '1';
     if (!forceRefresh && postureCache && Date.now() - postureCacheAt < POSTURE_CACHE_MS) {
       return res.json({ ...postureCache, cached: true });
     }
-
-    const [rootAudit, serverAudit] = await Promise.all([
-      runNpmAudit(path.join(__dirname, '..', '..')),
-      runNpmAudit(path.join(__dirname, '..')),
-    ]);
-
-    postureCache = {
-      checkedAt: new Date().toISOString(),
-      dependencyAudit: {
-        frontend: rootAudit.metadata?.vulnerabilities || rootAudit.error || {},
-        backend: serverAudit.metadata?.vulnerabilities || serverAudit.error || {},
-      },
-      knownGaps: KNOWN_GAPS,
-      activeFeatures: getActiveFeatures(),
-      codeAnalysis: getCodeAnalysis(forceRefresh),
-    };
-    postureCacheAt = Date.now();
-
-    res.json({ ...postureCache, cached: false });
+    if (!postureInflight) postureInflight = buildPosture(forceRefresh).finally(() => { postureInflight = null; });
+    res.json({ ...(await postureInflight), cached: false });
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }
@@ -1345,3 +1373,4 @@ router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
 
 module.exports = router;
 module.exports.adminOnly = adminOnly; // reused by routes/socExtras.js so every SOC route shares one gate
+module.exports.summariseAudit = summariseAudit; // exported for its test

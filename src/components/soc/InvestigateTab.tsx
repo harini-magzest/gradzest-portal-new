@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { errorText } from './ui';
 import NeedsAttention from './NeedsAttention';
 import { Search, User as UserIcon, Globe2, LogOut, Ban, ShieldCheck, Loader2, MapPin, AlertTriangle, KeyRound, Monitor, X, Lock, Unlock, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
@@ -34,7 +34,7 @@ function RelatedIncidents({ incidents, onSelect }: { incidents: Incident[]; onSe
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={INCIDENT_SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{TYPE_LABEL[inc.type] || inc.type}</span>
+            <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{TYPE_LABEL[inc.type] || inc.type}</span>
           </button>
         ))}
       </div>
@@ -51,7 +51,7 @@ function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke
   return (
     <div className="px-5 py-3 border-b border-gray-100">
       <div className="flex items-center gap-1.5 mb-2">
-        <Monitor className="w-3.5 h-3.5 text-gray-400" />
+        <Monitor className="w-3.5 h-3.5 text-gray-500" />
         <span className="text-xs font-semibold text-gray-500 uppercase">Active sessions ({sessions.length})</span>
       </div>
       <div className="space-y-1.5">
@@ -59,12 +59,12 @@ function SessionsList({ sessions, onRevoke }: { sessions: SessionRow[]; onRevoke
           <div key={sess.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
             <div className="min-w-0 text-sm">
               <p className="text-gray-800 truncate" title={sess.userAgent}>{shortUa(sess.userAgent)}</p>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-gray-500">
                 <span className="font-mono">{sess.ip || 'unknown IP'}</span> · signed in {new Date(sess.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 {' '}· last used {new Date(sess.lastUsedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
-            <button type="button" onClick={() => onRevoke(sess.id)} className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg flex-shrink-0">
+            <button type="button" onClick={() => onRevoke(sess.id)} className="flex items-center gap-1 text-xs font-semibold text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg flex-shrink-0">
               <X className="w-3.5 h-3.5" /> Revoke
             </button>
           </div>
@@ -81,7 +81,7 @@ function shortUa(ua?: string) {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="min-w-0"><p className="text-[10px] font-semibold text-gray-400 uppercase">{label}</p><div className="text-sm text-gray-800 break-words">{children}</div></div>;
+  return <div className="min-w-0"><p className="text-[10px] font-semibold text-gray-500 uppercase">{label}</p><div className="text-sm text-gray-800 break-words">{children}</div></div>;
 }
 
 // Everything needed to contact the person and judge the risk, on one card — so a responder doesn't hunt across tabs.
@@ -97,21 +97,21 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
         <Field label="Email"><a href={`mailto:${data.user.email}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Mail className="w-3 h-3" />{data.user.email}</a></Field>
-        <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-400">Not on file</span>}</Field>
-        <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-400"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
+        <Field label="Phone">{p.phone ? <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1 text-purple-700 hover:underline"><Phone className="w-3 h-3" />{p.phone}</a> : <span className="text-gray-500">Not on file</span>}</Field>
+        <Field label="Role / status"><span className="capitalize">{data.user.role}</span>{p.status ? <span className="text-gray-500"> · {String(p.status).replace(/_/g, ' ')}</span> : null}</Field>
         <Field label="Joined">{when(p.joined)}</Field>
-        <Field label="Last sign-in">{p.lastLogin ? <>{when(p.lastLogin.at)}<span className="block text-[11px] text-gray-400"><span className="font-mono">{p.lastLogin.ip || '—'}</span> · {p.lastLogin.device?.label || shortUa(p.lastLogin.userAgent)}</span></> : <span className="text-gray-400">No sign-in recorded</span>}</Field>
+        <Field label="Last sign-in">{p.lastLogin ? <>{when(p.lastLogin.at)}<span className="block text-[11px] text-gray-500"><span className="font-mono">{p.lastLogin.ip || '—'}</span> · {p.lastLogin.device?.label || shortUa(p.lastLogin.userAgent)}</span></> : <span className="text-gray-500">No sign-in recorded</span>}</Field>
         <Field label="Last active in app">{when(p.lastActive)}</Field>
         <Field label="Active sessions">{data.user.activeSessions}</Field>
         <Field label="Documents uploaded">{p.uploadsCount ?? 0}</Field>
       </div>
       {(data.recentUploads || []).length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">Recent uploads</p>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Recent uploads</p>
           <div className="space-y-1.5">
             {data.recentUploads.map((u: any) => (
               <div key={u._id} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-sm">
-                <span className="truncate text-gray-800">{u.originalName} <span className="text-[11px] text-gray-400">· {new Date(u.createdAt).toLocaleDateString('en-IN')}</span></span>
+                <span className="truncate text-gray-800">{u.originalName} <span className="text-[11px] text-gray-500">· {new Date(u.createdAt).toLocaleDateString('en-IN')}</span></span>
                 <span className="flex items-center gap-2 flex-shrink-0"><ReviewBadge review={u.review} /><a href={u.vtLink} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-purple-700 hover:underline">VirusTotal ↗</a></span>
               </div>
             ))}
@@ -128,7 +128,7 @@ function ResponseCard({ data, onUserFeatures, showFeatures }: { data: any; onUse
 
 function TimelineList({ timeline }: { timeline: any[] }) {
   const [source, setSource] = useState('all');
-  if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-400">No activity found.</div>;
+  if (!timeline.length) return <div className="p-8 text-center text-sm text-gray-500">No activity found.</div>;
   const sources = [...new Set(timeline.map(t => String(t.source)))];
   const shown = source === 'all' ? timeline : timeline.filter(t => t.source === source);
   const dayOf = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
@@ -148,17 +148,17 @@ function TimelineList({ timeline }: { timeline: any[] }) {
         const sev = item.severityOrLevel ? SEVERITY_STYLE[item.severityOrLevel] : null;
         return (
           <div key={i}>
-          {newDay && <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase bg-gray-50">{dayOf(item.createdAt)}</p>}
+          {newDay && <p className="px-4 py-1 text-[10px] font-bold text-gray-500 uppercase bg-gray-50">{dayOf(item.createdAt)}</p>}
           <div className="flex items-start justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">{item.source}</span>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase">{item.source}</span>
                 <span className="text-sm font-medium text-gray-800 truncate">{item.title}</span>
                 {sev && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={sev}>{item.severityOrLevel}</span>}
               </div>
-              {item.detail && <p className="text-xs text-gray-400 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
+              {item.detail && <p className="text-xs text-gray-500 truncate">{item.detail}{item.ip ? ` · ${item.ip}` : ''}</p>}
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           </div>
         );
@@ -173,6 +173,9 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
   const [query, setQuery] = useState('');
   const [ipQuery, setIpQuery] = useState('');
   const [userResults, setUserResults] = useState<any[]>([]);
+  // Whether a search has run for what is typed, so "no matches" can be told apart from "not searched yet".
+  const [searched, setSearched] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [ipData, setIpData] = useState<any>(null);
@@ -182,6 +185,9 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
   const [blockHours, setBlockHours] = useState(0);
   const [actionError, setActionError] = useState('');
   const [showFeatures, setShowFeatures] = useState(false);
+  // Opening a person or an address while another lookup is still coming (a quick second click, a link arriving from another
+  // tab) must show the one asked for last, not whichever response happens to land last.
+  const lookup = useRef(0);
 
   const patchRelatedIncident = (updated: Incident) => {
     setUserData((prev: any) => prev && prev.relatedIncidents
@@ -193,37 +199,50 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
   };
 
   const searchUsers = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || searching) return;
+    setSearching(true);
     try {
       const data = await api.soc.searchUsers(query.trim());
-      setUserResults(data.users || []); setActionError('');
+      setUserResults(data.users || []); setSearched(true); setActionError('');
     } catch (e) { setActionError(errorText(e)); }
+    finally { setSearching(false); }
   };
 
   const investigateUser = async (u: any) => {
+    const mine = ++lookup.current;
     setSelectedUser(u); setLoading(true); setActionMsg(''); setActionError(''); setUserData(null);
     try {
       const d = await api.soc.investigateUser(u.id);
+      if (mine !== lookup.current) return;
       setUserData(d);
       setSelectedUser({ id: u.id, ...d.user }); // so actions know the real email/name even when opened from another tab
     }
-    catch (e) { setActionError(errorText(e)); }
-    finally { setLoading(false); }
+    catch (e) { if (mine === lookup.current) setActionError(errorText(e)); }
+    finally { if (mine === lookup.current) setLoading(false); }
   };
 
   const investigateIp = async (override?: string) => {
     const target = (override ?? ipQuery).trim();
     if (!target) return;
+    const mine = ++lookup.current;
     setLoading(true); setActionMsg(''); setActionError(''); setIpData(null);
-    try { setIpData(await api.soc.investigateIp(target)); }
-    catch (e) { setActionError(errorText(e)); }
-    finally { setLoading(false); }
+    try {
+      const d = await api.soc.investigateIp(target);
+      if (mine === lookup.current) setIpData(d);
+    }
+    catch (e) { if (mine === lookup.current) setActionError(errorText(e)); }
+    finally { if (mine === lookup.current) setLoading(false); }
   };
 
   const logoutEverywhere = async () => {
     if (!selectedUser) return;
-    await api.soc.logoutUserEverywhere(selectedUser.id);
-    setActionMsg('All sessions revoked for this user.');
+    if (!window.confirm(`Sign ${selectedUser.email || 'this person'} out of every device? They will have to sign in again.`)) return;
+    setActionError('');
+    try {
+      await api.soc.logoutUserEverywhere(selectedUser.id);
+      setUserData((prev: any) => prev && { ...prev, sessions: [], user: { ...prev.user, activeSessions: 0 } });
+      setActionMsg('All sessions revoked for this user.');
+    } catch (e) { setActionError(errorText(e)); }
   };
 
   // Arriving from another tab (Activity, Uploads) with a person already chosen.
@@ -254,7 +273,7 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         ...(locking ? { sessions: [], user: { ...prev.user, activeSessions: 0 } } : {}),
       });
       setActionMsg(res.message);
-    } catch (err: any) { setActionError(err.message || 'Failed to change lock'); }
+    } catch (err) { setActionError(errorText(err)); }
   };
 
   const revokeSession = async (sessionId: string) => {
@@ -268,7 +287,7 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         user: { ...prev.user, activeSessions: res.activeSessions },
       });
       setActionMsg('Session revoked.');
-    } catch (err: any) { setActionError(err.message || 'Failed to revoke session'); }
+    } catch (err) { setActionError(errorText(err)); }
   };
 
   const forceReset = async () => {
@@ -279,7 +298,7 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
       const res = await api.soc.forcePasswordReset(selectedUser.id);
       setUserData((prev: any) => prev && { ...prev, sessions: [], user: { ...prev.user, activeSessions: 0 } });
       setActionMsg(res.message);
-    } catch (err: any) { setActionError(err.message || 'Failed to force reset'); }
+    } catch (err) { setActionError(errorText(err)); }
   };
 
   const toggleBlock = async () => {
@@ -295,18 +314,18 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         setIpData({ ...ipData, isBlocked: true });
         setActionMsg(`${ipData.ip} blocked${blockHours ? ` for ${BLOCK_DURATIONS.find(d => d.hours === blockHours)?.label}` : ''}.`);
       }
-    } catch (err: any) { setActionError(err.message || 'Action failed'); }
+    } catch (err) { setActionError(errorText(err)); }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-        <button type="button" onClick={() => setMode('user')}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mode === 'user' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500'}`}>
+        <button type="button" onClick={() => setMode('user')} aria-pressed={mode === 'user'}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mode === 'user' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600'}`}>
           <UserIcon className="w-3.5 h-3.5" /> User
         </button>
-        <button type="button" onClick={() => setMode('ip')}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mode === 'ip' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500'}`}>
+        <button type="button" onClick={() => setMode('ip')} aria-pressed={mode === 'ip'}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mode === 'ip' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600'}`}>
           <Globe2 className="w-3.5 h-3.5" /> IP Address
         </button>
       </div>
@@ -315,21 +334,24 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input value={query} onChange={e => setQuery(e.target.value)}
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              <input value={query} onChange={e => { setQuery(e.target.value); setSearched(false); }}
                 onKeyDown={e => { if (e.key === 'Enter') searchUsers(); }}
-                placeholder="Search by name or email…"
+                placeholder="Search by name or email…" aria-label="Search people by name or email"
                 className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
-            <button onClick={searchUsers} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Search</button>
+            <button type="button" onClick={searchUsers} disabled={searching} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50">{searching ? 'Searching…' : 'Search'}</button>
           </div>
+          {searched && userResults.length === 0 && (
+            <p role="status" className="mt-3 text-sm text-gray-500">No one matches “{query.trim()}”.</p>
+          )}
           {userResults.length > 0 && (
             <div className="mt-3 space-y-1">
               {userResults.map(u => (
-                <button key={u.id} onClick={() => investigateUser(u)}
+                <button type="button" key={u.id} onClick={() => investigateUser(u)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-purple-50' : ''}`}>
-                  <span>{u.name} <span className="text-gray-400">· {u.email}</span></span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{u.role}</span>
+                  <span>{u.name} <span className="text-gray-500">· {u.email}</span></span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{u.role}</span>
                 </button>
               ))}
             </div>
@@ -340,9 +362,9 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
           <div className="flex items-center gap-2">
             <input value={ipQuery} onChange={e => setIpQuery(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') investigateIp(); }}
-              placeholder="Enter an IP address…"
+              placeholder="Enter an IP address…" aria-label="IP address to investigate"
               className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <button onClick={() => investigateIp()} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
+            <button type="button" onClick={() => investigateIp()} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700">Investigate</button>
           </div>
         </div>
       )}
@@ -362,8 +384,8 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
-              <h3 className="text-base font-bold text-gray-900">{userData.user.name}</h3>
-              <p className="text-xs text-gray-400">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
+              <h2 className="text-base font-bold text-gray-900">{userData.user.name}</h2>
+              <p className="text-xs text-gray-500">{userData.user.email} · {userData.user.role} · {userData.user.activeSessions} active session(s)</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <button onClick={toggleLock}
@@ -375,7 +397,7 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
                 <KeyRound className="w-4 h-4" /> Force password reset
               </button>
               <button onClick={logoutEverywhere}
-                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-semibold transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-xl text-sm font-semibold transition-colors">
                 <LogOut className="w-4 h-4" /> Log out everywhere
               </button>
             </div>
@@ -391,8 +413,8 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <div>
-              <h3 className="text-base font-bold text-gray-900 font-mono">{ipData.ip}</h3>
-              <p className="text-xs text-gray-400">{ipData.isBlocked ? 'Currently blocked' : 'Not blocked'}</p>
+              <h2 className="text-base font-bold text-gray-900 font-mono">{ipData.ip}</h2>
+              <p className="text-xs text-gray-500">{ipData.isBlocked ? 'Currently blocked' : 'Not blocked'}</p>
             </div>
             <div className="flex items-center gap-1.5">
               {!ipData.isBlocked && (
@@ -403,7 +425,7 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
               )}
               <button onClick={toggleBlock}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                  ipData.isBlocked ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  ipData.isBlocked ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-red-50 text-red-700 hover:bg-red-100'
                 }`}>
                 {ipData.isBlocked ? <><ShieldCheck className="w-4 h-4" /> Unblock</> : <><Ban className="w-4 h-4" /> Block this IP</>}
               </button>
@@ -412,18 +434,18 @@ export default function InvestigateTab({ initialUserId, initialIp }: { initialUs
           {ipData.intel && (
             <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                <MapPin className="w-3.5 h-3.5 text-gray-500" />
                 <span className="text-xs font-semibold text-gray-500 uppercase">Threat context</span>
               </div>
               {ipData.intel.available ? (
                 <p className="text-sm text-gray-700">
                   {ipData.intel.city ? `${ipData.intel.city}, ` : ''}{ipData.intel.region ? `${ipData.intel.region}, ` : ''}{ipData.intel.country}
-                  <span className="text-gray-400"> · {ipData.intel.isp}</span>
-                  {ipData.intel.org && ipData.intel.org !== ipData.intel.isp && <span className="text-gray-400"> ({ipData.intel.org})</span>}
-                  {ipData.intel.asn && <span className="text-gray-400 font-mono text-xs"> · {ipData.intel.asn}</span>}
+                  <span className="text-gray-500"> · {ipData.intel.isp}</span>
+                  {ipData.intel.org && ipData.intel.org !== ipData.intel.isp && <span className="text-gray-500"> ({ipData.intel.org})</span>}
+                  {ipData.intel.asn && <span className="text-gray-500 font-mono text-xs"> · {ipData.intel.asn}</span>}
                 </p>
               ) : (
-                <p className="text-sm text-gray-400 italic">No geolocation data available ({ipData.intel.reason})</p>
+                <p className="text-sm text-gray-500 italic">No geolocation data available ({ipData.intel.reason})</p>
               )}
             </div>
           )}
