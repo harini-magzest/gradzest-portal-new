@@ -66,16 +66,53 @@ async function seed() {
     { id: 'eval-uni-berlin', name: 'Technische Eval Berlin', country: 'Germany', city: 'Berlin', ranking: 14,
       courses: [{ name: 'MSc Data Science', level: 'Postgraduate', duration: '2 years', tuitionFee: 1500, currency: 'EUR', intake: ['October'] }] },
   ]);
+  // Knowledge-base documents are real records (admin's list_knowledge_documents reads them); the chunks point at them.
+  const KnowledgeDocument = require('../models/KnowledgeDocument');
+  const [ukDoc, caDoc] = await KnowledgeDocument.create([
+    { title: 'UK Student Visa Guide', storagePath: '/uploads/eval-uk.pdf', uploadedBy: admin._id, status: 'ready', chunkCount: 1 },
+    { title: 'Canada Study Permit Guide', storagePath: '/uploads/eval-canada.pdf', uploadedBy: admin._id, status: 'ready', chunkCount: 1 },
+  ]);
+
+  // A call tomorrow for Meera, and chats: Meera wrote last (a reply is owed), Priya's last message is the counselor's.
+  const Meeting = require('../models/Meeting');
+  const ChatRoom = require('../models/ChatRoom');
+  const ChatMessage = require('../models/ChatMessage');
+  const tomorrow = new Date(Date.now() + DAY).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  await Meeting.create({
+    title: 'Visa interview prep call', scheduledDate: tomorrow, scheduledTime: '15:00', duration: 30, platform: 'zoom', status: 'scheduled',
+    participants: [{ userId: String(meera._id), name: 'Meera Nair', role: 'student' }, { userId: String(c1._id), name: 'Anita Eval', role: 'counselor' }],
+  });
+  const chat = async (student, lines) => {
+    const room = await ChatRoom.create({ participants: [String(c1._id), String(student._id)], participantNames: ['Anita Eval', student.name] });
+    let t = Date.now() - lines.length * 60000;
+    for (const [role, content] of lines) {
+      const sender = role === 'student' ? student : c1;
+      await ChatMessage.create({ roomId: room._id, senderId: String(sender._id), senderName: sender.name, senderRole: role, content, timestamp: new Date(t += 60000) });
+    }
+  };
+  await chat(meera, [['counselor', 'Hi Meera, please send your bank statement when you can.'], ['student', "Hi ma'am, is a bank statement from my father's account acceptable for the visa?"]]);
+  await chat(priya, [['student', 'Can we talk about shortlisting next week?'], ['counselor', 'Yes Priya, I will call you on Monday.']]);
+
+  // What Zest was asked: two questions it had nothing to answer from, and one answer that was marked unhelpful.
+  const ZestQueryLog = require('../models/ZestQueryLog');
+  await ZestQueryLog.create([
+    { userId: studentSelf._id, userRole: 'student', question: 'Do you offer accommodation help in Dublin?', answer: 'That is not in Gradzest materials yet.' },
+    { userId: studentSelf._id, userRole: 'student', question: 'Do you offer accommodation help in Dublin?', answer: 'That is not in Gradzest materials yet.' },
+    { userId: studentSelf._id, userRole: 'student', question: 'How long does a Canada study permit take?', answer: 'Typically 8 weeks.', toolsUsed: [], sourceDocIds: [caDoc._id],
+      feedback: { rating: 'down', comment: 'Not in our documents', at: new Date() } },
+  ]);
+
   await KnowledgeChunk.init();
   await KnowledgeChunk.create([
-    { documentId: new mongoose.Types.ObjectId(), documentTitle: 'UK Student Visa Guide', order: 0,
+    { documentId: ukDoc._id, documentTitle: 'UK Student Visa Guide', order: 0,
       text: 'UK student visa (Student route) required documents: a valid passport, the Confirmation of Acceptance for Studies (CAS) from your university, a bank statement showing you have held the required funds for 28 consecutive days, proof of English language ability, your tuberculosis test result if you are from a listed country, and your ATAS certificate where your course requires it. Apply online up to six months before the course starts.' },
-    { documentId: new mongoose.Types.ObjectId(), documentTitle: 'Canada Study Permit Guide', order: 0,
+    { documentId: caDoc._id, documentTitle: 'Canada Study Permit Guide', order: 0,
       text: 'Canada study permit: letter of acceptance from a designated learning institution, proof of funds, valid passport, and a provincial attestation letter where required.' },
   ]);
 
   const who = (u) => ({ id: String(u._id), role: u.role, name: u.name, email: u.email });
-  return { counselor: who(c1), admin: who(admin), student: who(studentSelf), meera: who(meera), priya: who(priya) };
+  // `guest` is a signed-out visitor: no user record at all, exactly as routes/zest.js passes it.
+  return { counselor: who(c1), admin: who(admin), student: who(studentSelf), meera: who(meera), priya: who(priya), guest: null };
 }
 
 function evaluate(c, { text, toolsUsed }) {
@@ -107,13 +144,14 @@ function evaluate(c, { text, toolsUsed }) {
   console.log(`Zest evaluation — ${provider} — ${cases.length} case(s)\n`);
   const results = [];
   for (const c of cases) {
-    const user = people[c.as];
+    if (!(c.as in people)) throw new Error(`case ${c.id}: unknown caller "${c.as}"`);
+    const user = people[c.as]; // null for a signed-out visitor
     let outcome;
     const startedAt = Date.now();
     try {
       const history = c.history || [];
       const chunks = (await retrieveChunks(c.q, history)).map(m => ({ title: m.documentTitle, text: m.text }));
-      const { text, toolsUsed } = await askZest(c.q, chunks, history, user.role, c.attached || '', user, null, {});
+      const { text, toolsUsed } = await askZest(c.q, chunks, history, user ? user.role : 'guest', c.attached || '', user, null, {});
       const fails = evaluate(c, { text, toolsUsed });
       outcome = { id: c.id, ok: fails.length === 0, fails, toolsUsed, answer: text };
     } catch (err) {
