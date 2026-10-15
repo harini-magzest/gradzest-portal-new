@@ -127,3 +127,69 @@ describe('geminiClient.askZest with a mocked @google/genai client', () => {
     expect(text).toBe('');
   });
 });
+
+describe('geminiClient thinking setting', () => {
+  const prev = { model: process.env.GEMINI_MODEL, thinking: process.env.ZEST_THINKING };
+  afterEach(() => {
+    if (prev.model === undefined) delete process.env.GEMINI_MODEL; else process.env.GEMINI_MODEL = prev.model;
+    if (prev.thinking === undefined) delete process.env.ZEST_THINKING; else process.env.ZEST_THINKING = prev.thinking;
+  });
+  const ask = () => askZest('hello', [], [], 'student', '', { id: 's1', role: 'student' });
+
+  it('asks a 3.x model for the lowest level it accepts, and a 2.x model for a zero budget', async () => {
+    delete process.env.ZEST_THINKING;
+    let client = fakeGeminiClient([textResponse('hi')]);
+    setGeminiClientForTests(client);
+    process.env.GEMINI_MODEL = 'think-level-model';
+    await ask();
+    expect(client.calls[0].config.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+
+    client = fakeGeminiClient([textResponse('hi')]);
+    setGeminiClientForTests(client);
+    process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+    await ask();
+    expect(client.calls[0].config.thinkingConfig).toEqual({ thinkingBudget: 0 });
+  });
+
+  it('ZEST_THINKING overrides the choice, or sends nothing at all with "default"', async () => {
+    process.env.GEMINI_MODEL = 'think-env-model';
+    let client = fakeGeminiClient([textResponse('hi')]);
+    setGeminiClientForTests(client);
+    process.env.ZEST_THINKING = '512';
+    await ask();
+    expect(client.calls[0].config.thinkingConfig).toEqual({ thinkingBudget: 512 });
+
+    client = fakeGeminiClient([textResponse('hi')]);
+    setGeminiClientForTests(client);
+    process.env.ZEST_THINKING = 'default';
+    await ask();
+    expect(client.calls[0].config).not.toHaveProperty('thinkingConfig');
+  });
+
+  it('repeats a turn without the setting when the model refuses it, and remembers that model', async () => {
+    delete process.env.ZEST_THINKING;
+    process.env.GEMINI_MODEL = 'picky-model';
+    const seen = [];
+    setGeminiClientForTests({ models: { generateContent: async (p) => {
+      seen.push(p.config.thinkingConfig);
+      if (p.config.thinkingConfig) throw Object.assign(new Error('Request contains an invalid argument.'), { status: 400 });
+      return textResponse('Answered anyway.');
+    } } });
+
+    expect((await ask()).text).toBe('Answered anyway.');
+    expect(seen).toEqual([{ thinkingLevel: 'low' }, undefined]);
+
+    seen.length = 0;
+    expect((await ask()).text).toBe('Answered anyway.');
+    expect(seen).toEqual([undefined]); // no failed call the second time
+  });
+
+  it('does not mistake a rejected API key for a thinking-setting problem', async () => {
+    delete process.env.ZEST_THINKING;
+    process.env.GEMINI_MODEL = 'keyed-model';
+    let calls = 0;
+    setGeminiClientForTests({ models: { generateContent: async () => { calls++; throw Object.assign(new Error('API key not valid. Please pass a valid API key.'), { status: 400 }); } } });
+    await expect(ask()).rejects.toThrow(/API key/);
+    expect(calls).toBe(1);
+  });
+});

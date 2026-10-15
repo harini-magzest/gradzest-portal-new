@@ -35,7 +35,7 @@ const ADMIN_TABS: { key: Tab; label: string }[] = [
 
 function welcomeFor(role: string): string {
   if (role === 'student') return "Hi, I'm Zest. Ask me about your applications and documents, universities and courses, visa steps, or how to use the portal.";
-  if (role === 'admin') return "Hi, I'm Zest. I can check students, tasks and lead alerts, draft follow-ups and chat replies, and answer process questions. The Knowledge, Insights and Alerts tabs above are for managing me.";
+  if (role === 'admin') return "Hi, I'm Zest. I can check students, tasks and lead alerts, draft follow-ups and chat replies, and answer process questions. The Knowledge, Insights, Alerts and Log tabs above are for managing me.";
   return "Hi, I'm Zest. I can check your students, tasks and lead alerts, draft follow-ups and chat replies, and answer visa and process questions.";
 }
 

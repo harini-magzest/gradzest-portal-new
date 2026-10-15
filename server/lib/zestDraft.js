@@ -24,7 +24,9 @@ function transcriptText(lines) {
 const DRAFT_INSTRUCTION =
   "Write a reply from the counselor to the student's most recent message in the attached conversation. "
   + 'Be warm, brief (2-4 sentences) and specific. Reply in the language the student used. '
-  + 'Do not invent facts, fees, dates or promises; if something needs checking, say the counselor will confirm. '
+  + 'Do not invent facts, fees, dates or promises. If the student asks whether something is allowed, accepted, required or '
+  + 'possible, and the conversation and the facts you were given do not say so, do NOT answer yes or no and do not add '
+  + 'conditions of your own: thank them for asking and say you will check and confirm. '
   + 'Output only the message text, with no greeting line like "Draft:" and no commentary.';
 
 /** True when there is a student message to answer: the last message in the conversation is the student's. */
