@@ -109,25 +109,29 @@ function evaluate(c, { text, toolsUsed }) {
   for (const c of cases) {
     const user = people[c.as];
     let outcome;
+    const startedAt = Date.now();
     try {
       const history = c.history || [];
       const chunks = (await retrieveChunks(c.q, history)).map(m => ({ title: m.documentTitle, text: m.text }));
-      const { text, toolsUsed } = await askZest(c.q, chunks, history, user.role, c.attached || '', user, {});
+      const { text, toolsUsed } = await askZest(c.q, chunks, history, user.role, c.attached || '', user, null, {});
       const fails = evaluate(c, { text, toolsUsed });
       outcome = { id: c.id, ok: fails.length === 0, fails, toolsUsed, answer: text };
     } catch (err) {
       outcome = { id: c.id, ok: false, fails: [`error: ${err.message}`], toolsUsed: [], answer: '' };
     }
+    outcome.ms = Date.now() - startedAt;
     results.push(outcome);
     const preview = (outcome.answer || '').replace(/\s+/g, ' ').slice(0, flag('verbose') ? 4000 : 220);
-    console.log(`${outcome.ok ? 'PASS' : 'FAIL'}  ${c.id}   [tools: ${outcome.toolsUsed.join(', ') || 'none'}]`);
+    console.log(`${outcome.ok ? 'PASS' : 'FAIL'}  ${c.id}   [${(outcome.ms / 1000).toFixed(1)}s, tools: ${outcome.toolsUsed.join(', ') || 'none'}]`);
     console.log(`      ${preview}`);
     for (const f of outcome.fails) console.log(`      ✗ ${f}`);
     if (DELAY_MS && c !== cases[cases.length - 1]) await sleep(DELAY_MS);
   }
 
   const passed = results.filter(r => r.ok).length;
-  console.log(`\n${passed}/${results.length} passed`);
+  const times = results.map(r => r.ms).sort((a, b) => a - b);
+  const median = times.length ? times[Math.floor(times.length / 2)] : 0;
+  console.log(`\n${passed}/${results.length} passed — median ${(median / 1000).toFixed(1)}s, slowest ${((times[times.length - 1] || 0) / 1000).toFixed(1)}s per answer`);
   if (opt('out')) fs.writeFileSync(opt('out'), JSON.stringify({ provider, ranAt: new Date().toISOString(), results }, null, 2));
   await mongoose.disconnect();
   await mongod.stop();
