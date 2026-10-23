@@ -89,7 +89,7 @@ export default function PostureTab() {
                 <div className="space-y-2">
                   {flags.map((flag: any, i: number) => (
                     <div key={i} className="flex items-start gap-2.5 py-1.5">
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={FLAW_SEV_COLORS[flag.severity]}>{flag.severity}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={FLAW_SEV_COLORS[flag.severity]}>{flag.severity}</span>
                       <div className="min-w-0">
                         <p className="text-sm text-gray-800">{flag.label}</p>
                         <p className="text-xs font-mono text-gray-500 truncate">{flag.file}:{flag.line} — {flag.snippet}</p>
@@ -106,7 +106,7 @@ export default function PostureTab() {
               <div className="space-y-2">
                 {(data.activeFeatures || []).map((f: any) => (
                   <div key={f.name} className="flex items-center gap-2.5 py-1.5">
-                    <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                       <span className="w-2 h-2 rounded-full bg-green-500" />
                     </span>
                     <span className="text-sm text-gray-700"><span className="font-mono text-xs text-gray-500">{f.name}</span> — {f.detail}</span>
@@ -126,7 +126,7 @@ export default function PostureTab() {
       </Section>
 
       {data?.knownGaps?.length > 0 && (
-        <details className="group bg-amber-50 rounded-2xl border border-amber-200 shadow-sm">
+        <details className="group bg-amber-50 rounded-2xl border border-amber-200 shadow-xs">
           <summary className="flex items-center gap-2 p-5 cursor-pointer list-none text-sm font-bold text-amber-900">
             <Construction className="w-4 h-4" aria-hidden="true" /> Known gaps in this dashboard ({data.knownGaps.length})
             <ChevronDown className="w-4 h-4 ml-auto transition-transform group-open:rotate-180" aria-hidden="true" />
@@ -137,7 +137,7 @@ export default function PostureTab() {
             </p>
             {data.knownGaps.map((gap: any, i: number) => (
               <div key={i} className="flex items-start gap-2.5">
-                <span className="w-4 h-4 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="w-4 h-4 rounded-full bg-amber-200 flex items-center justify-center shrink-0 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-amber-600" />
                 </span>
                 <div>

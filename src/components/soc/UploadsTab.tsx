@@ -172,13 +172,13 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
   return (
     <div className="space-y-4">
       <div className="text-xs text-gray-700 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 space-y-1.5">
-        <p className="flex items-start gap-2"><Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+        <p className="flex items-start gap-2"><Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
           <span>
             <b>Checking a file on VirusTotal:</b> click <b>Open in VirusTotal</b> on a row (or <b>copy</b> its SHA-256 and paste it into the search box on virustotal.com).
             Read the result, then record it with <b>Mark clean</b> or <b>Flag as malicious</b>. Flagging opens an incident; use <b>Quarantine</b> to stop the file being downloaded.
           </span>
         </p>
-        <p className="flex items-start gap-2 text-amber-800"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p className="flex items-start gap-2 text-amber-800"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             <b>Look the hash up — never upload the document itself.</b> VirusTotal shares uploaded files with its customers, and these are students&apos; passports and certificates.
             “File not found” on VirusTotal is normal for a private document and isn&apos;t a risk signal. Every upload is also scanned locally by ClamAV and inspected for hidden macros, scripts and disguised file types.
@@ -192,19 +192,19 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit flex-wrap">
           {FILTERS.map(f => (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f.key ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f.key ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}>
               {f.label} <span className={`ml-1 ${(f.key === 'flagged' || f.key === 'review') && count(f.key) > 0 ? 'text-red-700' : 'text-gray-600'}`}>{count(f.key)}</span>
             </button>
           ))}
         </div>
-        <div className="relative flex-1 min-w-[12rem] max-w-xs">
+        <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="File name, user or hash…" aria-label="Search uploads"
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
         {loadError ? <div className="p-4"><ErrorBanner message={loadError} onRetry={() => { void load(); }} /></div>
           : loading ? <div className="p-8 text-center text-sm text-gray-500">Loading…</div>
           : rows.length === 0 ? (
@@ -219,7 +219,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
               // On a phone the actions wrap onto their own line under the details (flex-wrap); from `sm` up they sit in a column
               // to the right as before. Without the wrap the action buttons pushed past the screen and squeezed the file name to nothing.
               <div key={u._id} className="flex flex-wrap sm:flex-nowrap items-start gap-3 px-4 py-3.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-                <FileText className="w-5 h-5 text-gray-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <FileText className="w-5 h-5 text-gray-300 shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-gray-900 truncate">{u.originalName}</span>
@@ -248,7 +248,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
                     {u.review?.note && <span className="text-gray-500">· “{u.review.note}”</span>}
                   </p>
                 </div>
-                <div className="w-full sm:w-auto pl-8 sm:pl-0 flex flex-col items-start sm:items-end gap-1.5 sm:flex-shrink-0">
+                <div className="w-full sm:w-auto pl-8 sm:pl-0 flex flex-col items-start sm:items-end gap-1.5 sm:shrink-0">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">{new Date(u.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                   <div className="flex items-center gap-1 flex-wrap sm:justify-end">
                     <a href={u.vtLink} target="_blank" rel="noopener noreferrer" className={`${btn} text-purple-700 bg-purple-50 hover:bg-purple-100`} title="Opens this file's hash on virustotal.com">
@@ -310,7 +310,7 @@ export default function UploadsTab({ onInvestigateUser }: { onInvestigateUser: (
             <input autoFocus value={reviewModal.note} onChange={e => setReviewModal(m => m && { ...m, note: e.target.value })}
               aria-label={reviewModal.status === 'flagged' ? 'What did VirusTotal show?' : 'Note'}
               placeholder={reviewModal.status === 'flagged' ? 'Required — what did VirusTotal show?' : 'Optional note'}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setReviewModal(null)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
               <button type="submit" disabled={reviewModal.status === 'flagged' && !reviewModal.note.trim()}

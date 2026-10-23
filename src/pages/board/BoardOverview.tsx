@@ -88,7 +88,7 @@ export default function BoardOverview() {
           { to: '/board/counselors', label: 'Counselors', value: counselors.length, sub: 'Active', icon: UserCog, iconBg: 'bg-teal-100', iconColor: 'text-teal-600' },
           { to: '/board/documents', label: 'Documents', value: totalDocs, sub: 'Total files', icon: FolderOpen, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
         ].map(({ to, label, value, sub, icon: Icon, iconBg, iconColor }) => (
-          <Link key={to} to={to} className="bg-white rounded-xl p-5 border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all group">
+          <Link key={to} to={to} className="bg-white rounded-xl p-5 border border-gray-200 hover:border-indigo-300 hover:shadow-xs transition-all group">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">{label}</span>
               <div className={`w-9 h-9 ${iconBg} rounded-lg flex items-center justify-center`}>
@@ -148,7 +148,7 @@ export default function BoardOverview() {
               const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.draft;
               return (
                 <div key={app._id} className="flex items-center gap-3 py-1">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-semibold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-semibold text-sm shrink-0">
                     {app.studentName?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -182,7 +182,7 @@ export default function BoardOverview() {
               return (
                 <Link to="/board/counselors" key={c._id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-indigo-50 transition-colors">
-                  <div className="w-9 h-9 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  <div className="w-9 h-9 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
                     {c.name?.[0]?.toUpperCase()}
                   </div>
                   <div className="min-w-0">

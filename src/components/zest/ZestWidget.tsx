@@ -94,7 +94,7 @@ const MARKDOWN_COMPONENTS = {
   code: ({ className, children }: { className?: string; children?: ReactNode }) =>
     /language-/.test(className || '')
       ? <code className={className}>{children}</code>
-      : <code className="bg-gray-100 text-[13px] px-1 py-0.5 rounded font-mono">{children}</code>,
+      : <code className="bg-gray-100 text-[13px] px-1 py-0.5 rounded-sm font-mono">{children}</code>,
   table: ({ children }: { children?: ReactNode }) => <table className="w-full text-xs border-collapse mb-2">{children}</table>,
   th: ({ children }: { children?: ReactNode }) => <th className="border border-gray-200 px-2 py-1 text-left font-semibold">{children}</th>,
   td: ({ children }: { children?: ReactNode }) => <td className="border border-gray-200 px-2 py-1">{children}</td>,
@@ -272,17 +272,17 @@ export default function ZestWidget() {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close Zest' : 'Open Zest'}
-        className="fixed bottom-6 right-6 z-[250] w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
+        className="fixed bottom-6 right-6 z-250 w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
       >
         {open ? <X className="w-6 h-6 text-[#0d1b4b]" /> : <ZestIcon className="w-24 h-24" />}
       </button>
 
       <div
-        className={`fixed inset-y-0 right-0 z-[260] w-full sm:w-96 bg-white shadow-2xl flex flex-col transition-transform duration-300 ${
+        className={`fixed inset-y-0 right-0 z-260 w-full sm:w-96 bg-white shadow-2xl flex flex-col transition-transform duration-300 ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="bg-[#0d1b4b] text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="bg-[#0d1b4b] text-white px-5 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <ZestIcon className="w-5 h-5" />
             <span className="font-semibold text-lg">Zest AI</span>
@@ -306,7 +306,7 @@ export default function ZestWidget() {
                 onChange={e => speech.setLang(e.target.value)}
                 aria-label="Voice language"
                 title="Language for voice input and spoken answers"
-                className="bg-white/10 text-white text-xs rounded-lg px-1.5 py-1 border border-white/20 focus:outline-none"
+                className="bg-white/10 text-white text-xs rounded-lg px-1.5 py-1 border border-white/20 focus:outline-hidden"
               >
                 {SPEECH_LANGS.map(l => <option key={l.code} value={l.code} className="text-gray-900">{l.label}</option>)}
               </select>
@@ -329,7 +329,7 @@ export default function ZestWidget() {
         </div>
 
         {canManage && (
-          <div role="tablist" aria-label="Zest" className="flex-shrink-0 flex border-b border-gray-100 bg-white px-2">
+          <div role="tablist" aria-label="Zest" className="shrink-0 flex border-b border-gray-100 bg-white px-2">
             {ADMIN_TABS.map(t => (
               <button
                 key={t.key}
@@ -358,7 +358,7 @@ export default function ZestWidget() {
           <>
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
               <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-white text-gray-800 border border-gray-100 shadow-sm">
+                <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-white text-gray-800 border border-gray-100 shadow-xs">
                   <p className="whitespace-pre-wrap">{user ? welcomeFor(user.role) : GUEST_WELCOME}</p>
                 </div>
               </div>
@@ -367,7 +367,7 @@ export default function ZestWidget() {
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     m.role === 'user'
                       ? 'bg-[#0d1b4b] text-white'
-                      : m.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-gray-800 border border-gray-100 shadow-sm'
+                      : m.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-gray-800 border border-gray-100 shadow-xs'
                   }`}>
                     {m.role === 'assistant' && !m.error ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{m.text}</ReactMarkdown>
@@ -379,17 +379,17 @@ export default function ZestWidget() {
                         {m.logId && (
                           <>
                             <button type="button" onClick={() => rate(m, 'up')} aria-label="Helpful" aria-pressed={m.rating === 'up'}
-                              className={`p-1 rounded hover:bg-gray-100 ${m.rating === 'up' ? 'text-emerald-600' : ''}`}>
+                              className={`p-1 rounded-sm hover:bg-gray-100 ${m.rating === 'up' ? 'text-emerald-600' : ''}`}>
                               <ThumbsUp className="w-3.5 h-3.5" />
                             </button>
                             <button type="button" onClick={() => rate(m, 'down')} aria-label="Not helpful" aria-pressed={m.rating === 'down'}
-                              className={`p-1 rounded hover:bg-gray-100 ${m.rating === 'down' ? 'text-red-500' : ''}`}>
+                              className={`p-1 rounded-sm hover:bg-gray-100 ${m.rating === 'down' ? 'text-red-500' : ''}`}>
                               <ThumbsDown className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}
                         <button type="button" onClick={() => copy(m)} aria-label="Copy answer"
-                          className="ml-auto inline-flex items-center gap-1 p-1 rounded hover:bg-gray-100 text-[11px]">
+                          className="ml-auto inline-flex items-center gap-1 p-1 rounded-sm hover:bg-gray-100 text-[11px]">
                           {copiedId === m.id ? <><Check className="w-3.5 h-3.5 text-emerald-600" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
                         </button>
                       </div>
@@ -408,7 +408,7 @@ export default function ZestWidget() {
               ))}
               {loading && !(streamingId && messages.find(m => m.id === streamingId)?.text) && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 shadow-sm rounded-2xl px-4 py-2.5 flex gap-1 items-center">
+                  <div className="bg-white border border-gray-100 shadow-xs rounded-2xl px-4 py-2.5 flex gap-1 items-center">
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
@@ -427,7 +427,7 @@ export default function ZestWidget() {
               )}
             </div>
 
-            <div className="flex-shrink-0 border-t border-gray-100 p-3 bg-white">
+            <div className="shrink-0 border-t border-gray-100 p-3 bg-white">
               {guest && leadForm === 'closed' && (
                 <button type="button" onClick={() => setLeadForm('open')}
                   className="w-full mb-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-sm font-semibold hover:bg-blue-100">
@@ -436,7 +436,7 @@ export default function ZestWidget() {
               )}
               {attachedFile && (
                 <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs">
-                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
                   <span className="flex-1 truncate">{attachedFile.name}</span>
                   <button type="button" onClick={() => setAttachedFile(null)} aria-label="Remove attachment" className="text-blue-400 hover:text-blue-700">
                     <X className="w-3.5 h-3.5" />
@@ -458,7 +458,7 @@ export default function ZestWidget() {
                     onClick={() => fileRef.current?.click()}
                     title="Attach a PDF to ask about"
                     disabled={loading}
-                    className="w-10 h-10 flex-shrink-0 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-40 flex items-center justify-center"
+                    className="w-10 h-10 shrink-0 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-40 flex items-center justify-center"
                   >
                     <Paperclip className="w-4 h-4" />
                   </button>
@@ -470,7 +470,7 @@ export default function ZestWidget() {
                     aria-pressed={speech.listening}
                     title={speech.listening ? 'Stop listening' : 'Speak your question'}
                     disabled={loading}
-                    className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center disabled:opacity-40 ${speech.listening ? 'bg-red-50 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                    className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center disabled:opacity-40 ${speech.listening ? 'bg-red-50 text-red-600 animate-pulse' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                   >
                     {speech.listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
@@ -480,13 +480,13 @@ export default function ZestWidget() {
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') send(); }}
                   placeholder={attachedFile ? 'Ask about this document...' : 'Ask Zest a question...'}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
                 <button aria-label="Send"
                   type="button"
                   onClick={send}
                   disabled={loading || !input.trim()}
-                  className="w-10 h-10 flex-shrink-0 rounded-xl bg-[#0d1b4b] hover:bg-[#152258] disabled:opacity-40 flex items-center justify-center text-white"
+                  className="w-10 h-10 shrink-0 rounded-xl bg-[#0d1b4b] hover:bg-[#152258] disabled:opacity-40 flex items-center justify-center text-white"
                 >
                   <Send className="w-4 h-4" />
                 </button>

@@ -47,7 +47,7 @@ export default function BlockedIpsPanel() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
           <Ban className="w-4 h-4 text-red-500" /> Blocklist &amp; bulk block
@@ -59,12 +59,12 @@ export default function BlockedIpsPanel() {
         <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
           <textarea value={text} onChange={e => setText(e.target.value)} rows={3} aria-label="IP addresses or CIDR ranges to block"
             placeholder={'203.0.113.7\n198.51.100.0/24'}
-            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
           <div className="flex flex-wrap items-center gap-2">
             <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason" aria-label="Reason for blocking"
-              className="flex-1 min-w-[10rem] px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="flex-1 min-w-40 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             <select value={hours} onChange={e => setHours(Number(e.target.value))} aria-label="Block duration"
-              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
               {BLOCK_DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
             </select>
             <button type="button" onClick={submit} disabled={busy || !text.trim()}

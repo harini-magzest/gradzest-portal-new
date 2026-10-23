@@ -705,7 +705,7 @@ function UniLogo({
     if (!url || imgErr) {
       return (
         <span
-          className={`w-7 h-7 rounded-full bg-[#0d1b4b] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ${className}`}
+          className={`w-7 h-7 rounded-full bg-[#0d1b4b] flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${className}`}
         >
           {name.charAt(0)}
         </span>
@@ -713,7 +713,7 @@ function UniLogo({
     }
     return (
       <span
-        className={`w-7 h-7 rounded-full bg-white border border-blue-200 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden p-0.5 ${className}`}
+        className={`w-7 h-7 rounded-full bg-white border border-blue-200 shadow-xs flex items-center justify-center shrink-0 overflow-hidden p-0.5 ${className}`}
       >
         <img loading="lazy" decoding="async"
           src={url}
@@ -730,7 +730,7 @@ function UniLogo({
   if (!url || imgErr) {
     return (
       <div
-        className={`${dim} bg-[#0d1b4b] rounded-xl flex items-center justify-center text-white font-bold ${textSize} flex-shrink-0 ${className}`}
+        className={`${dim} bg-[#0d1b4b] rounded-xl flex items-center justify-center text-white font-bold ${textSize} shrink-0 ${className}`}
       >
         {name.charAt(0)}
       </div>
@@ -738,7 +738,7 @@ function UniLogo({
   }
   return (
     <div
-      className={`${dim} bg-white rounded-xl border border-gray-200 shadow-sm flex-shrink-0 overflow-hidden ${pad} flex items-center justify-center ${className}`}
+      className={`${dim} bg-white rounded-xl border border-gray-200 shadow-xs shrink-0 overflow-hidden ${pad} flex items-center justify-center ${className}`}
     >
       <img loading="lazy" decoding="async"
         src={url}
@@ -770,7 +770,7 @@ function CountryFlagImg({
   if (!code || imgErr) {
     return (
       <span
-        className={`${sizeCls} ${rounded} ${className} bg-white border border-gray-200 shadow-sm flex items-center justify-center text-base leading-none flex-shrink-0 overflow-hidden`}
+        className={`${sizeCls} ${rounded} ${className} bg-white border border-gray-200 shadow-xs flex items-center justify-center text-base leading-none shrink-0 overflow-hidden`}
       >
         {flag}
       </span>
@@ -781,7 +781,7 @@ function CountryFlagImg({
       src={`https://flagcdn.com/${quality}/${code}.png`}
       alt={name}
       onError={() => setImgErr(true)}
-      className={`${sizeCls} ${rounded} ${className} object-cover flex-shrink-0 shadow-sm border border-gray-200`}
+      className={`${sizeCls} ${rounded} ${className} object-cover shrink-0 shadow-xs border border-gray-200`}
     />
   );
 }
@@ -1282,7 +1282,7 @@ function DetailModal({
       if (uni) {
         return (
           <>
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
+            <div className="bg-linear-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
               <button
                 type="button"
                 aria-label="Close"
@@ -1379,7 +1379,7 @@ function DetailModal({
                         key={f}
                         className="flex items-center gap-1 text-xs text-gray-600"
                       >
-                        <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                        <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
                         {f}
                       </span>
                     ))}
@@ -1408,7 +1408,7 @@ function DetailModal({
       if (mu) {
         return (
           <>
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
+            <div className="bg-linear-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
               <button
                 type="button"
                 aria-label="Close"
@@ -1495,7 +1495,7 @@ function DetailModal({
       }
       return (
         <>
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
+          <div className="bg-linear-to-br from-blue-500 to-indigo-600 p-6 text-white relative rounded-t-2xl">
             <button
               type="button"
               aria-label="Close"
@@ -1537,7 +1537,7 @@ function DetailModal({
       const info = COUNTRY_VISA_INFO[modal.name];
       return (
         <>
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white relative rounded-t-2xl">
+          <div className="bg-linear-to-br from-emerald-500 to-teal-600 p-6 text-white relative rounded-t-2xl">
             <button
               type="button"
               aria-label="Close"
@@ -1606,7 +1606,7 @@ function DetailModal({
                   <div className="space-y-1.5">
                     {info.documents.map((doc) => (
                       <div key={doc} className="flex items-start gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                        <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
                         <span className="text-sm text-gray-700">{doc}</span>
                       </div>
                     ))}
@@ -1654,7 +1654,7 @@ function DetailModal({
       const field = getField(modal.name);
       return (
         <>
-          <div className="bg-gradient-to-br from-purple-500 to-violet-600 p-6 text-white relative rounded-t-2xl">
+          <div className="bg-linear-to-br from-purple-500 to-violet-600 p-6 text-white relative rounded-t-2xl">
             <button
               type="button"
               aria-label="Close"
@@ -1723,7 +1723,7 @@ function DetailModal({
                       className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-purple-50 transition-colors text-left"
                     >
                       {getUniLogoUrl(p.uni, p.website) ? (
-                        <div className="w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0 overflow-hidden p-1 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-xs shrink-0 overflow-hidden p-1 flex items-center justify-center">
                           <img loading="lazy" decoding="async"
                             src={getUniLogoUrl(p.uni, p.website)!}
                             alt=""
@@ -1731,7 +1731,7 @@ function DetailModal({
                           />
                         </div>
                       ) : (
-                        <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0">
                           {p.uni.charAt(0)}
                         </div>
                       )}
@@ -1744,13 +1744,13 @@ function DetailModal({
                             name={p.country}
                             flag={p.flag}
                             sizeCls="w-4 h-3"
-                            rounded="rounded-sm"
+                            rounded="rounded-xs"
                             quality="w40"
                           />
                           {p.city}, {p.country}
                         </p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -1775,7 +1775,7 @@ function DetailModal({
 
   return (
     <div role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
       onClick={onClose}
     >
       <div role="presentation"
@@ -1960,11 +1960,11 @@ export default function Home() {
         <div className="absolute bottom-0 left-10 w-80 h-80 bg-blue-900/20 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="animate-fade-in-up inline-flex items-center gap-2 bg-black/30 text-white border border-white/10 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
-            <span className="w-2 h-2 bg-green-400 rounded-full inline-block flex-shrink-0" />
+            <span className="w-2 h-2 bg-green-400 rounded-full inline-block shrink-0" />
             Backed by Gradzest expert advisors
           </div>
           <div className="animate-fade-in-up delay-80">
-            <h1 className="text-5xl lg:text-7xl font-extrabold text-white leading-tight mb-5 tracking-tight">
+            <h1 className="text-5xl lg:text-7xl lg:leading-(--text-7xl--line-height) font-extrabold text-white leading-tight mb-5 tracking-tight">
               Find Your <span className="text-cyan-300">Perfect Program</span>
               <br />to Study Abroad
             </h1>
@@ -2005,7 +2005,7 @@ export default function Home() {
                   aria-label="Select destination country"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
+                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-hidden bg-gray-50 rounded-xl appearance-none border-0"
                 >
                   <option value="">Destination</option>
                   {countries.map((c) => (
@@ -2022,7 +2022,7 @@ export default function Home() {
                   aria-label="Select field of study"
                   value={field}
                   onChange={(e) => setField(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
+                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-hidden bg-gray-50 rounded-xl appearance-none border-0"
                 >
                   <option value="">Field of Study</option>
                   {[
@@ -2045,7 +2045,7 @@ export default function Home() {
                   aria-label="Select degree level"
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-none bg-gray-50 rounded-xl appearance-none border-0"
+                  className="w-full pl-9 pr-4 py-3 text-sm text-gray-700 focus:outline-hidden bg-gray-50 rounded-xl appearance-none border-0"
                 >
                   <option value="">Degree Level</option>
                   {[
@@ -2087,7 +2087,7 @@ export default function Home() {
               >
                 {tag.flagCode ? (
                   <img loading="lazy" decoding="async" src={`https://flagcdn.com/w40/${tag.flagCode}.png`} alt="" width={16} height={12}
-                    className="w-4 h-3 rounded-sm object-cover" />
+                    className="w-4 h-3 rounded-xs object-cover" />
                 ) : tag.Icon ? (
                   <tag.Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 ) : null}
@@ -2135,9 +2135,9 @@ export default function Home() {
                     flag: c.flag,
                   })
                 }
-                className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
+                className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-xs hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
               >
-                <div className="w-10 h-7 rounded-lg overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                <div className="w-10 h-7 rounded-lg overflow-hidden shrink-0 shadow-xs border border-gray-100">
                   <img
                     src={`https://flagcdn.com/w80/${c.code}.png`}
                     alt={c.name}
@@ -2170,9 +2170,9 @@ export default function Home() {
                 onClick={() =>
                   setDetailModal({ type: "university", name: uni.name })
                 }
-                className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
+                className="inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-xs hover:shadow-md hover:border-gray-200 transition-all shrink-0 cursor-pointer group"
               >
-                <div className="w-14 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
+                <div className="w-14 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 p-1">
                   <img
                     src={uni.logo}
                     alt={uni.name}
@@ -2212,9 +2212,9 @@ export default function Home() {
                 onClick={() =>
                   setDetailModal({ type: "course", name: course.name })
                 }
-                className={`inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer group ${course.bg}`}
+                className={`inline-flex items-center gap-3 mx-2 px-4 py-3 bg-white border rounded-2xl shadow-xs hover:shadow-md transition-all shrink-0 cursor-pointer group ${course.bg}`}
               >
-                <span className="text-xl leading-none flex-shrink-0">
+                <span className="text-xl leading-none shrink-0">
                   {course.emoji}
                 </span>
                 <span
@@ -2334,7 +2334,7 @@ export default function Home() {
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`whitespace-nowrap inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${activeTab === tab ? "bg-[#0d1b4b] text-white shadow-sm scale-105" : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"}`}
+                  className={`whitespace-nowrap inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${activeTab === tab ? "bg-[#0d1b4b] text-white shadow-xs scale-105" : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {tab}
@@ -2351,7 +2351,7 @@ export default function Home() {
                 className="flex flex-col"
                 delayClass={STAGGER[i * 80]}
               >
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
                   <div className="p-5 flex-1">
                     <div className="flex items-start justify-between mb-3">
                       <UniLogo name={p.uni} website={p.website} size="md" />
@@ -2371,7 +2371,7 @@ export default function Home() {
                         name={p.country}
                         flag={p.flag}
                         sizeCls="w-4 h-3"
-                        rounded="rounded-sm"
+                        rounded="rounded-xs"
                         quality="w40"
                       />
                       {p.city}, {p.country}
@@ -2463,7 +2463,7 @@ export default function Home() {
                     {u.name}
                   </p>
                   <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
-                    <CountryFlagImg name={u.country} flag={FLAGS[u.country] || ""} sizeCls="w-4 h-3" rounded="rounded-sm" quality="w40" />
+                    <CountryFlagImg name={u.country} flag={FLAGS[u.country] || ""} sizeCls="w-4 h-3" rounded="rounded-xs" quality="w40" />
                     {[u.city, u.country].filter(Boolean).join(", ")}
                   </p>
                   {u.ranking ? (
@@ -2537,7 +2537,7 @@ export default function Home() {
                 delayClass={STAGGER[i * 90]}
                 className="flex gap-4 group"
               >
-                <div className="flex-shrink-0 w-11 h-11 bg-blue-500 text-white rounded-xl flex items-center justify-center font-bold shadow-sm shadow-blue-800/30 group-hover:scale-110 group-hover:bg-blue-600 transition-all duration-300">
+                <div className="shrink-0 w-11 h-11 bg-blue-500 text-white rounded-xl flex items-center justify-center font-bold shadow-xs shadow-blue-800/30 group-hover:scale-110 group-hover:bg-blue-600 transition-all duration-300">
                   {s.num}
                 </div>
                 <div>
@@ -2590,7 +2590,7 @@ export default function Home() {
               </button>
             </FadeIn>
             <FadeIn direction="right">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4" aria-label="Example dashboard">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6 space-y-4" aria-label="Example dashboard">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1.5">
                   <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" /> Example dashboard · illustrative data
                 </p>
@@ -2608,7 +2608,7 @@ export default function Home() {
                               name={item.country}
                               flag={item.flag}
                               sizeCls="w-5 h-3.5"
-                              rounded="rounded-sm"
+                              rounded="rounded-xs"
                               quality="w40"
                             />
                             <p className="font-semibold text-gray-900 text-sm">
@@ -2619,7 +2619,7 @@ export default function Home() {
                         </div>
                       </div>
                       <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ml-2 ${item.statusCls}`}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ml-2 ${item.statusCls}`}
                       >
                         {item.status}
                       </span>
@@ -2672,7 +2672,7 @@ export default function Home() {
                     "{t.text}"
                   </p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
                       {t.name.charAt(0)}
                     </div>
                     <div>
@@ -2714,7 +2714,7 @@ export default function Home() {
                     {member.photo ? (
                       <img src={member.photo} alt={member.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#0d1b4b] to-blue-600 flex items-center justify-center text-white text-3xl font-bold font-display" aria-hidden="true">
+                      <div className="w-full h-full bg-linear-to-br from-[#0d1b4b] to-blue-600 flex items-center justify-center text-white text-3xl font-bold font-display" aria-hidden="true">
                         {member.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
                       </div>
                     )}
@@ -2754,7 +2754,7 @@ export default function Home() {
             {FAQS.map((faq, i) => (
               <FadeIn key={i} delayClass={STAGGER[Math.min(i * 60, 450)]}>
                 <div
-                  className={`border rounded-2xl overflow-hidden transition-all duration-300 ${openFaq === i ? "border-blue-400 shadow-md" : "border-gray-200 hover:border-blue-200 hover:shadow-sm"}`}
+                  className={`border rounded-2xl overflow-hidden transition-all duration-300 ${openFaq === i ? "border-blue-400 shadow-md" : "border-gray-200 hover:border-blue-200 hover:shadow-xs"}`}
                 >
                   <button
                     type="button"
@@ -2767,7 +2767,7 @@ export default function Home() {
                       {faq.q}
                     </span>
                     <ChevronDown
-                      className={`w-5 h-5 text-blue-500 flex-shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`}
+                      className={`w-5 h-5 text-blue-500 shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`}
                     />
                   </button>
                   <div
@@ -2797,7 +2797,7 @@ export default function Home() {
       </section>
 
       {/* ── FOOTER CTA ── */}
-      <section id="talk-to-advisor" className="bg-gradient-to-br from-[#0d1b4b] to-[#1a3a8a] py-20 text-white scroll-mt-20">
+      <section id="talk-to-advisor" className="bg-linear-to-br from-[#0d1b4b] to-[#1a3a8a] py-20 text-white scroll-mt-20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <FadeIn>
             <h2 className="text-4xl font-bold mb-4">
@@ -2847,7 +2847,7 @@ export default function Home() {
                     }}
                     placeholder="Your name" aria-label="Your name" autoComplete="name"
                     disabled={subLoading}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
+                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
                   <input
                     type="tel"
@@ -2858,7 +2858,7 @@ export default function Home() {
                     }}
                     placeholder="Phone number" aria-label="Phone number" autoComplete="tel"
                     disabled={subLoading}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
+                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -2872,7 +2872,7 @@ export default function Home() {
                     onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
                     placeholder="Your email address" aria-label="Email address" autoComplete="email"
                     disabled={subLoading}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-60"
+                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-white disabled:opacity-60"
                   />
                   <button
                     type="button"
@@ -2899,7 +2899,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
             <div>
               <div className="flex items-center mb-4">
-                <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center shrink-0">
                   <GraduationCap className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-extrabold tracking-tight select-none ml-2">

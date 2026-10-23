@@ -335,8 +335,8 @@ export default function CounselorLearning() {
     <div className="space-y-6">
       {/* Category completion toast */}
       {catToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-3 animate-pulse">
-          <Trophy className="w-6 h-6 text-yellow-300 flex-shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 bg-linear-to-r from-green-500 to-emerald-600 text-white rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-3 animate-pulse">
+          <Trophy className="w-6 h-6 text-yellow-300 shrink-0" />
           <div>
             <p className="font-bold text-sm">Category Complete!</p>
             <p className="text-xs text-green-100">{CATEGORIES.find(c => c.id === catToast)?.label} — all done 🎉</p>
@@ -345,7 +345,7 @@ export default function CounselorLearning() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-green-600 to-teal-700 rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-br from-green-600 to-teal-700 rounded-2xl p-6 text-white">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -378,7 +378,7 @@ export default function CounselorLearning() {
             </div>
           </div>
           {/* Progress card */}
-          <div className="flex-shrink-0 bg-white/10 rounded-2xl p-4 min-w-[190px]">
+          <div className="shrink-0 bg-white/10 rounded-2xl p-4 min-w-[190px]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-green-100">Your Progress</span>
               <span className="text-lg font-bold">{progressPct}%</span>
@@ -399,7 +399,7 @@ export default function CounselorLearning() {
             { label: 'Remaining',       value: total - completedCount,  icon: TrendingUp },
           ].map(stat => (
             <div key={stat.label} className="bg-white/10 rounded-xl px-4 py-3 flex items-center gap-3">
-              <stat.icon className="w-5 h-5 text-green-200 flex-shrink-0" />
+              <stat.icon className="w-5 h-5 text-green-200 shrink-0" />
               <div>
                 <p className="text-xl font-bold leading-none">{stat.value}</p>
                 <p className="text-xs text-green-200 mt-0.5">{stat.label}</p>
@@ -413,7 +413,7 @@ export default function CounselorLearning() {
       {nextUp && (
         <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
               <ChevronRight className="w-4 h-4 text-green-600" />
             </div>
             <div>
@@ -422,7 +422,7 @@ export default function CounselorLearning() {
               <p className="text-xs text-gray-500 mt-0.5">{nextUp.duration}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <a href={nextUp.url} target="_blank" rel="noopener noreferrer"
               className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors">
               Open
@@ -452,7 +452,7 @@ export default function CounselorLearning() {
       )}
 
       {/* Category tabs + filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
         <div className="overflow-x-auto border-b border-gray-100">
           <div className="flex gap-1 p-3 min-w-max">
             {CATEGORIES.map(cat => {
@@ -463,7 +463,7 @@ export default function CounselorLearning() {
               return (
                 <button key={cat.id} type="button" onClick={() => setActiveCategory(cat.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+                    isActive ? 'bg-green-600 text-white shadow-xs' : 'text-gray-600 hover:bg-gray-50'
                   }`}>
                   <Icon className="w-4 h-4" />
                   {cat.label}
@@ -482,7 +482,7 @@ export default function CounselorLearning() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" placeholder="Search resources…" value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
           </div>
           <div className="flex gap-2 flex-wrap">
             {(['all', 'video', 'article', 'guide', 'webinar'] as const).map(t => (
@@ -494,7 +494,7 @@ export default function CounselorLearning() {
               </button>
             ))}
           </div>
-          <div className="flex rounded-xl border border-gray-200 overflow-hidden flex-shrink-0">
+          <div className="flex rounded-xl border border-gray-200 overflow-hidden shrink-0">
             <button type="button" onClick={() => setViewMode('grid')}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'grid' ? 'bg-green-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
               <LayoutGrid className="w-3.5 h-3.5" /> Grid
@@ -559,7 +559,7 @@ function FeaturedCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
   const TypeIcon = typeConf.icon;
   const catConf  = CATEGORIES.find(c => c.id === r.category);
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+    <div className={`bg-white rounded-2xl border shadow-xs overflow-hidden transition-all ${
       progress === 'done' ? 'border-green-200 bg-green-50/30' : progress === 'inprogress' ? 'border-orange-200' : 'border-gray-100 hover:shadow-md'
     }`}>
       <div className="p-5">
@@ -577,7 +577,7 @@ function FeaturedCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
               </span>
             )}
           </div>
-          <div className="flex gap-1.5 flex-shrink-0">
+          <div className="flex gap-1.5 shrink-0">
             <button aria-label="Bookmark" type="button" onClick={onBookmark}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${bookmarked ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-300 hover:text-amber-400'}`}>
               <Bookmark className="w-3.5 h-3.5" fill={bookmarked ? 'currentColor' : 'none'} />
@@ -614,7 +614,7 @@ function FeaturedCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
           <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Notes</p>
           <textarea value={comment} onChange={e => onComment(e.target.value)}
             placeholder="Add a note about this resource…" rows={2}
-            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
+            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
         </div>
       )}
     </div>
@@ -632,7 +632,7 @@ function ResourceRow({ resource: r, progress, bookmarked, expandNote, onCycle, o
   return (
     <div className={`transition-colors ${progress === 'done' ? 'bg-green-50/40' : progress === 'inprogress' ? 'bg-orange-50/20' : 'hover:bg-gray-50/50'}`}>
       <div className="flex items-center gap-4 px-5 py-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${typeConf.color}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${typeConf.color}`}>
           <TypeIcon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
@@ -654,7 +654,7 @@ function ResourceRow({ resource: r, progress, bookmarked, expandNote, onCycle, o
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button aria-label="Bookmark" type="button" onClick={onBookmark}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${bookmarked ? 'bg-amber-100 text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>
             <Bookmark className="w-3.5 h-3.5" fill={bookmarked ? 'currentColor' : 'none'} />
@@ -680,7 +680,7 @@ function ResourceRow({ resource: r, progress, bookmarked, expandNote, onCycle, o
         <div className="px-5 pb-4">
           <textarea value={comment} onChange={e => onComment(e.target.value)}
             placeholder="Add a note about this resource…" rows={2}
-            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
+            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
         </div>
       )}
     </div>
@@ -724,7 +724,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
           <span className="text-2xl font-bold text-green-700">{pathProgress}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2.5">
-          <div className="bg-gradient-to-r from-green-500 to-teal-600 h-2.5 rounded-full transition-all duration-500"
+          <div className="bg-linear-to-r from-green-500 to-teal-600 h-2.5 rounded-full transition-all duration-500"
             style={{ width: `${pathProgress}%` }} />
         </div>
         <p className="text-xs text-gray-400 mt-2">{doneSteps} of {totalSteps} steps completed</p>
@@ -766,7 +766,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                 const TypeIcon = typeCfg.icon;
                 return (
                   <div key={r.id} className="relative flex gap-4">
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 text-[10px] font-bold mt-3 -ml-[3px] ${
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 z-10 text-[10px] font-bold mt-3 ml-[-3px] ${
                       prog === 'done' ? 'bg-green-500 border-green-500 text-white' : prog === 'inprogress' ? 'bg-orange-400 border-orange-400 text-white' : 'bg-white border-gray-300 text-gray-400'
                     }`}>
                       {prog === 'done' ? '✓' : prog === 'inprogress' ? '▶' : step}
@@ -778,7 +778,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${typeCfg.color}`}>
                           <TypeIcon className="w-3 h-3" />{typeCfg.label}
                         </span>
-                        <div className="flex gap-1.5 flex-shrink-0">
+                        <div className="flex gap-1.5 shrink-0">
                           <button aria-label={bm ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bm} type="button" onClick={() => onBookmark(r.id)}
                             className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${bm ? 'bg-amber-100 text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>
                             <Bookmark className="w-3.5 h-3.5" fill={bm ? 'currentColor' : 'none'} />
@@ -808,7 +808,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                         <div className="mt-3 pt-3 border-t border-green-100">
                           <textarea value={comments[r.id] || ''} onChange={e => onComment(r.id, e.target.value)}
                             placeholder="Add a note…" rows={2}
-                            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
+                            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-1 focus:ring-green-400 text-gray-700 placeholder-gray-300 bg-white" />
                         </div>
                       )}
                     </div>

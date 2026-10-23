@@ -83,7 +83,7 @@ function FileMessage({ msg, isMe, onAction }: { msg: any; isMe: boolean; onActio
             <span className="text-xs text-gray-500">{msg.senderName}</span>
           </div>
         )}
-        <div className={`rounded-2xl overflow-hidden border shadow-sm ${isMe ? 'border-blue-400' : isOffer ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
+        <div className={`rounded-2xl overflow-hidden border shadow-xs ${isMe ? 'border-blue-400' : isOffer ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
           {isOffer && !isMe && (
             <div className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5">
               <CheckCircle className="w-3.5 h-3.5" /> Offer Letter — Saved to your Applications!
@@ -91,7 +91,7 @@ function FileMessage({ msg, isMe, onAction }: { msg: any; isMe: boolean; onActio
           )}
           <div className={`px-4 py-3 ${isMe ? 'bg-[#0d1b4b]' : 'bg-white'}`}>
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isMe ? 'bg-white/20' : isOffer ? 'bg-emerald-100' : 'bg-[#f0f4ff]'}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isMe ? 'bg-white/20' : isOffer ? 'bg-emerald-100' : 'bg-[#f0f4ff]'}`}>
                 <FileText className={`w-5 h-5 ${isMe ? 'text-white' : isOffer ? 'text-emerald-600' : 'text-blue-500'}`} />
               </div>
               <div className="min-w-0 flex-1">
@@ -131,16 +131,16 @@ function MeetingMessage({ msg, isMe }: { msg: any; isMe: boolean }) {
             <span className="text-xs text-gray-500">{msg.senderName}</span>
           </div>
         )}
-        <div className={`rounded-2xl overflow-hidden border shadow-sm ${isMe ? 'bg-blue-600 border-blue-400' : 'bg-white border-blue-200'}`}>
+        <div className={`rounded-2xl overflow-hidden border shadow-xs ${isMe ? 'bg-blue-600 border-blue-400' : 'bg-white border-blue-200'}`}>
           <div className={`px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold ${isMe ? 'bg-blue-700 text-sky-100' : 'bg-sky-50 text-blue-700'}`}>
             <Calendar className="w-3.5 h-3.5" /> Meeting Scheduled
           </div>
           <div className="px-4 py-3 space-y-2">
             <div className={`flex items-center gap-2 text-sm font-semibold ${isMe ? 'text-white' : 'text-gray-800'}`}>
-              <Calendar className="w-4 h-4 flex-shrink-0 opacity-60" /> {msg.meetingDate}
+              <Calendar className="w-4 h-4 shrink-0 opacity-60" /> {msg.meetingDate}
             </div>
             <div className={`flex items-center gap-2 text-sm ${isMe ? 'text-sky-100' : 'text-gray-600'}`}>
-              <Clock className="w-4 h-4 flex-shrink-0 opacity-60" /> {msg.meetingTime}
+              <Clock className="w-4 h-4 shrink-0 opacity-60" /> {msg.meetingTime}
             </div>
             {msg.meetingNotes && (
               <p className={`text-xs pt-2 border-t ${isMe ? 'border-blue-500 text-blue-200' : 'border-gray-100 text-gray-500'}`}>
@@ -310,16 +310,16 @@ export default function StudentChat() {
         <p className="text-gray-500 mt-1">Direct communication with your counselor and advisors</p>
       </div>
 
-      <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex ${hasMultipleRooms ? 'chat-window-wide' : 'flex-col chat-window'}`}>
+      <div className={`bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden flex ${hasMultipleRooms ? 'chat-window-wide' : 'flex-col chat-window'}`}>
         {/* Sidebar — only shown when multiple rooms exist */}
         {hasMultipleRooms && (
-          <div className="w-64 border-r border-gray-100 flex flex-col flex-shrink-0">
+          <div className="w-64 border-r border-gray-100 flex flex-col shrink-0">
             <div className="p-3 border-b border-gray-100">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search…" aria-label="Search conversations"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -336,14 +336,14 @@ export default function StudentChat() {
                 return (
                   <button type="button" key={r.id} onClick={() => setSelectedRoom(r)}
                     className={`w-full flex items-start gap-3 p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 ${isActive ? 'bg-sky-50' : ''}`}>
-                    <div className="relative w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 text-sm flex-shrink-0">
+                    <div className="relative w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700 text-sm shrink-0">
                       {other.charAt(0)}
                       {r.type !== 'group' && <PresenceDot userId={r.participants?.find((id: string) => id !== String(user?.id))} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <span className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-gray-900'}`}>{other}</span>
-                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                        <div className="flex flex-col items-end gap-0.5 shrink-0">
                           {chatTime && <span className="text-[10px] text-gray-400">{chatTime}</span>}
                           {unread > 0 && <span className="bg-blue-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{unread}</span>}
                         </div>
@@ -440,7 +440,7 @@ export default function StudentChat() {
             {replyTo && <ReplyingBar msg={replyTo} onCancel={() => setReplyTo(null)} />}
             {pendingFile && (
               <div className="mb-3 flex items-center gap-3 p-3 bg-sky-50 border border-blue-200 rounded-xl">
-                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
                   <FileText className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -460,21 +460,21 @@ export default function StudentChat() {
 
             <div className="flex items-center gap-1.5">
               <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach document"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-sky-50 hover:text-blue-600 transition-colors flex-shrink-0">
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-sky-50 hover:text-blue-600 transition-colors shrink-0">
                 <Paperclip className="w-4 h-4" />
               </button>
               <button type="button" onClick={() => cameraInputRef.current?.click()} title="Camera / Photo"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-sky-50 hover:text-blue-600 transition-colors flex-shrink-0">
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-sky-50 hover:text-blue-600 transition-colors shrink-0">
                 <Camera className="w-4 h-4" />
               </button>
-              <div className="w-px h-6 bg-gray-200 mx-0.5 flex-shrink-0" />
+              <div className="w-px h-6 bg-gray-200 mx-0.5 shrink-0" />
               <input type="text" value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { pendingFile ? sendFile() : send(); } }}
                 placeholder={pendingFile ? 'Add a caption (optional)…' : 'Type a message…'}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               <button type="button" aria-label="Send" onClick={() => pendingFile ? sendFile() : send()}
                 disabled={(!input.trim() && !pendingFile) || sending}
-                className="bg-[#0d1b4b] text-white p-2.5 rounded-xl hover:bg-[#152258] disabled:opacity-50 transition-colors flex-shrink-0">
+                className="bg-[#0d1b4b] text-white p-2.5 rounded-xl hover:bg-[#152258] disabled:opacity-50 transition-colors shrink-0">
                 <Send className="w-5 h-5" />
               </button>
             </div>

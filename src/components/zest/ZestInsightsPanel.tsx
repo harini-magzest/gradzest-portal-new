@@ -70,7 +70,7 @@ function AddToKnowledge({ question }: { question: string }) {
           onChange={e => setAnswer(e.target.value)}
           rows={3}
           maxLength={4000}
-          className="mt-1 w-full text-sm font-normal border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1 w-full text-sm font-normal border border-gray-200 rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           placeholder="Write the answer Zest should give for this question"
         />
       </label>
@@ -87,7 +87,7 @@ function AddToKnowledge({ question }: { question: string }) {
 
 function Stat({ label, value, icon }: { label: string; value: number | string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-xl bg-white border border-gray-100 shadow-sm px-3 py-2.5">
+    <div className="rounded-xl bg-white border border-gray-100 shadow-xs px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-[11px] text-gray-500">{icon}{label}</div>
       <div className="text-lg font-bold text-gray-900 mt-0.5">{value}</div>
     </div>
@@ -178,10 +178,10 @@ export default function ZestInsightsPanel() {
             ) : (
               <ul className="space-y-2">
                 {data.unanswered.map(u => (
-                  <li key={u.question} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-sm">
+                  <li key={u.question} className="bg-white rounded-xl border border-gray-100 shadow-xs p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-gray-700">{u.question}</span>
-                      <span className="flex-shrink-0 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{u.count}×</span>
+                      <span className="shrink-0 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{u.count}×</span>
                     </div>
                     <AddToKnowledge question={u.question} />
                   </li>
@@ -199,7 +199,7 @@ export default function ZestInsightsPanel() {
             ) : (
               <ul className="space-y-2">
                 {data.downvoted.map(d => (
-                  <li key={d.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-sm">
+                  <li key={d.id} className="bg-white rounded-xl border border-gray-100 shadow-xs p-3 text-sm">
                     <p className="font-medium text-gray-800">{d.question}</p>
                     <p className="text-gray-500 mt-1 line-clamp-3 whitespace-pre-wrap">{d.answer}</p>
                     {d.comment && <p className="mt-1 text-red-600">“{d.comment}”</p>}

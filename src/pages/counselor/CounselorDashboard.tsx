@@ -171,7 +171,7 @@ export default function CounselorDashboard() {
     <div className="space-y-6">
       <FollowupQueue />
       <LeadScores />
-      <div className="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-r from-green-700 via-green-600 to-emerald-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center">
             <UserCog className="w-5 h-5 text-white" />
@@ -200,12 +200,12 @@ export default function CounselorDashboard() {
 
       {studentsError && (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{studentsError} Stats below may be incomplete.</div>
-          <button type="button" onClick={refreshStudents} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{studentsError} Stats below may be incomplete.</div>
+          <button type="button" onClick={refreshStudents} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-900">Application Pipeline</h2>
           <Link to="/counselor/universities"
@@ -225,7 +225,7 @@ export default function CounselorDashboard() {
       </div>
 
       {/* Scheduled Calls */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Phone className="w-5 h-5 text-blue-600" />
@@ -247,8 +247,8 @@ export default function CounselorDashboard() {
           </div>
         ) : callsError ? (
           <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{callsError}</div>
-            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{callsError}</div>
+            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
           </div>
         ) : scheduledCalls.length === 0 ? (
           <div className="text-center py-8">
@@ -276,7 +276,7 @@ export default function CounselorDashboard() {
                   className={`flex items-center gap-4 p-3.5 rounded-xl border transition-all ${
                     isToday ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'
                   }`}>
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
                     isToday ? 'bg-blue-100' : 'bg-white border border-gray-200'
                   }`}>
                     {isVideo
@@ -287,13 +287,13 @@ export default function CounselorDashboard() {
                     <p className="text-sm font-semibold text-gray-900">{isVideo ? 'Video' : 'Audio'} Call</p>
                     <p className="text-xs text-gray-500 mt-0.5">with {studentName}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right shrink-0">
                     <p className={`text-xs font-bold ${isToday ? 'text-blue-700' : 'text-gray-600'}`}>{dateLabel}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{timeLabel}</p>
                   </div>
                   {isToday && (
                     <Link to="/counselor/activities"
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors shrink-0">
                       <Video className="w-3 h-3" /> Join
                     </Link>
                   )}
@@ -312,7 +312,7 @@ export default function CounselorDashboard() {
 
       {/* Student Questions */}
       {studentQuestions.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-orange-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-6 border border-orange-100 shadow-xs">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-orange-500" />
@@ -332,7 +332,7 @@ export default function CounselorDashboard() {
               return (
                 <div key={appId} className="bg-orange-50/50 border border-orange-100 rounded-xl p-4">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-9 h-9 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    <div className="w-9 h-9 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
                       {studentName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -355,11 +355,11 @@ export default function CounselorDashboard() {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(appId); } }}
                       placeholder="Reply to student…"
                       disabled={replying === appId}
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white"
                     />
                     <button type="button" onClick={() => submitReply(appId)}
                       disabled={replying === appId || !replyTexts[appId]?.trim()}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 text-white rounded-xl text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors flex-shrink-0">
+                      className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 text-white rounded-xl text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors shrink-0">
                       <Send className="w-3.5 h-3.5" />
                       {replying === appId ? 'Sending…' : 'Reply'}
                     </button>
@@ -372,7 +372,7 @@ export default function CounselorDashboard() {
       )}
 
       {/* Performance Score + Contributions */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center gap-2 mb-5">
           <Award className="w-5 h-5 text-violet-600" />
           <h2 className="text-lg font-bold text-gray-900">My Performance</h2>
@@ -395,7 +395,7 @@ export default function CounselorDashboard() {
                 </div>
                 <div className="flex gap-0.5">
                   {Array.from({ length: 10 }, (_, i) => (
-                    <div key={i} className={`h-2 flex-1 rounded-sm ${i < Math.round(m.value / 10) ? m.bar : 'bg-gray-100'}`} />
+                    <div key={i} className={`h-2 flex-1 rounded-xs ${i < Math.round(m.value / 10) ? m.bar : 'bg-gray-100'}`} />
                   ))}
                 </div>
               </div>
@@ -421,7 +421,7 @@ export default function CounselorDashboard() {
       <MyCallPerformance />
 
       {/* Work Status Note */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Edit3 className="w-4 h-4 text-cyan-600" />
@@ -461,7 +461,7 @@ export default function CounselorDashboard() {
             onChange={e => setNoteInput(e.target.value)}
             rows={3}
             placeholder="Describe what you're currently working on, recent achievements, or notes for your team…"
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-cyan-500 resize-none"
           />
         ) : (
           <p className={`text-sm ${workNote ? 'text-gray-700' : 'text-gray-400 italic'}`}>
@@ -471,7 +471,7 @@ export default function CounselorDashboard() {
       </div>
 
       {/* University Board */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-indigo-600" />
@@ -489,8 +489,8 @@ export default function CounselorDashboard() {
         </div>
         {universitiesError ? (
           <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{universitiesError}</div>
-            <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{universitiesError}</div>
+            <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
           </div>
         ) : universities.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
@@ -506,13 +506,13 @@ export default function CounselorDashboard() {
                 className="group flex flex-col gap-3 bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 rounded-xl p-4 transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center text-[#0d1b4b] font-bold text-lg flex-shrink-0 shadow-sm">
+                  <div className="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center text-[#0d1b4b] font-bold text-lg shrink-0 shadow-xs">
                     {uni.name?.charAt(0) || '?'}
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900 text-sm leading-tight line-clamp-1 group-hover:text-indigo-800">{uni.name}</p>
                     <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
-                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <MapPin className="w-3 h-3 shrink-0" />
                       <span className="truncate">{uni.city}, {uni.country}</span>
                     </div>
                   </div>
@@ -542,7 +542,7 @@ export default function CounselorDashboard() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

@@ -71,7 +71,7 @@ export default function StaffEvents() {
       {error && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
       {showForm && (
-        <form onSubmit={create} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 grid gap-3 md:grid-cols-2">
+        <form onSubmit={create} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 grid gap-3 md:grid-cols-2">
           <label className="text-sm text-gray-600 md:col-span-2">Title<input required maxLength={140} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={field} /></label>
           <label className="text-sm text-gray-600">Starts<input required type="datetime-local" value={form.startsAt} onChange={e => setForm({ ...form, startsAt: e.target.value })} className={field} /></label>
           <label className="text-sm text-gray-600">Length (minutes)<input required type="number" min={5} max={600} value={form.durationMin} onChange={e => setForm({ ...form, durationMin: e.target.value })} className={field} /></label>
@@ -87,7 +87,7 @@ export default function StaffEvents() {
 
       <ul className="space-y-3">
         {(events || []).map(e => (
-          <li key={e.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 ${e.status === 'cancelled' ? 'opacity-60' : ''}`}>
+          <li key={e.id} className={`bg-white rounded-2xl border border-gray-100 shadow-xs p-5 ${e.status === 'cancelled' ? 'opacity-60' : ''}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-semibold text-gray-900">{e.title} {e.status === 'cancelled' && <span className="ml-2 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full">Cancelled</span>}</h2>

@@ -127,14 +127,14 @@ function PageSpinner() {
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-[#0d1b4b] rounded-xl flex items-center justify-center animate-pulse" />
         <div className="space-y-1.5">
-          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-          <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
+          <div className="h-4 w-24 bg-gray-200 rounded-sm animate-pulse" />
+          <div className="h-3 w-16 bg-gray-100 rounded-sm animate-pulse" />
         </div>
       </div>
       <div className="space-y-3 w-64">
-        <div className="h-3 bg-gray-200 rounded animate-pulse" />
-        <div className="h-3 bg-gray-200 rounded animate-pulse w-4/5" />
-        <div className="h-3 bg-gray-200 rounded animate-pulse w-3/5" />
+        <div className="h-3 bg-gray-200 rounded-sm animate-pulse" />
+        <div className="h-3 bg-gray-200 rounded-sm animate-pulse w-4/5" />
+        <div className="h-3 bg-gray-200 rounded-sm animate-pulse w-3/5" />
       </div>
     </div>
   );

@@ -83,13 +83,13 @@ export default function ZestAlertsPanel() {
       ) : (
         <ul className="space-y-2">
           {alerts.map(a => (
-            <li key={a.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-sm">
+            <li key={a.id} className="bg-white rounded-xl border border-gray-100 shadow-xs p-3 text-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-800 break-words">{a.leadName}</p>
+                  <p className="font-medium text-gray-800 wrap-break-word">{a.leadName}</p>
                   <p className="text-xs text-gray-400 break-all">{a.leadEmail}{a.counselorName ? ` · ${a.counselorName}` : ''}</p>
                 </div>
-                <span className={`flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${a.severity === 'urgent' ? 'text-red-700 bg-red-50' : 'text-amber-700 bg-amber-50'}`}>
+                <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${a.severity === 'urgent' ? 'text-red-700 bg-red-50' : 'text-amber-700 bg-amber-50'}`}>
                   {ALERT_LABELS[a.alertType]}
                 </span>
               </div>

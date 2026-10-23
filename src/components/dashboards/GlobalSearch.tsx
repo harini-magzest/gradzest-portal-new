@@ -82,7 +82,7 @@ export default function GlobalSearch({ basePath, pages, teamLink }: Partial<Sear
       <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-1.5">
         <Search className="w-4 h-4 text-gray-400" />
         <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKeyDown}
-          placeholder={placeholder} aria-label={placeholder} className="bg-transparent text-sm outline-none w-full" />
+          placeholder={placeholder} aria-label={placeholder} className="bg-transparent text-sm outline-hidden w-full" />
       </div>
       {showPanel && (
         <div className="absolute z-50 mt-1 w-full min-w-[20rem] right-0 bg-white rounded-xl shadow-xl border border-gray-100 py-1 max-h-96 overflow-y-auto">

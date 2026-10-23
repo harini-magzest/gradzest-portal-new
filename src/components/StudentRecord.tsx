@@ -37,7 +37,7 @@ export function recordTabCount(tab: string, student: any, record: any): number |
 
 export function TabCount({ n }: { n: number | null }) {
   if (!n) return null;
-  return <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold">{n}</span>;
+  return <span className="ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold">{n}</span>;
 }
 
 /** Previous / next arrows for stepping through a list of student records. */
@@ -48,7 +48,7 @@ export function RecordNav({ index, total, onPrev, onNext, dark = false }: {
   const btn = `w-9 h-9 flex items-center justify-center rounded-full border transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
     dark ? 'border-white/30 text-white hover:bg-white/20' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'}`;
   return (
-    <div className="flex items-center gap-2 flex-shrink-0">
+    <div className="flex items-center gap-2 shrink-0">
       <span className={`text-xs tabular-nums ${dark ? 'text-white/70' : 'text-gray-500'}`}>{index + 1} of {total}</span>
       <button type="button" onClick={onPrev} disabled={index === 0} aria-label="Previous student" title="Previous student" className={btn}>
         <ChevronLeft className="w-4 h-4" />
@@ -105,7 +105,7 @@ function Spinner() {
 }
 
 const btnPrimary = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors';
-const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 
 // ── Timeline ─────────────────────────────────────────────────────────────────
 const TIMELINE_ICON: Record<string, any> = {
@@ -127,7 +127,7 @@ function TimelinePanel({ record }: { record: any }) {
       {groups.map(g => (
         <div key={g.label} className="mb-6 last:mb-0">
           <div className="flex items-center gap-3 mb-3 ml-16">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 -ml-[5px]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ml-[-5px]" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{g.label}</span>
           </div>
           <ol className="border-l border-gray-200 ml-16 space-y-4">
@@ -136,14 +136,14 @@ function TimelinePanel({ record }: { record: any }) {
               return (
                 <li key={t.id} className="relative pl-6">
                   <span className="absolute -left-16 top-0.5 w-12 text-right text-xs text-gray-400">{hasTime(t.at) ? fmtTime(t.at) : ''}</span>
-                  <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-white border border-gray-300" />
+                  <span className="absolute left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full bg-white border border-gray-300" />
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
                       <Icon className="w-4 h-4 text-gray-500" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm text-gray-900">{t.title}{t.by && <> by <span className="font-semibold">{t.by}</span></>}</p>
-                      {t.detail && <p className="text-xs text-gray-500 mt-0.5 break-words">{t.detail}</p>}
+                      {t.detail && <p className="text-xs text-gray-500 mt-0.5 wrap-break-word">{t.detail}</p>}
                     </div>
                   </div>
                 </li>
@@ -176,7 +176,7 @@ function MessageBubble({ m, mine }: { m: any; mine: boolean }) {
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[75%]">
         <p className={`text-xs font-semibold text-gray-600 mb-1 ${mine ? 'text-right' : ''}`}>{m.senderName}{m.senderRole ? <span className="font-normal text-gray-400"> · {m.senderRole}</span> : null}</p>
-        <div className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap break-words ${mine ? 'bg-green-100 text-gray-900 rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'}`}>{body}</div>
+        <div className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap wrap-break-word ${mine ? 'bg-green-100 text-gray-900 rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'}`}>{body}</div>
         <p className={`text-[10px] text-gray-400 mt-1 ${mine ? 'text-right' : ''}`}>{fmtTime(m.timestamp)}</p>
       </div>
     </div>
@@ -215,7 +215,7 @@ function MessagesPanel({ student, record, reload, canReply }: { student: any; re
   const title = (r: any) => (r.participantNames || []).filter((n: string) => n !== student.name).join(', ') || 'Conversation';
 
   return (
-    <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden h-[28rem]">
+    <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden h-112">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white">
         <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center">{student.name?.[0]}</div>
         <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<voi
   return (
     <div className="border border-gray-200 rounded-xl overflow-x-auto">
       {error && <p className="text-xs text-red-600 px-4 pt-3">{error}</p>}
-      <table className="w-full text-sm min-w-[36rem]">
+      <table className="w-full text-sm min-w-xl">
         <thead className="bg-gray-50 text-xs text-gray-500 text-left">
           <tr>
             <th className="font-medium px-4 py-2.5">Task name</th>
@@ -338,11 +338,11 @@ function TasksTable({ tasks, reload }: { tasks: any[]; reload: () => Promise<voi
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => toggle(t)} disabled={busy === t.id} aria-label={done ? 'Mark as open' : 'Mark as completed'}
-                      className="text-gray-400 hover:text-blue-600 flex-shrink-0">
+                      className="text-gray-400 hover:text-blue-600 shrink-0">
                       {busy === t.id ? <Spinner /> : done ? <CheckSquare className="w-4 h-4 text-green-600" /> : <Square className="w-4 h-4" />}
                     </button>
                     <span className={`font-medium ${done ? 'line-through' : 'text-gray-900'}`}>{t.title}</span>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize ${PRIORITY_CLS[t.priority] || PRIORITY_CLS.medium}`}>{t.priority}</span>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm capitalize ${PRIORITY_CLS[t.priority] || PRIORITY_CLS.medium}`}>{t.priority}</span>
                   </div>
                 </td>
                 <td className={`px-3 py-3 whitespace-nowrap ${overdue ? 'text-red-600 font-medium' : ''}`}>{t.dueDate ? fmtDate(`${t.dueDate}T00:00`) : '—'}</td>
@@ -371,7 +371,7 @@ function ActivityList({ items }: { items: any[] }) {
         const Icon = a.type === 'call' ? (a.status === 'answered' ? Phone : PhoneMissed) : a.type === 'meeting' && a.platform === 'jitsi' ? Video : CalendarDays;
         return (
           <li key={a.id} className="flex items-start gap-3 border border-gray-200 rounded-xl p-4">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${a.type === 'call' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${a.type === 'call' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
               <Icon className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -520,7 +520,7 @@ function Stepper({ steps, current, failed }: { steps: { key: string; label: stri
         const done = i < current;
         const here = i === current;
         return (
-          <li key={s.key} className="flex items-center flex-1 min-w-[5.5rem] last:flex-none">
+          <li key={s.key} className="flex items-center flex-1 min-w-22 last:flex-none">
             <div className="flex flex-col items-center gap-1">
               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
                 here ? (failed ? 'bg-red-600 border-red-600 text-white' : 'bg-blue-600 border-blue-600 text-white')
@@ -596,7 +596,7 @@ function FilesList({ student }: { student: any }) {
     <ul className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
       {docs.map((d: any) => (
         <li key={d._id || d.id} className="flex items-center gap-3 px-4 py-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><FileText className="w-4 h-4" /></div>
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText className="w-4 h-4" /></div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">{d.name}</p>
             <p className="text-xs text-gray-500">{d.type}{d.uploadedDate ? ` · ${d.uploadedDate}` : ''}{!d.url ? ' · requested, not uploaded' : ''}</p>

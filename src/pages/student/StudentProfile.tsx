@@ -181,7 +181,7 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
               onChange={handleFile} />
             {file ? (
               <div className="flex items-center justify-center gap-2 text-blue-700">
-                <FileText className="w-5 h-5 flex-shrink-0" />
+                <FileText className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-medium truncate max-w-[200px]">{file.name}</span>
               </div>
             ) : (
@@ -196,12 +196,12 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
           <div>
             <label htmlFor="sp-document-name" className="block text-sm font-medium text-gray-700 mb-1.5">Document Name</label>
             <input id="sp-document-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. IELTS Score Card"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label htmlFor="sp-document-type" className="block text-sm font-medium text-gray-700 mb-1.5">Document Type</label>
             <select id="sp-document-type" aria-label="Document type" value={type} onChange={e => { setType(e.target.value); setComment(''); }}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
               {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
@@ -210,7 +210,7 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
               <label htmlFor="sp-describe-the-document" className="block text-sm font-medium text-gray-700 mb-1.5">Describe the Document</label>
               <textarea id="sp-describe-the-document" value={comment} onChange={e => setComment(e.target.value)} rows={2}
                 placeholder="e.g. Work Experience Letter, NOC Certificate…"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
           )}
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -446,9 +446,9 @@ export default function StudentProfile() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-3xl font-bold backdrop-blur-sm">
+          <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-3xl font-bold backdrop-blur-xs">
             {student.name.charAt(0)}
           </div>
           <div className="flex-1">
@@ -478,7 +478,7 @@ export default function StudentProfile() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-5">
           {/* 1. Personal Information */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2"><User className="w-5 h-5 text-blue-600" /> Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* First Name */}
@@ -486,7 +486,7 @@ export default function StudentProfile() {
                 <label htmlFor="sp-first-name" className="block text-xs font-medium text-gray-500 mb-1.5">First Name</label>
                 {editing ? (
                   <input id="sp-first-name" aria-label="First Name" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : (
                   <p className="text-gray-900 font-medium">{student.firstName || student.name.split(' ')[0] || '—'}</p>
                 )}
@@ -496,7 +496,7 @@ export default function StudentProfile() {
                 <label htmlFor="sp-last-name" className="block text-xs font-medium text-gray-500 mb-1.5">Last Name</label>
                 {editing ? (
                   <input id="sp-last-name" aria-label="Last Name" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : (
                   <p className="text-gray-900 font-medium">{student.lastName || student.name.split(' ').slice(1).join(' ') || '—'}</p>
                 )}
@@ -509,7 +509,7 @@ export default function StudentProfile() {
                   <label htmlFor={`sp-${field.key}`} className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
                   {editing ? (
                     <input id={`sp-${field.key}`} aria-label={field.label} value={form[field.key]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                   ) : (
                     <p className="text-gray-900 font-medium">{student[field.key] || '—'}</p>
                   )}
@@ -529,9 +529,9 @@ export default function StudentProfile() {
                   {editing ? (
                     <input id={`sp-${field.key}`} aria-label={field.label} type={field.type} value={form[field.key]} placeholder={field.placeholder}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                   ) : (
-                    <p className="text-gray-900 font-medium break-words">{student[field.key] || '—'}</p>
+                    <p className="text-gray-900 font-medium wrap-break-word">{student[field.key] || '—'}</p>
                   )}
                 </div>
               ))}
@@ -540,7 +540,7 @@ export default function StudentProfile() {
                 {editing ? (
                   <input id="sp-date-of-birth" type="date" aria-label="Date of Birth" value={form.dateOfBirth}
                     onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : (
                   <p className="text-gray-900 font-medium">
                     {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
@@ -551,7 +551,7 @@ export default function StudentProfile() {
                 <label htmlFor="sp-gender" className="block text-xs font-medium text-gray-500 mb-1.5">Gender</label>
                 {editing ? (
                   <select id="sp-gender" aria-label="Gender" value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select</option>
                     <option>Male</option>
                     <option>Female</option>
@@ -564,7 +564,7 @@ export default function StudentProfile() {
                 <label htmlFor="sp-marital-status" className="block text-xs font-medium text-gray-500 mb-1.5">Marital Status</label>
                 {editing ? (
                   <select id="sp-marital-status" aria-label="Marital Status" value={form.maritalStatus} onChange={e => setForm(f => ({ ...f, maritalStatus: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select</option>
                     <option>Single</option>
                     <option>Married</option>
@@ -577,14 +577,14 @@ export default function StudentProfile() {
           </div>
 
           {/* 2. Academic Details */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2"><GraduationCap className="w-5 h-5 text-blue-600" /> Academic Background</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
               <div>
                 <label htmlFor="sp-highest-education-level" className="block text-xs font-medium text-gray-500 mb-1.5">Highest Education Level</label>
                 {editing ? (
                   <select id="sp-highest-education-level" aria-label="Education level" value={form.educationLevel} onChange={e => setForm(f => ({ ...f, educationLevel: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select education level</option>
                     <option>10th Grade (Completed)</option>
                     <option>12th Grade (Completed)</option>
@@ -604,7 +604,7 @@ export default function StudentProfile() {
                 {editing ? (
                   <input id="sp-overall-gpa-percentage" type="number" aria-label="GPA" value={form.gpa} step={0.1} max={10}
                     onChange={e => setForm(f => ({ ...f, gpa: Number(e.target.value) }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : <p className="text-gray-900 font-medium">{student.gpa ? `${student.gpa}/10` : '—'}</p>}
               </div>
               <div className={form.englishTestType === 'Not Attempted' && editing ? 'md:col-span-2' : ''}>
@@ -614,7 +614,7 @@ export default function StudentProfile() {
                     <div className="space-y-2">
                       <select id="sp-english-test" aria-label="English test type" value={form.englishTestType}
                         onChange={e => setForm(f => ({ ...f, englishTestType: e.target.value, englishTestScore: '', englishTestDate: '', moiInstitution: '', moiProgram: '', moiYear: '', profTestName: '', profTestScore: '', profTestInstitution: '' }))}
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                         <option value="">Select test</option>
                         <option>IELTS</option>
                         <option>TOEFL</option>
@@ -627,10 +627,10 @@ export default function StudentProfile() {
                         <div className="grid grid-cols-2 gap-2">
                           <input type="number" aria-label="English test score" value={form.englishTestScore} step={0.5}
                             onChange={e => setForm(f => ({ ...f, englishTestScore: e.target.value }))}
-                            placeholder="Score" className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            placeholder="Score" className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                           <input type="date" aria-label="Exam date" value={form.englishTestDate}
                             onChange={e => setForm(f => ({ ...f, englishTestDate: e.target.value }))}
-                            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                         </div>
                       )}
                     </div>
@@ -644,15 +644,15 @@ export default function StudentProfile() {
                             <input aria-label="MOI Institution" value={form.moiInstitution}
                               onChange={e => setForm(f => ({ ...f, moiInstitution: e.target.value }))}
                               placeholder="Institution Name"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                             <input aria-label="MOI Program" value={form.moiProgram}
                               onChange={e => setForm(f => ({ ...f, moiProgram: e.target.value }))}
                               placeholder="Program / Course"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                             <input aria-label="MOI Year" value={form.moiYear}
                               onChange={e => setForm(f => ({ ...f, moiYear: e.target.value }))}
                               placeholder="Year (e.g. 2023)"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                           </div>
                         </div>
                         {/* English Proficiency Test Waiver */}
@@ -662,15 +662,15 @@ export default function StudentProfile() {
                             <input aria-label="Waiver Reference / ID" value={form.profTestName}
                               onChange={e => setForm(f => ({ ...f, profTestName: e.target.value }))}
                               placeholder="Waiver Reference / ID"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                             <input aria-label="Issue Date" value={form.profTestScore}
                               onChange={e => setForm(f => ({ ...f, profTestScore: e.target.value }))}
                               placeholder="Issue Date (e.g. Jan 2024)"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                             <input aria-label="Issuing Institution" value={form.profTestInstitution}
                               onChange={e => setForm(f => ({ ...f, profTestInstitution: e.target.value }))}
                               placeholder="Issuing Institution"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400" />
                           </div>
                         </div>
                       </div>
@@ -698,7 +698,7 @@ export default function StudentProfile() {
                 {editing ? (
                   <input id="sp-annual-budget-usd" type="number" aria-label="Annual budget" value={form.budget}
                     onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
-                    placeholder="e.g. 30000" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    placeholder="e.g. 30000" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : <p className="text-gray-900 font-medium">${(student.budget || 0).toLocaleString()}</p>}
               </div>
             </div>
@@ -744,7 +744,7 @@ export default function StudentProfile() {
                         </div>
                         {isIncomplete && (
                           <div className="flex items-center gap-2 bg-red-100 border border-red-200 rounded-lg px-3 py-2 mb-3">
-                            <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                            <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                             <p className="text-xs text-red-600 font-medium">Please fill all required fields before adding a new entry.</p>
                           </div>
                         )}
@@ -752,7 +752,7 @@ export default function StudentProfile() {
                           <div className="sm:col-span-2">
                             <label htmlFor={`sp-acad-${entry.id}-highest-education-level`} className="block text-xs font-medium text-gray-500 mb-1">Highest Education Level</label>
                             <select id={`sp-acad-${entry.id}-highest-education-level`} aria-label="Highest Education Level" value={entry.level} onChange={e => updateAcademicEntry(entry.id, 'level', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                               <option value="">Select education level</option>
                               {EDUCATION_LEVELS.map(l => <option key={l}>{l}</option>)}
                             </select>
@@ -763,7 +763,7 @@ export default function StudentProfile() {
                               <input id={`sp-acad-${entry.id}-specify-class-level-name`} aria-label="Custom Level Name" value={entry.customLevel}
                                 placeholder="e.g. ITI, Certificate Course, Vocational Training…"
                                 onChange={e => updateAcademicEntry(entry.id, 'customLevel', e.target.value)}
-                                className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                             </div>
                           )}
                           {COURSE_LEVELS.includes(entry.level) && (
@@ -772,7 +772,7 @@ export default function StudentProfile() {
                               <input id={`sp-acad-${entry.id}-field`} aria-label={courseFieldLabel(entry.level)} value={entry.course}
                                 placeholder={courseFieldPlaceholder(entry.level)}
                                 onChange={e => updateAcademicEntry(entry.id, 'course', e.target.value)}
-                                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err(!!(entry.course || '').trim())}`} />
+                                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${err(!!(entry.course || '').trim())}`} />
                             </div>
                           )}
                           {BACHELOR_LEVELS.includes(entry.level) && (
@@ -795,7 +795,7 @@ export default function StudentProfile() {
                                     <label htmlFor={`sp-acad-${entry.id}-year-of-studying`} className="block text-xs font-medium text-gray-500 mb-1">Year of Studying <span className="text-red-400">*</span></label>
                                     <select id={`sp-acad-${entry.id}-year-of-studying`} aria-label="Year of Studying" value={entry.yearOfStudying}
                                       onChange={e => updateAcademicEntry(entry.id, 'yearOfStudying', e.target.value)}
-                                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${err(!!entry.yearOfStudying)}`}>
+                                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white ${err(!!entry.yearOfStudying)}`}>
                                       <option value="">Select year</option>
                                       <option>1st Year</option>
                                       <option>2nd Year</option>
@@ -808,21 +808,21 @@ export default function StudentProfile() {
                                     <input id={`sp-acad-${entry.id}-expected-year-of-passing`} aria-label="Expected Year of Passing" value={entry.yearOfPassing}
                                       placeholder="e.g. 2026"
                                       onChange={e => updateAcademicEntry(entry.id, 'yearOfPassing', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                                   </div>
                                   <div>
                                     <label htmlFor={`sp-acad-${entry.id}-number-of-backlogs`} className="block text-xs font-medium text-gray-500 mb-1">Number of Backlogs</label>
                                     <input id={`sp-acad-${entry.id}-number-of-backlogs`} type="number" min={0} aria-label="Number of Backlogs" value={entry.backlogs}
                                       placeholder="e.g. 0"
                                       onChange={e => updateAcademicEntry(entry.id, 'backlogs', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                                   </div>
                                   <div>
                                     <label htmlFor={`sp-acad-${entry.id}-number-of-attempts`} className="block text-xs font-medium text-gray-500 mb-1">Number of Attempts</label>
                                     <input id={`sp-acad-${entry.id}-number-of-attempts`} type="number" min={1} aria-label="Number of Attempts" value={entry.attempts}
                                       placeholder="e.g. 1"
                                       onChange={e => updateAcademicEntry(entry.id, 'attempts', e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                                   </div>
                                 </>
                               )}
@@ -832,38 +832,38 @@ export default function StudentProfile() {
                             <label htmlFor={`sp-acad-${entry.id}-institution-name`} className="block text-xs font-medium text-gray-500 mb-1">Institution Name <span className="text-red-400">*</span></label>
                             <input id={`sp-acad-${entry.id}-institution-name`} aria-label="Institution Name" value={entry.institution} placeholder="e.g. St. Joseph's High School"
                               onChange={e => updateAcademicEntry(entry.id, 'institution', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err(!!entry.institution.trim())}`} />
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${err(!!entry.institution.trim())}`} />
                           </div>
                           <div>
                             <label htmlFor={`sp-acad-${entry.id}-board-university`} className="block text-xs font-medium text-gray-500 mb-1">Board / University</label>
                             <input id={`sp-acad-${entry.id}-board-university`} aria-label="Board or University" value={entry.board} placeholder="e.g. CBSE, Anna University"
                               onChange={e => updateAcademicEntry(entry.id, 'board', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
                             <label htmlFor={`sp-acad-${entry.id}-year-of-passing`} className="block text-xs font-medium text-gray-500 mb-1">Year of Passing <span className="text-red-400">*</span></label>
                             <input id={`sp-acad-${entry.id}-year-of-passing`} aria-label="Year of Passing" value={entry.year} placeholder="e.g. 2022"
                               onChange={e => updateAcademicEntry(entry.id, 'year', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err(!!entry.year.trim())}`} />
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${err(!!entry.year.trim())}`} />
                           </div>
                           <div>
                             <label htmlFor={`sp-acad-${entry.id}-percentage-gpa`} className="block text-xs font-medium text-gray-500 mb-1">Percentage / GPA <span className="text-red-400">*</span></label>
                             <input id={`sp-acad-${entry.id}-percentage-gpa`} aria-label="Percentage or GPA" value={entry.percentage} placeholder="e.g. 85% or 8.5 CGPA"
                               onChange={e => updateAcademicEntry(entry.id, 'percentage', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err(!!entry.percentage.trim())}`} />
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${err(!!entry.percentage.trim())}`} />
                           </div>
                           <div className="sm:col-span-2">
                             <label htmlFor={`sp-acad-${entry.id}-city`} className="block text-xs font-medium text-gray-500 mb-1">City</label>
                             <input id={`sp-acad-${entry.id}-city`} aria-label="City" value={entry.city} placeholder="e.g. Chennai"
                               onChange={e => updateAcademicEntry(entry.id, 'city', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div className="sm:col-span-2">
                             <label htmlFor={`sp-acad-${entry.id}-additional-comments`} className="block text-xs font-medium text-gray-500 mb-1">Additional Comments</label>
                             <textarea id={`sp-acad-${entry.id}-additional-comments`} aria-label="Additional Comments" value={entry.comment} rows={2}
                               placeholder="e.g. Science stream with Computer Science, Distinction in Mathematics…"
                               onChange={e => updateAcademicEntry(entry.id, 'comment', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none" />
                           </div>
                           {entry.level === "Bachelor's Degree" && (
                             <div className="sm:col-span-2">
@@ -878,7 +878,7 @@ export default function StudentProfile() {
                                 <div className="flex flex-wrap gap-2 mt-1">
                                   {(entry.docs || []).map((doc, di) => (
                                     <div key={di} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1">
-                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded">{doc.docType}</span>
+                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded-sm">{doc.docType}</span>
                                       <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer"
                                         className="text-xs text-blue-700 hover:underline max-w-[140px] truncate">{doc.name}</SignedFileLink>
                                       <button type="button" aria-label="Remove document"
@@ -900,7 +900,7 @@ export default function StudentProfile() {
                     academicEntries.map(entry => (
                       <div key={entry.id} className="border border-gray-100 bg-gray-50 rounded-xl p-4">
                         <div className="flex items-start gap-3">
-                          <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full flex-shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full shrink-0 mt-0.5">
                             {entry.level === 'Other' && entry.customLevel ? entry.customLevel : entry.level}
                           </span>
                           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
@@ -923,9 +923,9 @@ export default function StudentProfile() {
                                   {(entry.docs || []).map((doc, di) => (
                                     <SignedFileLink key={di} href={doc.url} target="_blank" rel="noopener noreferrer"
                                       className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1 hover:bg-blue-100 transition-colors">
-                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded">{doc.docType}</span>
+                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1.5 py-0.5 rounded-sm">{doc.docType}</span>
                                       <span className="text-xs text-blue-700 max-w-[140px] truncate">{doc.name}</span>
-                                      <ExternalLink className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                                      <ExternalLink className="w-3 h-3 text-blue-400 shrink-0" />
                                     </SignedFileLink>
                                   ))}
                                 </div>
@@ -952,7 +952,7 @@ export default function StudentProfile() {
           </div>
 
           {/* 3. Study Preference */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2"><BookOpen className="w-5 h-5 text-blue-600" /> Study Preference</h3>
             <div className="space-y-6">
 
@@ -986,7 +986,7 @@ export default function StudentProfile() {
                     {(form.preferredCountries.includes('Other') || !!otherCountry) && (
                       <input id="sp-preferred-countries" value={otherCountry} onChange={e => setOtherCountry(e.target.value)}
                         placeholder="Please specify the country…"
-                        className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                     )}
                     {/* Priority order list */}
                     {form.preferredCountries.length > 0 && (
@@ -1001,12 +1001,12 @@ export default function StudentProfile() {
                               <div className="flex gap-1">
                                 <button type="button" disabled={idx === 0}
                                   onClick={() => setForm(f => ({ ...f, preferredCountries: moveItem(f.preferredCountries, idx, -1) }))}
-                                  className="p-1 text-blue-500 hover:text-blue-700 disabled:opacity-30 rounded transition-colors" title="Move up">
+                                  className="p-1 text-blue-500 hover:text-blue-700 disabled:opacity-30 rounded-sm transition-colors" title="Move up">
                                   <ArrowUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button type="button" disabled={idx === form.preferredCountries.length - 1}
                                   onClick={() => setForm(f => ({ ...f, preferredCountries: moveItem(f.preferredCountries, idx, 1) }))}
-                                  className="p-1 text-blue-500 hover:text-blue-700 disabled:opacity-30 rounded transition-colors" title="Move down">
+                                  className="p-1 text-blue-500 hover:text-blue-700 disabled:opacity-30 rounded-sm transition-colors" title="Move down">
                                   <ArrowDown className="w-3.5 h-3.5" />
                                 </button>
                                 <button type="button"
@@ -1014,7 +1014,7 @@ export default function StudentProfile() {
                                     if (item === 'Other') setOtherCountry('');
                                     setForm(f => ({ ...f, preferredCountries: f.preferredCountries.filter((_, i) => i !== idx) }));
                                   }}
-                                  className="p-1 text-red-400 hover:text-red-600 rounded transition-colors" title="Remove">
+                                  className="p-1 text-red-400 hover:text-red-600 rounded-sm transition-colors" title="Remove">
                                   <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1028,8 +1028,8 @@ export default function StudentProfile() {
                   <div className="flex flex-wrap gap-2">
                     {(student.preferredCountries || []).length > 0
                       ? (student.preferredCountries || []).map((c: string, idx: number) => (
-                          <div key={c} className="flex items-center gap-2 bg-white border border-gray-200 rounded-full pl-1.5 pr-3.5 py-1.5 shadow-sm">
-                            <span className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white text-[10px] font-bold rounded-full flex-shrink-0">{idx + 1}</span>
+                          <div key={c} className="flex items-center gap-2 bg-white border border-gray-200 rounded-full pl-1.5 pr-3.5 py-1.5 shadow-xs">
+                            <span className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white text-[10px] font-bold rounded-full shrink-0">{idx + 1}</span>
                             <span className="text-sm font-medium text-gray-800">{c}</span>
                           </div>
                         ))
@@ -1068,7 +1068,7 @@ export default function StudentProfile() {
                     {(form.interestedCourses.includes('Other') || !!otherCourse) && (
                       <input id="sp-interested-courses" value={otherCourse} onChange={e => setOtherCourse(e.target.value)}
                         placeholder="Please specify the course or field…"
-                        className="w-full px-3 py-2 border border-purple-300 bg-purple-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                        className="w-full px-3 py-2 border border-purple-300 bg-purple-50 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                     )}
                     {/* Priority order list */}
                     {form.interestedCourses.length > 0 && (
@@ -1083,12 +1083,12 @@ export default function StudentProfile() {
                               <div className="flex gap-1">
                                 <button type="button" disabled={idx === 0}
                                   onClick={() => setForm(f => ({ ...f, interestedCourses: moveItem(f.interestedCourses, idx, -1) }))}
-                                  className="p-1 text-purple-500 hover:text-purple-700 disabled:opacity-30 rounded transition-colors" title="Move up">
+                                  className="p-1 text-purple-500 hover:text-purple-700 disabled:opacity-30 rounded-sm transition-colors" title="Move up">
                                   <ArrowUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button type="button" disabled={idx === form.interestedCourses.length - 1}
                                   onClick={() => setForm(f => ({ ...f, interestedCourses: moveItem(f.interestedCourses, idx, 1) }))}
-                                  className="p-1 text-purple-500 hover:text-purple-700 disabled:opacity-30 rounded transition-colors" title="Move down">
+                                  className="p-1 text-purple-500 hover:text-purple-700 disabled:opacity-30 rounded-sm transition-colors" title="Move down">
                                   <ArrowDown className="w-3.5 h-3.5" />
                                 </button>
                                 <button type="button"
@@ -1096,7 +1096,7 @@ export default function StudentProfile() {
                                     if (item === 'Other') setOtherCourse('');
                                     setForm(f => ({ ...f, interestedCourses: f.interestedCourses.filter((_, i) => i !== idx) }));
                                   }}
-                                  className="p-1 text-red-400 hover:text-red-600 rounded transition-colors" title="Remove">
+                                  className="p-1 text-red-400 hover:text-red-600 rounded-sm transition-colors" title="Remove">
                                   <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1110,8 +1110,8 @@ export default function StudentProfile() {
                   <div className="flex flex-wrap gap-2">
                     {(student.interestedCourses || []).length > 0
                       ? (student.interestedCourses || []).map((c: string, idx: number) => (
-                          <div key={c} className="flex items-center gap-2 bg-white border border-gray-200 rounded-full pl-1.5 pr-3.5 py-1.5 shadow-sm">
-                            <span className="w-5 h-5 flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full flex-shrink-0">{idx + 1}</span>
+                          <div key={c} className="flex items-center gap-2 bg-white border border-gray-200 rounded-full pl-1.5 pr-3.5 py-1.5 shadow-xs">
+                            <span className="w-5 h-5 flex items-center justify-center bg-purple-600 text-white text-[10px] font-bold rounded-full shrink-0">{idx + 1}</span>
                             <span className="text-sm font-medium text-gray-800">{c}</span>
                           </div>
                         ))
@@ -1124,7 +1124,7 @@ export default function StudentProfile() {
           </div>
 
           {/* 3b. My Preferences — the student's own words, shown to their counselor */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2"><Heart className="w-5 h-5 text-rose-500" /> My Preferences</h3>
             <p className="text-sm text-gray-500 mb-5">Tell your counselor what you're looking for. They'll see this on your profile.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1132,7 +1132,7 @@ export default function StudentProfile() {
                 <label htmlFor="pref-level" className="block text-xs font-medium text-gray-500 mb-1.5">Preferred Course Level</label>
                 {editing ? (
                   <select id="pref-level" value={form.preferredCourseLevel} onChange={e => setForm(f => ({ ...f, preferredCourseLevel: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select</option>
                     {form.preferredCourseLevel && !PREF_COURSE_LEVELS.includes(form.preferredCourseLevel) && <option>{form.preferredCourseLevel}</option>}
                     {PREF_COURSE_LEVELS.map(l => <option key={l}>{l}</option>)}
@@ -1145,7 +1145,7 @@ export default function StudentProfile() {
                   <>
                     <input id="pref-intake" list="pref-intakes" value={form.preferredIntake} placeholder="e.g. September 2026"
                       onChange={e => setForm(f => ({ ...f, preferredIntake: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                     <datalist id="pref-intakes">{PREF_INTAKES.map(i => <option key={i} value={i} />)}</datalist>
                   </>
                 ) : <p className="text-gray-900 font-medium">{student.preferredIntake || '—'}</p>}
@@ -1159,8 +1159,8 @@ export default function StudentProfile() {
                   {editing ? (
                     <input id={`pref-${field.key}`} value={form[field.key]} placeholder={field.placeholder}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  ) : <p className="text-gray-900 font-medium break-words">{student[field.key] || '—'}</p>}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+                  ) : <p className="text-gray-900 font-medium wrap-break-word">{student[field.key] || '—'}</p>}
                 </div>
               ))}
               {([
@@ -1192,14 +1192,14 @@ export default function StudentProfile() {
                   <textarea id="pref-note" rows={4} maxLength={2000} value={form.preferenceNote}
                     onChange={e => setForm(f => ({ ...f, preferenceNote: e.target.value }))}
                     placeholder="Your goals, career plans, family or budget constraints, a university you dream of — anything that helps us guide you."
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
-                ) : <p className="text-gray-900 whitespace-pre-wrap break-words">{student.preferenceNote || <span className="text-gray-400">Nothing added yet</span>}</p>}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-y" />
+                ) : <p className="text-gray-900 whitespace-pre-wrap wrap-break-word">{student.preferenceNote || <span className="text-gray-400">Nothing added yet</span>}</p>}
               </div>
             </div>
           </div>
 
           {/* 4. Work Experience */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-purple-600" /> Work Experience
@@ -1236,19 +1236,19 @@ export default function StudentProfile() {
                         <label htmlFor={`sp-exp-${entry.id}-company-organization`} className="block text-xs font-medium text-gray-500 mb-1">Company / Organization</label>
                         <input id={`sp-exp-${entry.id}-company-organization`} aria-label="Company" value={entry.company} placeholder="e.g. TCS, Infosys"
                           onChange={e => updateExperienceEntry(entry.id, 'company', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                       </div>
                       <div>
                         <label htmlFor={`sp-exp-${entry.id}-job-title-role`} className="block text-xs font-medium text-gray-500 mb-1">Job Title / Role</label>
                         <input id={`sp-exp-${entry.id}-job-title-role`} aria-label="Role" value={entry.role} placeholder="e.g. Software Engineer"
                           onChange={e => updateExperienceEntry(entry.id, 'role', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                       </div>
                       <div>
                         <label htmlFor={`sp-exp-${entry.id}-employment-type`} className="block text-xs font-medium text-gray-500 mb-1">Employment Type</label>
                         <select id={`sp-exp-${entry.id}-employment-type`} aria-label="Employment Type" value={entry.employmentType}
                           onChange={e => updateExperienceEntry(entry.id, 'employmentType', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white">
                           {EXP_TYPES.map(t => <option key={t}>{t}</option>)}
                         </select>
                       </div>
@@ -1256,20 +1256,20 @@ export default function StudentProfile() {
                         <label htmlFor={`sp-exp-${entry.id}-from-month-year`} className="block text-xs font-medium text-gray-500 mb-1">From (Month / Year)</label>
                         <input id={`sp-exp-${entry.id}-from-month-year`} aria-label="From date" value={entry.from} placeholder="e.g. Jan 2022"
                           onChange={e => updateExperienceEntry(entry.id, 'from', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                       </div>
                       {!entry.current && (
                         <div>
                           <label htmlFor={`sp-exp-${entry.id}-to-month-year`} className="block text-xs font-medium text-gray-500 mb-1">To (Month / Year)</label>
                           <input id={`sp-exp-${entry.id}-to-month-year`} aria-label="To date" value={entry.to} placeholder="e.g. Dec 2023"
                             onChange={e => updateExperienceEntry(entry.id, 'to', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                         </div>
                       )}
                       <div className="flex items-center gap-2 sm:col-span-2">
                         <input type="checkbox" id={`current-${entry.id}`} checked={entry.current}
                           onChange={e => { updateExperienceEntry(entry.id, 'current', e.target.checked); if (e.target.checked) updateExperienceEntry(entry.id, 'to', ''); }}
-                          className="w-4 h-4 text-purple-600 rounded" />
+                          className="w-4 h-4 text-purple-600 rounded-sm" />
                         <label htmlFor={`current-${entry.id}`} className="text-sm text-gray-600 cursor-pointer">Currently working here</label>
                       </div>
                       {entry.current && (
@@ -1277,7 +1277,7 @@ export default function StudentProfile() {
                           <label htmlFor={`sp-exp-${entry.id}-notice-period`} className="block text-xs font-medium text-gray-500 mb-1">Notice Period</label>
                           <select id={`sp-exp-${entry.id}-notice-period`} aria-label="Notice Period" value={entry.noticePeriod}
                             onChange={e => updateExperienceEntry(entry.id, 'noticePeriod', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white">
                             <option value="">Select notice period</option>
                             <option>Immediate</option>
                             <option>15 Days</option>
@@ -1293,7 +1293,7 @@ export default function StudentProfile() {
                         <textarea id={`sp-exp-${entry.id}-description-optional`} aria-label="Description" value={entry.description} rows={2}
                           placeholder="Brief description of your role and responsibilities…"
                           onChange={e => updateExperienceEntry(entry.id, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none" />
                       </div>
                       <div className="sm:col-span-2">
                         <label className="block text-xs font-medium text-gray-500 mb-1.5">Certificates &amp; Documents</label>
@@ -1301,10 +1301,10 @@ export default function StudentProfile() {
                           {(entry.certificates || []).map((cert, ci) => (
                             <div key={ci} className="flex items-center justify-between gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg">
                               <div className="flex items-center gap-2 min-w-0">
-                                <FileText className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+                                <FileText className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                                 <span className="text-xs text-gray-700 truncate">{cert.name}</span>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex items-center gap-2 shrink-0">
                                 {cert.url && (
                                   <button type="button"
                                     onClick={() => setPreviewDoc({ url: cert.url, name: cert.name })}
@@ -1335,7 +1335,7 @@ export default function StudentProfile() {
                 experienceEntries.map(entry => (
                   <div key={entry.id} className="border border-gray-100 bg-gray-50 rounded-xl p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5">
+                      <div className="shrink-0 mt-0.5">
                         <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full">{entry.employmentType}</span>
                       </div>
                       <div className="flex-1">
@@ -1350,7 +1350,7 @@ export default function StudentProfile() {
                               <button key={ci} type="button"
                                 onClick={() => setPreviewDoc({ url: cert.url, name: cert.name })}
                                 className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg font-medium transition-colors">
-                                <Eye className="w-3 h-3 flex-shrink-0" /> {cert.name}
+                                <Eye className="w-3 h-3 shrink-0" /> {cert.name}
                               </button>
                             ))}
                           </div>
@@ -1370,7 +1370,7 @@ export default function StudentProfile() {
           </div>
 
           {/* 5. Address */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2">
               <User className="w-5 h-5 text-blue-600" /> Address
             </h3>
@@ -1380,7 +1380,7 @@ export default function StudentProfile() {
                 {editing ? (
                   <input id="sp-street-address" aria-label="Street Address" value={form.address.street}
                     onChange={e => setForm(f => ({ ...f, address: { ...f.address, street: e.target.value } }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 ) : <p className="text-gray-900 font-medium">{student.address?.street || '—'}</p>}
               </div>
               {([
@@ -1394,7 +1394,7 @@ export default function StudentProfile() {
                   {editing ? (
                     <input id={`sp-${field.key}`} aria-label={field.label} value={form.address[field.key]}
                       onChange={e => setForm(f => ({ ...f, address: { ...f.address, [field.key]: e.target.value } }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                   ) : <p className="text-gray-900 font-medium">{student.address?.[field.key] || '—'}</p>}
                 </div>
               ))}
@@ -1402,7 +1402,7 @@ export default function StudentProfile() {
           </div>
 
           {/* 6. Passport Details */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" /> Passport Details
             </h3>
@@ -1416,7 +1416,7 @@ export default function StudentProfile() {
                     value={form.placeOfBirth}
                     onChange={e => setForm(f => ({ ...f, placeOfBirth: e.target.value }))}
                     placeholder="City, Country"
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                 ) : (
                   <p className="text-gray-900 font-medium">{student.placeOfBirth || '—'}</p>
@@ -1433,7 +1433,7 @@ export default function StudentProfile() {
                   {editing ? (
                     <input id={`sp-${field.key}`} type={field.type} aria-label={field.label} value={form.passport[field.key]}
                       onChange={e => setForm(f => ({ ...f, passport: { ...f.passport, [field.key]: e.target.value } }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                   ) : (
                     <p className="text-gray-900 font-medium">{student.passport?.[field.key] || '—'}</p>
                   )}
@@ -1443,7 +1443,7 @@ export default function StudentProfile() {
           </div>
 
           {/* 7. Resume & CV */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2">
               <FileText className="w-5 h-5 text-green-600" /> Resume &amp; CV
             </h3>
@@ -1457,13 +1457,13 @@ export default function StudentProfile() {
                 return (
                   <div className="flex items-center justify-between gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <FileText className="w-5 h-5 text-green-600 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-800 truncate">{resumeDoc.name}</p>
                         <p className="text-xs text-green-600 font-medium">CV / Resume</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {resumeDoc.url && (
                         <button type="button"
                           onClick={() => setPreviewDoc({ url: resumeDoc.url, name: resumeDoc.name })}
@@ -1493,12 +1493,12 @@ export default function StudentProfile() {
           </div>
 
           {/* 8. Documents to Upload */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2">
               <FileText className="w-5 h-5 text-green-600" /> Documents to Upload
             </h3>
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-              <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700 leading-relaxed">
                 <span className="font-semibold">Tip:</span> Upload your important certificates here — <span className="font-medium">10th Grade certificate</span>, <span className="font-medium">Intermediate / 12th certificate</span>, <span className="font-medium">Degree certificate (B.Tech / B.Sc etc.)</span>, and <span className="font-medium">Passport</span>. These documents will be needed when applying to universities.
               </p>
@@ -1512,13 +1512,13 @@ export default function StudentProfile() {
                 return (
                   <div key={docId} className="flex items-start justify-between gap-2 p-3 bg-gray-50 rounded-xl">
                     <div className="flex items-start gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <FileText className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                         <p className="text-xs text-gray-400">{doc.type}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {doc.url && (
                         <button type="button"
                           onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
@@ -1546,7 +1546,7 @@ export default function StudentProfile() {
         <div className="space-y-5">
 
           {/* Profile Completion breakdown */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-gray-900">Profile Score</h3>
               <span className={`text-2xl font-bold ${completion === 100 ? 'text-green-600' : completion >= 67 ? 'text-blue-600' : completion >= 34 ? 'text-amber-600' : 'text-red-500'}`}>
@@ -1560,8 +1560,8 @@ export default function StudentProfile() {
               {profileFields.map(field => (
                 <div key={field.label} className="flex items-center gap-2.5 text-sm">
                   {field.filled
-                    ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    : <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />}
+                    ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                    : <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />}
                   <span className={field.filled ? 'text-gray-600' : 'text-orange-600 font-medium'}>{field.label}</span>
                   {!field.filled && (
                     <span className="ml-auto text-xs text-orange-400 font-medium">Missing</span>
@@ -1576,7 +1576,7 @@ export default function StudentProfile() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-4">Documents</h3>
             <div className="space-y-3">
               {docs.filter((d: any) => d.type !== 'CV/Resume').map((doc: any) => {
@@ -1584,13 +1584,13 @@ export default function StudentProfile() {
                 return (
                   <div key={docId} className="flex items-start justify-between gap-2 p-3 bg-gray-50 rounded-xl">
                     <div className="flex items-start gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <FileText className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                         <p className="text-xs text-gray-400">{doc.type}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {doc.url && (
                         <button type="button"
                           onClick={() => setPreviewDoc({ url: doc.url, name: doc.name })}
@@ -1614,7 +1614,7 @@ export default function StudentProfile() {
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-4">Account Status</h3>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">

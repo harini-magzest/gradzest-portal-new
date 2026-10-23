@@ -34,7 +34,7 @@ interface Rule {
   runCount?: number; lastRunAt?: string | null;
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500';
+const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
 const ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   send_email: Mail, send_notification: Bell, create_task: ListChecks, assign_counselor: UserCheck, change_stage: Flag,
@@ -149,7 +149,7 @@ function TemplateEditor({ template, meta, categories, onClose, onSaved }: {
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
               {(['email', 'notification'] as const).map(c => (
                 <button key={c} type="button" onClick={() => setForm({ ...form, channel: c })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md ${form.channel === c ? 'bg-white shadow-sm text-purple-700 font-medium' : 'text-gray-600'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md ${form.channel === c ? 'bg-white shadow-xs text-purple-700 font-medium' : 'text-gray-600'}`}>
                   {c === 'email' ? <Mail className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
                   {c === 'email' ? 'Email' : 'In-app notification'}
                 </button>
@@ -254,7 +254,7 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
   return (
     <div className="rounded-xl border border-gray-200">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50 rounded-t-xl">
-        <span className="text-[11px] font-bold tracking-wide text-white bg-purple-600 rounded px-1.5 py-0.5">{n}</span>
+        <span className="text-[11px] font-bold tracking-wide text-white bg-purple-600 rounded-sm px-1.5 py-0.5">{n}</span>
         <span className="text-sm font-semibold text-gray-800">{title}</span>
       </div>
       <div className="p-4 space-y-3">{children}</div>
@@ -676,14 +676,14 @@ export default function AdminAutomation() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-gray-900">{r.name}</h3>
-                      {!r.active && <span className="text-[11px] bg-gray-100 text-gray-500 rounded px-1.5 py-0.5">Paused</span>}
+                      {!r.active && <span className="text-[11px] bg-gray-100 text-gray-500 rounded-sm px-1.5 py-0.5">Paused</span>}
                     </div>
                     {r.description && <p className="text-sm text-gray-500">{r.description}</p>}
                   </div>
                   <div className="flex items-center gap-1">
                     <button type="button" role="switch" aria-checked={r.active} onClick={() => toggleActive(r)} title={r.active ? 'Pause' : 'Activate'}
                       className={`relative w-10 h-5 rounded-full transition-colors ${r.active ? 'bg-green-500' : 'bg-gray-300'}`}>
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${r.active ? 'left-5' : 'left-0.5'}`} />
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${r.active ? 'left-5' : 'left-0.5'}`} />
                     </button>
                     <button type="button" title="Test on a student" onClick={() => setRunRule(r)} className="p-2 text-gray-500 hover:text-purple-700"><Play className="w-4 h-4" /></button>
                     <button type="button" title="Edit" onClick={() => setEditRule(r)} className="p-2 text-gray-500 hover:text-purple-700"><Pencil className="w-4 h-4" /></button>

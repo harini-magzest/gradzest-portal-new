@@ -110,7 +110,7 @@ export function TaskTimeline({ task, canUpdate, onChanged }: { task: any; canUpd
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-semibold text-gray-800">{e.by || 'Someone'}</span>
               {e.kind !== 'created' && e.role && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${ROLE_CHIP[e.role] || ROLE_CHIP.student}`}>{e.role}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium capitalize ${ROLE_CHIP[e.role] || ROLE_CHIP.student}`}>{e.role}</span>
               )}
               {e.kind === 'created' && <span className="text-xs text-gray-500">created this task</span>}
               {e.kind === 'status' && (
@@ -141,7 +141,7 @@ export function TaskTimeline({ task, canUpdate, onChanged }: { task: any; canUpd
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
               placeholder={statusChanged ? `What changed? (optional) — moving to ${TASK_STATUS[status].label}` : 'Post an update — e.g. "Called him, will send documents tomorrow"'}
-              className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 text-gray-900 placeholder-gray-400 bg-white resize-none" />
+              className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-blue-400 text-gray-900 placeholder-gray-400 bg-white resize-none" />
             <button type="button" onClick={submit} disabled={saving || (!statusChanged && !note.trim())}
               className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5">
               {saving ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Send className="w-3.5 h-3.5" />}

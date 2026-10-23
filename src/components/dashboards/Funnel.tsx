@@ -40,7 +40,7 @@ export default function Funnel() {
   ] : null;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col">
+    <section className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs flex flex-col">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Lead funnel</h2>
@@ -76,7 +76,7 @@ export default function Funnel() {
 
       {!data ? (
         <ul className="space-y-4" aria-hidden>
-          {Array.from({ length: 4 }, (_, i) => <li key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
+          {Array.from({ length: 4 }, (_, i) => <li key={i} className="h-4 bg-gray-100 rounded-sm animate-pulse" />)}
         </ul>
       ) : data.total === 0 ? (
         <p className="text-sm text-gray-400 py-8 text-center">No leads yet.</p>

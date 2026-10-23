@@ -51,7 +51,7 @@ function EligibilityPanel({ result }: { result: EligibilityResult }) {
         <ul className="space-y-1">
           {result.missing.map((m, i) => (
             <li key={i} className="flex items-start gap-1.5 text-xs text-red-700">
-              <X className="w-3 h-3 mt-0.5 flex-shrink-0" />{m}
+              <X className="w-3 h-3 mt-0.5 shrink-0" />{m}
             </li>
           ))}
         </ul>
@@ -60,7 +60,7 @@ function EligibilityPanel({ result }: { result: EligibilityResult }) {
         <ul className="space-y-1">
           {result.warnings.map((w, i) => (
             <li key={i} className="flex items-start gap-1.5 text-xs text-yellow-700">
-              <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />{w}
+              <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{w}
             </li>
           ))}
         </ul>
@@ -128,7 +128,7 @@ function ApplyModal({ course, students, country, onClose }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
@@ -138,7 +138,7 @@ function ApplyModal({ course, students, country, onClose }: {
             <p className="text-xs text-gray-500 truncate">{course.uniName}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -168,20 +168,20 @@ function ApplyModal({ course, students, country, onClose }: {
               <span className={selectedStudent ? 'text-gray-900' : 'text-gray-400'}>
                 {selectedStudent ? `${selectedStudent.name} (${selectedStudent.email})` : '— Choose a student —'}
               </span>
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
             </button>
             {studentDropOpen && (
               <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 <div className="p-2 border-b border-gray-100">
                   <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg">
-                    <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     <input
                       autoFocus
                       type="text"
                       value={studentSearch}
                       onChange={e => setStudentSearch(e.target.value)}
                       placeholder="Search by name or email…"
-                      className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400"
+                      className="flex-1 bg-transparent text-sm outline-hidden text-gray-700 placeholder-gray-400"
                     />
                     {studentSearch && (
                       <button aria-label="Clear search" type="button" onClick={() => setStudentSearch('')}>
@@ -216,7 +216,7 @@ function ApplyModal({ course, students, country, onClose }: {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake</label>
               <select value={intake} onChange={e => setIntake(e.target.value)} aria-label="Select intake"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                 {course.intake.map((i: string) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
@@ -226,7 +226,7 @@ function ApplyModal({ course, students, country, onClose }: {
 
           {success && (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2.5 rounded-xl">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />Application created successfully!
+              <CheckCircle className="w-4 h-4 shrink-0" />Application created successfully!
             </div>
           )}
 
@@ -237,7 +237,7 @@ function ApplyModal({ course, students, country, onClose }: {
             </button>
             <button type="button" onClick={handleApply} disabled={saving || success || isBlocked}
               title={isBlocked ? 'Student does not meet eligibility requirements' : undefined}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2 ${
                 isBlocked
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-[#0d1b4b] hover:bg-[#152258] text-white disabled:opacity-60'
@@ -334,10 +334,10 @@ export default function CounselorCourses() {
           onClose={() => setCustomEdit(null)} onSaved={data => applyCustom(customEdit, data)} />
       )}
 
-      <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -346,7 +346,7 @@ export default function CounselorCourses() {
             </div>
           </div>
           <button type="button" onClick={handleExport} disabled={results.length === 0}
-            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0">
+            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 shrink-0">
             <Download className="w-4 h-4" />Export CSV
           </button>
         </div>
@@ -354,8 +354,8 @@ export default function CounselorCourses() {
 
       {loadError && (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-          <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       )}
 
@@ -363,9 +363,9 @@ export default function CounselorCourses() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {results.map(({ course, eligibility }, i) => (
-          <div key={course.id || course._id || i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col">
+          <div key={course.id || course._id || i} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 hover:shadow-md transition-shadow flex flex-col">
             <div className="flex items-start gap-3 mb-2">
-              <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1 flex-shrink-0 mt-0.5">
+              <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden p-1 shrink-0 mt-0.5">
                 <UniLogoImg name={course.uniName} website={course.website} uniId={course.uniId} />
               </div>
               <div className="flex-1 min-w-0">
@@ -379,7 +379,7 @@ export default function CounselorCourses() {
                 <p className="text-xs text-[#0d1b4b] mt-0.5">{course.uniName} · {course.city}, {course.country}</p>
               </div>
               {course.tuitionFee > 0 && (
-                <div className="text-right flex-shrink-0">
+                <div className="text-right shrink-0">
                   <p className="font-bold text-[#0d1b4b] text-sm">{course.currency || 'USD'} {Number(course.tuitionFee).toLocaleString()}</p>
                   <p className="text-xs text-gray-400">per year</p>
                 </div>
@@ -434,7 +434,7 @@ export default function CounselorCourses() {
 
             <div className="mt-auto pt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => setApplyModal(course)}
-                className="flex items-center gap-1.5 bg-[#0d1b4b] hover:bg-[#152258] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm">
+                className="flex items-center gap-1.5 bg-[#0d1b4b] hover:bg-[#152258] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-xs">
                 <Plus className="w-4 h-4" />Apply for Student
               </button>
               <button type="button" onClick={() => setCustomEdit(course)}

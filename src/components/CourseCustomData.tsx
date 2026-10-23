@@ -64,10 +64,10 @@ export default function CourseCustomDataModal({ course, uniId, knownTags = [], k
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2"><Tag className="w-4 h-4" /> Tags &amp; details</h2>
             <p className="text-xs text-gray-500 mt-0.5 truncate">{course.name} · {course.uniName || course._uniName}</p>
@@ -89,7 +89,7 @@ export default function CourseCustomDataModal({ course, uniId, knownTags = [], k
             <div className="flex gap-2">
               <input value={tagText} onChange={e => setTagText(e.target.value)} maxLength={40}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagText); } }}
-                placeholder="Type a tag and press Enter" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                placeholder="Type a tag and press Enter" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
               <button aria-label="Add tag" type="button" onClick={() => addTag(tagText)} disabled={!tagText.trim()} className="px-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"><Plus className="w-4 h-4" /></button>
             </div>
             <div className="flex flex-wrap gap-1 mt-2">
@@ -109,10 +109,10 @@ export default function CourseCustomDataModal({ course, uniId, knownTags = [], k
                 <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <input value={f.key} onChange={e => setFields(fields.map((x, j) => j === i ? { ...x, key: e.target.value } : x))} list="course-custom-keys"
                     placeholder="Detail, e.g. Post-study work visa (years)" aria-label="Detail name" maxLength={60}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
                   <input value={f.value} onChange={e => setFields(fields.map((x, j) => j === i ? { ...x, value: e.target.value } : x))}
                     placeholder="Value, e.g. 2" aria-label="Detail value" maxLength={200}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
                   <button type="button" onClick={() => setFields(fields.filter((_, j) => j !== i))} aria-label="Remove detail" className="px-2 text-gray-400 hover:text-red-600"><X className="w-4 h-4" /></button>
                 </div>
               ))}
@@ -126,7 +126,7 @@ export default function CourseCustomDataModal({ course, uniId, knownTags = [], k
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">{error}</p>}
         </div>
 
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
           <button type="button" onClick={save} disabled={saving}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60">

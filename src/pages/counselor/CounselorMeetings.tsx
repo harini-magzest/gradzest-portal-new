@@ -7,7 +7,7 @@ import { usePortalName } from '../../hooks/usePortalName';
 import { openExternal } from '../../lib/safeUrl';
 
 function Spinner() {
-  return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
+  return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block shrink-0" />;
 }
 
 function normalId(obj: any) { return (obj?._id || obj?.id)?.toString() ?? ''; }
@@ -54,8 +54,8 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
   };
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${upcoming ? 'border-gray-100' : 'border-gray-100 opacity-75'}`}>
-      <div className={`h-1.5 ${upcoming ? 'bg-gradient-to-r from-sky-400 to-blue-500' : 'bg-gray-200'}`} />
+    <div className={`bg-white rounded-2xl border shadow-xs overflow-hidden transition-all hover:shadow-md ${upcoming ? 'border-gray-100' : 'border-gray-100 opacity-75'}`}>
+      <div className={`h-1.5 ${upcoming ? 'bg-linear-to-r from-sky-400 to-blue-500' : 'bg-gray-200'}`} />
       <div className="p-5">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -68,7 +68,7 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
           </div>
           {canDelete && (
             <button type="button" onClick={() => onDelete(normalId(meeting))}
-              className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+              className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
               title="Delete meeting">
               <X className="w-3.5 h-3.5" />
             </button>
@@ -78,7 +78,7 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
         <h3 className="text-base font-bold text-gray-900 mb-3 truncate">{meeting.title}</h3>
 
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
           <span>{formatDateTime(meeting.scheduledDate, meeting.scheduledTime)}</span>
           <span className="text-gray-300">·</span>
           <span className="text-gray-500">{meeting.duration || 60} min</span>
@@ -115,7 +115,7 @@ function MeetingCard({ meeting, onDelete }: { meeting: any; onDelete: (id: strin
           <button type="button" onClick={handleJoin}
             className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all
               ${active
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                ? 'bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
                 : 'bg-gray-100 text-gray-500 cursor-default'}`}>
             <Video className="w-4 h-4" />
             {active ? <>Join {meta.label} Meeting<ExternalLink className="w-3.5 h-3.5 opacity-70" /></> : 'Session Ended'}
@@ -181,7 +181,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -208,7 +208,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="e.g. Admission Guidance Session"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]"
             />
           </div>
 
@@ -223,7 +223,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
                 min={new Date().toISOString().split('T')[0]}
                 aria-label="Meeting date"
                 title="Meeting date"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]"
               />
             </div>
             <div>
@@ -234,7 +234,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
                 onChange={e => set('scheduledTime', e.target.value)}
                 aria-label="Meeting time"
                 title="Meeting time"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]"
               />
             </div>
           </div>
@@ -250,7 +250,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
                 min={15} max={480} step={15}
                 aria-label="Duration in minutes"
                 title="Duration in minutes"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]"
               />
             </div>
             <div>
@@ -260,7 +260,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
                 onChange={e => set('platform', e.target.value)}
                 aria-label="Meeting platform"
                 title="Meeting platform"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] bg-white">
                 <option value="teams">Microsoft Teams</option>
                 <option value="zoom">Zoom</option>
                 <option value="meet">Google Meet</option>
@@ -278,7 +278,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
                 value={form.meetingLink}
                 onChange={e => set('meetingLink', e.target.value)}
                 placeholder="https://teams.microsoft.com/..."
-                className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]"
+                className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]"
               />
             </div>
           </div>
@@ -305,9 +305,9 @@ function ScheduleModal({ onClose, onCreated, students }: {
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleStudent(id)}
-                        className="w-4 h-4 rounded border-gray-300 text-[#0d1b4b] focus:ring-[#0d1b4b]"
+                        className="w-4 h-4 rounded-sm border-gray-300 text-[#0d1b4b] focus:ring-[#0d1b4b]"
                       />
-                      <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center text-sky-700 font-bold text-xs flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center text-sky-700 font-bold text-xs shrink-0">
                         {name.charAt(0).toUpperCase()}
                       </div>
                       <span className="text-sm text-gray-800 font-medium">{name}</span>
@@ -326,7 +326,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
               onChange={e => set('notes', e.target.value)}
               rows={3}
               placeholder="Agenda, documents to bring, etc."
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] resize-none"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] resize-none"
             />
           </div>
 
@@ -336,7 +336,7 @@ function ScheduleModal({ onClose, onCreated, students }: {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl text-sm font-semibold shadow-md disabled:opacity-60 transition-all flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl text-sm font-semibold shadow-md disabled:opacity-60 transition-all flex items-center justify-center gap-2">
               {saving ? <><Spinner /> Scheduling…</> : <><CalendarDays className="w-4 h-4" /> Schedule Meeting</>}
             </button>
           </div>
@@ -402,10 +402,10 @@ export default function CounselorMeetings() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <CalendarDays className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -454,7 +454,7 @@ export default function CounselorMeetings() {
           ] as const).map(t => (
             <button key={t.key} type="button" onClick={() => setTab(t.key)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-                ${tab === t.key ? 'bg-white text-[#0d1b4b] shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
+                ${tab === t.key ? 'bg-white text-[#0d1b4b] shadow-xs ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
               {t.label}
               <span className={`text-xs px-2 py-0.5 rounded-full font-bold
                 ${tab === t.key ? 'bg-sky-100 text-sky-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -468,7 +468,7 @@ export default function CounselorMeetings() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search meetings…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] bg-white" />
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] bg-white" />
         </div>
       </div>
 

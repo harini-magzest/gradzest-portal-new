@@ -14,7 +14,7 @@ type EventRow = Awaited<ReturnType<typeof api.events.list>>[number];
 // ── Meetings ──────────────────────────────────────────────────────────────────
 
 function Spinner() {
-  return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block flex-shrink-0" />;
+  return <span className="w-4 h-4 border-2 border-gray-300 border-t-sky-500 rounded-full animate-spin inline-block shrink-0" />;
 }
 
 function normalId(obj: any) { return (obj?._id || obj?.id)?.toString() ?? ''; }
@@ -59,8 +59,8 @@ function MeetingCard({ meeting }: { meeting: any }) {
   };
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${upcoming ? 'border-gray-100' : 'border-gray-100 opacity-75'}`}>
-      <div className={`h-1.5 ${upcoming ? 'bg-gradient-to-r from-sky-400 to-blue-500' : 'bg-gray-200'}`} />
+    <div className={`bg-white rounded-2xl border shadow-xs overflow-hidden transition-all hover:shadow-md ${upcoming ? 'border-gray-100' : 'border-gray-100 opacity-75'}`}>
+      <div className={`h-1.5 ${upcoming ? 'bg-linear-to-r from-sky-400 to-blue-500' : 'bg-gray-200'}`} />
       <div className="p-5">
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border ${meta.color}`}>
@@ -74,7 +74,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
         <h3 className="text-base font-bold text-gray-900 mb-3 truncate">{meeting.title}</h3>
 
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
           <span>{formatDateTime(meeting.scheduledDate, meeting.scheduledTime)}</span>
           <span className="text-gray-300">·</span>
           <span className="text-gray-500">{meeting.duration || 60} min</span>
@@ -111,7 +111,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
           <button type="button" onClick={handleJoin}
             className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all
               ${active
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                ? 'bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
                 : 'bg-gray-100 text-gray-500 cursor-default'}`}>
             <Video className="w-4 h-4" />
             {active ? <>Join {meta.label} Meeting<ExternalLink className="w-3.5 h-3.5 opacity-70" /></> : 'Session Ended'}
@@ -153,10 +153,10 @@ export function StudentMeetingsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-sky-500 via-sky-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <CalendarDays className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -199,7 +199,7 @@ export function StudentMeetingsPanel() {
           ] as const).map(t => (
             <button key={t.key} type="button" onClick={() => setTab(t.key)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-                ${tab === t.key ? 'bg-white text-sky-600 shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
+                ${tab === t.key ? 'bg-white text-sky-600 shadow-xs ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
               {t.label}
               <span className={`text-xs px-2 py-0.5 rounded-full font-bold
                 ${tab === t.key ? 'bg-sky-100 text-sky-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -213,7 +213,7 @@ export function StudentMeetingsPanel() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search meetings…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-sky-500 bg-white" />
         </div>
       </div>
 
@@ -301,7 +301,7 @@ export function StudentEventsPanel() {
         {upcoming.map(e => {
           const full = e.spotsLeft === 0 && !e.registered;
           return (
-            <article key={e.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
+            <article key={e.id} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 flex flex-col">
               <h3 className="font-semibold text-gray-900">{e.title}</h3>
               <p className="text-sm text-gray-600 mt-1">{when(e.startsAt)} · {e.durationMin} min</p>
               {e.description && <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{e.description}</p>}
@@ -337,7 +337,7 @@ export function StudentEventsPanel() {
               <li key={e.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
                 <span><span className="font-medium text-gray-800">{e.title}</span> <span className="text-gray-400">· {when(e.startsAt)}</span></span>
                 {e.recordingUrl && (
-                  <a href={e.recordingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-700 hover:underline flex-shrink-0">
+                  <a href={e.recordingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-700 hover:underline shrink-0">
                     <PlayCircle className="w-4 h-4" /> Recording
                   </a>
                 )}

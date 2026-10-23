@@ -86,13 +86,13 @@ function Toast({ notification: n, onDismiss }: ToastProps) {
 
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${styles.icon}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${styles.icon}`}>
             {TYPE_ICONS[n.type] || <Bell className="w-4 h-4" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold text-gray-900 truncate">{n.title}</p>
-              <button aria-label="Close" type="button" onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+              <button aria-label="Close" type="button" onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -117,7 +117,7 @@ interface ToastContainerProps {
 
 export default function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   return (
-    <div className="fixed bottom-6 right-6 z-[300] flex flex-col gap-3 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-300 flex flex-col gap-3 pointer-events-none">
       {toasts.map(t => (
         <div key={t.id} className="pointer-events-auto">
           <Toast notification={t} onDismiss={onDismiss} />

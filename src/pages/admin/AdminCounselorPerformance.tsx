@@ -62,7 +62,7 @@ export default function AdminCounselorPerformance() {
         <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1" role="tablist" aria-label="Time range">
           {PERIODS.map(p => (
             <button key={p.days} type="button" role="tab" aria-selected={days === p.days} onClick={() => setDays(p.days)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${days === p.days ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${days === p.days ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}>
               {p.label}
             </button>
           ))}
@@ -87,13 +87,13 @@ export default function AdminCounselorPerformance() {
 
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+          <AlertCircle className="w-4 h-4 shrink-0" />{error}
         </div>
       )}
 
       {sf && (!sf.configured || !sf.agentSet || sf.error) && (
         <div className="flex items-start gap-2 bg-sky-50 border border-sky-200 text-sky-800 rounded-xl px-4 py-3 text-sm">
-          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             {sf.error ? `Smartflo calls could not be loaded: ${sf.error}. Showing in-app calls only.`
               : !sf.configured ? 'Smartflo is not connected yet. Add SMARTFLO_API_TOKEN to server/.env to include phone calls. Showing in-app calls only.'

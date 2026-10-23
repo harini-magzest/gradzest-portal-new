@@ -66,7 +66,7 @@ export default function StudentCountryDetail() {
     <div className="space-y-4">
       {back}
       <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-        <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
+        <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
         <button type="button" onClick={load} className="text-xs font-semibold text-red-700 hover:text-red-800">Retry</button>
       </div>
     </div>
@@ -103,7 +103,7 @@ export default function StudentCountryDetail() {
       {back}
 
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 flex flex-col sm:flex-row sm:items-center gap-5">
         <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-28 h-20" rounded="rounded-xl" quality="w160" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -123,8 +123,8 @@ export default function StudentCountryDetail() {
           </div>
           {(elig.missing.length > 0 || elig.warnings.length > 0) && (
             <ul className="mt-3 space-y-1">
-              {elig.missing.map(m => <li key={m} className="text-xs text-red-700 flex items-start gap-1.5"><AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{m}</li>)}
-              {elig.warnings.map(w => <li key={w} className="text-xs text-amber-700 flex items-start gap-1.5"><AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{w}</li>)}
+              {elig.missing.map(m => <li key={m} className="text-xs text-red-700 flex items-start gap-1.5"><AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{m}</li>)}
+              {elig.warnings.map(w => <li key={w} className="text-xs text-amber-700 flex items-start gap-1.5"><AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{w}</li>)}
             </ul>
           )}
         </div>
@@ -138,18 +138,18 @@ export default function StudentCountryDetail() {
           [DollarSign, 'Tuition', country.costs?.tuitionRange, 'text-emerald-700 bg-emerald-50'],
           [GraduationCap, 'Universities', `${totalUnis} listed`, 'text-indigo-700 bg-indigo-50'],
         ].map(([Icon, label, value, cls]: any) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cls}`}><Icon className="w-4 h-4" /></div>
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-4 flex items-start gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${cls}`}><Icon className="w-4 h-4" /></div>
             <div className="min-w-0">
               <p className="text-xs text-gray-500">{label}</p>
-              <p className="text-sm font-semibold text-gray-900 break-words">{value || '—'}</p>
+              <p className="text-sm font-semibold text-gray-900 wrap-break-word">{value || '—'}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Visa, passport, costs */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
         <section>
           <h2 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3 flex items-center gap-1.5"><FileCheck2 className="w-3.5 h-3.5" /> Student Visa</h2>
           <div className="space-y-1.5 text-sm">
@@ -162,7 +162,7 @@ export default function StudentCountryDetail() {
                 <p className="text-gray-400 font-medium mb-1">Required documents:</p>
                 <ul className="space-y-1">
                   {country.visa.documents.map((d: string, i: number) => (
-                    <li key={i} className="flex items-start gap-1.5"><Check className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" /><span className="text-gray-700">{d}</span></li>
+                    <li key={i} className="flex items-start gap-1.5"><Check className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" /><span className="text-gray-700">{d}</span></li>
                   ))}
                 </ul>
               </div>
@@ -220,10 +220,10 @@ export default function StudentCountryDetail() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search universities or cities…" aria-label="Search universities"
-                  className="pl-9 pr-3 py-2 w-60 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="pl-9 pr-3 py-2 w-60 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               </div>
               <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} aria-label="Sort universities"
-                className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500">
                 <option value="ranking">Best ranked</option>
                 <option value="courses">Most courses</option>
                 <option value="name">Name (A–Z)</option>

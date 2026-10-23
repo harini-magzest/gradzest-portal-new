@@ -106,7 +106,7 @@ export default function BoardStudents() {
     <div className="flex h-[calc(100vh-5rem)] -m-6">
       {/* Left list */}
       <div className={`flex flex-col border-r border-gray-200 bg-white ${selected ? 'hidden lg:flex w-72' : 'flex-1'}`}>
-        <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-base font-bold text-gray-900">Students <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
             <button type="button" onClick={handleExport} title="Export CSV"
@@ -118,7 +118,7 @@ export default function BoardStudents() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search name, email, nationality..."
-              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
             />
             {search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
           </div>
@@ -133,7 +133,7 @@ export default function BoardStudents() {
             return (
               <button key={s._id} onClick={() => selectStudent(s)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${selected?._id === s._id ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''}`}>
-                <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {s.name?.[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -145,7 +145,7 @@ export default function BoardStudents() {
                     {counselor && <span className="text-[10px] text-teal-600 truncate">· {counselor.name}</span>}
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
               </button>
             );
           })}
@@ -209,7 +209,7 @@ export default function BoardStudents() {
             <Card title="Assigned Counselor" icon={UserCog}>
               {assignedCounselor ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-base shrink-0">
                     {assignedCounselor.name?.[0]?.toUpperCase()}
                   </div>
                   <div>
@@ -255,7 +255,7 @@ export default function BoardStudents() {
                 <div className="space-y-2">
                   {detail.documents.map((doc: any) => (
                     <div key={doc._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                      <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                      <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -266,7 +266,7 @@ export default function BoardStudents() {
                       </div>
                       {doc.url && (
                         <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium flex-shrink-0">
+                          className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium shrink-0">
                           <Download className="w-3.5 h-3.5" /> Download
                         </SignedFileLink>
                       )}

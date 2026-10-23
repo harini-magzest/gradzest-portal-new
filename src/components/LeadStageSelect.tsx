@@ -109,7 +109,7 @@ export default function LeadStageSelect({ value, onSave, editable = true, size =
       <div className="inline-flex items-center gap-1.5">
         <button ref={triggerRef} type="button" onClick={() => (open ? setOpen(false) : openList())}
           aria-haspopup="listbox" aria-expanded={open}
-          className={`inline-flex items-center justify-between gap-2 min-w-[9.5rem] rounded-lg border border-green-500 bg-white text-gray-800 ${pad}`}>
+          className={`inline-flex items-center justify-between gap-2 min-w-38 rounded-lg border border-green-500 bg-white text-gray-800 ${pad}`}>
           {draftLabel}<ChevronDown className="w-3.5 h-3.5 text-gray-500" />
         </button>
         <button type="button" onClick={save} disabled={saving} aria-label="Save stage"
@@ -125,12 +125,12 @@ export default function LeadStageSelect({ value, onSave, editable = true, size =
 
       {open && (
         <div ref={listRef} role="listbox" style={{ top: pos.top, left: pos.left, width: pos.width }}
-          className="fixed z-[60] bg-white border border-gray-200 rounded-xl shadow-xl p-1.5">
+          className="fixed z-60 bg-white border border-gray-200 rounded-xl shadow-xl p-1.5">
           <div className="relative mb-1">
             <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search"
               aria-label="Search stages"
               onKeyDown={e => { if (e.key === 'Enter' && options[0]) { setDraft(options[0].value); setOpen(false); } }}
-              className="w-full pl-2.5 pr-7 py-1.5 border border-green-500 rounded-lg text-sm focus:outline-none" />
+              className="w-full pl-2.5 pr-7 py-1.5 border border-green-500 rounded-lg text-sm focus:outline-hidden" />
             <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
           </div>
           <div className="max-h-60 overflow-y-auto">

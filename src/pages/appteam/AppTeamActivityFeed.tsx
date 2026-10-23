@@ -66,7 +66,7 @@ export default function AppTeamActivityFeed() {
 
       {/* Info banner */}
       <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 flex items-start gap-3">
-        <Zap className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+        <Zap className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
         <p className="text-xs text-gray-700 leading-relaxed">
           This feed updates in real time via WebSocket. Every enquiry, document upload,
           payment, visa update, and offer letter triggers an instant event here.

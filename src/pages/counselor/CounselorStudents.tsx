@@ -55,12 +55,12 @@ function RequestDocumentModal({ studentId, onClose, onRequested }: { studentId: 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Document Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. IELTS Score Card"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Document Type</label>
             <select aria-label="Document type" value={type} onChange={e => setType(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white">
               {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
@@ -108,7 +108,7 @@ function StudentStatusSelect({ studentId, value, editable, onSaved }: { studentI
     <span className="inline-flex flex-col">
       <select value={current} disabled={saving} onChange={e => change(e.target.value)}
         aria-label="Student status" title={error || 'Change status'}
-        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 ${tone}`}>
+        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-green-500 disabled:opacity-60 ${tone}`}>
         {STUDENT_STAGES.map(st => <option key={st.value} value={st.value}>{st.label}</option>)}
       </select>
       {error && <span className="text-[11px] text-red-600 mt-0.5">{error}</span>}
@@ -194,7 +194,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
   }
 
   return (
-    <div className={inline ? '' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm'}>
+    <div className={inline ? '' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs'}>
       <div className={inline ? 'bg-white' : 'bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto'}>
         <div className={`flex items-center justify-between border-b border-gray-100 bg-white ${inline ? 'px-5 py-3' : 'px-6 py-4 sticky top-0 rounded-t-2xl z-10'}`}>
           <div className="flex items-center gap-2">
@@ -222,20 +222,20 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
             <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name *</label>
               <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Student's full name"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
             </div>
             <div className={span2}>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email Address *</label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="student@email.com"
                 disabled={isEdit} title={isEdit ? 'Email is the student\'s login and cannot be changed here' : undefined}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500" />
             </div>
             {isEdit && (
               <div className={span2}>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Status</label>
                 <select value={form.status} onChange={e => set('status', e.target.value)}
                   aria-label="Student status"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white">
                   {STUDENT_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
@@ -243,12 +243,12 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Phone</label>
               <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 98765 43210"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nationality</label>
               <input value={form.nationality} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Indian"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
 
@@ -258,7 +258,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Education Level</label>
               <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)}
                 aria-label="Education level"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white">
                 <option value="">Select...</option>
                 {EDUCATION_LEVELS.map(l => <option key={l}>{l}</option>)}
               </select>
@@ -268,7 +268,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
               <input type="number" value={form.gpa} onChange={e => set('gpa', e.target.value)}
                 placeholder="e.g. 8.5" min="0" max="10" step="0.1"
                 title="GPA score"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
 
@@ -278,13 +278,13 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
             <div className={pairGrid}>
               <select value={form.englishType} onChange={e => set('englishType', e.target.value)}
                 aria-label="English test type"
-                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white">
                 {ENGLISH_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
               <input value={form.englishScore} onChange={e => set('englishScore', e.target.value)}
                 placeholder="Score (e.g. 7.5)"
                 title="English test score"
-                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
 
@@ -294,7 +294,7 @@ function StudentFormModal({ student, onClose, onSaved, inline = false }: { stude
             <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)}
               placeholder="e.g. 30000" min="0" step="1000"
               title="Annual budget in USD"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500" />
           </div>
 
           {/* Preferred countries */}
@@ -459,8 +459,8 @@ function StudentsList() {
   })();
 
   const avatarPalette = ['from-blue-500 to-indigo-600', 'from-green-500 to-emerald-600', 'from-purple-500 to-pink-600', 'from-amber-500 to-orange-600', 'from-cyan-500 to-blue-600', 'from-rose-500 to-red-600'];
-  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer';
-  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent';
+  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer';
+  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-green-500 focus:border-transparent';
 
   return (
     <div className="space-y-6">
@@ -473,10 +473,10 @@ function StudentsList() {
       )}
 
       {/* ── Header ── */}
-      <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -505,7 +505,7 @@ function StudentsList() {
             )}
             {can('students.create') && (
               <button type="button" onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors shadow-sm">
+                className="flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors shadow-xs">
                 <GraduationCap className="w-4 h-4" />Add Student
               </button>
             )}
@@ -516,7 +516,7 @@ function StudentsList() {
       {/* ── Error ── */}
       {loadError && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1"><p className="text-sm font-semibold text-red-800">Failed to load students</p><p className="text-xs text-red-600 mt-0.5">{loadError}</p></div>
           <button type="button" onClick={loadStudents} className="text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Retry</button>
         </div>
@@ -531,8 +531,8 @@ function StudentsList() {
           { label: 'Inactive', value: counts.inactive, note: pct(counts.inactive), icon: <UserX className="w-5 h-5 text-green-500" /> },
           { label: 'Enrolled', value: counts.enrolled, note: pct(counts.enrolled), icon: <GraduationCap className="w-5 h-5 text-green-600" /> },
         ].map(card => (
-          <div key={card.label} className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm flex items-start gap-3 hover:border-green-300 hover:shadow-md transition-all">
-            <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">{card.icon}</div>
+          <div key={card.label} className="bg-white rounded-2xl p-4 border border-green-100 shadow-xs flex items-start gap-3 hover:border-green-300 hover:shadow-md transition-all">
+            <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center shrink-0">{card.icon}</div>
             <div>
               <p className="text-gray-500 text-xs mb-1">{card.label}</p>
               <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
@@ -544,12 +544,12 @@ function StudentsList() {
 
       {/* ── My / Team tabs (only when the role gives them a team) ── */}
       {hasTeam && <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
-        <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
-        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Team Students ({allStudents.length})</button>
+        <button type="button" onClick={() => setTab('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'mine' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}>My Students ({myStudents.length})</button>
+        <button type="button" onClick={() => setTab('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'all' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}>Team Students ({allStudents.length})</button>
       </div>}
 
       {/* ── Filter bar ── */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-xs space-y-3">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
             <input type="date" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} title="Joined from" className={dInput} />
@@ -584,10 +584,10 @@ function StudentsList() {
             <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') setSearch(searchInput); }}
               placeholder="Search by name, email, phone..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-green-500 focus:border-transparent" />
           </div>
           <button type="button" onClick={() => setSearch(searchInput)}
-            className="px-5 py-2 bg-green-600 text-white hover:bg-green-700 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            className="px-5 py-2 bg-green-600 text-white hover:bg-green-700 rounded-xl text-sm font-semibold transition-colors shadow-xs">
             Search
           </button>
           {activeTags.length > 0 && (
@@ -609,11 +609,11 @@ function StudentsList() {
 
       {/* ── Table ── */}
       {loading && allStudents.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-12 flex items-center justify-center gap-3 text-gray-400">
           <span className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading students…</span>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -621,7 +621,7 @@ function StudentsList() {
                   <th className="w-10 px-4 py-3.5">
                     <input type="checkbox" aria-label="Select all students on this page" checked={paginated.length > 0 && paginated.every((s: any) => selectedIds.has(normalId(s)))}
                       onChange={() => setSelectedIds(prev => { const n = new Set(prev); const all = paginated.every((s: any) => n.has(normalId(s))); paginated.forEach((s: any) => (all ? n.delete(normalId(s)) : n.add(normalId(s)))); return n; })}
-                      className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                      className="w-4 h-4 rounded-sm cursor-pointer accent-green-600" />
                   </th>
                   {['STUDENT', 'JOINED', 'EMAIL', 'PHONE', 'ASSIGNED TO', 'LEAD STAGE', 'STATUS', 'ACTIONS'].map(h => (
                     <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${h === 'ACTIONS' ? 'text-right' : 'text-left'}`}>{h}</th>
@@ -645,11 +645,11 @@ function StudentsList() {
                       <td className="w-10 px-4 py-3.5">
                         <input type="checkbox" aria-label={`Select ${s.name}`} checked={selectedIds.has(id)}
                           onChange={() => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
-                          className="w-4 h-4 rounded cursor-pointer accent-green-600" />
+                          className="w-4 h-4 rounded-sm cursor-pointer accent-green-600" />
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</div>
+                          <div className={`w-9 h-9 bg-linear-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0`}>{initials}</div>
                           <div className="min-w-0">
                             <button type="button" onClick={() => openStudent(id)} title="Open profile"
                               className="text-sm font-semibold text-gray-900 truncate hover:text-green-700 hover:underline text-left">{s.name}</button>
@@ -707,7 +707,7 @@ function StudentsList() {
               <span>Show</span>
               <div className="relative">
                 <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} title="Entries per page"
-                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer">
+                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-green-500 cursor-pointer">
                   {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -728,7 +728,7 @@ function StudentsList() {
                   <span key={`d${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none">…</span>
                 ) : (
                   <button key={p} type="button" onClick={() => setPage(p)} aria-current={page === p ? 'page' : undefined}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-green-600 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-green-600 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
                     {p}
                   </button>
                 )
@@ -750,8 +750,8 @@ function InfoRow({ label, value }: { label: string; value?: any }) {
   const empty = value === null || value === undefined || value === '';
   return (
     <div className="flex gap-3 py-1.5">
-      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
-      <span className={`text-xs flex-1 min-w-0 break-words ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
+      <span className="text-xs text-gray-400 w-28 shrink-0">{label}</span>
+      <span className={`text-xs flex-1 min-w-0 wrap-break-word ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
     </div>
   );
 }
@@ -887,14 +887,14 @@ function StudentDetail() {
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">
         {/* ── Left: student details ── */}
-        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <aside className="w-full lg:w-80 shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl flex-shrink-0">{student.name.charAt(0)}</div>
+              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl shrink-0">{student.name.charAt(0)}</div>
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-gray-900 truncate" title={student.name}>{student.name}</h2>
                 <p className="flex items-center gap-1 text-xs text-gray-500 mb-1 min-w-0" title="Assigned counselor">
-                  <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                  <UserCog className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{counselorName || 'Unassigned'}</span>
                 </p>
                 <StudentStatusSelect studentId={studentId!} value={student.status} editable={canEditStudent}
@@ -952,14 +952,14 @@ function StudentDetail() {
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
         {(['overview', 'timeline', 'notes', 'messages', 'activities', 'emails', 'pipelines', 'documents', 'applications', 'courses'] as const).map(t => (
           <button type="button" key={t} onClick={() => { setActiveTab(t); setEligFilter(''); setCountryFilter(''); setCourseSearch(''); }}
-            className={`px-3.5 py-2 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-colors ${activeTab === t ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'}`}>
             {t === 'courses' ? 'Course Eligibility' : t === 'documents' ? 'Files' : t}
           </button>
         ))}
       </div>
 
       {(['timeline', 'messages', 'activities', 'emails', 'pipelines'] as const).map(t => activeTab === t && (
-        <div key={t} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div key={t} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <StudentRecordPanel tab={t} student={student} record={record} reload={reloadRecord}
             loading={recordLoading} error={recordError}
             canEdit={canEditStudent} canReply={canEditStudent}
@@ -969,7 +969,7 @@ function StudentDetail() {
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-4">Application Summary</h3>
             {apps.length === 0 ? <p className="text-gray-400 text-sm">No applications yet</p> : (
               <div className="space-y-3">
@@ -982,7 +982,7 @@ function StudentDetail() {
               </div>
             )}
           </div>
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
             <h3 className="font-bold text-gray-900 mb-4">Document Status</h3>
             <div className="space-y-3">
               {docs.map((doc: any) => (
@@ -1001,19 +1001,19 @@ function StudentDetail() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">{apps.length} application{apps.length !== 1 ? 's' : ''}</p>
             <Link to="/counselor/universities"
-              className="flex items-center gap-1.5 bg-green-600 text-white text-sm font-medium px-3 py-2 rounded-xl hover:bg-green-700 transition-colors shadow-sm">
+              className="flex items-center gap-1.5 bg-green-600 text-white text-sm font-medium px-3 py-2 rounded-xl hover:bg-green-700 transition-colors shadow-xs">
               <Plus className="w-4 h-4" /> New Application
             </Link>
           </div>
           {apps.length === 0 ? (
-            <div className="bg-white rounded-2xl p-10 text-center border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-10 text-center border border-gray-100 shadow-xs">
               <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No applications submitted yet</p>
             </div>
           ) : apps.map((app: any) => {
             const appId = app._id || app.id;
             return (
-              <div key={appId} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div key={appId} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-3 mb-1">
@@ -1025,7 +1025,7 @@ function StudentDetail() {
                   </div>
                   <select aria-label="Update application status" defaultValue={app.status} disabled={updating}
                     onChange={e => updateAppStatus(appId, e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60">
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-hidden focus:ring-2 focus:ring-green-500 disabled:opacity-60">
                     {['draft', 'submitted', 'under_review', 'offer_received', 'accepted', 'rejected', 'enrolled'].map(s => (
                       <option key={s} value={s} className="capitalize">{s.replace('_', ' ')}</option>
                     ))}
@@ -1047,14 +1047,14 @@ function StudentDetail() {
                 value={courseSearch}
                 onChange={e => setCourseSearch(e.target.value)}
                 placeholder="Search course or university…"
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500"
               />
             </div>
             <select
               aria-label="Filter by country"
               value={countryFilter}
               onChange={e => setCountryFilter(e.target.value)}
-              className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white min-w-[140px]"
+              className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white min-w-[140px]"
             >
               <option value="">All Countries</option>
               {courseCountries.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1075,20 +1075,20 @@ function StudentDetail() {
           </div>
           <div className="space-y-2">
             {visibleCourses.length === 0 ? (
-              <div className="bg-white rounded-2xl p-10 text-center border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-10 text-center border border-gray-100 shadow-xs">
                 <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-sm text-gray-400">{universities.length === 0 ? 'Loading courses…' : 'No courses match this filter.'}</p>
               </div>
             ) : visibleCourses.map((course: any, i: number) => {
               const badge = ELIGIBILITY_BADGE[course._elig.status as keyof typeof ELIGIBILITY_BADGE];
               return (
-                <div key={course._id || course.id || i} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+                <div key={course._id || course.id || i} className="bg-white rounded-xl border border-gray-100 p-4 shadow-xs">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm">{course.name}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{course.uniName} · {course.level}{course.uniCountry ? ` · ${course.uniCountry}` : ''}</p>
                     </div>
-                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${badge.classes}`}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${badge.classes}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
                       {badge.label}
                     </span>
@@ -1115,7 +1115,7 @@ function StudentDetail() {
       )}
 
       {activeTab === 'documents' && (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-gray-900">Documents</h3>
             <button type="button" onClick={() => setShowRequestDoc(true)} className="flex items-center gap-2 text-sm text-blue-600 font-medium hover:text-blue-700">
@@ -1160,7 +1160,7 @@ function StudentDetail() {
       )}
 
       {activeTab === 'notes' && studentId && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
           <h3 className="font-bold text-gray-900 mb-4">Notes</h3>
           <StudentNotes studentId={studentId} />
         </div>

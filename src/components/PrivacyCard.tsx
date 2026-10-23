@@ -54,7 +54,7 @@ export default function PrivacyCard() {
   const pending = request?.status === 'pending';
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1"><ShieldCheck className="w-4 h-4" /> Your data</h2>
       <p className="text-sm text-gray-500 mb-4">You can download everything we hold about you, or ask us to erase it.</p>
 

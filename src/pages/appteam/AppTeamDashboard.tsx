@@ -101,9 +101,9 @@ export default function AppTeamDashboard() {
         <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>
       )}
       {/* Header — same orange banner as the other Application Team pages */}
-      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs shrink-0">
             <LayoutDashboard className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
@@ -155,11 +155,11 @@ export default function AppTeamDashboard() {
               const width = apps.length ? Math.round((count / maxCount) * 100) : 0;
               return (
                 <div key={s.key} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 w-28 flex-shrink-0">{s.label}</span>
+                  <span className="text-xs text-gray-500 w-28 shrink-0">{s.label}</span>
                   <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                     <div className={`h-2 rounded-full transition-all ${s.bar}`} style={{ width: `${width}%` }} />
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 w-16 justify-end">
+                  <div className="flex items-center gap-2 shrink-0 w-16 justify-end">
                     <span className="text-sm font-bold text-gray-800">{count}</span>
                     <span className="text-xs text-gray-400">{pct}%</span>
                   </div>
@@ -180,14 +180,14 @@ export default function AppTeamDashboard() {
           <div className="space-y-3">
             {counselorStats.slice(0, 6).map(c => (
               <div key={c._id} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {c.name?.[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
                   <p className="text-xs text-gray-400">{c.specialty || 'General'}</p>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                <div className="flex items-center gap-3 shrink-0 text-right">
                   <div>
                     <p className="text-sm font-bold text-orange-600">{c.studentCount}</p>
                     <p className="text-[10px] text-gray-400">students</p>
@@ -226,7 +226,7 @@ export default function AppTeamDashboard() {
             const counselor = counselorId ? counselorMap[counselorId] : null;
             return (
               <div key={app._id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
-                <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {student?.name?.[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -243,10 +243,10 @@ export default function AppTeamDashboard() {
                     {app.courseName ? ` — ${app.courseName}` : ''}
                   </p>
                 </div>
-                <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                <div className="hidden sm:flex items-center gap-2 shrink-0">
                   {counselor && (
                     <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
                         {counselor.name?.[0]?.toUpperCase()}
                       </div>
                       <span className="text-xs text-gray-500 hidden lg:block">{counselor.name}</span>
@@ -254,7 +254,7 @@ export default function AppTeamDashboard() {
                   )}
                 </div>
                 <StatusBadge status={app.status} />
-                <span className="hidden md:block text-xs text-gray-400 flex-shrink-0">{fmtDate(app.updatedDate || app.updatedAt)}</span>
+                <span className="hidden md:block text-xs text-gray-400 shrink-0">{fmtDate(app.updatedDate || app.updatedAt)}</span>
               </div>
             );
           })}
@@ -272,9 +272,9 @@ export default function AppTeamDashboard() {
       </div>
 
       {/* Learning Hub CTA */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-linear-to-r from-orange-500 to-amber-500 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -283,7 +283,7 @@ export default function AppTeamDashboard() {
           </div>
         </div>
         <Link to="/appteam/learning"
-          className="flex items-center gap-2 bg-white text-orange-600 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-orange-50 transition-colors whitespace-nowrap flex-shrink-0">
+          className="flex items-center gap-2 bg-white text-orange-600 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-orange-50 transition-colors whitespace-nowrap shrink-0">
           Open Learning Hub <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -296,7 +296,7 @@ export default function AppTeamDashboard() {
           { label: 'Rejected',    value: statusCounts.rejected || 0,  icon: CheckCircle, color: 'text-red-600',    bg: 'bg-red-50',    to: '/appteam/applications' },
           { label: 'Draft',       value: statusCounts.draft || 0,     icon: Clock,       color: 'text-gray-600',   bg: 'bg-gray-50',   to: '/appteam/applications' },
         ].map(item => (
-          <Link key={item.label} to={item.to} className={`${item.bg} rounded-xl p-4 flex items-center gap-3 hover:shadow-sm transition-all group`}>
+          <Link key={item.label} to={item.to} className={`${item.bg} rounded-xl p-4 flex items-center gap-3 hover:shadow-xs transition-all group`}>
             <item.icon className={`w-8 h-8 ${item.color} opacity-70`} />
             <div>
               <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>

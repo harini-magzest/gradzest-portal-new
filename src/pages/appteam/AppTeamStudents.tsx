@@ -185,16 +185,16 @@ function StudentsList() {
   })();
 
   const avatarPalette = ['from-orange-500 to-amber-600', 'from-blue-500 to-indigo-600', 'from-green-500 to-emerald-600', 'from-purple-500 to-pink-600', 'from-cyan-500 to-blue-600', 'from-rose-500 to-red-600'];
-  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer';
-  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent';
+  const dSel = 'appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer';
+  const dInput = 'px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-orange-400 focus:border-transparent';
 
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -212,7 +212,7 @@ function StudentsList() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
             </button>
             <button type="button" onClick={() => setShowNewLead(true)} title="Add a lead from a phone call — only a name and mobile number are needed"
-              className="flex items-center gap-2 px-3 py-2 bg-white text-orange-700 rounded-xl text-sm font-bold hover:bg-orange-50 transition-colors shadow-sm">
+              className="flex items-center gap-2 px-3 py-2 bg-white text-orange-700 rounded-xl text-sm font-bold hover:bg-orange-50 transition-colors shadow-xs">
               <Phone className="w-4 h-4" />New Lead
             </button>
             {showNewLead && (
@@ -226,7 +226,7 @@ function StudentsList() {
       {/* ── Error ── */}
       {loadError && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1"><p className="text-sm font-semibold text-red-800">Failed to load students</p><p className="text-xs text-red-600 mt-0.5">{loadError}</p></div>
           <button type="button" onClick={loadData} className="text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Retry</button>
         </div>
@@ -244,9 +244,9 @@ function StudentsList() {
           const on = activeCard === card.key;
           return (
             <button type="button" key={card.key} onClick={() => pickCard(card.key)} aria-pressed={on} title={on && card.key !== 'total' ? 'Click again to show all students' : card.hint}
-              className={`text-left bg-white rounded-2xl p-4 border shadow-sm flex items-start gap-3 hover:border-orange-300 hover:shadow-md transition-all ${
+              className={`text-left bg-white rounded-2xl p-4 border shadow-xs flex items-start gap-3 hover:border-orange-300 hover:shadow-md transition-all ${
                 on ? 'border-orange-500 ring-2 ring-orange-100' : 'border-orange-100'}`}>
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${on ? 'bg-orange-500 [&>svg]:text-white' : 'bg-orange-100'}`}>{card.icon}</div>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${on ? 'bg-orange-500 [&>svg]:text-white' : 'bg-orange-100'}`}>{card.icon}</div>
               <div className="min-w-0">
                 <p className="text-gray-500 text-xs mb-1">{card.label}</p>
                 <p className="text-2xl font-bold text-gray-900">{loading ? '…' : card.value.toLocaleString()}</p>
@@ -258,7 +258,7 @@ function StudentsList() {
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-xs space-y-3">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
             <input type="date" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} title="Joined from" className={dInput} />
@@ -301,10 +301,10 @@ function StudentsList() {
             <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') setSearch(searchInput); }}
               placeholder="Search by name, email, phone..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
           </div>
           <button type="button" onClick={() => setSearch(searchInput)}
-            className="px-5 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            className="px-5 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-semibold transition-colors shadow-xs">
             Search
           </button>
           {activeTags.length > 0 && (
@@ -325,11 +325,11 @@ function StudentsList() {
       {/* ── Table ── */}
       <div ref={tableRef} className="scroll-mt-4" />
       {loading && students.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex items-center justify-center gap-3 text-gray-400">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-12 flex items-center justify-center gap-3 text-gray-400">
           <span className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading students…</span>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -356,7 +356,7 @@ function StudentsList() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <button type="button" onClick={() => openStudent(id)} aria-label={`Open ${s.name}'s profile`}
-                            className={`w-9 h-9 bg-gradient-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>{initials}</button>
+                            className={`w-9 h-9 bg-linear-to-br ${avatarPalette[idx % avatarPalette.length]} rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0`}>{initials}</button>
                           <div className="min-w-0">
                             <button type="button" onClick={() => openStudent(id)} title="Open profile"
                               className="text-sm font-semibold text-gray-900 truncate hover:text-orange-700 hover:underline text-left">{s.name}</button>
@@ -410,7 +410,7 @@ function StudentsList() {
               <span>Show</span>
               <div className="relative">
                 <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} title="Entries per page"
-                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer">
+                  className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-orange-400 cursor-pointer">
                   {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -431,7 +431,7 @@ function StudentsList() {
                   <span key={`d${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none">…</span>
                 ) : (
                   <button key={p} type="button" onClick={() => setPage(p)} aria-current={page === p ? 'page' : undefined}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-orange-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
                     {p}
                   </button>
                 )
@@ -453,8 +453,8 @@ function InfoRow({ label, value }: { label: string; value?: any }) {
   const empty = value === null || value === undefined || value === '';
   return (
     <div className="flex gap-3 py-1.5">
-      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
-      <span className={`text-xs flex-1 min-w-0 break-words ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
+      <span className="text-xs text-gray-400 w-28 shrink-0">{label}</span>
+      <span className={`text-xs flex-1 min-w-0 wrap-break-word ${empty ? 'text-gray-300' : 'text-gray-800 font-medium'}`}>{empty ? '—' : String(value)}</span>
     </div>
   );
 }
@@ -541,7 +541,7 @@ function StudentDetail() {
       <div className="space-y-2">
         {docs.map((doc: any) => (
           <div key={doc._id || doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0"><FileText className="w-4 h-4 text-orange-500" /></div>
+            <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-orange-500" /></div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
               <p className="text-xs text-gray-400">{doc.type}{doc.uploadedDate ? ` · ${doc.uploadedDate}` : ''}</p>
@@ -587,14 +587,14 @@ function StudentDetail() {
       {header}
       <div className="flex flex-col lg:flex-row gap-5 items-start">
         {/* ── Left: student details ── */}
-        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-5">
+        <aside className="w-full lg:w-80 shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+          <div className="bg-linear-to-br from-orange-500 to-amber-600 p-5">
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">{initials}</div>
+              <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0">{initials}</div>
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-white truncate" title={student.name}>{student.name}</h2>
                 <p className="flex items-center gap-1 text-xs text-orange-100 mt-0.5 min-w-0" title="Assigned counselor">
-                  <UserCog className="w-3.5 h-3.5 flex-shrink-0" />
+                  <UserCog className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{student.counselorName || 'Unassigned'}</span>
                 </p>
                 <div className="mt-1"><StatusBadge status={student.status === 'inactive' ? 'inactive' : 'active'} /></div>
@@ -611,7 +611,7 @@ function StudentDetail() {
               className="disabled:opacity-50 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all">
               <Pencil className="w-4 h-4" />Edit
             </button>
-            <Link to="/appteam/chat" className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm transition-all">
+            <Link to="/appteam/chat" className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-xs transition-all">
               <MessageSquare className="w-4 h-4" />Chat
             </Link>
             <button type="button" onClick={() => downloadStudentProfilePdf({ ...student, applications: apps }, { counselorName: student.counselorName || undefined })}
@@ -645,7 +645,7 @@ function StudentDetail() {
 
         {/* ── Right: tabs ── */}
         <div className="flex-1 min-w-0 w-full space-y-5">
-          <div className="flex bg-white rounded-2xl border border-gray-100 shadow-sm px-4 overflow-x-auto">
+          <div className="flex bg-white rounded-2xl border border-gray-100 shadow-xs px-4 overflow-x-auto">
             {DETAIL_TABS.map(t => (
               <button type="button" key={t.key} onClick={() => setTab(t.key)}
                 className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${tab === t.key ? 'border-orange-500 text-orange-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -656,11 +656,11 @@ function StudentDetail() {
 
           {tab === 'overview' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Layers className="w-4 h-4 text-orange-500" />Application Summary</h3>
                 {appList}
               </div>
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-orange-500" />Documents</h3>
                 {docList}
               </div>
@@ -668,14 +668,14 @@ function StudentDetail() {
           )}
 
           {tab === 'applications' && (
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Layers className="w-4 h-4 text-orange-500" />Applications ({sortedApps.length})</h3>
               {appList}
             </div>
           )}
 
           {tab !== 'overview' && tab !== 'applications' && (
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               {tab === 'files' ? (
                 <>
                   <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4 text-orange-500" />Files ({docs.length})</h3>

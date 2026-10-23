@@ -584,9 +584,9 @@ export default function Activities() {
   const pastEvents = events.filter(e => eventStart(e) < now).sort((a, b) => eventStart(b) - eventStart(a));
   const renderEvent = (ev: LocalEvent, past: boolean) => (
               <Link key={ev.id} to={`/${role}/${EVENT_PAGE[ev.type] || 'activities'}`}
-                className={`block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all overflow-hidden ${past ? 'opacity-60' : ''}`}>
+                className={`block bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-gray-200 transition-all overflow-hidden ${past ? 'opacity-60' : ''}`}>
                 <div className="flex">
-                  <div className={`w-1.5 flex-shrink-0 ${past ? 'bg-gray-300' : EVENT_TYPE_DOT[ev.type] || 'bg-gray-400'}`} />
+                  <div className={`w-1.5 shrink-0 ${past ? 'bg-gray-300' : EVENT_TYPE_DOT[ev.type] || 'bg-gray-400'}`} />
                   <div className="flex-1 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -606,7 +606,7 @@ export default function Activities() {
                         </div>
                         <p className="text-xs text-gray-500">{ev.desc}</p>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-gray-600">{ev.time}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{ev.date}</p>
                       </div>
@@ -647,7 +647,7 @@ export default function Activities() {
             key={tb.key}
             onClick={() => { setTab(tb.key); if (tb.key === 'calls') setNewCallCount(0); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              tab === tb.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+              tab === tb.key ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'
             }`}>
             <span className="relative">
               {tb.icon}
@@ -670,9 +670,9 @@ export default function Activities() {
         <div className="flex gap-5 items-start">
 
           {/* Left – calendar grid */}
-          <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden">
             {/* Month nav */}
-            <div className={`flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r ${t.calHeader}`}>
+            <div className={`flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r ${t.calHeader}`}>
               <div>
                 <h2 className="text-xl font-bold text-white">{MONTH_NAMES[calMonth]} {calYear}</h2>
                 <p className={`${t.calHeaderSub} text-xs mt-0.5`}>{DAY_NAMES[today.getDay()]}, {today.getDate()} {MONTH_NAMES[today.getMonth()]}</p>
@@ -748,17 +748,17 @@ export default function Activities() {
             <div className="flex items-center gap-4 px-6 py-3 border-t border-gray-100 bg-gray-50">
               <span className="text-xs text-gray-400 font-medium">Legend:</span>
               {Object.entries(EVENT_TYPE_COLOR).map(([type, cls]) => (
-                <span key={type} className={`text-[10px] px-2 py-0.5 rounded font-medium ${cls}`}>{type}</span>
+                <span key={type} className={`text-[10px] px-2 py-0.5 rounded-sm font-medium ${cls}`}>{type}</span>
               ))}
               <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />Reminder</span>
             </div>
           </div>
 
           {/* Right – day detail panel */}
-          <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+          <div className="w-72 shrink-0 flex flex-col gap-4">
 
             {/* Selected day header */}
-            <div className={`bg-gradient-to-br ${t.dayDetailBg} rounded-2xl p-5 text-white`}>
+            <div className={`bg-linear-to-br ${t.dayDetailBg} rounded-2xl p-5 text-white`}>
               <p className={`${t.dayDetailSub} text-xs font-semibold uppercase tracking-widest mb-1`}>{MONTH_NAMES[calMonth]} {calYear}</p>
               <p className="text-4xl font-bold">{String(selectedDay).padStart(2, '0')}</p>
               <p className={`${t.dayDetailSub} text-sm`}>{DAY_NAMES[new Date(calYear, calMonth, selectedDay).getDay()]}</p>
@@ -775,7 +775,7 @@ export default function Activities() {
             </div>
 
             {/* Events for selected day */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Star className={`w-4 h-4 ${t.starIcon}`} /> Events
@@ -787,7 +787,7 @@ export default function Activities() {
               <div className="p-3 space-y-2 max-h-48 overflow-y-auto">
                 {dayEvents.length > 0 ? dayEvents.map(e => (
                   <div key={e.id} className="flex items-start gap-2.5 bg-gray-50 rounded-xl p-3">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${EVENT_TYPE_DOT[e.type] || 'bg-gray-400'}`} />
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${EVENT_TYPE_DOT[e.type] || 'bg-gray-400'}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-900 leading-tight">{e.title}</p>
                       <p className={`text-[11px] ${t.eventTime} font-medium mt-0.5`}>{e.time}</p>
@@ -803,7 +803,7 @@ export default function Activities() {
             </div>
 
             {/* Reminders for selected day */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Bell className="w-4 h-4 text-amber-500" /> Reminders
@@ -818,10 +818,10 @@ export default function Activities() {
                 <div className="mx-3 mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <input value={newReminder.text} onChange={e => setNewReminder(n => ({ ...n, text: e.target.value }))}
                     placeholder="Reminder note..." autoFocus
-                    className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 outline-none focus:border-amber-400 bg-white text-gray-900 placeholder-gray-400 mb-2" />
+                    className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 outline-hidden focus:border-amber-400 bg-white text-gray-900 placeholder-gray-400 mb-2" />
                   <input type="time" value={newReminder.time} onChange={e => setNewReminder(n => ({ ...n, time: e.target.value }))}
                     title="Reminder time"
-                    className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 outline-none focus:border-amber-400 bg-white text-gray-700 mb-2" />
+                    className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 outline-hidden focus:border-amber-400 bg-white text-gray-700 mb-2" />
                   <div className="flex gap-2 justify-end">
                     <button type="button" onClick={() => setShowAddReminder(false)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1">Cancel</button>
                     <button type="button" onClick={addReminder} className="text-xs bg-amber-500 text-white px-3 py-1 rounded-lg hover:bg-amber-600">Save</button>
@@ -832,13 +832,13 @@ export default function Activities() {
               <div className="p-3 space-y-2 max-h-48 overflow-y-auto">
                 {dayReminders.length > 0 ? dayReminders.map(r => (
                   <div key={r.id} className="flex items-start gap-2.5 bg-amber-50 rounded-xl p-3 group">
-                    <Bell className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <Bell className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-gray-900 leading-tight">{r.text}</p>
                       {r.time && <p className="text-[11px] text-amber-600 font-medium mt-0.5">{r.time}</p>}
                     </div>
                     <button type="button" onClick={() => deleteReminder(r.id)} title="Delete reminder"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all shrink-0">
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -872,7 +872,7 @@ export default function Activities() {
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5" role="tablist" aria-label="Filter tasks">
                   {([['all', 'All'], ['mine', 'Assigned to me'], ['created', 'Assigned by me']] as const).map(([k, label]) => (
                     <button key={k} type="button" role="tab" aria-selected={taskFilter === k} onClick={() => setTaskFilter(k)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${taskFilter === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${taskFilter === k ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}>
                       {label}
                     </button>
                   ))}
@@ -881,7 +881,7 @@ export default function Activities() {
             </div>
             {!isStudent && (
               <button type="button" onClick={() => setShowAddTask(true)}
-                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-sm`}>
+                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-xs`}>
                 <Plus className="w-4 h-4" /> Add Task
               </button>
             )}
@@ -889,7 +889,7 @@ export default function Activities() {
 
           {isStudent && (
             <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-4">
-              <CheckSquare className="w-3.5 h-3.5 flex-shrink-0" />
+              <CheckSquare className="w-3.5 h-3.5 shrink-0" />
               Tasks assigned to you by your counselor or admin appear here. Open a task to post progress updates or change its status.
             </div>
           )}
@@ -899,22 +899,22 @@ export default function Activities() {
               <input value={newTask.title} onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && createTask()}
                 placeholder="What needs to be done?" autoFocus
-                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-900 placeholder-gray-400 mb-3`} />
+                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-900 placeholder-gray-400 mb-3`} />
               <textarea value={newTask.description} onChange={e => setNewTask(n => ({ ...n, description: e.target.value }))}
                 placeholder="Description (optional)" rows={2}
-                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700 placeholder-gray-400 mb-3 resize-none`} />
+                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-700 placeholder-gray-400 mb-3 resize-none`} />
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <select title="Priority" value={newTask.priority} onChange={e => setNewTask(n => ({ ...n, priority: e.target.value }))}
-                  className={`text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700`}>
+                  className={`text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-700`}>
                   <option value="high">High Priority</option>
                   <option value="medium">Medium Priority</option>
                   <option value="low">Low Priority</option>
                 </select>
                 <input type="date" title="Due date" value={newTask.dueDate} onChange={e => setNewTask(n => ({ ...n, dueDate: e.target.value }))}
-                  className={`text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700`} />
+                  className={`text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-700`} />
               </div>
               <select title="Assign to" value={newTask.assignedTo} onChange={e => setNewTask(n => ({ ...n, assignedTo: e.target.value }))}
-                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-700 mb-3`}>
+                className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-700 mb-3`}>
                 <option value="">{canAssignStaff ? 'Assign to… (optional)' : 'Assign to student (optional)'}</option>
                 {myId && <option value={myId}>Myself</option>}
                 {canAssignStaff && ([['counselor', 'Counselors'], ['appteam', 'Application Team'], ['admin', 'Admins']] as const).map(([dept, label]) => {
@@ -948,9 +948,9 @@ export default function Activities() {
               {/* Pending API tasks */}
               {visibleTasks.filter(task => task.status !== 'completed').sort((a, b) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime()).map(task => (
                 <div key={task._id}>
-                  <div className={`flex items-center gap-3 bg-white border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 transition-all ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
+                  <div className={`flex items-center gap-3 bg-white border border-gray-100 px-4 py-3.5 shadow-xs hover:border-gray-200 transition-all ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl'}`}>
                     <button type="button" title="Mark complete" onClick={() => toggleApiTask(task._id, task.status)}
-                      className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center flex-shrink-0 hover:border-gray-500 transition-colors" />
+                      className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center shrink-0 hover:border-gray-500 transition-colors" />
                     <div className="flex-1 min-w-0 cursor-pointer" role="button" aria-expanded={expandedTask === task._id} tabIndex={0} onKeyDown={clickOnEnterOrSpace} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
                       <p className="text-sm font-medium text-gray-900">{task.title}</p>
                       {task.description && (
@@ -989,9 +989,9 @@ export default function Activities() {
 
               {/* Pending meeting tasks */}
               {meetingTasks.filter(mt => !mt.done).map(task => (
-                <div key={task.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 transition-all">
+                <div key={task.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3.5 shadow-xs hover:border-gray-200 transition-all">
                   <button type="button" title="Mark complete" onClick={() => toggleMeetingTask(task.id)}
-                    className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center flex-shrink-0 hover:border-gray-500 transition-colors" />
+                    className="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center shrink-0 hover:border-gray-500 transition-colors" />
                   <Link to={`/${role}/${task.page}`} className="flex-1 min-w-0 group">
                     <p className="text-sm font-medium text-gray-900 group-hover:underline">{task.title}</p>
                     {task.due && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Clock className="w-3 h-3" />Due {task.due}</p>}
@@ -1024,7 +1024,7 @@ export default function Activities() {
                     <div key={task._id}>
                       <div className={`flex items-center gap-3 bg-gray-50 border border-gray-100 px-4 py-3 ${expandedTask === task._id ? 'rounded-t-xl' : 'rounded-xl opacity-60'}`}>
                         <button type="button" title="Mark incomplete" onClick={() => toggleApiTask(task._id, task.status)}
-                          className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                          className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center shrink-0">
                           <Check className="w-3 h-3 text-white" />
                         </button>
                         <div className="flex-1 min-w-0 cursor-pointer" role="button" aria-expanded={expandedTask === task._id} tabIndex={0} onKeyDown={clickOnEnterOrSpace} onClick={() => setExpandedTask(expandedTask === task._id ? null : task._id)}>
@@ -1057,7 +1057,7 @@ export default function Activities() {
                   {meetingTasks.filter(mt => mt.done).map(task => (
                     <div key={task.id} className="flex items-center gap-3 bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 opacity-60">
                       <button type="button" title="Mark incomplete" onClick={() => toggleMeetingTask(task.id)}
-                        className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                        className="w-5 h-5 rounded-md bg-green-500 border-2 border-green-500 flex items-center justify-center shrink-0">
                         <Check className="w-3 h-3 text-white" />
                       </button>
                       <Link to={`/${role}/${task.page}`} className="flex-1 min-w-0">
@@ -1088,7 +1088,7 @@ export default function Activities() {
             </span>
             {!isStudent && (
               <button type="button" onClick={() => setShowAddEvent(true)}
-                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-sm`}>
+                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-xs`}>
                 <Plus className="w-4 h-4" /> Add Event
               </button>
             )}
@@ -1099,28 +1099,28 @@ export default function Activities() {
               <h3 className="text-sm font-semibold text-gray-800 mb-4">New Event</h3>
               <div className="grid grid-cols-1 gap-3">
                 <input value={newEvent.title} onChange={e => setNewEvent(n => ({ ...n, title: e.target.value }))}
-                  placeholder="Event title" className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none ${t.formBorder} text-gray-900 placeholder-gray-400`} />
+                  placeholder="Event title" className={`w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden ${t.formBorder} text-gray-900 placeholder-gray-400`} />
                 <div className="grid grid-cols-2 gap-3">
                   <input type="date" title="Event date" value={newEvent.date} onChange={e => setNewEvent(n => ({ ...n, date: e.target.value }))}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700" />
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700" />
                   <input type="time" title="Event time" value={newEvent.time} onChange={e => setNewEvent(n => ({ ...n, time: e.target.value }))}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700" />
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700" />
                 </div>
                 <select title="Event type" value={newEvent.type} onChange={e => setNewEvent(n => ({ ...n, type: e.target.value }))}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700">
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700">
                   <option value="meeting">Meeting</option>
                   <option value="university">University</option>
                   <option value="workshop">Workshop</option>
                   <option value="seminar">Seminar</option>
                 </select>
                 <select title="Assign to student" value={newEvent.studentName} onChange={e => setNewEvent(n => ({ ...n, studentName: e.target.value }))}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700">
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700">
                   <option value="">Assign to student (optional)</option>
                   {students.map(s => <option key={s._id} value={s.name}>{s.name}</option>)}
                 </select>
                 <textarea value={newEvent.desc} onChange={e => setNewEvent(n => ({ ...n, desc: e.target.value }))}
                   placeholder="Description (optional)" rows={2}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700 placeholder-gray-400 resize-none" />
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700 placeholder-gray-400 resize-none" />
               </div>
               <div className="flex gap-2 justify-end mt-4">
                 <button type="button" onClick={() => setShowAddEvent(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"><X className="w-3 h-3" /> Cancel</button>
@@ -1175,7 +1175,7 @@ export default function Activities() {
             </div>
             {!isStudent && (
               <button type="button" onClick={() => setShowScheduleCall(true)}
-                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-sm`}>
+                className={`flex items-center gap-2 px-4 py-2 ${t.actionBtn} text-white text-sm font-medium rounded-xl ${t.actionBtnHover} transition-colors shadow-xs`}>
                 <Plus className="w-4 h-4" /> Schedule Call
               </button>
             )}
@@ -1183,7 +1183,7 @@ export default function Activities() {
 
           {isStudent && (
             <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-4">
-              <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+              <Phone className="w-3.5 h-3.5 shrink-0" />
               Calls are scheduled for you by your counselor or admin.
               {newCallCount > 0 && (
                 <span className="ml-auto flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 rounded-full px-2 py-0.5 font-semibold animate-pulse">
@@ -1206,7 +1206,7 @@ export default function Activities() {
                       const s = students.find(st => st._id === e.target.value);
                       setNewCall(n => ({ ...n, studentId: e.target.value, name: s?.name || '' }));
                     }}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700"
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700"
                   >
                     <option value="">Select person</option>
                     {students.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
@@ -1216,12 +1216,12 @@ export default function Activities() {
                     value={newCall.name}
                     onChange={e => setNewCall(n => ({ ...n, name: e.target.value }))}
                     placeholder="Person's name"
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700 placeholder-gray-400"
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700 placeholder-gray-400"
                   />
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <select title="Call type" value={newCall.type} onChange={e => setNewCall(n => ({ ...n, type: e.target.value }))}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700">
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700">
                     <option value="video">Video Call</option>
                     <option value="audio">Audio Call</option>
                   </select>
@@ -1230,14 +1230,14 @@ export default function Activities() {
                     title="Call date"
                     value={newCall.date}
                     onChange={e => setNewCall(n => ({ ...n, date: e.target.value }))}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700"
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700"
                   />
                 </div>
                 <input type="time" title="Call time" value={newCall.time} onChange={e => setNewCall(n => ({ ...n, time: e.target.value }))}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 text-gray-700" />
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-purple-400 text-gray-700" />
                 {newCall.name && newCall.date && newCall.time && (
                   <div className="flex items-start gap-2 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2.5 text-xs text-sky-700">
-                    <Bell className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <Bell className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>
                       A reminder and calendar event will be added for both you and <strong>{newCall.name}</strong>.
                       They will also receive a notification.
@@ -1271,8 +1271,8 @@ export default function Activities() {
                   <div className="space-y-2">
                     {groupCalls.map(call => (
                       <div key={call.id}
-                        className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 px-4 py-3.5 shadow-sm hover:border-gray-200 hover:shadow-md transition-all">
-                        <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${CALL_STATUS_BG[call.status]}`}>
+                        className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 px-4 py-3.5 shadow-xs hover:border-gray-200 hover:shadow-md transition-all">
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${CALL_STATUS_BG[call.status]}`}>
                           {call.type === 'video'
                             ? <Video className={`w-5 h-5 ${CALL_STATUS_COLOR[call.status]}`} />
                             : call.status === 'missed'

@@ -30,7 +30,7 @@ export default function NextStepCard() {
       aria-label={t('nextStep.label')}
       className={`rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center gap-4 ${urgent ? 'bg-amber-50 border-amber-200' : done ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}
     >
-      <Icon aria-hidden="true" className={`w-8 h-8 flex-shrink-0 ${urgent ? 'text-amber-600' : done ? 'text-emerald-600' : 'text-blue-600'}`} />
+      <Icon aria-hidden="true" className={`w-8 h-8 shrink-0 ${urgent ? 'text-amber-600' : done ? 'text-emerald-600' : 'text-blue-600'}`} />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('nextStep.label')}</p>
         <h2 className="font-semibold text-gray-900">{step.title}</h2>
@@ -38,7 +38,7 @@ export default function NextStepCard() {
       </div>
       <Link
         to={step.action.to}
-        className="inline-flex items-center justify-center gap-1.5 bg-[#0d1b4b] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#152258] flex-shrink-0"
+        className="inline-flex items-center justify-center gap-1.5 bg-[#0d1b4b] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#152258] shrink-0"
       >
         {step.action.label} <ArrowRight className="w-4 h-4" aria-hidden="true" />
       </Link>

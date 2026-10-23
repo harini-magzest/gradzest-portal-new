@@ -16,7 +16,7 @@ const PLACEHOLDER = {
 function DraftBanner() {
   return (
     <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-sm mb-8" role="note">
-      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
       <p><strong>Draft — pending legal review.</strong> This document is being finalised and may change. Questions: {PLACEHOLDER.email}.</p>
     </div>
   );

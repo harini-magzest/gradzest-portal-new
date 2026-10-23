@@ -53,7 +53,7 @@ export default function ParentView() {
 
         {data && (
           <>
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
               <h2 className="font-semibold text-gray-900 mb-3">Applications</h2>
               {data.applications.length === 0 ? <p className="text-sm text-gray-400">No applications yet.</p> : (
                 <div className="space-y-5">
@@ -88,7 +88,7 @@ export default function ParentView() {
             </section>
 
             {data.documents && (
-              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
                 <h2 className="font-semibold text-gray-900 mb-2">Documents</h2>
                 <p className="text-sm text-gray-600">{data.documents.verified} verified · {data.documents.uploaded} awaiting review · {data.documents.missing} still needed</p>
                 {data.documents.stillNeeded.length > 0 && (
@@ -101,7 +101,7 @@ export default function ParentView() {
             )}
 
             {data.upcomingMeetings.length > 0 && (
-              <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <section className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
                 <h2 className="font-semibold text-gray-900 mb-2">Upcoming calls</h2>
                 <ul className="text-sm text-gray-700 space-y-1">{data.upcomingMeetings.map((m, i) => <li key={i}>{m.title} <span className="text-gray-400">· {when(m.date, m.time)}</span></li>)}</ul>
               </section>

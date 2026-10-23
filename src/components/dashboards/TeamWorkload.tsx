@@ -17,10 +17,10 @@ export default function TeamWorkload() {
   }, []);
 
   if (error) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!rows) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading team workload…</div>;
+  if (!rows) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading team workload…</div>;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4"><Users className="w-4 h-4" /> Team workload</h2>
       {rows.length === 0 ? <p className="text-sm text-gray-400">No counselors yet.</p> : (
         <div className="overflow-x-auto">

@@ -56,7 +56,7 @@ function OfferTypeBanner({ offerType, compact = false }: { offerType?: string; c
   return (
     <div className={`${c.bg} border ${c.border} rounded-xl px-4 py-4`}>
       <div className="flex items-start gap-3">
-        <Award className={`w-5 h-5 ${c.icon} flex-shrink-0 mt-0.5`} />
+        <Award className={`w-5 h-5 ${c.icon} shrink-0 mt-0.5`} />
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className={`text-sm font-bold ${c.title}`}>Offer Received</span>
@@ -73,7 +73,7 @@ function DetailRow({ label, value }: { label: string; value?: string | boolean |
   if (!value && value !== false) return null;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
-      <span className="text-xs text-gray-400 sm:w-36 flex-shrink-0">{label}</span>
+      <span className="text-xs text-gray-400 sm:w-36 shrink-0">{label}</span>
       <span className="text-sm text-gray-700 font-medium">{String(value)}</span>
     </div>
   );
@@ -108,11 +108,11 @@ function ApplicationCard({ app, onAccept, onReject, accepting, rejecting, onComm
   const isRecentlyUpdated = lastUpdated && (Date.now() - new Date(lastUpdated).getTime()) < 7 * 24 * 60 * 60 * 1000;
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-shadow ${isRecentlyUpdated ? 'border-blue-200 ring-1 ring-blue-100' : 'border-gray-100'}`}>
+    <div className={`bg-white rounded-2xl border shadow-xs hover:shadow-md transition-shadow ${isRecentlyUpdated ? 'border-blue-200 ring-1 ring-blue-100' : 'border-gray-100'}`}>
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl flex-shrink-0">
+            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xl shrink-0">
               {app.universityName ? app.universityName.charAt(0) : <span className="text-blue-300 text-sm">?</span>}
             </div>
             <div>
@@ -390,7 +390,7 @@ function ApplicationCard({ app, onAccept, onReject, accepting, rejecting, onComm
                   { key: 'sop', label: 'Statement of Purpose' },
                 ] as { key: string; label: string }[]).map(doc => (
                   <div key={doc.key} className="flex items-center gap-1.5 text-sm">
-                    <CheckCircle className={`w-3.5 h-3.5 flex-shrink-0 ${app.documentsChecklist[doc.key as keyof typeof app.documentsChecklist] ? 'text-green-500' : 'text-gray-300'}`} />
+                    <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${app.documentsChecklist[doc.key as keyof typeof app.documentsChecklist] ? 'text-green-500' : 'text-gray-300'}`} />
                     <span className={app.documentsChecklist[doc.key as keyof typeof app.documentsChecklist] ? 'text-gray-700' : 'text-gray-400'}>{doc.label}</span>
                   </div>
                 ))}
@@ -422,7 +422,7 @@ function ApplicationCard({ app, onAccept, onReject, accepting, rejecting, onComm
                     <div className={`max-w-[78%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
                       c.authorRole === 'student'
                         ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
+                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-xs'
                     }`}>
                       <p className={`font-semibold mb-0.5 ${c.authorRole === 'student' ? 'text-blue-100' : 'text-blue-600'}`}>
                         {c.authorRole === 'counselor' ? `${c.author} · Counselor` : 'You'}
@@ -447,11 +447,11 @@ function ApplicationCard({ app, onAccept, onReject, accepting, rejecting, onComm
                 onChange={e => setCommentText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); } }}
                 placeholder="Ask a question about your application…"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white"
                 disabled={submitting}
               />
               <button type="button" aria-label="Send message" onClick={submitComment} disabled={submitting || !commentText.trim()}
-                className="flex items-center justify-center w-9 h-9 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0">
+                className="flex items-center justify-center w-9 h-9 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -530,9 +530,9 @@ export default function StudentApplications() {
       </div>
 
       {/* Learning Hub Banner */}
-      <div className="bg-gradient-to-r from-[#0d1b4b] to-indigo-700 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-linear-to-r from-[#0d1b4b] to-indigo-700 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -541,7 +541,7 @@ export default function StudentApplications() {
           </div>
         </div>
         <Link to="/student/learning"
-          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-semibold text-sm px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap flex-shrink-0">
+          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-semibold text-sm px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap shrink-0">
           Open Learning Hub <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -558,8 +558,8 @@ export default function StudentApplications() {
         ] as const).map(({ key, label, inactive, active }) => (
           <button type="button" key={key} onClick={() => setFilter(key)}
             aria-pressed={filter === key}
-            className={`py-2.5 px-3 rounded-2xl text-center border flex flex-col items-center justify-center transition-all hover:shadow-sm ${
-              filter === key ? `${active} shadow-sm` : inactive
+            className={`py-2.5 px-3 rounded-2xl text-center border flex flex-col items-center justify-center transition-all hover:shadow-xs ${
+              filter === key ? `${active} shadow-xs` : inactive
             }`}>
             <div className="text-xl font-bold leading-tight">{counts[key]}</div>
             <div className="text-[11px] font-medium opacity-80 truncate max-w-full">{label}</div>
@@ -568,7 +568,7 @@ export default function StudentApplications() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-xs">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-700 mb-2">No applications yet</h3>
           <p className="text-gray-400 mb-6">Start exploring universities and apply to your dream programs.</p>

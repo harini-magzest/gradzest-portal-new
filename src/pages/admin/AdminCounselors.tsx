@@ -180,14 +180,14 @@ function CounselorFormModal({
     }
   };
 
-  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
               <UserCog className="w-5 h-5 text-purple-600" />
@@ -236,7 +236,7 @@ function CounselorFormModal({
                   <input value={form.title} onChange={e => set('title', e.target.value)}
                     placeholder="Custom title" className={inputCls} autoFocus />
                   <button type="button" onClick={() => { setCustomTitle(false); set('title', ''); }}
-                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap flex-shrink-0">
+                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap shrink-0">
                     Use preset
                   </button>
                 </div>
@@ -287,7 +287,7 @@ function CounselorFormModal({
                 return (
                   <button key={s} type="button" onClick={() => toggleSpec(s)}
                     className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all active:scale-95
-                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
+                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
                     {sel && <Check className="w-3 h-3" />}{s}
                   </button>
                 );
@@ -297,13 +297,13 @@ function CounselorFormModal({
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
             Cancel
           </button>
           <button type="button" onClick={handleSubmit as any} disabled={saving}
-            className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
+            className="px-5 py-2 text-sm font-semibold text-white bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
             {saving ? <><Spinner size={4} white />Saving…</> : isEdit ? 'Save Changes' : 'Create Counselor'}
           </button>
         </div>
@@ -363,13 +363,13 @@ function AppTeamFormModal({
     }
   };
 
-  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+  const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:border-transparent';
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">
               <ClipboardList className="w-5 h-5 text-orange-600" />
@@ -410,13 +410,13 @@ function AppTeamFormModal({
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
             Cancel
           </button>
           <button type="button" onClick={handleSubmit as any} disabled={saving}
-            className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
+            className="px-5 py-2 text-sm font-semibold text-white bg-linear-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
             {saving ? <><Spinner size={4} white />Saving…</> : isEdit ? 'Save Changes' : 'Create Member'}
           </button>
         </div>
@@ -465,10 +465,10 @@ function AssignStudentsModal({
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Assign Students</h2>
             <p className="text-sm text-gray-500 mt-0.5">to {counselor.name}</p>
@@ -478,12 +478,12 @@ function AssignStudentsModal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-100 shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search students…"
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-50">
@@ -493,8 +493,8 @@ function AssignStudentsModal({
             return (
               <label key={id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer">
                 <input type="checkbox" checked={checked} onChange={() => toggle(id)}
-                  className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                  className="w-4 h-4 rounded-sm border-gray-300 text-purple-600 focus:ring-purple-500" />
+                <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
                   {initials(s.name)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -508,7 +508,7 @@ function AssignStudentsModal({
             <p className="text-center text-sm text-gray-400 py-8">No students found</p>
           )}
         </div>
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 shrink-0">
           <span className="text-sm text-gray-500">{selected.size} selected</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose}
@@ -516,7 +516,7 @@ function AssignStudentsModal({
               Cancel
             </button>
             <button type="button" onClick={handleSave} disabled={saving}
-              className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
+              className="px-5 py-2 text-sm font-semibold text-white bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md disabled:opacity-50 transition-all">
               {saving ? <><Spinner size={4} white />Saving…</> : 'Save'}
             </button>
           </div>
@@ -536,14 +536,14 @@ function CounselorDetailModal({
 }) {
   const color = avatarColor(counselor.name);
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
         {/* Banner */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 pt-6 pb-5">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 pt-6 pb-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className={`w-16 h-16 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg`}>
+              <div className={`w-16 h-16 bg-linear-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg`}>
                 {initials(counselor.name)}
               </div>
               <div>
@@ -553,7 +553,7 @@ function CounselorDetailModal({
               </div>
             </div>
             <button aria-label="Close" type="button" onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0">
+              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all shrink-0">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -642,11 +642,11 @@ export function CounselorProfileCard({
 }) {
   const color = avatarColor(counselor.name);
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 py-5 flex flex-wrap items-center gap-5">
+      <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 px-6 py-5 flex flex-wrap items-center gap-5">
         <div className="flex items-center gap-4 flex-1 min-w-[240px]">
-          <div className={`w-16 h-16 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0`}>
+          <div className={`w-16 h-16 bg-linear-to-br ${color} rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shrink-0`}>
             {initials(counselor.name)}
           </div>
           <div className="min-w-0">
@@ -742,7 +742,7 @@ function StatusPill({ status }: { status: string }) {
   const s = STATUS_COLORS[status] || { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400', label: status };
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${s.bg} ${s.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
       {s.label}
     </span>
   );
@@ -771,7 +771,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
     if (value === null || value === undefined || value === '') return null;
     return (
       <div className="flex gap-3 py-2.5 border-b border-gray-100 last:border-0">
-        <span className="text-xs text-gray-400 w-36 flex-shrink-0 pt-0.5">{label}</span>
+        <span className="text-xs text-gray-400 w-36 shrink-0 pt-0.5">{label}</span>
         <span className="text-sm text-gray-800 font-medium flex-1">{String(value)}</span>
       </div>
     );
@@ -785,15 +785,15 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
   ];
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/70 backdrop-blur-xs z-60 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* Banner */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 pt-5 pb-4 flex-shrink-0 rounded-t-2xl">
+        <div className="bg-linear-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 pt-5 pb-4 shrink-0 rounded-t-2xl">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg flex-shrink-0">
+              <div className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0">
                 {initials(student.name)}
               </div>
               <div>
@@ -815,7 +815,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
               </div>
             </div>
             <button aria-label="Close" type="button" onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all flex-shrink-0">
+              className="w-9 h-9 flex items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-all shrink-0">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -845,7 +845,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-gray-100 px-2 flex-shrink-0 bg-gray-50/60">
+        <div className="flex border-b border-gray-100 px-2 shrink-0 bg-gray-50/60">
           {TABS.map(t => (
             <button key={t.key} type="button" onClick={() => setTab(t.key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap
@@ -912,7 +912,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
                             <p className="text-sm font-bold text-gray-900 truncate">{app.universityName || 'Unknown University'}</p>
                             <p className="text-xs text-gray-500 truncate mt-0.5">{app.courseName || '—'}</p>
                           </div>
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${st.bg} ${st.text}`}>
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap shrink-0 ${st.bg} ${st.text}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
                           </span>
                         </div>
@@ -942,7 +942,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
                 <div className="space-y-2">
                   {docs.map((doc: any, i: number) => (
                     <div key={doc._id || i} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
                         ${doc.status === 'verified' ? 'bg-green-100' : doc.status === 'rejected' ? 'bg-red-100' : 'bg-amber-100'}`}>
                         <BadgeCheck className={`w-4 h-4 ${doc.status === 'verified' ? 'text-green-600' : doc.status === 'rejected' ? 'text-red-600' : 'text-amber-600'}`} />
                       </div>
@@ -950,7 +950,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
                         <p className="text-sm font-semibold text-gray-800 truncate">{doc.name || doc.type || 'Document'}</p>
                         {doc.uploadedDate && <p className="text-xs text-gray-400 mt-0.5">Uploaded: {doc.uploadedDate}</p>}
                       </div>
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0
                         ${doc.status === 'verified' ? 'bg-green-100 text-green-700' :
                           doc.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                         {doc.status ? doc.status.charAt(0).toUpperCase() + doc.status.slice(1) : 'Pending'}
@@ -1003,7 +1003,7 @@ function StudentInfoModal({ student, onClose }: { student: any; onClose: () => v
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Close
@@ -1040,12 +1040,12 @@ export function CounselorStatsModal({
     {selectedStudent && (
       <StudentInfoModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
     )}
-    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{counselor.name}</h2>
             <p className="text-sm text-gray-400 mt-0.5">{counselor.title || 'Education Counselor'}</p>
@@ -1057,7 +1057,7 @@ export function CounselorStatsModal({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-4 pt-3 pb-0 flex-shrink-0">
+        <div className="flex gap-1 px-4 pt-3 pb-0 shrink-0">
           {tabs.map(tab => (
             <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold border-b-2 transition-all
@@ -1087,14 +1087,14 @@ export function CounselorStatsModal({
               ) : metrics.myStudents.map((s: any) => (
                 <button key={normalId(s)} type="button" onClick={() => setSelectedStudent(s)}
                   className="w-full flex items-center gap-3 px-5 py-3 hover:bg-blue-50 active:bg-blue-100 transition-colors text-left group">
-                  <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                  <div className="w-9 h-9 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {initials(s.name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 truncate transition-colors">{s.name}</p>
                     <p className="text-xs text-gray-400 truncate">{s.email}</p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-gray-400">{s.applications?.length ?? 0} apps</span>
                     <StatusPill status={s.status || 'active'} />
                   </div>
@@ -1117,7 +1117,7 @@ export function CounselorStatsModal({
                   <button key={app._id || i} type="button"
                     onClick={() => student && setSelectedStudent(student)}
                     className="w-full flex items-start gap-3 px-5 py-3 hover:bg-green-50 active:bg-green-100 transition-colors text-left group">
-                    <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-0.5">
+                    <div className="w-9 h-9 bg-linear-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0 mt-0.5">
                       {initials(student?.name || '?')}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1138,7 +1138,7 @@ export function CounselorStatsModal({
           {activeTab === 'visa' && (
             <div className="p-5 space-y-5">
               {/* Big rate display */}
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-5 text-center border border-purple-100">
+              <div className="bg-linear-to-br from-purple-50 to-indigo-50 rounded-2xl p-5 text-center border border-purple-100">
                 <p className="text-5xl font-black text-purple-700">{metrics.visaRate}%</p>
                 <p className="text-sm text-purple-500 font-medium mt-1">Visa Success Rate</p>
               </div>
@@ -1164,7 +1164,7 @@ export function CounselorStatsModal({
                   <span>{metrics.enrolledApps.length} / {metrics.submittedApps.length} apps</span>
                 </div>
                 <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all"
+                  <div className="h-full bg-linear-to-r from-purple-500 to-indigo-500 rounded-full transition-all"
                     style={{ width: `${metrics.visaRate}%` }} />
                 </div>
               </div>
@@ -1182,15 +1182,15 @@ export function CounselorStatsModal({
                       return (
                         <button key={normalId(s)} type="button" onClick={() => setSelectedStudent(s)}
                           className="w-full flex items-center gap-3 bg-gray-50 hover:bg-purple-50 rounded-xl px-3 py-2 transition-colors text-left group">
-                          <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                          <div className="w-7 h-7 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] shrink-0">
                             {initials(s.name)}
                           </div>
                           <p className="text-xs font-medium text-gray-800 group-hover:text-purple-700 flex-1 min-w-0 truncate transition-colors">{s.name}</p>
-                          <span className="text-xs text-gray-400 flex-shrink-0">{sSubmitted} apps</span>
+                          <span className="text-xs text-gray-400 shrink-0">{sSubmitted} apps</span>
                           {rate !== null ? (
-                            <span className={`text-xs font-bold flex-shrink-0 ${rate >= 50 ? 'text-green-600' : 'text-amber-600'}`}>{rate}%</span>
+                            <span className={`text-xs font-bold shrink-0 ${rate >= 50 ? 'text-green-600' : 'text-amber-600'}`}>{rate}%</span>
                           ) : (
-                            <span className="text-xs text-gray-300 flex-shrink-0">—</span>
+                            <span className="text-xs text-gray-300 shrink-0">—</span>
                           )}
                         </button>
                       );
@@ -1203,7 +1203,7 @@ export function CounselorStatsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Close
@@ -1404,10 +1404,10 @@ return (
       <div className="space-y-6">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 {activeRole === 'counselor' ? <UserCog className="w-5 h-5 text-white" /> : <ClipboardList className="w-5 h-5 text-white" />}
               </div>
               <div>
@@ -1421,7 +1421,7 @@ return (
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
               </button>
               <button type="button" onClick={() => activeRole === 'counselor' ? setShowCreate(true) : setShowCreateAppTeam(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
+                className="flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-xs">
                 <Plus className="w-4 h-4" />{activeRole === 'counselor' ? 'New Counselor' : 'New Application Team Member'}
               </button>
             </div>
@@ -1431,14 +1431,14 @@ return (
           <div className="flex gap-1 mt-5 bg-black/15 rounded-xl p-1 w-fit">
             <button type="button" onClick={() => setActiveRole('counselor')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activeRole === 'counselor' ? 'bg-white text-purple-700 shadow-sm' : 'text-purple-100 hover:text-white'
+                activeRole === 'counselor' ? 'bg-white text-purple-700 shadow-xs' : 'text-purple-100 hover:text-white'
               }`}>
               <UserCog className="w-4 h-4" />Counselors
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeRole === 'counselor' ? 'bg-purple-100 text-purple-700' : 'bg-white/15'}`}>{counselors.length}</span>
             </button>
             <button type="button" onClick={() => setActiveRole('appteam')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activeRole === 'appteam' ? 'bg-white text-purple-700 shadow-sm' : 'text-purple-100 hover:text-white'
+                activeRole === 'appteam' ? 'bg-white text-purple-700 shadow-xs' : 'text-purple-100 hover:text-white'
               }`}>
               <ClipboardList className="w-4 h-4" />Application Team
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeRole === 'appteam' ? 'bg-purple-100 text-purple-700' : 'bg-white/15'}`}>{appTeamMembers.length}</span>
@@ -1493,8 +1493,8 @@ return (
                 subColor: unassignedStudents > 0 ? 'text-rose-600' : 'text-green-600',
               },
             ].map(card => (
-              <div key={card.label} className="bg-white rounded-2xl border border-purple-100 shadow-sm p-4 flex items-start gap-3 hover:border-purple-300 hover:shadow-md transition-all">
-                <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <div key={card.label} className="bg-white rounded-2xl border border-purple-100 shadow-xs p-4 flex items-start gap-3 hover:border-purple-300 hover:shadow-md transition-all">
+                <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center shrink-0`}>
                   {card.icon}
                 </div>
                 <div>
@@ -1508,8 +1508,8 @@ return (
         )}
         {!loading && activeRole === 'appteam' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 flex items-start gap-3">
-              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="bg-white rounded-2xl border border-orange-100 shadow-xs p-4 flex items-start gap-3">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
                 <ClipboardList className="w-5 h-5 text-orange-600" />
               </div>
               <div>
@@ -1528,14 +1528,14 @@ return (
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder={activeRole === 'counselor' ? 'Search by name, email or phone...' : 'Search by name or email...'}
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm" />
+                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-xs" />
             </div>
 
             {/* Specialization dropdown — counselors only, App Team has no specialization field */}
             {activeRole === 'counselor' && (
               <div className="relative">
                 <button type="button" onClick={() => setShowSpecMenu(v => !v)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-xs transition-colors">
                   {filterSpec || 'Specialization'}<ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
                 {showSpecMenu && (
@@ -1560,7 +1560,7 @@ return (
               const total = activeRole === 'counselor' ? counselors.length : appTeamMembers.length;
               return (
                 <button type="button" onClick={() => setOnlyOnline(v => !v)} aria-pressed={onlyOnline}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border shadow-sm transition-colors ${
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border shadow-xs transition-colors ${
                     onlyOnline ? 'bg-green-50 border-green-300 text-green-800' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
                   <span className={`w-2.5 h-2.5 rounded-full ${n > 0 ? 'bg-green-500' : 'bg-red-500'}`} aria-hidden="true" />
                   {n} of {total} online{onlyOnline ? ' · showing online only' : ''}
@@ -1583,14 +1583,14 @@ return (
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 animate-pulse">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0" />
+                  <div className="w-12 h-12 bg-gray-200 rounded-full shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 bg-gray-200 rounded-sm w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded-sm w-1/2" />
                   </div>
                 </div>
-                <div className="h-3 bg-gray-100 rounded w-full" />
-                <div className="h-3 bg-gray-100 rounded w-4/5" />
+                <div className="h-3 bg-gray-100 rounded-sm w-full" />
+                <div className="h-3 bg-gray-100 rounded-sm w-4/5" />
                 <div className="flex gap-2 pt-1">
                   <div className="h-7 bg-gray-100 rounded-lg flex-1" />
                   <div className="h-7 bg-gray-100 rounded-lg flex-1" />
@@ -1602,7 +1602,7 @@ return (
 
         {/* Grid — Counselors */}
         {activeRole === 'counselor' && (!loading && filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-14 flex flex-col items-center justify-center text-gray-400">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-14 flex flex-col items-center justify-center text-gray-400">
             <UserCog className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-medium">{search || filterSpec ? 'No counselors match your search.' : 'No counselors yet.'}</p>
             {!search && !filterSpec && (
@@ -1613,7 +1613,7 @@ return (
             )}
           </div>
         ) : !loading && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
             <div className="divide-y divide-gray-50">
               {filtered.map(c => {
                 const id = normalId(c);
@@ -1622,7 +1622,7 @@ return (
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
                     <button type="button" onClick={() => navigate(`/admin/counselors/${id}/performance`)} aria-label={`Open ${c.name}'s profile`}
-                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      className={`w-11 h-11 bg-linear-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0`}>
                       {initials(c.name)}
                     </button>
                     <div className="flex-1 min-w-0">
@@ -1631,7 +1631,7 @@ return (
                           className="text-sm font-semibold text-gray-900 truncate hover:text-purple-700 hover:underline transition-colors">
                           {c.name}
                         </button>
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" title="Active" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" title="Active" />
                       </div>
                       <p className="text-xs text-gray-400 truncate">{c.title || 'Education Counselor'} · {c.experience ?? 0} yrs exp</p>
                       {tags.length > 0 && (
@@ -1642,7 +1642,7 @@ return (
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })} title="Chat"
                         className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
                         <MessageSquare className="w-4 h-4" />
@@ -1669,7 +1669,7 @@ return (
 
         {/* List — Application Team (simple: no counselor-style metrics apply here) */}
         {activeRole === 'appteam' && (!loading && filteredAppTeam.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-14 flex flex-col items-center justify-center text-gray-400">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-14 flex flex-col items-center justify-center text-gray-400">
             <ClipboardList className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-medium">{search ? 'No Application Team members match your search.' : 'No Application Team members yet.'}</p>
             {!search && (
@@ -1680,7 +1680,7 @@ return (
             )}
           </div>
         ) : !loading && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
             <div className="divide-y divide-gray-50">
               {filteredAppTeam.map(m => {
                 const id = normalId(m);
@@ -1688,7 +1688,7 @@ return (
                 return (
                   <div key={id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
                     <button type="button" onClick={() => setEditingAppTeam(m)} aria-label={`Open ${m.name}'s profile`}
-                      className={`w-11 h-11 bg-gradient-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      className={`w-11 h-11 bg-linear-to-br ${color} rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0`}>
                       {initials(m.name)}
                     </button>
                     <div className="flex-1 min-w-0">
@@ -1698,8 +1698,8 @@ return (
                       </button>
                       <p className="text-xs text-gray-400 truncate">{m.email}</p>
                     </div>
-                    <div className="hidden sm:block flex-shrink-0"><PresenceLabel userId={id} /></div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="hidden sm:block shrink-0"><PresenceLabel userId={id} /></div>
+                    <div className="flex items-center gap-2 shrink-0">
                       <button type="button" onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: m.name } } })}
                         title="Chat"
                         className="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors">
@@ -1724,7 +1724,7 @@ return (
 
       {/* Close dropdowns on outside click */}
       {showSpecMenu && (
-        <div role="presentation" className="fixed inset-0 z-[5]" onClick={() => setShowSpecMenu(false)} />
+        <div role="presentation" className="fixed inset-0 z-5" onClick={() => setShowSpecMenu(false)} />
       )}
     </>
   );

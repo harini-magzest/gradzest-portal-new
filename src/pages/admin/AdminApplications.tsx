@@ -129,11 +129,11 @@ function SubscriberModal({
 
   return (
     <div role="presentation"
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 shrink-0">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900">Follow-up</h2>
             <p className="text-xs text-gray-500 mt-0.5 truncate">{sub.name || 'No name'} · {sub.email}</p>
@@ -152,7 +152,7 @@ function SubscriberModal({
                 <button key={s.value} type="button" onClick={() => setLeadStatus(s.value)}
                   className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition-all
                     ${leadStatus === s.value
-                      ? `${s.className} shadow-sm ring-2 ring-offset-1 ring-purple-300`
+                      ? `${s.className} shadow-xs ring-2 ring-offset-1 ring-purple-300`
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
                   {s.label}
                 </button>
@@ -167,7 +167,7 @@ function SubscriberModal({
               onChange={e => setNotes(e.target.value)}
               rows={4}
               placeholder="Call outcome, preferred country, intake, budget…"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
             />
           </div>
 
@@ -185,7 +185,7 @@ function SubscriberModal({
                 value={counselorId}
                 onChange={e => setCounselorId(e.target.value)}
                 aria-label="Assign to counselor"
-                className="w-full appearance-none px-3 py-2.5 pr-8 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                className="w-full appearance-none px-3 py-2.5 pr-8 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white"
               >
                 <option value="">Don't assign</option>
                 {counselors.map(c => (
@@ -201,7 +201,7 @@ function SubscriberModal({
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
                     <select value={priority} onChange={e => setPriority(e.target.value)} aria-label="Task priority"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white">
                       <option value="high">High</option>
                       <option value="medium">Medium</option>
                       <option value="low">Low</option>
@@ -210,7 +210,7 @@ function SubscriberModal({
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Due date</label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} aria-label="Due date"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                   </div>
                 </div>
                 <textarea
@@ -218,7 +218,7 @@ function SubscriberModal({
                   onChange={e => setInstructions(e.target.value)}
                   rows={2}
                   placeholder="Instructions for the counselor (optional)…"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
                 />
                 <p className="text-xs text-gray-400">The subscriber's contact details and notes are included in the task automatically.</p>
               </div>
@@ -236,13 +236,13 @@ function SubscriberModal({
           )}
         </div>
 
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
             Cancel
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-sm">
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-xs">
             {saving ? <><Spinner size={4} white />Saving…</> : counselorId ? 'Save & Assign' : 'Save'}
           </button>
         </div>
@@ -285,7 +285,7 @@ function UpdateStatusModal({
 
   return (
     <div role="presentation"
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
@@ -314,7 +314,7 @@ function UpdateStatusModal({
                 <button key={s.value} type="button" onClick={() => setStatus(s.value)}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all
                     ${status === s.value
-                      ? `${STATUS_COLORS[s.value]} border-current shadow-sm ring-2 ring-offset-1 ring-current/30`
+                      ? `${STATUS_COLORS[s.value]} border-current shadow-xs ring-2 ring-offset-1 ring-current/30`
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
                   {STATUS_ICONS[s.value]}
                   {s.label}
@@ -330,7 +330,7 @@ function UpdateStatusModal({
                 value={offerType}
                 onChange={e => setOfferType(e.target.value)}
                 aria-label="Offer type"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white"
               >
                 <option value="">Select offer type…</option>
                 <option value="Normal Offer">Normal Offer</option>
@@ -349,7 +349,7 @@ function UpdateStatusModal({
               onChange={e => setNotes(e.target.value)}
               rows={3}
               placeholder="Add a note about this status update…"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400"
             />
           </div>
 
@@ -364,7 +364,7 @@ function UpdateStatusModal({
             Cancel
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-sm">
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-xs">
             {saving ? <><Spinner size={4} white />Saving…</> : 'Save Changes'}
           </button>
         </div>
@@ -559,10 +559,10 @@ export default function AdminApplications() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -584,7 +584,7 @@ export default function AdminApplications() {
               onClick={() => setViewMode('applications')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border
                 ${viewMode === 'applications'
-                  ? 'bg-white text-purple-700 border-white shadow-sm'
+                  ? 'bg-white text-purple-700 border-white shadow-xs'
                   : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'}`}>
               <FileText className="w-4 h-4" />
               Applications
@@ -594,7 +594,7 @@ export default function AdminApplications() {
               onClick={() => setViewMode('subscribers')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border
                 ${viewMode === 'subscribers'
-                  ? 'bg-white text-purple-700 border-white shadow-sm'
+                  ? 'bg-white text-purple-700 border-white shadow-xs'
                   : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'}`}>
               <Users className="w-4 h-4" />
               New Subscribers
@@ -664,7 +664,7 @@ export default function AdminApplications() {
 
         {loadError && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-5">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-800">Failed to load</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
@@ -687,7 +687,7 @@ export default function AdminApplications() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by student, university or course…"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div className="relative">
@@ -695,7 +695,7 @@ export default function AdminApplications() {
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
                   aria-label="Filter by status"
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 text-gray-700"
                 >
                   <option value="all">All Statuses ({allApplications})</option>
                   {ALL_STATUSES.map(s => (
@@ -718,7 +718,7 @@ export default function AdminApplications() {
                 onClick={exportApplications}
                 disabled={appTotal === 0}
                 title="Download filtered applications as Excel"
-                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors shrink-0"
               >
                 <FileDown className="w-3.5 h-3.5" />
                 Download Excel
@@ -743,12 +743,12 @@ export default function AdminApplications() {
                     <div key={`${app.studentId}-${appId}`}
                       className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/30 transition-colors">
                       {/* Student avatar */}
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
+                      <div className="w-10 h-10 bg-linear-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
                         {app.studentName?.charAt(0)}
                       </div>
 
                       {/* Student info */}
-                      <div className="w-36 flex-shrink-0 min-w-0">
+                      <div className="w-36 shrink-0 min-w-0">
                         <Link to={`/admin/students/${app.studentId}`} state={studentNav} onClick={e => openStudent(e, String(app.studentId))} title="Open student profile"
                           className="text-sm font-semibold text-gray-900 hover:text-purple-700 hover:underline truncate block">{app.studentName}</Link>
                         <p className="text-xs text-gray-400 truncate">{app.studentNationality || app.studentEmail}</p>
@@ -762,7 +762,7 @@ export default function AdminApplications() {
                       </div>
 
                       {/* Dates */}
-                      <div className="hidden lg:block text-right flex-shrink-0 w-24">
+                      <div className="hidden lg:block text-right shrink-0 w-24">
                         {app.submittedDate && (
                           <>
                             <p className="text-xs text-gray-400">Submitted</p>
@@ -779,13 +779,13 @@ export default function AdminApplications() {
 
                       {/* Notes */}
                       {app.notes && (
-                        <div className="hidden xl:block w-32 flex-shrink-0">
+                        <div className="hidden xl:block w-32 shrink-0">
                           <p className="text-xs text-gray-400 truncate italic">{app.notes}</p>
                         </div>
                       )}
 
                       {/* Status badge */}
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <StatusBadge status={app.status} />
                       </div>
 
@@ -794,7 +794,7 @@ export default function AdminApplications() {
                         type="button"
                         onClick={() => downloadApplicationReportPdf(app)}
                         title="Download application report PDF"
-                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-purple-700 active:scale-95 transition-all">
+                        className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-purple-700 active:scale-95 transition-all">
                         <Download className="w-3.5 h-3.5" />
                       </button>
 
@@ -802,7 +802,7 @@ export default function AdminApplications() {
                       <button
                         type="button"
                         onClick={() => setEditingApp(app)}
-                        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                           text-purple-600 bg-purple-50 border border-purple-200 hover:bg-purple-100 hover:border-purple-300
                           active:scale-95 transition-all">
                         <Edit2 className="w-3.5 h-3.5" />
@@ -828,7 +828,7 @@ export default function AdminApplications() {
                   value={subSearch}
                   onChange={e => setSubSearch(e.target.value)}
                   placeholder="Search by name, email, phone or notes…"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div className="relative">
@@ -836,7 +836,7 @@ export default function AdminApplications() {
                   value={subStatusFilter}
                   onChange={e => setSubStatusFilter(e.target.value)}
                   aria-label="Filter by lead status"
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 text-gray-700"
                 >
                   <option value="all">All Statuses ({subStats.total})</option>
                   {subStatusCounts.map(s => (
@@ -850,7 +850,7 @@ export default function AdminApplications() {
                   value={subDateFilter}
                   onChange={e => setSubDateFilter(e.target.value as 'all' | '7' | '30')}
                   aria-label="Filter by registration date"
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 text-gray-700"
                 >
                   <option value="all">All time</option>
                   <option value="7">Last 7 days</option>
@@ -870,7 +870,7 @@ export default function AdminApplications() {
                 onClick={exportSubscribers}
                 disabled={subTotal === 0}
                 title="Download filtered subscribers as Excel"
-                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors shrink-0"
               >
                 <FileDown className="w-3.5 h-3.5" />
                 Download Excel
@@ -893,12 +893,12 @@ export default function AdminApplications() {
                   <div key={sub._id || sub.email || i}
                     className="flex items-center gap-4 px-5 py-4 hover:bg-purple-50/30 transition-colors">
                     {/* Avatar */}
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
+                    <div className="w-10 h-10 bg-linear-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
                       {(sub.name || sub.email || '?').charAt(0).toUpperCase()}
                     </div>
 
                     {/* Name */}
-                    <div className="w-36 flex-shrink-0 min-w-0">
+                    <div className="w-36 shrink-0 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">
                         {sub.name || <span className="text-gray-400 italic">No name</span>}
                       </p>
@@ -906,7 +906,7 @@ export default function AdminApplications() {
                         value={sub.leadStatus || 'new'}
                         onChange={e => handleQuickStatus(sub, e.target.value)}
                         aria-label="Lead status"
-                        className={`mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 ${leadStatusOf(sub).className}`}
+                        className={`mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full border cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-purple-400 ${leadStatusOf(sub).className}`}
                       >
                         {LEAD_STATUSES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                       </select>
@@ -915,7 +915,7 @@ export default function AdminApplications() {
                     {/* Email + notes */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <Mail className="w-4 h-4 text-gray-400 shrink-0" />
                         <a href={`mailto:${sub.email}`}
                           className="text-sm text-purple-600 hover:text-purple-800 hover:underline truncate transition-colors">
                           {sub.email}
@@ -923,27 +923,27 @@ export default function AdminApplications() {
                       </div>
                       {sub.assignedToName && (
                         <p className="flex items-center gap-1.5 text-xs text-indigo-600 truncate mt-1">
-                          <Users className="w-3.5 h-3.5 flex-shrink-0" />
+                          <Users className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate">Assigned to {sub.assignedToName}</span>
                         </p>
                       )}
                       {sub.notes && (
                         <p className="flex items-center gap-1.5 text-xs text-gray-400 italic truncate mt-1">
-                          <StickyNote className="w-3.5 h-3.5 flex-shrink-0" />
+                          <StickyNote className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate">{sub.notes}</span>
                         </p>
                       )}
                     </div>
 
                     {/* Phone */}
-                    <div className="hidden sm:flex items-center gap-1.5 w-36 flex-shrink-0">
-                      <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="hidden sm:flex items-center gap-1.5 w-36 shrink-0">
+                      <Phone className="w-4 h-4 text-gray-400 shrink-0" />
                       <p className="text-sm text-gray-600 truncate">{sub.phone || <span className="text-gray-400 italic">—</span>}</p>
                     </div>
 
                     {/* Date */}
-                    <div className="hidden md:flex items-center gap-1.5 w-32 flex-shrink-0 text-right justify-end">
-                      <CalendarDays className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="hidden md:flex items-center gap-1.5 w-32 shrink-0 text-right justify-end">
+                      <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
                       <p className="text-xs text-gray-500">
                         {sub.subscribedAt
                           ? new Date(sub.subscribedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -952,7 +952,7 @@ export default function AdminApplications() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {sub.phone && (
                         <>
                           <a href={`tel:${sub.phone}`} title="Call"

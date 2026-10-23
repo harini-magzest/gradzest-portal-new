@@ -59,7 +59,7 @@ export default function BookCall({ onBooked }: { onBooked: () => void }) {
   };
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CalendarPlus className="w-4 h-4" /> Book a call with your counselor</h2>
       <div className="flex flex-wrap items-end gap-3 mb-3">
         <label className="text-sm text-gray-600">

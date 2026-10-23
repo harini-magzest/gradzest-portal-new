@@ -7,7 +7,7 @@ export default function SkipLink() {
   return (
     <a
       href="#main-content"
-      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000] focus:bg-white focus:text-[#0d1b4b] focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:font-medium"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-10000 focus:bg-white focus:text-[#0d1b4b] focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:font-medium"
     >
       {t('a11y.skipToContent')}
     </a>

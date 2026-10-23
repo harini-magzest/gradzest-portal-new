@@ -206,7 +206,7 @@ export default function IncidentsTab() {
       .catch(e => setActionError({ message: errorText(e), retry: exportCsv }));
   };
 
-  const selectCls = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500';
+  const selectCls = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
   return (
     <div className="space-y-4">
@@ -214,15 +214,15 @@ export default function IncidentsTab() {
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit max-w-full overflow-x-auto">
           {['all', 'open', 'investigating', 'resolved', 'false_positive'].map(s => (
             <button key={s} type="button" onClick={() => patch({ status: s })} aria-pressed={filters.status === s}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filters.status === s ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filters.status === s ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}>
               {s.replace('_', ' ')}
             </button>
           ))}
         </div>
-        <div className="relative flex-1 min-w-[12rem] max-w-xs">
+        <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
           <input value={filters.q} onChange={e => patch({ q: e.target.value })} placeholder="Search title, IP or email…" aria-label="Search incidents"
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
         </div>
         <select value={filters.severity} onChange={e => patch({ severity: e.target.value })} className={selectCls} aria-label="Severity">
           <option value="all">All severities</option>
@@ -264,7 +264,7 @@ export default function IncidentsTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
         {error ? (
           <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
         ) : loading ? (
@@ -281,18 +281,18 @@ export default function IncidentsTab() {
           return (
             <div key={inc._id} className="flex items-center border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
               {(inc.status === 'open' || inc.status === 'investigating') ? (
-                <input type="checkbox" checked={picked.has(inc._id)} onChange={() => togglePick(inc._id)} aria-label={`Select ${inc.title}`} className="ml-4 w-4 h-4 accent-purple-600 flex-shrink-0" />
-              ) : <span className="ml-4 w-4 flex-shrink-0" />}
+                <input type="checkbox" checked={picked.has(inc._id)} onChange={() => togglePick(inc._id)} aria-label={`Select ${inc.title}`} className="ml-4 w-4 h-4 accent-purple-600 shrink-0" />
+              ) : <span className="ml-4 w-4 shrink-0" />}
               <button type="button" onClick={() => select(inc)}
               className="flex-1 min-w-0 flex items-center justify-between gap-3 pl-3 pr-5 py-4 text-left transition-colors">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="text-sm font-semibold text-gray-900 truncate">{inc.title}</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
-                  {inc.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-gray-100 text-gray-600">Stale</span>}
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={SEVERITY_STYLE[inc.severity]}>{inc.severity}</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={STATUS_STYLE[inc.status]}>{inc.status.replace('_', ' ')}</span>
+                  {inc.stale && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 bg-gray-100 text-gray-600">Stale</span>}
                   {showSla && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={SLA_TONE_STYLE[sla.tone]}>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={SLA_TONE_STYLE[sla.tone]}>
                       <Clock className="w-2.5 h-2.5" />{sla.label}
                     </span>
                   )}
@@ -304,7 +304,7 @@ export default function IncidentsTab() {
                   )}
                 </p>
               </div>
-              <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{new Date(inc.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap">{new Date(inc.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             </button>
             </div>
           );

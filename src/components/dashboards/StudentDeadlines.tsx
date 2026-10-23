@@ -40,7 +40,7 @@ export default function StudentDeadlines() {
   }, []);
 
   if (error) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!profile) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading deadlines…</div>;
+  if (!profile) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading deadlines…</div>;
 
   const openApps = (profile.applications || []).filter((a: any) => !['rejected', 'enrolled'].includes(a.status));
   const docs: any[] = profile.documents || [];
@@ -52,7 +52,7 @@ export default function StudentDeadlines() {
   });
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm grid gap-6 md:grid-cols-2">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs grid gap-6 md:grid-cols-2">
       <div>
         <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CalendarClock className="w-4 h-4" /> Intake deadlines</h2>
         {openApps.length === 0 ? <p className="text-sm text-gray-400">No open applications with an intake date.</p> : (

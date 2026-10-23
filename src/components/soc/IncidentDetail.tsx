@@ -110,11 +110,11 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
                 Mark as {closing.replace('_', ' ')} — why?
               </p>
               <select value={reason} onChange={e => setReason(e.target.value)} aria-label="Resolution reason"
-                className="w-full text-sm bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                className="w-full text-sm bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
                 {RESOLUTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
               <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment" aria-label="Resolution comment"
-                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
               <div className="flex gap-2">
                 <button type="button" onClick={confirmClose} disabled={saving}
                   className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">
@@ -135,9 +135,9 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
           {incident.relatedEmail && <p className="text-sm text-gray-600">Related: {incident.relatedEmail}</p>}
 
           <div className="flex items-center gap-2">
-            <UserCircle2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <UserCircle2 className="w-4 h-4 text-gray-500 shrink-0" />
             <select value={incident.assignedTo?._id || ''} onChange={e => setAssignee(e.target.value)} disabled={assigning} aria-label="Assignee"
-              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50">
+              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-purple-500 disabled:opacity-50">
               <option value="">Unassigned</option>
               {analysts.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
             </select>
@@ -161,7 +161,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
                       <Ban className="w-3.5 h-3.5" /> Block IP
                     </button>
                     <select value={blockHours} onChange={e => setBlockHours(Number(e.target.value))} aria-label="Block duration"
-                      className="text-xs bg-red-50 text-red-700 rounded-r-lg px-1.5 py-[7px] focus:outline-none">
+                      className="text-xs bg-red-50 text-red-700 rounded-r-lg px-1.5 py-[7px] focus:outline-hidden">
                       {BLOCK_DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
                     </select>
                   </span>
@@ -198,7 +198,7 @@ export default function IncidentDetail({ incident, onClose, onUpdate, slaPolicy 
         <div className="p-4 border-t border-gray-100 flex items-center gap-2">
           <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add an investigation note…" aria-label="Investigation note" maxLength={4000}
             onKeyDown={e => { if (e.key === 'Enter') addNote(); }}
-            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
           <button type="button" onClick={addNote} disabled={saving || !note.trim()} aria-label="Add note" className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

@@ -325,8 +325,8 @@ export default function AppTeamLearning() {
     <div className="space-y-6">
       {/* Category completion toast */}
       {catToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-3 animate-pulse">
-          <Trophy className="w-6 h-6 text-yellow-200 flex-shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 bg-linear-to-r from-orange-500 to-amber-500 text-white rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-3 animate-pulse">
+          <Trophy className="w-6 h-6 text-yellow-200 shrink-0" />
           <div>
             <p className="font-bold text-sm">Category Complete!</p>
             <p className="text-xs text-orange-100">{CATEGORIES.find(c => c.id === catToast)?.label} — all done 🎉</p>
@@ -335,7 +335,7 @@ export default function AppTeamLearning() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -400,7 +400,7 @@ export default function AppTeamLearning() {
       {nextUp && (
         <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
               <ChevronRight className="w-4 h-4 text-orange-600" />
             </div>
             <div>
@@ -409,7 +409,7 @@ export default function AppTeamLearning() {
               <p className="text-xs text-gray-500 mt-0.5">{nextUp.duration} · {nextUp.level}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <a href={nextUp.url} target="_blank" rel="noopener noreferrer"
               className="text-xs font-semibold bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors">
               Open
@@ -426,7 +426,7 @@ export default function AppTeamLearning() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search resources…"
-            className="w-full pl-10 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+            className="w-full pl-10 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-orange-400 bg-white" />
           {search && (
             <button type="button" aria-label="Clear search" onClick={() => setSearch('')}
               className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -434,7 +434,7 @@ export default function AppTeamLearning() {
             </button>
           )}
         </div>
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+        <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-white shadow-xs">
           <button type="button" onClick={() => setViewMode('grid')}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'grid' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
             <LayoutGrid className="w-4 h-4" /> Grid
@@ -547,7 +547,7 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
   const typeCfg = TYPE_CONFIG[r.type] || TYPE_CONFIG.guide;
   const TypeIcon = typeCfg.icon;
   return (
-    <div className={`bg-white rounded-xl border shadow-sm transition-all overflow-hidden ${
+    <div className={`bg-white rounded-xl border shadow-xs transition-all overflow-hidden ${
       progress === 'done' ? 'border-green-300 bg-green-50/30' : progress === 'inprogress' ? 'border-orange-300 bg-orange-50/10' : 'border-gray-100 hover:border-orange-200 hover:shadow-md'
     }`}>
       <div className="p-5 flex flex-col gap-3">
@@ -561,7 +561,7 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
               </span>
             )}
           </div>
-          <div className="flex gap-1.5 flex-shrink-0">
+          <div className="flex gap-1.5 shrink-0">
             <button aria-label="Bookmark" type="button" onClick={onBookmark}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${bookmarked ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-300 hover:text-amber-400'}`}>
               <Bookmark className="w-3.5 h-3.5" fill={bookmarked ? 'currentColor' : 'none'} />
@@ -580,7 +580,7 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
           </div>
         </div>
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
             <TypeIcon className="w-4 h-4 text-orange-500" />
           </div>
           <div className="flex-1 min-w-0">
@@ -594,7 +594,7 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
               <span key={tag} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">#{tag}</span>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-400">{r.duration}</span>
             <a href={r.url} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 px-2.5 py-1.5 rounded-lg transition-colors">
@@ -608,7 +608,7 @@ function ResourceCard({ resource: r, progress, bookmarked, expandNote, onCycle, 
           <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Notes</p>
           <textarea value={comment} onChange={e => onComment(e.target.value)}
             placeholder="Add a note about this resource…" rows={2}
-            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 text-gray-700 placeholder-gray-300 bg-white" />
+            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-1 focus:ring-orange-400 text-gray-700 placeholder-gray-300 bg-white" />
         </div>
       )}
     </div>
@@ -643,7 +643,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
 
   return (
     <div className="space-y-8">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="font-bold text-gray-800">Learning Roadmap</p>
@@ -652,7 +652,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
           <span className="text-2xl font-bold text-orange-500">{pathProgress}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-2.5">
-          <div className="bg-gradient-to-r from-orange-400 to-amber-500 h-2.5 rounded-full transition-all duration-500"
+          <div className="bg-linear-to-r from-orange-400 to-amber-500 h-2.5 rounded-full transition-all duration-500"
             style={{ width: `${pathProgress}%` }} />
         </div>
         <p className="text-xs text-gray-400 mt-2">{doneSteps} of {totalSteps} steps completed</p>
@@ -693,7 +693,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                 const TypeIcon = typeCfg.icon;
                 return (
                   <div key={r.id} className="relative flex gap-4">
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 text-[10px] font-bold mt-3 -ml-[3px] ${
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 z-10 text-[10px] font-bold mt-3 ml-[-3px] ${
                       prog === 'done' ? 'bg-green-500 border-green-500 text-white' : prog === 'inprogress' ? 'bg-orange-400 border-orange-400 text-white' : 'bg-white border-gray-300 text-gray-400'
                     }`}>
                       {prog === 'done' ? '✓' : prog === 'inprogress' ? '▶' : step}
@@ -708,7 +708,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                             <TypeIcon className="w-3 h-3" />{typeCfg.label}
                           </span>
                         </div>
-                        <div className="flex gap-1.5 flex-shrink-0">
+                        <div className="flex gap-1.5 shrink-0">
                           <button aria-label={bm ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bm} type="button" onClick={() => onBookmark(r.id)}
                             className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${bm ? 'bg-amber-100 text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}>
                             <Bookmark className="w-3.5 h-3.5" fill={bm ? 'currentColor' : 'none'} />
@@ -733,7 +733,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                             <span key={tag} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">#{tag}</span>
                           ))}
                         </div>
-                        <span className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0 ml-2">
+                        <span className="text-xs text-gray-400 flex items-center gap-1 shrink-0 ml-2">
                           <Clock className="w-3 h-3" />{r.duration}
                         </span>
                       </div>
@@ -741,7 +741,7 @@ function PathView({ resources, learningPath, categories, completed, inProgress, 
                         <div className="mt-3 pt-3 border-t border-gray-100">
                           <textarea value={comments[r.id] || ''} onChange={e => onComment(r.id, e.target.value)}
                             placeholder="Add a note…" rows={2}
-                            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 text-gray-700 placeholder-gray-300 bg-white" />
+                            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-1 focus:ring-orange-400 text-gray-700 placeholder-gray-300 bg-white" />
                         </div>
                       )}
                     </div>

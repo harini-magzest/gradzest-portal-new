@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 type Status = { enabled: boolean; enabledAt: string | null; recoveryCodesRemaining: number; hasPassword: boolean };
 type Step = 'idle' | 'password' | 'scan' | 'codes' | 'disable' | 'regenerate';
 
-const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500';
+const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 const primaryBtn = 'inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
 const ghostBtn = 'px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors';
 
@@ -50,7 +50,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 function Shell({ enabled, children }: { enabled?: boolean; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
       <div className="flex items-center gap-2 mb-1">
         {enabled ? <ShieldCheck className="w-5 h-5 text-green-600" /> : <ShieldOff className="w-5 h-5 text-gray-400" />}
         <h2 className="text-base font-bold text-gray-900">Two-Step Verification</h2>
@@ -124,7 +124,7 @@ export default function TwoFactorCard() {
       <Shell enabled={status?.enabled}>
         <div className="mt-3 space-y-4">
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-800">Save these recovery codes now. They are shown only once. Each one signs you in once if you lose your phone.</p>
           </div>
           <ul className="grid grid-cols-2 gap-2 font-mono text-sm bg-gray-50 border border-gray-200 rounded-xl p-4" aria-label="Recovery codes">
@@ -137,7 +137,7 @@ export default function TwoFactorCard() {
             </button>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={saved} onChange={e => setSaved(e.target.checked)} className="rounded border-gray-300" />
+            <input type="checkbox" checked={saved} onChange={e => setSaved(e.target.checked)} className="rounded-sm border-gray-300" />
             I have saved these codes somewhere safe
           </label>
           <button type="button" disabled={!saved} onClick={() => { setRecoveryCodes([]); reset(); }} className={primaryBtn}>Done</button>
@@ -179,7 +179,7 @@ export default function TwoFactorCard() {
                 <p className="font-mono text-sm tracking-wider text-gray-800 break-all select-all">{groupKey(setup.secret)}</p>
                 <CopyButton text={setup.secret} label="Copy key" />
               </div>
-              <div className="max-w-[12rem]">
+              <div className="max-w-48">
                 <label htmlFor="tf-confirm-code" className="block text-xs font-medium text-gray-500 mb-1">6-digit code</label>
                 <input id="tf-confirm-code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={7} value={code} onChange={e => setCode(e.target.value)}
                   className={`${inputCls} text-center font-mono tracking-widest text-lg`} placeholder="123 456" />
@@ -229,7 +229,7 @@ export default function TwoFactorCard() {
             Signing in asks for a code from your authenticator app{status.enabledAt ? `, on since ${new Date(status.enabledAt).toLocaleDateString()}` : ''}.
           </p>
           <div className={`flex items-center gap-2 text-sm rounded-xl px-3 py-2 border ${low ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
-            <KeyRound className="w-4 h-4 flex-shrink-0" />
+            <KeyRound className="w-4 h-4 shrink-0" />
             {status.recoveryCodesRemaining} recovery code{status.recoveryCodesRemaining === 1 ? '' : 's'} left{low ? '. Make new ones soon.' : '.'}
           </div>
           <div className="flex flex-wrap gap-2">

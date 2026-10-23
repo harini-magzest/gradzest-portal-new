@@ -32,7 +32,7 @@ export default function ReferralsAdmin() {
   };
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="font-semibold text-gray-900">Referrals</h2>
         {data && <span className="text-xs text-gray-500">{data.stats.total} total · {data.stats.earned} earned · <span className={data.stats.owed ? 'text-amber-700 font-medium' : ''}>{data.stats.owed} to pay</span></span>}

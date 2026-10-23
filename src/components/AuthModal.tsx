@@ -129,7 +129,7 @@ export default function AuthModal() {
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
       onClick={handleBackdrop}
     >
       <div
@@ -141,7 +141,7 @@ export default function AuthModal() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-extrabold tracking-tight select-none">
@@ -164,7 +164,7 @@ export default function AuthModal() {
               type="button"
               onClick={() => switchTab('login')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                tab === 'login' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                tab === 'login' ? 'bg-white text-blue-600 shadow-xs' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <LogIn className="w-4 h-4" /> Sign In
@@ -173,7 +173,7 @@ export default function AuthModal() {
               type="button"
               onClick={() => switchTab('register')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                tab === 'register' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                tab === 'register' ? 'bg-white text-blue-600 shadow-xs' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <UserPlus className="w-4 h-4" /> Create Account
@@ -213,7 +213,7 @@ export default function AuthModal() {
               </div>}
               {loginError && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                   <p className="text-red-700 text-sm">{loginError}</p>
                 </div>
               )}
@@ -221,7 +221,7 @@ export default function AuthModal() {
                 <label htmlFor="auth-login-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                 <input id="auth-login-email"
                   type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="your@email.com" required autoFocus
                 />
               </div>
@@ -239,7 +239,7 @@ export default function AuthModal() {
                 <div className="relative">
                   <input id="auth-login-password"
                     type={showLoginPw ? 'text' : 'password'} value={loginPassword} onChange={e => setLoginPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm pr-12"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm pr-12"
                     placeholder="••••••••" required
                   />
                   <button type="button" onClick={() => setShowLoginPw(!showLoginPw)} aria-label={showLoginPw ? 'Hide password' : 'Show password'} aria-pressed={showLoginPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -268,7 +268,7 @@ export default function AuthModal() {
               <p className="text-sm text-gray-500 mb-4">Join 50,000+ students. Free to sign up.</p>
               {regError && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                   <p className="text-red-700 text-sm">{regError}</p>
                 </div>
               )}
@@ -276,7 +276,7 @@ export default function AuthModal() {
                 <label htmlFor="auth-register-name" className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
                 <input id="auth-register-name"
                   type="text" value={regName} onChange={e => setRegName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Your full name" required autoFocus
                 />
               </div>
@@ -284,7 +284,7 @@ export default function AuthModal() {
                 <label htmlFor="auth-register-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                 <input id="auth-register-email"
                   type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="your@email.com" required
                 />
               </div>
@@ -293,7 +293,7 @@ export default function AuthModal() {
                 <div className="relative">
                   <input id="auth-register-password"
                     type={showRegPw ? 'text' : 'password'} value={regPassword} onChange={e => setRegPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm pr-12"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm pr-12"
                     placeholder="Min. 8 characters" required minLength={8}
                   />
                   <button type="button" onClick={() => setShowRegPw(!showRegPw)} aria-label={showRegPw ? 'Hide password' : 'Show password'} aria-pressed={showRegPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -306,7 +306,7 @@ export default function AuthModal() {
                 <label htmlFor="auth-register-confirm" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
                 <input id="auth-register-confirm"
                   type="password" value={regConfirm} onChange={e => setRegConfirm(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="Repeat your password" required
                 />
               </div>

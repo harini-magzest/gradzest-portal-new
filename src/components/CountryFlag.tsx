@@ -41,7 +41,7 @@ export function CountryFlag({
 
   if (!resolvedCode || imgErr) {
     return (
-      <span className={`${sizeCls} ${rounded} ${className} bg-white border border-gray-200 shadow-sm flex items-center justify-center text-2xl leading-none flex-shrink-0 overflow-hidden select-none`}>
+      <span className={`${sizeCls} ${rounded} ${className} bg-white border border-gray-200 shadow-xs flex items-center justify-center text-2xl leading-none shrink-0 overflow-hidden select-none`}>
         {flag || '🌍'}
       </span>
     );
@@ -52,7 +52,7 @@ export function CountryFlag({
       src={`https://flagcdn.com/${quality}/${resolvedCode}.png`}
       alt={name || resolvedCode}
       onError={() => setImgErr(true)}
-      className={`${sizeCls} ${rounded} ${className} object-cover flex-shrink-0 shadow-sm border border-gray-200`}
+      className={`${sizeCls} ${rounded} ${className} object-cover shrink-0 shadow-xs border border-gray-200`}
     />
   );
 }

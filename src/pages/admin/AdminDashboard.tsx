@@ -59,9 +59,9 @@ function BtnPrimary({ children, onClick, disabled, type = 'button', className = 
   return (
     <button type={type} onClick={onClick} disabled={disabled}
       className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white
-        bg-gradient-to-r shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150
+        bg-linear-to-r shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150
         disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2
         ${colors} ${className}`}>
       {children}
     </button>
@@ -76,7 +76,7 @@ function BtnGhost({ children, onClick, type = 'button', className = '' }: {
       className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
         text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300
         active:scale-[0.98] transition-all duration-150
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
         ${className}`}>
       {children}
     </button>
@@ -88,7 +88,7 @@ function BtnClose({ onClick }: { onClick: () => void }) {
     <button type="button" aria-label="Close" onClick={onClick}
       className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400
         hover:bg-gray-100 hover:text-gray-700 active:scale-95 transition-all
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gray-400">
       <X className="w-4 h-4" />
     </button>
   );
@@ -192,19 +192,19 @@ function NewCounselorModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setSaving(false);
   };
 
-  const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400';
+  const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400';
   const selectCls = `${inputCls} bg-white text-gray-700`;
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">{children}</p>
   );
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xs">
               <UserPlus className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">Create New Counselor</h2>
@@ -259,7 +259,7 @@ function NewCounselorModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 return (
                   <button key={s} type="button" onClick={() => toggleSpec(s)}
                     className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150 active:scale-95
-                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
+                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
                     {sel && <Check className="w-3 h-3" />}{s}
                   </button>
                 );
@@ -346,7 +346,7 @@ function NewCounselorModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 return (
                   <button key={l} type="button" onClick={() => toggleLang(l)}
                     className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150 active:scale-95
-                      ${sel ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-600'}`}>
+                      ${sel ? 'bg-green-600 text-white border-green-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-600'}`}>
                     {sel && <Check className="w-3 h-3" />}{l}
                   </button>
                 );
@@ -367,7 +367,7 @@ function NewCounselorModal({ onClose, onCreated }: { onClose: () => void; onCrea
             <label className="block text-sm font-medium text-gray-700 mb-1.5">About / Bio</label>
             <textarea value={form.bio} onChange={e => set('bio', e.target.value)} rows={3}
               placeholder="Brief professional summary about the counselor…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400 resize-none" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -428,12 +428,12 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-xs">
               <GraduationCap className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">Add New Student</h2>
@@ -445,18 +445,18 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
             <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Aryan Sharma"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Email <span className="text-red-500">*</span></label>
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="student@example.com"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
             <div className="relative">
               <input type={showPw ? 'text' : 'password'} value={form.password} onChange={e => set('password', e.target.value)} placeholder="Set a password"
-                className="w-full px-3.5 py-2.5 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
               <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -469,12 +469,12 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
               <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 9999999999"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nationality</label>
               <input value={form.nationality} onChange={e => set('nationality', e.target.value)} placeholder="e.g. Indian"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
           </div>
 
@@ -482,7 +482,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Education Level</label>
             <select value={form.educationLevel} onChange={e => set('educationLevel', e.target.value)} title="Education Level"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
               <option value="">Select level…</option>
               {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
@@ -491,19 +491,19 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">GPA</label>
               <input type="number" step="0.01" min="0" max="10" value={form.gpa} onChange={e => set('gpa', e.target.value)} placeholder="e.g. 3.8"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Budget (USD)</label>
               <input type="number" min="0" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="e.g. 50000"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">English Test</label>
               <select value={form.englishType} onChange={e => set('englishType', e.target.value)} title="English Test Type"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
                 <option value="">Select…</option>
                 {ENGLISH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -511,7 +511,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Score</label>
               <input type="number" step="0.5" value={form.englishScore} onChange={e => set('englishScore', e.target.value)} placeholder="e.g. 7.5"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
           </div>
 
@@ -523,7 +523,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
                 return (
                   <button key={c} type="button" onClick={() => toggleArr('preferredCountries', c)}
                     className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150 active:scale-95
-                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
+                      ${sel ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'}`}>
                     {sel && <Check className="w-3 h-3" />}{c}
                   </button>
                 );
@@ -539,7 +539,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
                 return (
                   <button key={c} type="button" onClick={() => toggleArr('interestedCourses', c)}
                     className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150 active:scale-95
-                      ${sel ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'}`}>
+                      ${sel ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'}`}>
                     {sel && <Check className="w-3 h-3" />}{c}
                   </button>
                 );
@@ -551,7 +551,7 @@ function NewStudentModal({ onClose, onCreated, counselors }: { onClose: () => vo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Assign to Counselor</label>
               <select value={form.counselorId} onChange={e => set('counselorId', e.target.value)} title="Assign to Counselor"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-700">
                 <option value="">Unassigned</option>
                 {counselors.map(c => <option key={normalId(c)} value={normalId(c)}>{c.name}</option>)}
               </select>
@@ -593,7 +593,7 @@ function AssignCounselorModal({ student, counselors, onClose, onSaved }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-60 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -606,7 +606,7 @@ function AssignCounselorModal({ student, counselors, onClose, onSaved }: {
         <div className="p-5 space-y-4">
           {currentCounselor && (
             <div className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2.5">
-              <UserCog className="w-4 h-4 text-purple-500 flex-shrink-0" />
+              <UserCog className="w-4 h-4 text-purple-500 shrink-0" />
               <div>
                 <p className="text-xs text-purple-500 font-medium">Currently assigned to</p>
                 <p className="text-sm font-semibold text-purple-900">{currentCounselor.name}</p>
@@ -618,7 +618,7 @@ function AssignCounselorModal({ student, counselors, onClose, onSaved }: {
               {currentCounselor ? 'Reassign to' : 'Select Counselor'}
             </label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} title="Counselor"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-700">
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white text-gray-700">
               <option value="">— Unassigned —</option>
               {counselors.map(c => <option key={normalId(c)} value={normalId(c)}>{c.name}</option>)}
             </select>
@@ -677,7 +677,7 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
     allCounselors.find(c => normalId(c) === s.counselorId)?.name ?? 'another counselor';
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-60 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -691,7 +691,7 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search students…"
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
@@ -706,7 +706,7 @@ function AssignStudentsModal({ counselor, students, allCounselors, onClose, onSa
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-colors
                     ${checked ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-transparent hover:bg-gray-100'}`}>
                   <input type="checkbox" checked={checked} onChange={() => toggle(sid)}
-                    className="w-4 h-4 accent-purple-600 flex-shrink-0 cursor-pointer" />
+                    className="w-4 h-4 accent-purple-600 shrink-0 cursor-pointer" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{s.name}</p>
                     <p className="text-xs text-gray-400">{s.email}</p>
@@ -762,11 +762,11 @@ function StatCard({ label, value, hint, icon: Icon, to, loading, warn = false }:
 }) {
   return (
     <Link to={to}
-      className="group bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-sm hover:bg-white/20 transition-colors
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+      className="group bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-xs hover:bg-white/20 transition-colors
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-purple-100">{label}</p>
-        <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white/10
           ${warn ? 'text-amber-300' : 'text-white'}`}>
           <Icon className="w-4 h-4" />
         </span>
@@ -786,7 +786,7 @@ function IconBtn({ label, onClick, disabled, danger = false, children }: {
     <button type="button" onClick={onClick} disabled={disabled} title={label} aria-label={label}
       className={`w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-400 transition-colors
         disabled:opacity-40 disabled:cursor-not-allowed
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-purple-400
         ${danger ? 'hover:text-red-600 hover:bg-red-50' : 'hover:text-purple-700 hover:bg-purple-50'}`}>
       {children}
     </button>
@@ -798,7 +798,7 @@ function ViewBtn({ onClick }: { onClick: () => void }) {
     <button type="button" onClick={onClick}
       className="px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 border border-purple-200 bg-white
         hover:bg-purple-50 hover:border-purple-300 transition-colors
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400">
+        focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-purple-400">
       View
     </button>
   );
@@ -978,10 +978,10 @@ export default function AdminDashboard() {
       <div className="space-y-8">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs shrink-0">
                 <LayoutDashboard className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -993,19 +993,19 @@ export default function AdminDashboard() {
               <button type="button" onClick={loadData} disabled={loading} title="Reload all figures"
                 className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-white/20
                   hover:bg-white/30 transition-colors disabled:opacity-50
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
               </button>
               <button type="button" onClick={() => setShowNewCounselor(true)}
                 className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-white/20
                   hover:bg-white/30 transition-colors
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
                 <UserPlus className="w-4 h-4" />New Counselor
               </button>
               <button type="button" onClick={() => setShowNewStudent(true)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-purple-700 bg-white
-                  hover:bg-purple-50 shadow-sm transition-colors
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                  hover:bg-purple-50 shadow-xs transition-colors
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
                 <Plus className="w-4 h-4" />New Student
               </button>
             </div>
@@ -1028,7 +1028,7 @@ export default function AdminDashboard() {
         {/* Error state */}
         {loadError && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-800">Failed to load data</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
@@ -1057,7 +1057,7 @@ export default function AdminDashboard() {
         </Section>
 
         <Section title="People" description="The newest team members and students. Use View all for the full list.">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             {/* Tabs + search */}
             <div className="flex flex-col gap-3 px-5 py-4 border-b border-gray-100 md:flex-row md:items-center md:justify-between">
               <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit" role="tablist">
@@ -1067,7 +1067,7 @@ export default function AdminDashboard() {
                 ] as const).map(tab => (
                   <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}
                     className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors
-                      ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                      ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}>
                     {tab.label}
                     <span className={`text-xs px-1.5 py-0.5 rounded-md ${activeTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
                       {loading ? '…' : tab.count}
@@ -1081,18 +1081,18 @@ export default function AdminDashboard() {
                   {isStudentsTab ? (
                     <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
                       placeholder="Search name, email or nationality" aria-label="Search students"
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
                   ) : (
                     <input value={counselorSearch} onChange={e => setCounselorSearch(e.target.value)}
                       placeholder="Search name or email" aria-label="Search team"
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
                   )}
                 </div>
                 {isStudentsTab && (
                   <>
                     <input type="date" value={studentDateFilter} onChange={e => setStudentDateFilter(e.target.value)}
                       title="Filter by join date" aria-label="Filter by join date"
-                      className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
                     {studentDateFilter && (
                       <button type="button" onClick={() => setStudentDateFilter('')}
                         className="text-xs font-medium text-gray-500 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
@@ -1127,7 +1127,7 @@ export default function AdminDashboard() {
                   const counselorName = counselorNameById[s.counselorId];
                   return (
                     <li key={id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                      <div className="w-9 h-9 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                      <div className="w-9 h-9 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-semibold shrink-0">
                         {s.name?.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1139,18 +1139,18 @@ export default function AdminDashboard() {
                           {[s.email, s.nationality, s.educationLevel].filter(Boolean).join(' · ')}
                         </p>
                       </div>
-                      <div className="hidden lg:block w-40 flex-shrink-0">
+                      <div className="hidden lg:block w-40 shrink-0">
                         <p className="text-xs text-gray-400">Counselor</p>
                         <p className={`text-sm truncate ${counselorName ? 'text-gray-700' : 'text-amber-700 font-medium'}`}>
                           {counselorName || 'Unassigned'}
                         </p>
                       </div>
-                      <div className="hidden md:block w-20 flex-shrink-0">
+                      <div className="hidden md:block w-20 shrink-0">
                         <p className="text-xs text-gray-400">Applications</p>
                         <p className="text-sm text-gray-700">{s.applications?.length ?? 0}</p>
                       </div>
-                      <div className="hidden sm:block w-24 flex-shrink-0"><StatusBadge status={s.status} /></div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="hidden sm:block w-24 shrink-0"><StatusBadge status={s.status} /></div>
+                      <div className="flex items-center gap-1 shrink-0">
                         <IconBtn label={`Chat with ${s.name}`}
                           onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: s.name } } })}>
                           <MessageSquare className="w-4 h-4" />
@@ -1177,7 +1177,7 @@ export default function AdminDashboard() {
                   const perf = counselorPerf(c, students);
                   return (
                     <li key={id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                      <div className="w-9 h-9 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                      <div className="w-9 h-9 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-semibold shrink-0">
                         {c.name?.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1189,19 +1189,19 @@ export default function AdminDashboard() {
                           {[c.email, c.specialization?.length ? c.specialization.join(', ') : null].filter(Boolean).join(' · ')}
                         </p>
                       </div>
-                      <div className="hidden md:block w-20 flex-shrink-0">
+                      <div className="hidden md:block w-20 shrink-0">
                         <p className="text-xs text-gray-400">Students</p>
                         <p className="text-sm text-gray-700">{c.assignedStudents?.length ?? 0}</p>
                       </div>
-                      <div className="hidden md:block w-20 flex-shrink-0">
+                      <div className="hidden md:block w-20 shrink-0">
                         <p className="text-xs text-gray-400">Experience</p>
                         <p className="text-sm text-gray-700">{c.experience ?? 0} yrs</p>
                       </div>
-                      <div className="hidden lg:block w-36 flex-shrink-0" title="Based on offer rate, document review rate and caseload">
+                      <div className="hidden lg:block w-36 shrink-0" title="Based on offer rate, document review rate and caseload">
                         <p className="text-xs text-gray-400">Performance</p>
                         <p className={`text-sm font-medium ${perf.color}`}>{perf.score}/100 · {perf.tier}</p>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <IconBtn label={`Chat with ${c.name}`}
                           onClick={() => navigate('/admin/chat', { state: { openChatWith: { _id: id, name: c.name } } })}>
                           <MessageSquare className="w-4 h-4" />

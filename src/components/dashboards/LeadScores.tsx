@@ -28,10 +28,10 @@ export default function LeadScores({ studentsPath = '/counselor/students' }: { s
   }, []);
 
   if (error) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading lead scores…</div>;
+  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading lead scores…</div>;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Flame className="w-4 h-4" /> Lead priority</h2>
         <div className="flex gap-1.5 text-xs">

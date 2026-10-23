@@ -68,7 +68,7 @@ export default function AdminActivityFeed() {
 
       {/* Info banner */}
       <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 flex items-start gap-3">
-        <Zap className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
+        <Zap className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
         <p className="text-xs text-gray-700 leading-relaxed">
           This feed updates in real time via WebSocket. Every time a student submits an enquiry,
           uploads documents, makes a payment, or receives an offer, a new event appears here

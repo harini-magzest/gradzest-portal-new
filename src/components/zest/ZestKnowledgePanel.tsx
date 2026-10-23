@@ -120,7 +120,7 @@ export default function ZestKnowledgePanel() {
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs text-gray-500">The PDFs Zest answers from. After uploading one, ask Zest something it covers in the Chat tab to check it works.</p>
-        <label className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white bg-[#0d1b4b] hover:bg-[#152258] cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+        <label className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white bg-[#0d1b4b] hover:bg-[#152258] cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
           <Upload className="w-3.5 h-3.5" /> {uploading ? 'Uploading…' : 'Upload PDF'}
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); }} />
@@ -139,7 +139,7 @@ export default function ZestKnowledgePanel() {
       ) : (
         <ul className="space-y-2">
           {docs.map(d => (
-            <li key={d._id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+            <li key={d._id} className="bg-white rounded-xl border border-gray-100 shadow-xs p-3">
               {renaming?.id === d._id ? (
                 <div className="flex items-center gap-1.5">
                   <input
@@ -148,16 +148,16 @@ export default function ZestKnowledgePanel() {
                     onKeyDown={e => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setRenaming(null); }}
                     aria-label="Document title"
                     autoFocus
-                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                   <button type="button" onClick={saveRename} aria-label="Save title" className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"><Check className="w-4 h-4" /></button>
                   <button type="button" onClick={() => setRenaming(null)} aria-label="Cancel rename" className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
                 <div className="flex items-start gap-2">
-                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <FileText className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 break-words">{d.title}</p>
+                    <p className="text-sm font-medium text-gray-800 wrap-break-word">{d.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-400">
                       <StatusBadge status={d.status} error={d.error} />
                       <span>{d.chunkCount} section{d.chunkCount === 1 ? '' : 's'}</span>
@@ -185,13 +185,13 @@ export default function ZestKnowledgePanel() {
                     </div>
                   </div>
                   {confirmingId === d._id ? (
-                    <div className="flex items-center gap-1 text-xs flex-shrink-0">
+                    <div className="flex items-center gap-1 text-xs shrink-0">
                       <span className="text-gray-500">Remove?</span>
                       <button type="button" onClick={() => remove(d._id)} className="px-2 py-1 rounded-lg bg-red-600 text-white font-medium">Yes</button>
                       <button type="button" onClick={() => setConfirmingId(null)} className="px-2 py-1 rounded-lg text-gray-600 hover:bg-gray-100">No</button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button type="button" aria-label={`Rename ${d.title}`} onClick={() => setRenaming({ id: d._id, title: d.title })} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
                       <button type="button" aria-label={`Remove ${d.title}`} onClick={() => setConfirmingId(d._id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
                     </div>

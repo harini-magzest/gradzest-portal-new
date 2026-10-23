@@ -18,7 +18,7 @@ function SummaryForm({ initial, saving, error, onSave, onCancel, autoFocus = tru
     <div className="space-y-2">
       <textarea value={text} onChange={e => setText(e.target.value)} rows={3} autoFocus={autoFocus} maxLength={4000}
         placeholder="What did you discuss? Decisions, next steps, follow-ups…"
-        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 text-gray-900 placeholder-gray-400 bg-white resize-y" />
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-hidden focus:border-blue-400 text-gray-900 placeholder-gray-400 bg-white resize-y" />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">
         {onCancel && <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700">Cancel</button>}
@@ -58,7 +58,7 @@ export function CallSummaryBox({ call, me, role, onSaved }: { call: any; me: str
           {call.summaryBy && <span>· {call.summaryBy}</span>}
           {editable && (
             <button type="button" onClick={() => setEditing(true)} aria-label="Edit summary"
-              className="ml-auto p-1 -m-1 rounded text-gray-400 hover:text-gray-700"><Pencil className="w-3 h-3" /></button>
+              className="ml-auto p-1 -m-1 rounded-sm text-gray-400 hover:text-gray-700"><Pencil className="w-3 h-3" /></button>
           )}
         </div>
         <p className="text-sm text-gray-700 whitespace-pre-line">{call.summary}</p>
@@ -91,7 +91,7 @@ export function CallSummaryPrompt({ callId, otherName, onClose }: { callId: stri
     catch (err: any) { setError(err.message || 'Could not save the summary.'); setSaving(false); }
   };
   return (
-    <div className="fixed inset-0 z-[160] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="call-summary-title">
+    <div className="fixed inset-0 z-160 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="call-summary-title">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
         <div className="flex items-start justify-between gap-3 mb-1">
           <h2 id="call-summary-title" className="text-base font-semibold text-gray-900">Call summary{otherName ? ` — ${otherName}` : ''}</h2>

@@ -52,7 +52,7 @@ export default function OnboardingChecklist({ defaultCollapsed = false }: { defa
   if (allDone) localStorage.setItem('onboarding_all_done', '1');
 
   return (
-    <div className="bg-white border border-[#0d1b4b]/20 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-[#0d1b4b]/20 rounded-2xl shadow-xs overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 cursor-pointer select-none" onClick={() => setCollapsed(c => !c)}
         role="button" tabIndex={0} aria-expanded={!collapsed}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCollapsed(c => !c); } }}>
@@ -95,15 +95,15 @@ export default function OnboardingChecklist({ defaultCollapsed = false }: { defa
             return (
               <div key={step.key} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${isDone ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
                 {isDone
-                  ? <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  : <Circle className="w-5 h-5 text-gray-300 flex-shrink-0 mt-0.5" />
+                  ? <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                  : <Circle className="w-5 h-5 text-gray-300 shrink-0 mt-0.5" />
                 }
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-semibold ${isDone ? 'text-green-700 line-through' : 'text-gray-800'}`}>{step.label}</p>
                   {!isDone && <p className="text-xs text-gray-500 mt-0.5">{step.description}</p>}
                 </div>
                 {!isDone && (
-                  <Link to={step.link} className="flex-shrink-0 text-xs font-semibold text-[#0d1b4b] hover:underline whitespace-nowrap">
+                  <Link to={step.link} className="shrink-0 text-xs font-semibold text-[#0d1b4b] hover:underline whitespace-nowrap">
                     {step.linkLabel} →
                   </Link>
                 )}

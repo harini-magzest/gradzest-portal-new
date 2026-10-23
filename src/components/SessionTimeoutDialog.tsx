@@ -37,7 +37,7 @@ export default function SessionTimeoutDialog() {
 
   if (warning.kind === 'ending') {
     return (
-      <div role="status" className="fixed bottom-4 left-4 z-[9998] max-w-sm rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg">
+      <div role="status" className="fixed bottom-4 left-4 z-9998 max-w-sm rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg">
         <p>{t('session.endingBody', { time: mmss(warning.secondsLeft) })}</p>
         <button type="button" onClick={() => logout()} className="mt-2 font-semibold text-amber-900 underline underline-offset-2">
           {t('session.signOut')}
@@ -47,7 +47,7 @@ export default function SessionTimeoutDialog() {
   }
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-9998 flex items-center justify-center bg-black/50 p-4">
       <div
         role="alertdialog"
         aria-modal="true"

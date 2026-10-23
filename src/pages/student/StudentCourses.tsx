@@ -96,26 +96,26 @@ export default function StudentCourses() {
         <p className="text-gray-500 mt-1">Browse and apply to courses across partner universities</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search by course name, university, department..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
           </div>
           <select aria-label="Filter by level" value={level} onChange={e => setLevel(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500">
             <option value="">All Levels</option>
             {LEVELS.map(l => <option key={l}>{l}</option>)}
           </select>
           <select aria-label="Filter by university" value={uniFilter} onChange={e => setUniFilter(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500">
             <option value="">All Universities</option>
             {uniNames.map(n => <option key={n}>{n}</option>)}
           </select>
           <select aria-label="Filter by country" value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500">
             <option value="">All Countries</option>
             {countryList.map(c => <option key={c}>{c}</option>)}
           </select>
@@ -135,9 +135,9 @@ export default function StudentCourses() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map((course, i) => (
-          <div key={course.id || course._id || i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col">
+          <div key={course.id || course._id || i} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 hover:shadow-md transition-shadow flex flex-col">
             <div className="flex items-start gap-3 mb-2">
-              <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1 flex-shrink-0 mt-0.5">
+              <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden p-1 shrink-0 mt-0.5">
                 <UniLogoImg name={course.uniName} website={course.website} uniId={course.uniId} />
               </div>
               <div className="flex-1 min-w-0">
@@ -160,7 +160,7 @@ export default function StudentCourses() {
                 <p className="text-xs text-blue-600 mt-0.5">{course.uniName} · {course.city}, {course.country}</p>
               </div>
               {course.tuitionFee > 0 && (
-                <div className="text-right flex-shrink-0">
+                <div className="text-right shrink-0">
                   <p className="font-bold text-green-700 text-sm">{course.currency || 'USD'} {Number(course.tuitionFee).toLocaleString()}</p>
                   <p className="text-xs text-gray-400">per year</p>
                 </div>
@@ -221,8 +221,8 @@ export default function StudentCourses() {
 
         {loadError && (
           <div className="col-span-2 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-            <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+            <button type="button" onClick={loadCourses} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
           </div>
         )}
 

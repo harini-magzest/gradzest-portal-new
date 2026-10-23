@@ -26,10 +26,10 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center shrink-0">
                 <GraduationCap className="w-7 h-7 text-white" />
               </div>
               <span className="text-3xl font-extrabold tracking-tight select-none">
@@ -43,7 +43,7 @@ export default function ForgotPassword() {
           {success ? (
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4 w-full">
-                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
                 <p className="text-green-700 text-sm">
                   If an account exists for <strong>{email}</strong>, a password reset link has been sent. Check your inbox (and spam folder).
                 </p>
@@ -61,7 +61,7 @@ export default function ForgotPassword() {
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] text-sm"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] text-sm"
                     placeholder="your@email.com"
                     required
                     autoComplete="email"

@@ -6,7 +6,7 @@ import { FORM_COUNTRIES, FORM_COURSE_LEVELS } from '../lib/leadFormFields';
 
 type View = { title: string; intro: string; fields: LeadFormField[] };
 
-const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]/40 placeholder:text-gray-400';
+const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b]/40 placeholder:text-gray-400';
 
 function Field({ id, label, required, children }: { id: string; label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -65,7 +65,7 @@ export default function PublicForm() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0d1b4b] to-[#1e3a8a] py-10 px-4">
+    <main className="min-h-screen bg-linear-to-b from-[#0d1b4b] to-primary-900 py-10 px-4">
       <div className="max-w-lg mx-auto">
         <p className="text-center text-white font-bold text-xl tracking-tight mb-6">Gradzest</p>
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">

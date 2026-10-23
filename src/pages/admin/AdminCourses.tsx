@@ -105,7 +105,7 @@ function ApplyModal({ course, students, onClose }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
@@ -115,7 +115,7 @@ function ApplyModal({ course, students, onClose }: {
             <p className="text-xs text-gray-500 truncate">{course._uniName}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -144,7 +144,7 @@ function ApplyModal({ course, students, onClose }: {
                   <p className="text-xs text-blue-600 truncate">{selectedStudent.email}</p>
                 </div>
                 <button type="button" aria-label="Clear student" onClick={() => { setSelectedStudent(null); setStudentProfile(null); setStudentQuery(''); }}
-                  className="text-blue-400 hover:text-blue-700 flex-shrink-0"><X className="w-4 h-4" /></button>
+                  className="text-blue-400 hover:text-blue-700 shrink-0"><X className="w-4 h-4" /></button>
               </div>
             ) : (
               <div className="relative">
@@ -155,7 +155,7 @@ function ApplyModal({ course, students, onClose }: {
                   onFocus={() => setShowDropdown(true)}
                   onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                   placeholder="Type name or email…"
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
                 {showDropdown && matchedStudents.length > 0 && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
@@ -188,12 +188,12 @@ function ApplyModal({ course, students, onClose }: {
                   </div>
                   {elig.missing.map((m, i) => (
                     <p key={i} className="text-xs text-red-600 flex items-center gap-1.5">
-                      <X className="w-3 h-3 flex-shrink-0" />{m}
+                      <X className="w-3 h-3 shrink-0" />{m}
                     </p>
                   ))}
                   {elig.warnings.map((w, i) => (
                     <p key={i} className="text-xs text-yellow-700 flex items-center gap-1.5">
-                      <span className="text-yellow-500 font-bold flex-shrink-0">⚠</span>{w}
+                      <span className="text-yellow-500 font-bold shrink-0">⚠</span>{w}
                     </p>
                   ))}
                 </div>
@@ -205,7 +205,7 @@ function ApplyModal({ course, students, onClose }: {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake</label>
               <select value={intake} onChange={e => setIntake(e.target.value)} aria-label="Select intake"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white">
                 {course.intake.map((i: string) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
@@ -215,7 +215,7 @@ function ApplyModal({ course, students, onClose }: {
 
           {success && (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2.5 rounded-xl">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />Application created successfully!
+              <CheckCircle className="w-4 h-4 shrink-0" />Application created successfully!
             </div>
           )}
 
@@ -230,7 +230,7 @@ function ApplyModal({ course, students, onClose }: {
               </div>
             ) : (
               <button type="button" onClick={handleApply} disabled={saving || success || !selectedStudent}
-                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold shadow-sm disabled:opacity-60 transition-all flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold shadow-xs disabled:opacity-60 transition-all flex items-center justify-center gap-2">
                 {saving
                   ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying…</>
                   : <><Plus className="w-4 h-4" />Apply</>}
@@ -322,15 +322,15 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
     setSaving(false);
   };
 
-  const inp = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500';
+  const inp = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">{editing ? 'Edit Course' : 'Add Course'}</h2>
@@ -407,7 +407,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2}
               placeholder="Brief course description…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake Months</label>
@@ -425,7 +425,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
             <div className="flex gap-2 mb-2">
               <input value={reqInput} onChange={e => setReqInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
-                placeholder="e.g. IELTS 6.5+" className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                placeholder="e.g. IELTS 6.5+" className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
               <button type="button" onClick={addReq} className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100">Add</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -441,12 +441,12 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
           </div>
           <div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" checked={form.scholarshipAvailable} onChange={e => set('scholarshipAvailable', e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+              <input type="checkbox" checked={form.scholarshipAvailable} onChange={e => set('scholarshipAvailable', e.target.checked)} className="w-4 h-4 accent-purple-600 rounded-sm" />
               <span className="text-sm font-medium text-gray-700">Scholarship Available</span>
             </label>
             {form.scholarshipAvailable && (
               <input value={form.scholarshipAmount} onChange={e => set('scholarshipAmount', e.target.value)} placeholder="e.g. Up to USD 5,000/year"
-                className="mt-2 w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                className="mt-2 w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             )}
           </div>
 
@@ -502,11 +502,11 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">English Requirements</label>
                   <div className="flex gap-2 mb-2">
                     <select value={engTest} onChange={e => setEngTest(e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white">
                       {ENGLISH_TESTS.map(t => <option key={t}>{t}</option>)}
                     </select>
                     <input type="number" min="0" value={engScore} onChange={e => setEngScore(e.target.value)}
-                      placeholder="Min score" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                      placeholder="Min score" className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                     <button type="button" onClick={addEngReq}
                       className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100 whitespace-nowrap">Add</button>
                   </div>
@@ -527,7 +527,7 @@ function CourseModal({ universities, uniId: initialUniId, course, onClose, onSav
                     <input value={natInput} onChange={e => setNatInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNat(); } }}
                       placeholder="e.g. Iran, North Korea…"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
                     <button type="button" onClick={addNat}
                       className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100">Add</button>
                   </div>
@@ -589,9 +589,9 @@ function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply, onCusto
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden hover:shadow-md transition-shadow">
       <div className="flex items-start gap-4 px-5 py-4">
-        <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1 flex-shrink-0 mt-0.5">
+        <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden p-1 shrink-0 mt-0.5">
           <UniLogoImg name={uniName} website={course.website} uniId={uniId} />
         </div>
         <div className="flex-1 min-w-0">
@@ -635,9 +635,9 @@ function CourseCard({ course, uniName, uniId, onEdit, onDelete, onApply, onCusto
           )}
           <div className="mt-1.5"><CourseCustomChips course={course} /></div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={onApply}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0d1b4b] hover:bg-[#152258] active:scale-95 transition-all shadow-sm">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0d1b4b] hover:bg-[#152258] active:scale-95 transition-all shadow-xs">
             <Plus className="w-3.5 h-3.5" /> Apply
           </button>
           <button type="button" onClick={onCustom}
@@ -787,10 +787,10 @@ export default function AdminCourses() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -804,7 +804,7 @@ export default function AdminCourses() {
                 <Download className="w-4 h-4" /> Export CSV
               </button>
               <button type="button" onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-xs">
                 <Plus className="w-4 h-4" /> Add Course
               </button>
             </div>
@@ -815,7 +815,7 @@ export default function AdminCourses() {
               { label: 'Universities', value: universities.length },
               { label: 'With Scholarship', value: withScholarship },
             ].map(s => (
-              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
+              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-xs">
                 <div className="text-3xl font-bold">{s.value}</div>
                 <div className="text-xs text-white/60 mt-0.5">{s.label}</div>
               </div>
@@ -833,11 +833,11 @@ export default function AdminCourses() {
           </div>
         ) : loadError ? (
           <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-            <button type="button" onClick={fetchUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+            <button type="button" onClick={fetchUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
           </div>
         ) : results.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-xs">
             <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="text-sm font-medium">
               {allCourses.length ? 'No courses match your filters.' : 'No courses yet. Add courses via universities or use the button above.'}

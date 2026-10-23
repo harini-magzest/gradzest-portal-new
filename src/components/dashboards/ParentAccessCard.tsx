@@ -53,7 +53,7 @@ export default function ParentAccessCard() {
   const active = (links || []).filter(l => l.active);
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1"><Users className="w-4 h-4" /> Share progress with a parent</h2>
       <p className="text-sm text-gray-500 mb-4">
         Give a parent or guardian a private link to see your application progress, missing documents and upcoming calls.
@@ -87,7 +87,7 @@ export default function ParentAccessCard() {
                 <p className="text-gray-800 font-medium">{l.label || 'Parent link'}</p>
                 <p className="text-xs text-gray-400">Expires {fmt(l.expiresAt)} · opened {l.viewCount} time{l.viewCount === 1 ? '' : 's'} · last {fmt(l.lastViewedAt)}</p>
               </div>
-              <button type="button" onClick={() => revoke(l)} className="text-xs font-medium text-red-600 hover:underline flex-shrink-0">Stop sharing</button>
+              <button type="button" onClick={() => revoke(l)} className="text-xs font-medium text-red-600 hover:underline shrink-0">Stop sharing</button>
             </li>
           ))}
         </ul>

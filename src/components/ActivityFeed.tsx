@@ -39,16 +39,16 @@ const FILTERS: { key: FilterType; label: string }[] = [
 function SkeletonRow() {
   return (
     <div className="flex items-start gap-3 px-4 py-3.5 border-b border-gray-50 animate-pulse">
-      <div className="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0" />
+      <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0" />
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2">
-          <div className="h-3 bg-gray-200 rounded w-28" />
+          <div className="h-3 bg-gray-200 rounded-sm w-28" />
           <div className="h-4 bg-gray-100 rounded-full w-16" />
         </div>
-        <div className="h-3 bg-gray-100 rounded w-48" />
-        <div className="h-2.5 bg-gray-100 rounded w-32" />
+        <div className="h-3 bg-gray-100 rounded-sm w-48" />
+        <div className="h-2.5 bg-gray-100 rounded-sm w-32" />
       </div>
-      <div className="h-3 bg-gray-100 rounded w-14 flex-shrink-0" />
+      <div className="h-3 bg-gray-100 rounded-sm w-14 shrink-0" />
     </div>
   );
 }
@@ -71,12 +71,12 @@ function FeedItem({ event }: { event: ActivityEvent }) {
     <div
       className="flex items-start gap-3 px-4 py-3.5 border-b border-gray-50
                  hover:bg-gray-50/60 transition-colors duration-150
-                 animate-[slideIn_0.25s_ease-out]"
+                 animate-slideIn"
     >
       {/* Initials avatar */}
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center
-                   text-white text-xs font-bold flex-shrink-0 select-none"
+                   text-white text-xs font-bold shrink-0 select-none"
         style={{ backgroundColor: avatar }}
       >
         {event.initials}
@@ -90,7 +90,7 @@ function FeedItem({ event }: { event: ActivityEvent }) {
           </span>
           {/* Type badge */}
           <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
             style={{ backgroundColor: badge.bg, color: badge.text }}
           >
             {badge.label}
@@ -103,7 +103,7 @@ function FeedItem({ event }: { event: ActivityEvent }) {
       </div>
 
       {/* Timestamp */}
-      <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums pt-0.5">
+      <span className="text-[11px] text-gray-400 shrink-0 tabular-nums pt-0.5">
         {time}
       </span>
     </div>
@@ -154,7 +154,7 @@ export default function ActivityFeed() {
   }, [events.length]);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-xs flex flex-col overflow-hidden">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -212,7 +212,7 @@ export default function ActivityFeed() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`flex-shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all ${
+            className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all ${
               filter === f.key
                 ? 'bg-gray-900 text-white'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'

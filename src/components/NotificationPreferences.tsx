@@ -41,7 +41,7 @@ export default function NotificationPreferences() {
   if (!prefs) return null;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1"><Bell className="w-4 h-4" /> Reminders</h2>
       <p className="text-sm text-gray-500 mb-4">Choose how we remind you about intake deadlines and meetings. You will always see them in the bell at the top.</p>
       {error && <p role="alert" className="text-sm text-red-600 mb-2">{error}</p>}
@@ -74,9 +74,9 @@ function Row({ label, hint, on, disabled, onToggle }: { label: string; hint: str
         aria-label={`${label} reminders`}
         disabled={disabled}
         onClick={onToggle}
-        className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${on ? 'bg-emerald-500' : 'bg-gray-300'}`}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${on ? 'bg-emerald-500' : 'bg-gray-300'}`}
       >
-        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${on ? 'translate-x-5' : ''}`} />
       </button>
     </li>
   );

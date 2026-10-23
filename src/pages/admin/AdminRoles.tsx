@@ -49,7 +49,7 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
     }
   };
 
-  const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500';
+  const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500';
   return (
     <div role="presentation" className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <form role="presentation" onSubmit={save} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
@@ -77,7 +77,7 @@ function RoleModal({ role, parentId, roles, descendantsOf, onClose, onSaved }: {
             <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg">
               <button type="button" id="peer-toggle" role="switch" aria-checked={peerVisibility} aria-labelledby="peer-label" onClick={() => setPeerVisibility(v => !v)}
                 className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${peerVisibility ? 'bg-green-500' : 'bg-gray-300'}`}>
-                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${peerVisibility ? 'left-5' : 'left-0.5'}`} />
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${peerVisibility ? 'left-5' : 'left-0.5'}`} />
               </button>
               <label id="peer-label" htmlFor="peer-toggle" className="text-sm text-gray-700 cursor-pointer">Let users in this role see each other's data</label>
             </div>
@@ -194,7 +194,7 @@ export default function AdminRoles() {
           {kids.length > 0 ? (
             <button type="button" onClick={e => { e.stopPropagation(); toggle(r._id); }}
               aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-              className="w-4 h-4 border border-gray-400 rounded-sm flex items-center justify-center text-gray-500 hover:border-purple-500 hover:text-purple-600">
+              className="w-4 h-4 border border-gray-400 rounded-xs flex items-center justify-center text-gray-500 hover:border-purple-500 hover:text-purple-600">
               {isCollapsed ? <Plus className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
             </button>
           ) : <span className="w-4" />}
@@ -204,11 +204,11 @@ export default function AdminRoles() {
           </span>
           <div className="ml-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button type="button" title="Add role under this" onClick={e => { e.stopPropagation(); setModal({ parentId: r._id }); }}
-              className="p-1 rounded text-gray-500 hover:bg-purple-100 hover:text-purple-700"><Plus className="w-4 h-4" /></button>
+              className="p-1 rounded-sm text-gray-500 hover:bg-purple-100 hover:text-purple-700"><Plus className="w-4 h-4" /></button>
             <button type="button" title="Edit role" onClick={e => { e.stopPropagation(); setModal({ role: r }); }}
-              className="p-1 rounded text-gray-500 hover:bg-purple-100 hover:text-purple-700"><Pencil className="w-4 h-4" /></button>
+              className="p-1 rounded-sm text-gray-500 hover:bg-purple-100 hover:text-purple-700"><Pencil className="w-4 h-4" /></button>
             <button type="button" title="Delete role" onClick={e => { e.stopPropagation(); remove(r); }}
-              className="p-1 rounded text-gray-500 hover:bg-red-100 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+              className="p-1 rounded-sm text-gray-500 hover:bg-red-100 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
           </div>
         </div>
         {!isCollapsed && kids.map(k => renderNode(k, depth + 1))}
@@ -270,7 +270,7 @@ export default function AdminRoles() {
               <div className="p-4 space-y-3">
                 <div className="flex gap-2">
                   <select value={addUserId} onChange={e => setAddUserId(e.target.value)}
-                    className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500">
                     <option value="">Add staff to this role…</option>
                     {staff.filter(s => s.hierarchyRole !== selected._id).map(s => (
                       <option key={s._id} value={s._id}>

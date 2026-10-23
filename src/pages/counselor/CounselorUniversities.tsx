@@ -64,7 +64,7 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         {/* Header */}
@@ -75,7 +75,7 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
             <p className="text-xs text-gray-500 truncate">{universityName}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -107,20 +107,20 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
               <span className={selectedStudent ? 'text-gray-900' : 'text-gray-400'}>
                 {selectedStudent ? `${selectedStudent.name} (${selectedStudent.email})` : '— Choose a student —'}
               </span>
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
             </button>
             {studentDropOpen && (
               <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 <div className="p-2 border-b border-gray-100">
                   <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg">
-                    <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     <input
                       autoFocus
                       type="text"
                       value={studentSearch}
                       onChange={e => setStudentSearch(e.target.value)}
                       placeholder="Search by name or email…"
-                      className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400"
+                      className="flex-1 bg-transparent text-sm outline-hidden text-gray-700 placeholder-gray-400"
                     />
                     {studentSearch && (
                       <button aria-label="Clear search" type="button" onClick={() => setStudentSearch('')}>
@@ -152,7 +152,7 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake</label>
               <select value={intake} onChange={e => setIntake(e.target.value)}
                 aria-label="Select intake"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                 {course.intake.map((i: string) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
@@ -162,7 +162,7 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
 
           {success && (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2.5 rounded-xl">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />Application created successfully!
+              <CheckCircle className="w-4 h-4 shrink-0" />Application created successfully!
             </div>
           )}
 
@@ -172,7 +172,7 @@ function ApplyModal({ course, universityName, universityId, students, onClose, o
               Cancel
             </button>
             <button type="button" onClick={handleApply} disabled={saving || success}
-              className="flex-1 py-2.5 bg-white hover:bg-green-50 text-green-700 border-2 border-gray-300 rounded-xl text-sm font-semibold shadow-sm disabled:opacity-60 transition-all flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 bg-white hover:bg-green-50 text-green-700 border-2 border-gray-300 rounded-xl text-sm font-semibold shadow-xs disabled:opacity-60 transition-all flex items-center justify-center gap-2">
               {saving
                 ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying…</>
                 : <><Plus className="w-4 h-4" />Apply</>}
@@ -216,10 +216,10 @@ function UniLogoImg({ name, website, uniId }: { name: string; website?: string; 
 
 function UniversityCard({ uni }: { uni: any }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-shadow overflow-hidden">
       {/* Header */}
       <div className="flex gap-4 p-5">
-        <div className="w-14 h-14 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1.5 flex-shrink-0">
+        <div className="w-14 h-14 bg-white rounded-xl border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden p-1.5 shrink-0">
           <UniLogoImg name={uni.name} website={uni.website} uniId={uni.id || uni._id} />
         </div>
         <div className="flex-1 min-w-0">
@@ -343,10 +343,10 @@ export default function CounselorUniversities() {
         />
       )}
 
-      <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -355,7 +355,7 @@ export default function CounselorUniversities() {
           </div>
         </div>
         <button type="button" onClick={handleExport} disabled={filtered.length === 0}
-          className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0">
+          className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 shrink-0">
           <Download className="w-4 h-4" />Export CSV
         </button>
         </div>
@@ -363,26 +363,26 @@ export default function CounselorUniversities() {
 
       {loadError && (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search by name, city, country..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
           </div>
           <select aria-label="Filter by country" value={country} onChange={e => setCountry(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500">
             <option value="">All Countries</option>
             {countries.map(c => <option key={c}>{c}</option>)}
           </select>
           <select aria-label="Filter by level" value={level} onChange={e => setLevel(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500">
             <option value="">All Levels</option>
             {["Bachelor's", "Master's", 'PhD', 'Diploma', 'Certificate'].map(l => <option key={l}>{l}</option>)}
           </select>

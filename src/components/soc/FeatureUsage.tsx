@@ -24,7 +24,7 @@ function Bar({ value, max }: { value: number; max: number }) {
 
 function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
       <h2 className="text-sm font-bold text-gray-900">{title}</h2>
       {sub && <p className="text-[11px] text-gray-500 mb-3">{sub}</p>}
       <div className={sub ? '' : 'mt-3'}>{children}</div>
@@ -66,7 +66,7 @@ export default function FeatureUsage({ onInvestigateUser, userId }: { onInvestig
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
           {(['24h', '7d', '30d'] as Period[]).map(p => (
             <button key={p} type="button" onClick={() => setPeriod(p)} aria-pressed={period === p}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${period === p ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>{p}</button>
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${period === p ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}>{p}</button>
           ))}
         </div>
         {data && <p className="text-xs text-gray-400">{data.totals.events} actions · {data.totals.activeUsers} active {data.totals.activeUsers === 1 ? 'account' : 'accounts'} · {data.totals.uploads} upload{data.totals.uploads === 1 ? '' : 's'}</p>}
@@ -79,7 +79,7 @@ export default function FeatureUsage({ onInvestigateUser, userId }: { onInvestig
               <div className="space-y-3">
                 {data.pages.map(p => (
                   <div key={p.file}>
-                    <div className="flex justify-between gap-2 text-xs"><span className="font-medium text-gray-800 truncate min-w-0" title={p.file}>{featureName(p.file)}</span><span className="text-gray-500 flex-shrink-0">{plural(p.views, 'view')} · {plural(p.users, 'person', 'people')}</span></div>
+                    <div className="flex justify-between gap-2 text-xs"><span className="font-medium text-gray-800 truncate min-w-0" title={p.file}>{featureName(p.file)}</span><span className="text-gray-500 shrink-0">{plural(p.views, 'view')} · {plural(p.users, 'person', 'people')}</span></div>
                     <Bar value={p.views} max={pageMax} />
                   </div>
                 ))}
@@ -93,7 +93,7 @@ export default function FeatureUsage({ onInvestigateUser, userId }: { onInvestig
                   <div key={`${f.file}|${f.label}|${f.kind}|${i}`}>
                     <div className="flex justify-between gap-2 text-xs">
                       <span className="text-gray-800 truncate min-w-0"><span className="font-medium">“{f.label}”</span> <span className="text-gray-500">{KIND_VERB[f.kind] || f.kind} on {featureName(f.file)}</span></span>
-                      <span className="text-gray-500 flex-shrink-0">{f.uses}× · {f.users} {f.users === 1 ? 'person' : 'people'}</span>
+                      <span className="text-gray-500 shrink-0">{f.uses}× · {f.users} {f.users === 1 ? 'person' : 'people'}</span>
                     </div>
                     <Bar value={f.uses} max={featMax} />
                   </div>

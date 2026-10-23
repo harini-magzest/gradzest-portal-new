@@ -55,7 +55,7 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
   if (value === undefined || value === null || value === '') return null;
   return (
     <div className="flex gap-3 text-xs py-1">
-      <dt className="w-28 flex-shrink-0 text-gray-500">{label}</dt>
+      <dt className="w-28 shrink-0 text-gray-500">{label}</dt>
       <dd className={`text-gray-800 break-all min-w-0 ${mono ? 'font-mono' : ''}`}>{value}</dd>
     </div>
   );

@@ -38,7 +38,7 @@ export default function AlertChannelsCard() {
   const none = status && !status.webhook.configured && !status.telegram.configured;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><BellRing className="w-4 h-4 text-purple-600" /> Alert channels</h3>
         <button type="button" onClick={sendTest} disabled={busy || !status}

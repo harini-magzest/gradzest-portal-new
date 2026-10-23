@@ -184,20 +184,20 @@ function CountryModal({ country, onClose, onSaved }: {
     }
   };
 
-  const inp = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400';
+  const inp = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400';
   const sel = `${inp} bg-white text-gray-700`;
   const SL = ({ children }: { children: React.ReactNode }) => (
     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-3 pb-1">{children}</p>
   );
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white z-10">
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xs">
                 <span className="text-lg leading-none">🌍</span>
               </div>
               <div>
@@ -222,8 +222,8 @@ function CountryModal({ country, onClose, onSaved }: {
           {autofillMsg && (
             <div className={`px-6 py-2 text-xs font-medium flex items-center gap-1.5 border-b ${autofillMsg.includes('success') || autofillMsg.includes('filled') ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
               {autofillMsg.includes('success') || autofillMsg.includes('filled')
-                ? <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                : <span className="flex-shrink-0">⚠</span>}
+                ? <Check className="w-3.5 h-3.5 shrink-0" />
+                : <span className="shrink-0">⚠</span>}
               {autofillMsg}
             </div>
           )}
@@ -301,7 +301,7 @@ function CountryModal({ country, onClose, onSaved }: {
               <input value={docInput} onChange={e => setDocInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDoc(); } }}
                 placeholder="e.g. Bank statements (3 months)"
-                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               <button type="button" onClick={addDoc}
                 className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100 transition-colors">Add</button>
             </div>
@@ -315,7 +315,7 @@ function CountryModal({ country, onClose, onSaved }: {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Visa Notes & Special Rules</label>
             <textarea value={form.visaNotes} onChange={e => set('visaNotes', e.target.value)} rows={2}
               placeholder="e.g. OPT work authorization available for 12–36 months post-graduation…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none placeholder:text-gray-400" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none placeholder:text-gray-400" />
           </div>
 
           {/* ── Passport ── */}
@@ -329,7 +329,7 @@ function CountryModal({ country, onClose, onSaved }: {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Passport Notes & Special Requirements</label>
             <textarea value={form.passportNotes} onChange={e => set('passportNotes', e.target.value)} rows={2}
               placeholder="e.g. TB test required for Indian nationals. IHS payment required…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none placeholder:text-gray-400" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none placeholder:text-gray-400" />
           </div>
 
           {/* ── Costs & Fees ── */}
@@ -368,7 +368,7 @@ function CountryModal({ country, onClose, onSaved }: {
               <input value={popularInput} onChange={e => setPopularInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPop(); } }}
                 placeholder="e.g. Computer Science"
-                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               <button type="button" onClick={addPop}
                 className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100 transition-colors">Add</button>
             </div>
@@ -419,7 +419,7 @@ function CountryModal({ country, onClose, onSaved }: {
                     <input value={natInput} onChange={e => setNatInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNat(); } }}
                       placeholder="e.g. Iran, North Korea…"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                     <button type="button" onClick={addNat}
                       className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100">Add</button>
                   </div>
@@ -460,12 +460,12 @@ function CountryModal({ country, onClose, onSaved }: {
 
 function CountryDetailModal({ country, unis, onClose }: { country: any; unis: any[]; onClose: () => void }) {
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-t-2xl px-6 py-5 text-white">
+        <div className="bg-linear-to-r from-purple-600 to-indigo-700 rounded-t-2xl px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               {country.code ? (
@@ -502,7 +502,7 @@ function CountryDetailModal({ country, unis, onClose }: { country: any; unis: an
               </div>
             </div>
             <button type="button" onClick={onClose} aria-label="Close"
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all flex-shrink-0">
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -535,7 +535,7 @@ function CountryDetailModal({ country, unis, onClose }: { country: any; unis: an
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                   {country.visa.documents.map((d: string, i: number) => (
                     <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
-                      <Check className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />{d}
+                      <Check className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />{d}
                     </li>
                   ))}
                 </ul>
@@ -602,7 +602,7 @@ function CountryDetailModal({ country, unis, onClose }: { country: any; unis: an
               </p>
               <div className="flex flex-wrap gap-2">
                 {country.popular.map((p: string, i: number) => (
-                  <span key={i} className="text-xs bg-white text-emerald-700 px-3 py-1 rounded-full border border-emerald-200 font-medium shadow-sm">{p}</span>
+                  <span key={i} className="text-xs bg-white text-emerald-700 px-3 py-1 rounded-full border border-emerald-200 font-medium shadow-xs">{p}</span>
                 ))}
               </div>
             </div>
@@ -637,11 +637,11 @@ function CountryDetailModal({ country, unis, onClose }: { country: any; unis: an
 function UniMiniCard({ uni }: { uni: any }) {
   return (
     <Link to={`/university/${uni.id || uni._id}`}
-      className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm min-w-0 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer">
+      className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-xs min-w-0 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer">
       <img loading="lazy" decoding="async"
         src={`/api/unilogo/${uni.id || uni._id}`}
         alt=""
-        className="w-9 h-9 rounded-lg object-contain bg-gray-50 border border-gray-100 flex-shrink-0"
+        className="w-9 h-9 rounded-lg object-contain bg-gray-50 border border-gray-100 shrink-0"
         onError={(e) => {
           const el = e.currentTarget;
           const domain = uni.website?.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0];
@@ -654,7 +654,7 @@ function UniMiniCard({ uni }: { uni: any }) {
           }
         }}
       />
-      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 items-center justify-center flex-shrink-0 hidden">
+      <div className="w-9 h-9 rounded-lg bg-linear-to-br from-purple-100 to-indigo-100 items-center justify-center shrink-0 hidden">
         <span className="text-sm font-bold text-purple-600">{uni.name?.charAt(0) || '?'}</span>
       </div>
       <div className="min-w-0 flex-1">
@@ -662,7 +662,7 @@ function UniMiniCard({ uni }: { uni: any }) {
         <p className="text-xs text-gray-400 truncate">{uni.city || uni.type || ''}</p>
       </div>
       {uni.courses?.length > 0 && (
-        <span className="text-xs bg-purple-50 text-purple-700 font-medium px-2 py-0.5 rounded-full border border-purple-100 flex-shrink-0">
+        <span className="text-xs bg-purple-50 text-purple-700 font-medium px-2 py-0.5 rounded-full border border-purple-100 shrink-0">
           {uni.courses.length}
         </span>
       )}
@@ -701,7 +701,7 @@ function CountryRow({ country, unis, onEdit, onDelete, onView }: {
   const mongoId = country._id?.toString() ?? '';
 
   return (
-    <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-xs hover:shadow-md transition-shadow">
       {/* Header row */}
       <div className="flex items-center gap-4 px-5 py-4">
         <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-20 h-14" rounded="rounded-xl" quality="w160" />
@@ -731,7 +731,7 @@ function CountryRow({ country, unis, onEdit, onDelete, onView }: {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={() => onView(country)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 active:scale-95 transition-all">
             <Eye className="w-3.5 h-3.5" /> View
@@ -773,7 +773,7 @@ function CountryRow({ country, unis, onEdit, onDelete, onView }: {
                   <ul className="space-y-1">
                     {country.visa.documents.map((d: string, i: number) => (
                       <li key={i} className="flex items-start gap-1.5">
-                        <Check className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                        <Check className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
                         <span className="text-gray-700">{d}</span>
                       </li>
                     ))}
@@ -935,10 +935,10 @@ export default function AdminCountries() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <span className="text-2xl leading-none">🌍</span>
               </div>
               <div>
@@ -952,7 +952,7 @@ export default function AdminCountries() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
               </button>
               <button type="button" onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-xs">
                 <Plus className="w-4 h-4" /> Add Country
               </button>
             </div>
@@ -963,7 +963,7 @@ export default function AdminCountries() {
               { label: 'With Visa Info', value: withVisaCount },
               { label: 'Regions Covered', value: regionCount },
             ].map(s => (
-              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
+              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-xs">
                 <div className="text-3xl font-bold">{s.value}</div>
                 <div className="text-xs text-white/60 mt-0.5">{s.label}</div>
               </div>
@@ -981,10 +981,10 @@ export default function AdminCountries() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search countries, capitals or regions…"
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs" />
           </div>
           <select aria-label="Filter by region" value={regionFilter} onChange={e => setRegionFilter(e.target.value)}
-            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-w-[160px] text-gray-700">
+            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs min-w-[160px] text-gray-700">
             <option value="">All Regions</option>
             {regions.map(r => <option key={r}>{r}</option>)}
           </select>
@@ -996,7 +996,7 @@ export default function AdminCountries() {
             <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-xs">
             <span className="text-5xl block text-center mb-2 opacity-40">🌍</span>
             <p className="text-sm font-medium">{search || regionFilter ? 'No countries match your filters.' : 'No countries yet. Add one above.'}</p>
           </div>

@@ -78,7 +78,7 @@ export default function AuditTab() {
       {exportError && <ErrorBanner compact message={exportError} onRetry={exportCsv} />}
       <Section title="Student data access" hint="Who opened students' personal details">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 min-w-0">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 min-w-0">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="w-4 h-4 text-purple-600" />
               <h3 className="text-sm font-bold text-gray-900">Top PII Accessors — last 24h</h3>
@@ -113,7 +113,7 @@ export default function AuditTab() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 min-w-0">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 min-w-0">
             <div className="flex items-center gap-2 mb-4">
               <ClipboardCheck className="w-4 h-4 text-purple-600" />
               <h3 className="text-sm font-bold text-gray-900">Recent PII Access</h3>
@@ -130,7 +130,7 @@ export default function AuditTab() {
                       <span className="font-medium text-gray-800">{a.applicantEmail}</span>
                       <span className="text-xs text-gray-500 ml-2">{a.fieldsAccessed.join(', ')}</span>
                     </div>
-                    <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
+                    <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
                   </div>
                 ))}
               </div>
@@ -140,7 +140,7 @@ export default function AuditTab() {
       </Section>
 
       <Section title="Analyst actions" hint="Everything done from the SOC, in a tamper-checked log">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <ShieldCheck className="w-4 h-4 text-purple-600" />
             <h3 className="text-sm font-bold text-gray-900">Analyst Action Trail</h3>
@@ -177,7 +177,7 @@ export default function AuditTab() {
                     <span className="text-xs text-gray-700" title={a.targetId}>{a.targetLabel || a.targetId}</span>
                     {a.reason && <span className="text-xs text-gray-500 ml-2">({a.reason})</span>}
                   </div>
-                  <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
+                  <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
                 </div>
               ))}
             </div>

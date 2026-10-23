@@ -34,10 +34,10 @@ function EligibilityBadge({ result, loading }: { result: EligibilityResult | nul
         <div className="mt-2 border border-gray-100 rounded-xl overflow-hidden text-xs">
           {result.checks.map((c, i) => (
             <div key={i} className={`flex items-start gap-2 px-3 py-2 ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-              {c.status === 'pass'    && <CheckCircle  className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />}
-              {c.status === 'fail'    && <XCircle      className="w-3.5 h-3.5 text-red-500   mt-0.5 flex-shrink-0" />}
-              {c.status === 'missing' && <XCircle      className="w-3.5 h-3.5 text-red-400   mt-0.5 flex-shrink-0" />}
-              {c.status === 'info'    && <AlertCircle  className="w-3.5 h-3.5 text-amber-400  mt-0.5 flex-shrink-0" />}
+              {c.status === 'pass'    && <CheckCircle  className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />}
+              {c.status === 'fail'    && <XCircle      className="w-3.5 h-3.5 text-red-500   mt-0.5 shrink-0" />}
+              {c.status === 'missing' && <XCircle      className="w-3.5 h-3.5 text-red-400   mt-0.5 shrink-0" />}
+              {c.status === 'info'    && <AlertCircle  className="w-3.5 h-3.5 text-amber-400  mt-0.5 shrink-0" />}
               <div>
                 <span className="font-medium text-gray-700">{c.req}</span>
                 <span className="text-gray-400 ml-1">— {c.detail}</span>
@@ -129,7 +129,7 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
@@ -139,7 +139,7 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
             <p className="text-xs text-gray-500 truncate">{uni.name}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -151,16 +151,16 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
               <span className={selectedStudent ? 'text-gray-900' : 'text-gray-400'}>
                 {selectedStudent ? `${selectedStudent.name} (${selectedStudent.email})` : '— Choose a student —'}
               </span>
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
             </button>
             {studentDropOpen && (
               <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 <div className="p-2 border-b border-gray-100">
                   <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg">
-                    <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     <input autoFocus type="text" value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
                       placeholder="Search by name or email…"
-                      className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
+                      className="flex-1 bg-transparent text-sm outline-hidden text-gray-700 placeholder-gray-400" />
                     {studentSearch && (
                       <button type="button" aria-label="Clear search" onClick={() => setStudentSearch('')}>
                         <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
@@ -199,10 +199,10 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
                       <div className="space-y-1">
                         {eligibility.checks.map((c, i) => (
                           <div key={i} className="flex items-start gap-1.5 text-xs">
-                            {c.status === 'pass'    && <CheckCircle  className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />}
-                            {c.status === 'fail'    && <XCircle      className="w-3 h-3 text-red-500   mt-0.5 flex-shrink-0" />}
-                            {c.status === 'missing' && <XCircle      className="w-3 h-3 text-red-400   mt-0.5 flex-shrink-0" />}
-                            {c.status === 'info'    && <AlertCircle  className="w-3 h-3 text-amber-400  mt-0.5 flex-shrink-0" />}
+                            {c.status === 'pass'    && <CheckCircle  className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />}
+                            {c.status === 'fail'    && <XCircle      className="w-3 h-3 text-red-500   mt-0.5 shrink-0" />}
+                            {c.status === 'missing' && <XCircle      className="w-3 h-3 text-red-400   mt-0.5 shrink-0" />}
+                            {c.status === 'info'    && <AlertCircle  className="w-3 h-3 text-amber-400  mt-0.5 shrink-0" />}
                             <span className={c.status === 'fail' || c.status === 'missing' ? 'text-red-700' : 'text-gray-600'}>
                               <strong>{c.req}</strong> — {c.detail}
                             </span>
@@ -220,7 +220,7 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake</label>
               <select value={intake} onChange={e => setIntake(e.target.value)} aria-label="Select intake"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                 {course.intake.map((i: string) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
@@ -228,7 +228,7 @@ function CounselorApplyModal({ course, uni, students, onClose, onApplied }: {
           {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2.5 rounded-xl">{error}</p>}
           {success && (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2.5 rounded-xl">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />Application created successfully!
+              <CheckCircle className="w-4 h-4 shrink-0" />Application created successfully!
             </div>
           )}
           <div className="flex gap-3 pt-1">
@@ -252,7 +252,7 @@ function UniLogoBox({ uni }: { uni: any }) {
   const src = stage === 'proxy' ? `/api/unilogo/${uniId}` : `/api/favicon/${domain}`;
 
   return (
-    <div className="w-16 h-16 bg-white rounded-xl border-2 border-white/30 shadow-lg overflow-hidden p-1.5 flex items-center justify-center flex-shrink-0">
+    <div className="w-16 h-16 bg-white rounded-xl border-2 border-white/30 shadow-lg overflow-hidden p-1.5 flex items-center justify-center shrink-0">
       {stage === 'letter' ? (
         <span className="w-full h-full bg-[#0d1b4b] flex items-center justify-center text-white font-bold text-2xl rounded-lg">
           {uni.name?.charAt(0) || '?'}
@@ -352,11 +352,11 @@ export default function UniversityDetail() {
           onApplied={() => setCounselorApplyModal(null)}
         />
       )}
-      <div className="relative h-72 bg-gradient-to-br from-blue-600 to-indigo-700 overflow-hidden">
+      <div className="relative h-72 bg-linear-to-br from-blue-600 to-indigo-700 overflow-hidden">
         <img src={wikiPhoto || uni.coverImage} alt={uni.name} className="w-full h-full object-cover opacity-50" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/20"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 to-black/20"></div>
         <div className="absolute top-4 left-4">
-          <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors text-sm">
+          <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-2 bg-white/20 backdrop-blur-xs text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors text-sm">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
         </div>
@@ -368,7 +368,7 @@ export default function UniversityDetail() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full">#{uni.ranking} World Ranking</span>
-                  <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">{uni.type}</span>
+                  <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full backdrop-blur-xs">{uni.type}</span>
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-bold text-white">{uni.name}</h1>
                 <div className="flex items-center gap-2 mt-2 text-white/90">
@@ -378,14 +378,14 @@ export default function UniversityDetail() {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-3">
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 text-center text-white">
+              <div className="bg-white/20 backdrop-blur-xs rounded-xl p-3 text-center text-white">
                 <div className="flex items-center gap-1 justify-center">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   <span className="text-xl font-bold">{uni.rating}</span>
                 </div>
                 <span className="text-xs">Rating</span>
               </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 text-center text-white">
+              <div className="bg-white/20 backdrop-blur-xs rounded-xl p-3 text-center text-white">
                 <div className="text-xl font-bold">{uni.acceptanceRate}%</div>
                 <span className="text-xs">Accept Rate</span>
               </div>
@@ -404,7 +404,7 @@ export default function UniversityDetail() {
                 { icon: BookOpen, label: 'Courses Offered', value: (uni.courses?.length ?? 0).toString() },
                 { icon: TrendingUp, label: 'Acceptance Rate', value: uni.acceptanceRate != null ? `${uni.acceptanceRate}%` : '—' },
               ].map(stat => (
-                <div key={stat.label} className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
+                <div key={stat.label} className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-xs">
                   <stat.icon className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                   <div className="text-xl font-bold text-gray-900">{stat.value}</div>
                   <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
@@ -412,7 +412,7 @@ export default function UniversityDetail() {
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h2 className="text-xl font-bold text-gray-900 mb-3">About {uni.name}</h2>
               <p className="text-gray-600 leading-relaxed">{uni.description}</p>
               <div className="flex flex-wrap gap-2 mt-4">
@@ -420,11 +420,11 @@ export default function UniversityDetail() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h2 className="text-xl font-bold text-gray-900 mb-5">Available Courses</h2>
               <div className="space-y-4">
                 {uni.courses.map((course: any, idx: number) => (
-                  <div key={course._id || course.id || idx} className="border border-gray-100 rounded-xl p-5 hover:border-blue-200 hover:shadow-sm transition-all">
+                  <div key={course._id || course.id || idx} className="border border-gray-100 rounded-xl p-5 hover:border-blue-200 hover:shadow-xs transition-all">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -471,7 +471,7 @@ export default function UniversityDetail() {
                     )}
                     {isAuthenticated && user?.role === 'counselor' && (
                       <button type="button" onClick={() => setCounselorApplyModal(course)}
-                        className="mt-4 flex items-center gap-1.5 bg-[#0d1b4b] hover:bg-[#152258] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm">
+                        className="mt-4 flex items-center gap-1.5 bg-[#0d1b4b] hover:bg-[#152258] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-xs">
                         <Plus className="w-4 h-4" />Apply for Student
                       </button>
                     )}
@@ -480,12 +480,12 @@ export default function UniversityDetail() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Campus Facilities</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {uni.facilities.map((f: string) => (
                   <div key={f} className="flex items-center gap-2 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />{f}
+                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />{f}
                   </div>
                 ))}
               </div>
@@ -494,16 +494,16 @@ export default function UniversityDetail() {
 
           <div className="space-y-5">
             {wikiPhoto && (
-              <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-xs">
                 <div className="relative h-44">
                   <img loading="lazy" decoding="async" src={wikiPhoto} alt={`${uni.name} campus`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
                   <p className="absolute bottom-2 right-3 text-white/70 text-[10px]">Photo · Wikipedia</p>
                 </div>
               </div>
             )}
 
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
+            <div className="bg-linear-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
               <h3 className="font-bold text-lg mb-4">Interested in {uni.name}?</h3>
               {isAuthenticated && user?.role === 'student' ? (
                 <button type="button"
@@ -527,7 +527,7 @@ export default function UniversityDetail() {
               </a>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><DollarSign className="w-5 h-5 text-blue-600" /> Tuition Fees</h3>
               <div className="space-y-3">
                 <div className="flex justify-between"><span className="text-gray-600 text-sm">Undergraduate</span><span className="font-bold text-gray-900">{uni.averageFees.currency} {uni.averageFees.undergraduate.toLocaleString()}/yr</span></div>
@@ -535,7 +535,7 @@ export default function UniversityDetail() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Calendar className="w-5 h-5 text-blue-600" /> Application Deadlines</h3>
               <div className="space-y-3">
                 {uni.applicationDeadlines.map((d: any) => (
@@ -547,7 +547,7 @@ export default function UniversityDetail() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Award className="w-5 h-5 text-yellow-500" /> Scholarships</h3>
               <div className="space-y-4">
                 {uni.scholarships.map((s: any) => (
@@ -563,7 +563,7 @@ export default function UniversityDetail() {
 
             {/* Social media links */}
             {uni.socialLinks && Object.values(uni.socialLinks).some(Boolean) && (
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Share2 className="w-5 h-5 text-blue-600" /> Follow on Social Media
                 </h3>

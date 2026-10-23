@@ -1,7 +1,7 @@
 // Zest's mark: a navy speech bubble holding the Gradzest graduation cap, with a gold sparkle.
 export default function ZestIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className={`flex-shrink-0 ${className}`} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className={`shrink-0 ${className}`} aria-hidden="true">
       <defs>
         <linearGradient id="zest-sparkle-gold" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#fde68a" />

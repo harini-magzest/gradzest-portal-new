@@ -14,7 +14,7 @@ function CountryCard({ country, unis, student }: { country: any; unis: any[]; st
 
   return (
     <Link to={`/student/countries/${encodeURIComponent(countryKey(country))}`} aria-label={`Open ${country.name}`}
-      className="group flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
+      className="group flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-blue-200 transition-all">
       <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-20 h-14" rounded="rounded-xl" quality="w160" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -52,10 +52,10 @@ function CountryCard({ country, unis, student }: { country: any; unis: any[]; st
           </span>
         </div>
       </div>
-      <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 group-hover:bg-blue-100 transition-colors flex-shrink-0">
+      <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 group-hover:bg-blue-100 transition-colors shrink-0">
         View country <ChevronRight className="w-3.5 h-3.5" />
       </span>
-      <ChevronRight className="sm:hidden w-5 h-5 text-gray-300 flex-shrink-0" />
+      <ChevronRight className="sm:hidden w-5 h-5 text-gray-300 shrink-0" />
     </Link>
   );
 }
@@ -104,10 +104,10 @@ export default function StudentCountries() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search countries, capitals or regions…"
-            className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs" />
         </div>
         <select aria-label="Filter by region" value={regionFilter} onChange={e => setRegionFilter(e.target.value)}
-          className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-gray-700">
+          className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs text-gray-700">
           <option value="">All Regions</option>
           {regions.map(r => <option key={r}>{r}</option>)}
         </select>
@@ -119,8 +119,8 @@ export default function StudentCountries() {
         </div>
       ) : loadError ? (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-          <button type="button" onClick={loadCountries} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCountries} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       ) : (
         <>

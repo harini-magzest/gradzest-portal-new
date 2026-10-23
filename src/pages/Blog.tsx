@@ -24,10 +24,10 @@ function BlogCard({ post }: { post: BlogPost }) {
   return (
     <Link
       to={`/resources/${post.slug}`}
-      className="group flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      className="group flex flex-col bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden"
     >
       {/* Cover */}
-      <div className="h-40 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-6xl select-none">
+      <div className="h-40 bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-6xl select-none">
         {post.coverEmoji}
       </div>
 
@@ -97,7 +97,7 @@ export default function Blog() {
               placeholder="Search articles…"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border-0 shadow-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border-0 shadow-lg text-sm text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-blue-400"
             />
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function Blog() {
       </div>
 
       {/* CTA Banner */}
-      <section className="bg-gradient-to-r from-blue-600 to-indigo-700 py-12 px-4">
+      <section className="bg-linear-to-r from-blue-600 to-indigo-700 py-12 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Ready to start your study abroad journey?</h2>
           <p className="text-blue-100 mb-6">Our expert counselors offer free 1-on-1 guidance tailored to your profile.</p>

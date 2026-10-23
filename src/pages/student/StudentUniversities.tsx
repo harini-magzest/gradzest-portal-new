@@ -36,9 +36,9 @@ export function UniversityCard({ uni, student }: { uni: any; student: any }) {
       tabIndex={0}
       onKeyDown={clickOnEnter}
       onClick={() => navigate(`/university/${uni.id}`)}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group">
+      className="bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group">
       {/* Cover image */}
-      <div className="h-40 bg-gradient-to-br from-blue-400 to-indigo-600 relative overflow-hidden rounded-t-2xl">
+      <div className="h-40 bg-linear-to-br from-blue-400 to-indigo-600 relative overflow-hidden rounded-t-2xl">
         <img loading="lazy" decoding="async" src={uni.coverImage} alt={uni.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -152,21 +152,21 @@ export default function StudentUniversities() {
         <p className="text-gray-500 mt-1">Explore partner universities and their courses</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search by name, city, tags..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
           </div>
           <select aria-label="Filter by country" value={country} onChange={e => setCountry(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="">All Countries</option>
             {countries.map(c => <option key={c}>{c}</option>)}
           </select>
           <select aria-label="Filter by level" value={level} onChange={e => setLevel(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="">All Levels</option>
             {['Bachelor', 'Master', 'PhD', 'Diploma', 'Certificate'].map(l => <option key={l}>{l}</option>)}
           </select>
@@ -182,8 +182,8 @@ export default function StudentUniversities() {
 
       {loadError && (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadUniversities} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       )}
 

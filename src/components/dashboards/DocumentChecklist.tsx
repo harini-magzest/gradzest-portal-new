@@ -62,11 +62,11 @@ export default function DocumentChecklist({ studentId }: { studentId?: string })
   };
 
   if (error && !data) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading checklist…</div>;
+  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading checklist…</div>;
 
   const { summary } = data;
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h2 className="font-semibold text-gray-900">Document checklist</h2>
         <span className="text-xs text-gray-500">
@@ -98,7 +98,7 @@ export default function DocumentChecklist({ studentId }: { studentId?: string })
                 <p className={`text-xs ${s.cls}`}>{s.label}{item.docName && item.status !== 'missing' ? ` · ${item.docName}` : ''}</p>
                 {item.warning && (
                   <p className={`mt-1 flex items-start gap-1.5 text-xs ${item.warning.level === 'expired' ? 'text-red-700' : 'text-amber-700'}`}>
-                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
                     <span>{item.warning.message}</span>
                   </p>
                 )}
@@ -108,7 +108,7 @@ export default function DocumentChecklist({ studentId }: { studentId?: string })
                   type="button"
                   onClick={() => pick(item)}
                   disabled={busy !== null}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 px-3 py-1.5 rounded-lg"
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 px-3 py-1.5 rounded-lg"
                 >
                   <Upload className="w-3.5 h-3.5" /> {busy === item.key ? 'Uploading…' : 'Upload'}
                 </button>

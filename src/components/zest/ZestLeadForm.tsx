@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { api } from '../../api';
 import { FORM_COUNTRIES } from '../../lib/leadFormFields';
 
-const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500';
 
 // "Talk to a counselor" inside the guest Zest chat. Zest can't save anything itself, so the visitor's details are
 // collected here as a real form and sent to /zest/public/lead (saved once, counselor assigned, admins alerted).
@@ -29,7 +29,7 @@ export default function ZestLeadForm({ onClose, onSent }: { onClose: () => void;
   };
 
   return (
-    <form onSubmit={submit} className="bg-white border border-blue-100 rounded-2xl shadow-sm p-4 space-y-3" aria-label="Talk to a counselor">
+    <form onSubmit={submit} className="bg-white border border-blue-100 rounded-2xl shadow-xs p-4 space-y-3" aria-label="Talk to a counselor">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-gray-900">Talk to a counselor</p>

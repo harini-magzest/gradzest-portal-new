@@ -16,9 +16,9 @@ export default function VerifyEmail() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-xs border border-gray-200 p-8 text-center">
         <div className="inline-flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center flex-shrink-0">
+          <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center shrink-0">
             <GraduationCap className="w-7 h-7 text-white" />
           </div>
           <span className="text-3xl font-extrabold tracking-tight select-none">

@@ -56,9 +56,9 @@ export default function NotificationPermissionPrompt() {
 
   return (
     <div role="dialog" aria-labelledby="notif-prompt-title"
-      className="fixed bottom-5 left-5 z-[90] w-[calc(100vw-2.5rem)] max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
+      className="fixed bottom-5 left-5 z-90 w-[calc(100vw-2.5rem)] max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-4">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
           <BellRing className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">

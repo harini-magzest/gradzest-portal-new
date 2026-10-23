@@ -51,7 +51,7 @@ export default function SavedFilters<T>({ storageKey, current, onApply, onDark =
         <span className="inline-flex items-center gap-1">
           <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name this view"
             onKeyDown={e => { if (e.key === 'Enter') saveCurrent(); if (e.key === 'Escape') setNaming(false); }}
-            className="px-2 py-1 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 w-32" />
+            className="px-2 py-1 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-purple-500 w-32" />
           <button type="button" onClick={saveCurrent} className="text-xs font-semibold text-purple-700 hover:underline">Save</button>
         </span>
       ) : (

@@ -49,14 +49,14 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '' }:
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400" />
+        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400" />
     </div>
   );
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
         <h2 className="text-base font-bold text-gray-900">{title}</h2>
       </div>
@@ -74,7 +74,7 @@ function SaveBar({ saving, onSave, saved }: { saving: boolean; onSave: () => voi
         </span>
       )}
       <button type="button" onClick={onSave} disabled={saving}
-        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60 shadow-md transition-all">
+        className="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60 shadow-md transition-all">
         {saving ? <><Spinner white />Saving…</> : <><Save className="w-4 h-4" />Save Changes</>}
       </button>
     </div>
@@ -140,7 +140,7 @@ function MyProfile() {
     <SectionCard title="My Profile">
       <div className="space-y-4">
         <div className="flex items-center gap-4 mb-2">
-          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+          <div className="w-14 h-14 bg-linear-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
             {me.name?.charAt(0)}
           </div>
           <div>
@@ -159,7 +159,7 @@ function MyProfile() {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Bio</label>
           <textarea value={form.bio} onChange={e => set('bio', e.target.value)} rows={3} placeholder="A short bio about yourself…"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400" />
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-gray-400" />
         </div>
         <ErrorNote message={error} />
       </div>
@@ -178,7 +178,7 @@ function PwField({ label, value, onChange, show, onToggle, autoComplete }: {
       <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
       <div className="relative">
         <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} autoComplete={autoComplete}
-          className="w-full px-3.5 py-2.5 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400" />
+          className="w-full px-3.5 py-2.5 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400" />
         <button aria-label="Show or hide password" type="button" onClick={onToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -262,13 +262,13 @@ function Integrations() {
           const { connected, env } = data[key];
           return (
             <div key={key} className="flex items-start gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${connected ? 'bg-green-100' : 'bg-gray-100'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${connected ? 'bg-green-100' : 'bg-gray-100'}`}>
                 <Icon className={`w-4 h-4 ${connected ? 'text-green-600' : 'text-gray-400'}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{label}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                {!connected && <p className="text-xs text-gray-400 mt-1">Not set up. Add {env.map(e => <code key={e} className="font-mono bg-white border border-gray-200 rounded px-1 mx-0.5">{e}</code>)} to the server's environment.</p>}
+                {!connected && <p className="text-xs text-gray-400 mt-1">Not set up. Add {env.map(e => <code key={e} className="font-mono bg-white border border-gray-200 rounded-sm px-1 mx-0.5">{e}</code>)} to the server's environment.</p>}
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${connected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                 {connected ? 'Connected' : 'Not connected'}
@@ -365,7 +365,7 @@ function DangerZone() {
       <div className="space-y-4">
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-red-800">Delete All Student Data</p>
               <p className="text-xs text-red-600 mt-0.5">This will permanently delete all student records, applications, and documents. This action cannot be undone.</p>
@@ -419,9 +419,9 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-[#0d1b4b] rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-gray-800 via-gray-900 to-[#0d1b4b] rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -434,7 +434,7 @@ export default function AdminSettings() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left nav */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-20">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden sticky top-20">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isDanger = item.key === 'danger';
@@ -444,9 +444,9 @@ export default function AdminSettings() {
                     ${active === item.key
                       ? isDanger ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'
                       : isDanger ? 'text-red-500 hover:bg-red-50/50' : 'text-gray-600 hover:bg-gray-50'}`}>
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${active === item.key ? '' : 'opacity-60'}`} />
+                  <Icon className={`w-4 h-4 shrink-0 ${active === item.key ? '' : 'opacity-60'}`} />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {active === item.key && <ChevronRight className="w-4 h-4 opacity-40 flex-shrink-0" />}
+                  {active === item.key && <ChevronRight className="w-4 h-4 opacity-40 shrink-0" />}
                 </button>
               );
             })}

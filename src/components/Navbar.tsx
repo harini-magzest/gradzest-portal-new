@@ -51,7 +51,7 @@ export default function Navbar() {
           {/* Logo + nav links */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2 mr-8">
-              <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-[#0d1b4b] rounded-xl flex items-center justify-center shrink-0">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-extrabold tracking-tight select-none">

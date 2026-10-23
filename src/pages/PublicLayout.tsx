@@ -7,7 +7,7 @@ export default function PublicLayout() {
     <div className="min-h-screen bg-white">
       <SkipLink />
       <Navbar />
-      <div id="main-content" tabIndex={-1} className="outline-none">
+      <div id="main-content" tabIndex={-1} className="outline-hidden">
         <Outlet />
       </div>
     </div>

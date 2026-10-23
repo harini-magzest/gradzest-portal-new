@@ -82,7 +82,7 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
               onChange={handleFile} />
             {file ? (
               <div className="flex items-center justify-center gap-2 text-blue-700">
-                <FileText className="w-5 h-5 flex-shrink-0" />
+                <FileText className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-medium truncate max-w-[200px]">{file.name}</span>
               </div>
             ) : (
@@ -96,12 +96,12 @@ function UploadDocumentModal({ onClose, onUploaded }: { onClose: () => void; onU
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Document Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. IELTS Score Card"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-700" />
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-700" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Document Type</label>
             <select aria-label="Document type" value={type} onChange={e => setType(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 bg-white">
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-700 bg-white">
               {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
@@ -288,7 +288,7 @@ export default function StudentDashboard() {
       )}
 
       {/* Welcome header */}
-      <div className="bg-gradient-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
+      <div className="bg-linear-to-r from-[#0d1b4b] via-blue-700 to-blue-500 rounded-2xl p-6 text-white">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-blue-200 text-sm mb-1">Welcome back,</p>
@@ -318,7 +318,7 @@ export default function StudentDashboard() {
       {/* Offer alert — only shown when there are pending (unresponded) offers */}
       {appStats.pendingOffers > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shrink-0">
             <Bell className="w-5 h-5 text-green-600" />
           </div>
           <div className="flex-1">
@@ -347,7 +347,7 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Profile Completion card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Profile Completion</h2>
@@ -362,8 +362,8 @@ export default function StudentDashboard() {
             {profileFields.map(field => (
               <div key={field.label} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm ${field.filled ? 'bg-green-50' : 'bg-orange-50'}`}>
                 {field.filled
-                  ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  : <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />}
+                  ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                  : <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />}
                 <span className={field.filled ? 'text-green-800 font-medium' : 'text-orange-700'}>{field.label}</span>
               </div>
             ))}
@@ -377,7 +377,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Upload Documents card */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex flex-col">
           <h2 className="text-lg font-bold text-gray-900 mb-1">My Documents</h2>
           <p className="text-xs text-gray-400 mb-4">Visible to your counselor and admin</p>
           <div className="flex-1 space-y-2 mb-4">
@@ -389,10 +389,10 @@ export default function StudentDashboard() {
             ) : docs.slice(0, 4).map((doc: any) => (
               <div key={doc._id || doc.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${doc.status === 'verified' ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${doc.status === 'verified' ? 'bg-green-500' : 'bg-yellow-400'}`} />
                   <span className="text-sm font-medium text-gray-700 truncate">{doc.name}</span>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {doc.url && (
                     <SignedFileLink href={doc.url} target="_blank" rel="noopener noreferrer"
                       className="p-1 text-gray-400 hover:text-blue-600 transition-colors" title="Open document">
@@ -410,7 +410,7 @@ export default function StudentDashboard() {
           <button
             type="button"
             onClick={() => setShowUpload(true)}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm">
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xs">
             <Upload className="w-4 h-4" /> Upload Document
           </button>
           {docs.length > 0 && (
@@ -423,7 +423,7 @@ export default function StudentDashboard() {
 
       {/* Applications + Profile Snapshot */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-bold text-gray-900">My Applications</h2>
             <Link to="/student/applications" className="text-[#0d1b4b] text-sm font-medium hover:text-[#152258] flex items-center gap-1">
@@ -441,7 +441,7 @@ export default function StudentDashboard() {
               {apps.map((app: any, i: number) => (
                 <Link key={app._id || app.id || i} to={`/university/${app.universityId}`}
                   className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-blue-50 rounded-xl transition-colors group">
-                  <div className="w-10 h-10 bg-[#f0f4ff] rounded-lg flex items-center justify-center text-[#0d1b4b] font-bold text-sm flex-shrink-0">
+                  <div className="w-10 h-10 bg-[#f0f4ff] rounded-lg flex items-center justify-center text-[#0d1b4b] font-bold text-sm shrink-0">
                     {app.universityName?.charAt(0) ?? '?'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -455,7 +455,7 @@ export default function StudentDashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-bold text-gray-900">Profile Snapshot</h2>
             <Link to="/student/profile" className="text-[#0d1b4b] text-sm font-medium hover:text-[#152258]">Edit Profile</Link>
@@ -477,7 +477,7 @@ export default function StudentDashboard() {
       </div>
 
       {/* Scheduled Calls */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Phone className="w-5 h-5 text-blue-600" />
@@ -501,8 +501,8 @@ export default function StudentDashboard() {
           </div>
         ) : callsError ? (
           <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{callsError}</div>
-            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+            <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{callsError}</div>
+            <button type="button" onClick={loadCalls} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
           </div>
         ) : scheduledCalls.length === 0 ? (
           <div className="text-center py-8">
@@ -530,7 +530,7 @@ export default function StudentDashboard() {
                   className={`flex items-center gap-4 p-3.5 rounded-xl border transition-all ${
                     isToday ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'
                   }`}>
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
                     isToday ? 'bg-blue-100' : 'bg-white border border-gray-200'
                   }`}>
                     {isVideo
@@ -541,13 +541,13 @@ export default function StudentDashboard() {
                     <p className="text-sm font-semibold text-gray-900">{isVideo ? 'Video' : 'Audio'} Call</p>
                     <p className="text-xs text-gray-500 mt-0.5">with {counselorName}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right shrink-0">
                     <p className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-gray-600'}`}>{dateLabel}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{timeLabel}</p>
                   </div>
                   {isToday && (
                     <Link to="/student/activities"
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors shrink-0">
                       <Video className="w-3 h-3" /> Join
                     </Link>
                   )}
@@ -566,7 +566,7 @@ export default function StudentDashboard() {
 
       {/* Upcoming Intakes */}
       {upcomingIntakes.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-blue-600" />
@@ -589,12 +589,12 @@ export default function StudentDashboard() {
               return (
                 <Link key={i} to={`/university/${item.uniId}`}
                   className="flex items-center gap-4 p-3.5 bg-gray-50 hover:bg-blue-50 rounded-xl transition-colors group">
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm truncate group-hover:text-[#0d1b4b]">{item.uniName}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{item.intake} intake · Deadline: {new Date(item.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                   </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border flex-shrink-0 ${badgeColor}`}>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border shrink-0 ${badgeColor}`}>
                     {item.daysLeft === 0 ? 'Today!' : item.daysLeft === 1 ? '1 day left' : `${item.daysLeft} days left`}
                   </span>
                 </Link>
@@ -605,9 +605,9 @@ export default function StudentDashboard() {
       )}
 
       {/* Learning Hub CTA */}
-      <div className="bg-gradient-to-r from-[#0d1b4b] to-indigo-700 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-linear-to-r from-[#0d1b4b] to-indigo-700 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -616,12 +616,12 @@ export default function StudentDashboard() {
           </div>
         </div>
         <Link to="/student/learning"
-          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap flex-shrink-0">
+          className="flex items-center gap-2 bg-white text-[#0d1b4b] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors whitespace-nowrap shrink-0">
           Open Learning Hub <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Recommended For You</h2>
@@ -637,10 +637,10 @@ export default function StudentDashboard() {
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="p-4 border border-gray-100 rounded-xl animate-pulse">
                 <div className="flex gap-3 mb-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-xl flex-shrink-0" />
+                  <div className="w-10 h-10 bg-gray-200 rounded-xl shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-3/4" />
-                    <div className="h-2 bg-gray-100 rounded w-1/2" />
+                    <div className="h-3 bg-gray-200 rounded-sm w-3/4" />
+                    <div className="h-2 bg-gray-100 rounded-sm w-1/2" />
                   </div>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full mb-3" />
@@ -680,18 +680,18 @@ export default function StudentDashboard() {
 
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 bg-[#f0f4ff] rounded-xl flex items-center justify-center font-bold text-[#0d1b4b] flex-shrink-0 text-sm">
+                      <div className="w-10 h-10 bg-[#f0f4ff] rounded-xl flex items-center justify-center font-bold text-[#0d1b4b] shrink-0 text-sm">
                         {uni.name.charAt(0)}
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-900 text-sm group-hover:text-[#0d1b4b] truncate">{uni.name}</p>
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <MapPin className="w-3 h-3 shrink-0" />
                           <span className="truncate">{uni.city}, {uni.country}</span>
                         </div>
                       </div>
                     </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-lg border whitespace-nowrap flex-shrink-0 ${matchColor}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-lg border whitespace-nowrap shrink-0 ${matchColor}`}>
                       {matchPct}% match
                     </span>
                   </div>

@@ -30,25 +30,25 @@ function MultiSelect({ label, options, value, onChange, ring }: {
     <div className="relative" ref={ref}>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
       <button type="button" onClick={() => setOpen(v => !v)} disabled={!options.length}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-left disabled:bg-gray-50 disabled:text-gray-300 focus:outline-none focus:ring-2 ${ring}`}>
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-left disabled:bg-gray-50 disabled:text-gray-300 focus:outline-hidden focus:ring-2 ${ring}`}>
         <span className={`truncate ${value.length ? 'text-gray-900' : 'text-gray-400'}`}>
           {!options.length ? 'No data yet' : value.length ? (value.length <= 2 ? value.join(', ') : `${value.length} selected`) : 'Any'}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
       </button>
       {open && (
-        <div className="absolute z-30 mt-1 w-full min-w-[12rem] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-30 mt-1 w-full min-w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           {options.length > 6 && (
             <div className="p-2 border-b border-gray-100">
               <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search…"
-                className="w-full px-2.5 py-1.5 bg-gray-50 rounded-lg text-sm outline-none" />
+                className="w-full px-2.5 py-1.5 bg-gray-50 rounded-lg text-sm outline-hidden" />
             </div>
           )}
           <div className="max-h-56 overflow-y-auto py-1">
             {shown.map(o => (
               <button key={o} type="button" onClick={() => toggle(o)}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-gray-50">
-                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${value.includes(o) ? 'bg-gray-900 border-gray-900 text-white' : 'border-gray-300'}`}>
+                <span className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 ${value.includes(o) ? 'bg-gray-900 border-gray-900 text-white' : 'border-gray-300'}`}>
                   {value.includes(o) && <Check className="w-3 h-3" />}
                 </span>
                 <span className="truncate">{o}</span>
@@ -91,21 +91,21 @@ export default function AdvancedCourseSearch({ courses, students = [], value, on
   const set = <K extends keyof CourseFilters>(k: K, v: CourseFilters[K]) => setDraft(d => ({ ...d, [k]: v }));
   const dirty = JSON.stringify(draft) !== JSON.stringify(value);
   const chips = activeFilterChips(value, students);
-  const inp = `w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 ${a.ring}`;
+  const inp = `w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 ${a.ring}`;
   const run = () => onSearch(draft);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs">
       {/* Keyword row */}
       <div className="p-4 sm:p-5 flex flex-col lg:flex-row gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={draft.keyword} onChange={e => set('keyword', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') run(); }}
             placeholder="Course, subject, university, city, tag…" aria-label="Keyword"
-            className={`w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 ${a.ring}`} />
+            className={`w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 ${a.ring}`} />
         </div>
         <select value={draft.matchMode} onChange={e => set('matchMode', e.target.value as CourseFilters['matchMode'])} aria-label="Keyword match"
-          className={`px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 ${a.ring}`}>
+          className={`px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-hidden focus:ring-2 ${a.ring}`}>
           <option value="all">All words</option>
           <option value="any">Any word</option>
           <option value="exact">Exact phrase</option>
@@ -117,7 +117,7 @@ export default function AdvancedCourseSearch({ courses, students = [], value, on
           <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         <button type="button" onClick={run}
-          className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm ${a.btn}`}>
+          className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-xs ${a.btn}`}>
           <Search className="w-4 h-4" /> Advanced Search
         </button>
       </div>
@@ -172,10 +172,10 @@ export default function AdvancedCourseSearch({ courses, students = [], value, on
                 <input type="number" min={0} value={draft.appFeeMax} onChange={e => set('appFeeMax', e.target.value)} placeholder="Any" className={inp} />
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={draft.appFeeWaived} onChange={e => set('appFeeWaived', e.target.checked)} className="rounded" /> No application fee
+                <input type="checkbox" checked={draft.appFeeWaived} onChange={e => set('appFeeWaived', e.target.checked)} className="rounded-sm" /> No application fee
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={draft.scholarship} onChange={e => set('scholarship', e.target.checked)} className="rounded" /> Scholarship available
+                <input type="checkbox" checked={draft.scholarship} onChange={e => set('scholarship', e.target.checked)} className="rounded-sm" /> Scholarship available
               </label>
             </Group>
 
@@ -245,7 +245,7 @@ export default function AdvancedCourseSearch({ courses, students = [], value, on
                 </>
               )}
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={draft.noEnglishTest} onChange={e => set('noEnglishTest', e.target.checked)} className="rounded" /> No English test required
+                <input type="checkbox" checked={draft.noEnglishTest} onChange={e => set('noEnglishTest', e.target.checked)} className="rounded-sm" /> No English test required
               </label>
             </Group>
 
@@ -329,7 +329,7 @@ export default function AdvancedCourseSearch({ courses, students = [], value, on
               <RotateCcw className="w-4 h-4" /> Reset all
             </button>
             <button type="button" onClick={run}
-              className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white shadow-sm ${a.btn}`}>
+              className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white shadow-xs ${a.btn}`}>
               <Search className="w-4 h-4" /> Advanced Search
             </button>
           </div>

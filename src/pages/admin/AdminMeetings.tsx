@@ -13,7 +13,7 @@ import ListPager from '../../components/ListPager';
 
 function Spinner({ white = false }: { white?: boolean }) {
   return (
-    <span className={`w-4 h-4 border-2 rounded-full animate-spin inline-block flex-shrink-0
+    <span className={`w-4 h-4 border-2 rounded-full animate-spin inline-block shrink-0
       ${white ? 'border-white/40 border-t-white' : 'border-gray-300 border-t-gray-600'}`} />
   );
 }
@@ -106,16 +106,16 @@ function ScheduleModal({
     }
   };
 
-  const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400';
+  const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400';
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xs">
               <CalendarDays className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">Schedule Meeting</h2>
@@ -162,7 +162,7 @@ function ScheduleModal({
                 return (
                   <button key={p} type="button" onClick={() => setPlatform(p)}
                     className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all
-                      ${selected ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:border-purple-300 hover:bg-purple-50/50'}`}>
+                      ${selected ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-xs' : 'border-gray-200 text-gray-500 hover:border-purple-300 hover:bg-purple-50/50'}`}>
                     <span className="text-lg leading-none">{meta.icon}</span>
                     <span>{p === 'meet' ? 'Meet' : p === 'teams' ? 'Teams' : p === 'zoom' ? 'Zoom' : 'Other'}</span>
                   </button>
@@ -189,7 +189,7 @@ function ScheduleModal({
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search students & counselors…"
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             </div>
             <div className="max-h-44 overflow-y-auto space-y-1.5 border border-gray-100 rounded-xl p-2 bg-gray-50">
               {filtered.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No results</p>}
@@ -200,16 +200,16 @@ function ScheduleModal({
                   <label key={id}
                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer border transition-colors
                       ${checked ? 'bg-purple-50 border-purple-200' : 'bg-white border-transparent hover:bg-gray-100'}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggle(id)} className="w-4 h-4 accent-purple-600 flex-shrink-0" />
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0
-                      ${p._role === 'counselor' ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggle(id)} className="w-4 h-4 accent-purple-600 shrink-0" />
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0
+                      ${p._role === 'counselor' ? 'bg-linear-to-br from-purple-500 to-indigo-600' : 'bg-linear-to-br from-blue-500 to-indigo-600'}`}>
                       {p.name?.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                       <p className="text-xs text-gray-400 truncate">{p._role} · {p.email}</p>
                     </div>
-                    {checked && <Check className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />}
+                    {checked && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
                   </label>
                 );
               })}
@@ -221,7 +221,7 @@ function ScheduleModal({
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes (optional)</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               placeholder="Agenda or instructions for participants…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400 resize-none" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400 resize-none" />
           </div>
 
           {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">{error}</div>}
@@ -232,7 +232,7 @@ function ScheduleModal({
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 shadow-md transition-all">
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 shadow-md transition-all">
               {saving ? <><Spinner white />Scheduling…</> : <><CalendarDays className="w-4 h-4" />Schedule Meeting</>}
             </button>
           </div>
@@ -271,10 +271,10 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
   };
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all hover:shadow-md
+    <div className={`bg-white rounded-2xl border shadow-xs overflow-hidden transition-all hover:shadow-md
       ${upcoming ? 'border-gray-100' : 'border-gray-100 opacity-75'}`}>
       {/* Top color bar */}
-      <div className={`h-1.5 ${upcoming ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gray-200'}`} />
+      <div className={`h-1.5 ${upcoming ? 'bg-linear-to-r from-purple-500 to-indigo-500' : 'bg-gray-200'}`} />
 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -292,14 +292,14 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
             <h3 className="text-base font-bold text-gray-900 truncate">{meeting.title}</h3>
           </div>
           <button aria-label="Delete" type="button" onClick={handleDelete} disabled={deleting}
-            className="flex-shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
+            className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
             {deleting ? <Spinner /> : <Trash2 className="w-4 h-4" />}
           </button>
         </div>
 
         {/* Date & time */}
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
           <span>{formatDateTime(meeting.scheduledDate, meeting.scheduledTime)}</span>
           <span className="text-gray-300">·</span>
           <span className="text-gray-500">{meeting.duration || 60} min</span>
@@ -339,7 +339,7 @@ function MeetingCard({ meeting, onDelete, onJoin }: {
           <button type="button" onClick={handleJoin}
             className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all
               ${active
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                ? 'bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
                 : 'bg-gray-100 text-gray-500 cursor-default'
               }`}>
             <Video className="w-4 h-4" />
@@ -438,12 +438,15 @@ export default function AdminMeetings() {
         />
       )}
 
-      <div className="space-y-6">
+      {/* Not space-y-6: Tailwind 4 puts that gap under every child but the last, and the last child here can be an empty,
+          hidden box, which left 24px of extra space at the bottom. This is Tailwind 3's own rule (gap above each visible
+          child after the first). */}
+      <div className="[&>:not([hidden])~:not([hidden])]:mt-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <CalendarDays className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -493,7 +496,7 @@ export default function AdminMeetings() {
             ] as const).map(t => (
               <button key={t.key} type="button" onClick={() => setTab(t.key)}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-                  ${tab === t.key ? 'bg-white text-purple-700 shadow-sm ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
+                  ${tab === t.key ? 'bg-white text-purple-700 shadow-xs ring-1 ring-gray-200/80' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'}`}>
                 {t.label}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-bold
                   ${tab === t.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -507,7 +510,7 @@ export default function AdminMeetings() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search meetings or participants…"
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white" />
           </div>
         </div>
 

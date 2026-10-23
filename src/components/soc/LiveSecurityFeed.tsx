@@ -162,7 +162,7 @@ export default function LiveSecurityFeed({ onEvent }: { onEvent?: () => void }) 
   const clearFeed = () => { setEvents([]); pendingRef.current = []; setPendingCount(0); };
 
   return (
-    <section aria-labelledby="soc-live-feed" className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+    <section aria-labelledby="soc-live-feed" className="bg-white rounded-2xl border border-gray-200 shadow-xs flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <span className="relative flex h-2.5 w-2.5">
@@ -190,18 +190,18 @@ export default function LiveSecurityFeed({ onEvent }: { onEvent?: () => void }) 
       </div>
       <div className="px-5 py-3 border-b border-gray-100 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[12rem]">
+          <div className="relative flex-1 min-w-48">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
             <input value={feedFilters.q} onChange={e => setFeedFilters(f => ({ ...f, q: e.target.value }))} placeholder="Search email, IP or message…" aria-label="Search the live feed"
-              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
           </div>
           <select value={feedFilters.type} onChange={e => setFeedFilters(f => ({ ...f, type: e.target.value }))} aria-label="Event type"
-            className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
             <option value="all">All types</option>
             {Object.entries(TYPE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
           </select>
           <select value={feedFilters.severity} onChange={e => setFeedFilters(f => ({ ...f, severity: e.target.value }))} aria-label="Severity"
-            className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
             <option value="all">All severities</option>
             {Object.entries(SEVERITY_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
@@ -234,19 +234,19 @@ export default function LiveSecurityFeed({ onEvent }: { onEvent?: () => void }) 
               onClick={() => setExpandedId(id => id === e._id ? null : e._id)}
               onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setExpandedId(id => id === e._id ? null : e._id); } }}
               className="flex items-start gap-3 cursor-pointer">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: badge.text }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0" style={{ backgroundColor: badge.text }}>
                 <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="text-sm font-semibold text-gray-900 truncate">{e.email || 'Unknown'}</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
+                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 shrink-0" title="Source IP address">{e.ip || 'no IP'}{e.ip && /^(::1$|(::ffff:)?127\.)/.test(e.ip) ? ' (local)' : ''}</span>
                 </div>
                 <p className="text-xs text-gray-700 leading-snug">{TYPE_LABEL[e.type] || e.type}{e.message ? <> — {e.message}</> : ''}</p>
                 {e.userAgent && <p className="text-[11px] text-gray-500 mt-0.5 truncate">{e.userAgent}</p>}
               </div>
-              <span className="text-[11px] text-gray-500 flex-shrink-0 tabular-nums pt-0.5">{time}</span>
+              <span className="text-[11px] text-gray-500 shrink-0 tabular-nums pt-0.5">{time}</span>
             </div>
             {expandedId === e._id && <DeviceDetails event={e} />}
             </div>

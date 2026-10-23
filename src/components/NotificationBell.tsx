@@ -53,7 +53,7 @@ function DevicePopupsRow() {
   };
   return (
     <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-[11px] text-gray-500">
-      <BellRing className="w-3.5 h-3.5 flex-shrink-0" />
+      <BellRing className="w-3.5 h-3.5 shrink-0" />
       {permission === "granted" && <span>Pop-ups with sound are <b className="text-gray-700">on</b> for this device</span>}
       {permission === "default" && (
         <>
@@ -168,7 +168,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
                   tabIndex={0}
                   onKeyDown={clickOnEnterOrSpace}
                   onClick={() => handleNotifClick(n)}>
-                  <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${NOTIF_COLORS[n.type] ?? "bg-gray-100"}`}>
+                  <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${NOTIF_COLORS[n.type] ?? "bg-gray-100"}`}>
                     {NOTIF_ICONS[n.type] ?? <Bell className="w-4 h-4 text-gray-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
                         {n.title}
                       </p>
                       <button type="button" aria-label="Dismiss notification" onClick={e => { e.stopPropagation(); dismiss(n.id); }}
-                        className="text-gray-300 hover:text-gray-500 flex-shrink-0 mt-0.5">
+                        className="text-gray-300 hover:text-gray-500 shrink-0 mt-0.5">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -187,7 +187,7 @@ export default function NotificationBell({ buttonClassName }: { buttonClassName?
                       {n.link && <span className="text-[10px] font-semibold text-blue-500">View →</span>}
                     </div>
                   </div>
-                  {!n.read && <span className={`mt-1.5 w-2 h-2 ${priorityDot} rounded-full flex-shrink-0 animate-pulse`} />}
+                  {!n.read && <span className={`mt-1.5 w-2 h-2 ${priorityDot} rounded-full shrink-0 animate-pulse`} />}
                 </div>
                 );
               })

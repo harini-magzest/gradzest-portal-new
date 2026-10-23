@@ -97,12 +97,12 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-linear-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">{editing ? 'Edit Course' : 'Add Course'}</h2>
@@ -113,13 +113,13 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Course Name <span className="text-red-500">*</span></label>
             <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. MSc Computer Science"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Level</label>
               <select value={form.level} onChange={e => set('level', e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white">
                 <option value="">Select…</option>
                 {LEVELS.map(l => <option key={l}>{l}</option>)}
               </select>
@@ -127,19 +127,19 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Duration</label>
               <input value={form.duration} onChange={e => set('duration', e.target.value)} placeholder="e.g. 2 years"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Tuition Fee / year</label>
               <input type="number" min="0" value={form.tuitionFee} onChange={e => set('tuitionFee', e.target.value)} placeholder="e.g. 25000"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Currency</label>
               <select value={form.currency} onChange={e => set('currency', e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white">
                 {CURRENCIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
@@ -151,12 +151,12 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Application Fee ({form.currency})</label>
                 <input type="number" min="0" value={form.applicationFee} onChange={e => set('applicationFee', e.target.value)} placeholder="e.g. 75"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Registration Fee ({form.currency})</label>
                 <input type="number" min="0" value={form.registrationFee} onChange={e => set('registrationFee', e.target.value)} placeholder="e.g. 200"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white" />
               </div>
             </div>
             <div>
@@ -173,12 +173,12 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
             <div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox" checked={form.scholarshipAvailable} onChange={e => set('scholarshipAvailable', e.target.checked)}
-                  className="w-4 h-4 accent-indigo-600 rounded" />
+                  className="w-4 h-4 accent-indigo-600 rounded-sm" />
                 <span className="text-sm font-medium text-gray-700">Scholarship Available</span>
               </label>
               {form.scholarshipAvailable && (
                 <input value={form.scholarshipAmount} onChange={e => set('scholarshipAmount', e.target.value)} placeholder="e.g. Up to USD 5,000/year"
-                  className="mt-2 w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                  className="mt-2 w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white" />
               )}
             </div>
           </div>
@@ -186,12 +186,12 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
             <input value={form.department} onChange={e => set('department', e.target.value)} placeholder="e.g. School of Engineering"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} placeholder="Short course description…"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Intake Months</label>
@@ -213,7 +213,7 @@ function CourseModal({ uniId, course, onClose, onSaved }: {
               <input value={reqInput} onChange={e => setReqInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
                 placeholder="e.g. Bachelor's degree with 3.0 GPA"
-                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500" />
               <button type="button" onClick={addReq} className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-200">Add</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -343,12 +343,12 @@ function UniversityModal({ uni, onClose, onSaved }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-linear-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
               <GraduationCap className="w-4 h-4 text-white" />
             </div>
             <h2 className="text-lg font-bold text-gray-900">{editing ? 'Edit University' : 'Add University'}</h2>
@@ -364,7 +364,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">University Name <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. University of Oxford"
-                    className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                   <button type="button" onClick={handleAutofill} disabled={autofilling}
                     className="flex items-center gap-1.5 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
                     {autofilling ? <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Fetching…</> : <><Sparkles className="w-3.5 h-3.5" />Auto-fill</>}
@@ -372,7 +372,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 </div>
                 {autofillMsg && (
                   <p className={`text-xs mt-1.5 flex items-center gap-1 ${autofillMsg.startsWith('Auto-filled') ? 'text-green-700' : autofillMsg.startsWith('Partial') ? 'text-amber-700' : 'text-gray-500'}`}>
-                    {autofillMsg.startsWith('Auto-filled') ? <Check className="w-3 h-3 flex-shrink-0" /> : <AlertTriangle className="w-3 h-3 flex-shrink-0" />}
+                    {autofillMsg.startsWith('Auto-filled') ? <Check className="w-3 h-3 shrink-0" /> : <AlertTriangle className="w-3 h-3 shrink-0" />}
                     {autofillMsg}
                   </p>
                 )}
@@ -381,7 +381,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Country <span className="text-red-500">*</span></label>
                   <select value={form.country} onChange={e => set('country', e.target.value)} title="Country"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select country…</option>
                     {COUNTRIES.map(c => <option key={c}>{c}</option>)}
                   </select>
@@ -389,19 +389,19 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
                   <input value={form.city} onChange={e => set('city', e.target.value)} placeholder="e.g. Toronto"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">World Ranking</label>
                   <input type="number" min="1" value={form.ranking} onChange={e => set('ranking', e.target.value)} placeholder="e.g. 25"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
                   <select value={form.type} onChange={e => set('type', e.target.value)} title="University type"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="">Select…</option>
                     {UNI_TYPES.map(t => <option key={t}>{t}</option>)}
                   </select>
@@ -409,13 +409,13 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Founded</label>
                   <input type="number" min="1000" max="2025" value={form.founded} onChange={e => set('founded', e.target.value)} placeholder="e.g. 1827"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Website</label>
                 <input type="url" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://www.university.edu"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               </div>
 
               {/* Logo & Cover Image — auto-filled or manually entered */}
@@ -423,30 +423,30 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Logo URL</label>
                   <input value={form.logo} onChange={e => set('logo', e.target.value)} placeholder="Auto-filled by Auto-fill"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Cover Image URL</label>
                   <input value={form.coverImage} onChange={e => set('coverImage', e.target.value)} placeholder="Auto-filled by Auto-fill"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
               {/* Live preview of logo + cover image */}
               {(form.logo || form.coverImage || form.website) && (
                 <div className="rounded-xl overflow-hidden border border-gray-200">
-                  <div className="relative h-32 bg-gradient-to-br from-purple-400 to-indigo-600 overflow-hidden">
+                  <div className="relative h-32 bg-linear-to-br from-purple-400 to-indigo-600 overflow-hidden">
                     {form.coverImage && (
                       <img src={form.coverImage} alt="cover" className="w-full h-full object-cover opacity-80"
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
                     {(form.logo || form.website) && (
                       <div className="absolute top-3 left-3 w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center p-1.5 overflow-hidden">
                         <UniLogoImg name={form.name} website={form.website} />
                       </div>
                     )}
-                    <div className="absolute bottom-3 left-3 text-white text-sm font-semibold drop-shadow">{form.name || 'University Name'}</div>
+                    <div className="absolute bottom-3 left-3 text-white text-sm font-semibold drop-shadow-sm">{form.name || 'University Name'}</div>
                   </div>
                   <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">Preview of university card header</p>
                 </div>
@@ -455,7 +455,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
                 <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} placeholder="Brief university description…"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none" />
               </div>
             </div>
           </div>
@@ -473,7 +473,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
                 <div key={f.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{f.label}</label>
                   <input type="number" step="any" value={(form as any)[f.key]} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
               ))}
             </div>
@@ -486,17 +486,17 @@ function UniversityModal({ uni, onClose, onSaved }: {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Undergraduate</label>
                 <input type="number" min="0" value={form.avgUndergrad} onChange={e => set('avgUndergrad', e.target.value)} placeholder="e.g. 20000"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Postgraduate</label>
                 <input type="number" min="0" value={form.avgPostgrad} onChange={e => set('avgPostgrad', e.target.value)} placeholder="e.g. 25000"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Currency</label>
                 <select value={form.avgCurrency} onChange={e => set('avgCurrency', e.target.value)} title="Currency"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                   {CURRENCIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
@@ -510,7 +510,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
               <input value={tagInput} onChange={e => setTagInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
                 placeholder="e.g. Scholarship Available"
-                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               <button type="button" onClick={addTag} className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100">Add</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -527,7 +527,7 @@ function UniversityModal({ uni, onClose, onSaved }: {
               <input value={facInput} onChange={e => setFacInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addFac(); } }}
                 placeholder="e.g. Library, Sports Complex"
-                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="flex-1 px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
               <button type="button" onClick={addFac} className="px-3 py-2 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium hover:bg-purple-100">Add</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -611,10 +611,10 @@ function UniversityRow({ uni, onEdit, onDelete, deleting, onUniUpdated, onApply,
           onSaved={updated => { onUniUpdated(updated); setAddingCourse(false); setEditingCourse(null); }}
         />
       )}
-      <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+      <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-xs hover:shadow-md transition-shadow">
         {/* University header row */}
         <div className="flex items-center gap-4 px-5 py-4">
-          <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden p-1.5 flex-shrink-0">
+          <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden p-1.5 shrink-0">
             <UniLogoImg name={uni.name} website={uni.website} uniId={uni.id || normalId(uni)} />
           </div>
           <div className="flex-1 min-w-0">
@@ -634,7 +634,7 @@ function UniversityRow({ uni, onEdit, onDelete, deleting, onUniUpdated, onApply,
               <span className="text-xs text-indigo-600 flex items-center gap-1"><BookOpen className="w-3 h-3" />{uni.courses?.length || 0} courses</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <Link to={`/university/${uni.id || mongoId}`}
               title="View full university page"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors">
@@ -714,7 +714,7 @@ function UniversityRow({ uni, onEdit, onDelete, deleting, onUniUpdated, onApply,
                           <p className="text-xs text-indigo-600 mt-0.5">Intake: {c.intake.join(', ')}</p>
                         )}
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         <button type="button" onClick={() => onApply(c, uni.name)}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors">
                           <Plus className="w-3 h-3" />Apply
@@ -807,7 +807,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
   };
 
   return (
-    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+    <div role="presentation" className="fixed inset-0 bg-black/50 backdrop-blur-xs z-70 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
@@ -817,7 +817,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
             <p className="text-xs text-gray-500 truncate">{universityName}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0">
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -849,7 +849,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
                   <p className="text-xs text-blue-600 truncate">{selectedStudent.email}</p>
                 </div>
                 <button type="button" aria-label="Clear student" onClick={() => { setSelectedStudent(null); setStudentProfile(null); setStudentQuery(''); }}
-                  className="text-blue-400 hover:text-blue-700 flex-shrink-0"><X className="w-4 h-4" /></button>
+                  className="text-blue-400 hover:text-blue-700 shrink-0"><X className="w-4 h-4" /></button>
               </div>
             ) : (
               <div className="relative">
@@ -860,7 +860,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
                   onFocus={() => setShowDropdown(true)}
                   onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                   placeholder="Type name or email…"
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
                 {showDropdown && matchedStudents.length > 0 && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
@@ -893,12 +893,12 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
                   </div>
                   {elig.missing.map((m, i) => (
                     <p key={i} className="text-xs text-red-600 flex items-center gap-1.5">
-                      <X className="w-3 h-3 flex-shrink-0" />{m}
+                      <X className="w-3 h-3 shrink-0" />{m}
                     </p>
                   ))}
                   {elig.warnings.map((w, i) => (
                     <p key={i} className="text-xs text-yellow-700 flex items-center gap-1.5">
-                      <span className="text-yellow-500 font-bold flex-shrink-0">⚠</span>{w}
+                      <span className="text-yellow-500 font-bold shrink-0">⚠</span>{w}
                     </p>
                   ))}
                 </div>
@@ -911,7 +911,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Intake</label>
               <select value={intake} onChange={e => setIntake(e.target.value)}
                 aria-label="Select intake"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
                 {course.intake.map((i: string) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
@@ -921,7 +921,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
 
           {success && (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2.5 rounded-xl">
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />Application created successfully!
+              <CheckCircle className="w-4 h-4 shrink-0" />Application created successfully!
             </div>
           )}
 
@@ -936,7 +936,7 @@ function ApplyModal({ course, universityName, students, onClose, onApplied }: {
               </div>
             ) : (
               <button type="button" onClick={handleApply} disabled={saving || success || !selectedStudent}
-                className="flex-1 py-2.5 bg-[#0d1b4b] hover:bg-[#152258] text-white rounded-xl text-sm font-semibold shadow-sm disabled:opacity-60 transition-all flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 bg-[#0d1b4b] hover:bg-[#152258] text-white rounded-xl text-sm font-semibold shadow-xs disabled:opacity-60 transition-all flex items-center justify-center gap-2">
                 {saving
                   ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying…</>
                   : <><Plus className="w-4 h-4" />Apply</>}
@@ -1048,10 +1048,10 @@ export default function AdminUniversities() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-linear-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -1074,13 +1074,13 @@ export default function AdminUniversities() {
                 {enrichingAll ? <Spinner white /> : <Sparkles className="w-4 h-4" />}Enrich All
               </button>
               <button type="button" onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-sm">
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-50 transition-colors shadow-xs">
                 <Plus className="w-4 h-4" />Add University
               </button>
             </div>
             {enrichAllMsg && (
               <p className="text-xs text-emerald-200 mt-2 flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />{enrichAllMsg}
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />{enrichAllMsg}
               </p>
             )}
           </div>
@@ -1090,7 +1090,7 @@ export default function AdminUniversities() {
               { label: 'Total Courses', value: universities.reduce((s, u) => s + (u.courses?.length || 0), 0) },
               { label: 'Countries', value: countries.length },
             ].map(s => (
-              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
+              <div key={s.label} className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-xs">
                 <div className="text-3xl font-bold">{loading ? '…' : s.value}</div>
                 <div className="text-xs text-white/60 mt-0.5">{s.label}</div>
               </div>
@@ -1100,7 +1100,7 @@ export default function AdminUniversities() {
 
         {loadError && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-800">Failed to load universities</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
@@ -1115,10 +1115,10 @@ export default function AdminUniversities() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search universities…"
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs" />
             </div>
             <select aria-label="Filter by country" value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
-              className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-w-[160px]">
+              className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-xs min-w-[160px]">
               <option value="">All Countries</option>
               {countries.map(c => <option key={c}>{c}</option>)}
             </select>
@@ -1126,7 +1126,7 @@ export default function AdminUniversities() {
         )}
 
         {loading && !loadError && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 flex items-center justify-center gap-3 text-gray-400 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-100 p-10 flex items-center justify-center gap-3 text-gray-400 shadow-xs">
             <Spinner />Loading universities…
           </div>
         )}
@@ -1134,7 +1134,7 @@ export default function AdminUniversities() {
         {!loading && (
           <div className="space-y-3">
             {filtered.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center text-gray-400 shadow-xs">
                 <GraduationCap className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">{search || countryFilter ? 'No universities match your filters.' : 'No universities yet. Add one above.'}</p>
               </div>

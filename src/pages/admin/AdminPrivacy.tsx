@@ -49,7 +49,7 @@ export default function AdminPrivacy() {
       {rows && rows.length === 0 && <p className="text-sm text-gray-400 bg-white rounded-2xl border border-gray-100 p-6">No requests.</p>}
       <ul className="space-y-3">
         {(rows || []).map(r => (
-          <li key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <li key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-gray-900">{r.name || 'Student'} <span className="font-normal text-sm text-gray-400">{r.email}</span></p>

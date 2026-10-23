@@ -125,10 +125,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-[#0d1b4b] rounded-2xl flex items-center justify-center shrink-0">
                 <GraduationCap className="w-7 h-7 text-white" />
               </div>
               <span className="text-3xl font-extrabold tracking-tight select-none">
@@ -153,7 +153,7 @@ export default function Login() {
               <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
               <input id="login-email"
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] text-sm"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] text-sm"
                 placeholder="your@email.com" required autoComplete="email"
               />
             </div>
@@ -165,7 +165,7 @@ export default function Login() {
               <div className="relative">
                 <input id="login-password"
                   type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0d1b4b] text-sm pr-12"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#0d1b4b] text-sm pr-12"
                   placeholder="••••••••" required autoComplete="current-password"
                 />
                 <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -194,7 +194,7 @@ export default function Login() {
                   {demoAccounts.admin.map(a => (
                     <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">{a.initials}</div>
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xs shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800">{a.name}</p>
                         <p className="text-xs text-gray-400 truncate">{a.email}</p>
@@ -210,7 +210,7 @@ export default function Login() {
                   {demoAccounts.admin.map(a => (
                     <button key={`appteam-${a.email}`} type="button" onClick={() => loginAs(a.email, '/appteam')} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-orange-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
-                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs flex-shrink-0">AT</div>
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs shrink-0">AT</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800">App Team Portal</p>
                         <p className="text-xs text-gray-400 truncate">{a.email}</p>
@@ -226,7 +226,7 @@ export default function Login() {
                   {demoAccounts.counselors.map(a => (
                     <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs flex-shrink-0">{a.initials}</div>
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800">{a.name}</p>
                         <p className="text-xs text-gray-400 truncate">{a.email}</p>
@@ -242,7 +242,7 @@ export default function Login() {
                   {demoAccounts.students.map(a => (
                     <button key={a.email} type="button" onClick={() => loginAs(a.email)} disabled={anyLoading}
                       className="flex items-center gap-3 p-3 border border-blue-200 rounded-lg hover:border-sky-500 hover:bg-sky-50 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed">
-                      <div className="w-8 h-8 bg-[#f0f4ff] rounded-full flex items-center justify-center text-[#0d1b4b] font-bold text-xs flex-shrink-0">{a.initials}</div>
+                      <div className="w-8 h-8 bg-[#f0f4ff] rounded-full flex items-center justify-center text-[#0d1b4b] font-bold text-xs shrink-0">{a.initials}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800">{a.name}</p>
                         <p className="text-xs text-gray-400 truncate">{a.email}</p>

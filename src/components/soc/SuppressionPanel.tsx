@@ -49,7 +49,7 @@ export default function SuppressionPanel() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
           <BellOff className="w-4 h-4 text-purple-600" /> Suppression rules
@@ -61,16 +61,16 @@ export default function SuppressionPanel() {
         <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
             <select value={kind} onChange={e => setKind(e.target.value as 'ip' | 'email')} aria-label="Rule type"
-              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
               <option value="ip">IP / CIDR</option><option value="email">Email</option>
             </select>
             <input value={value} onChange={e => setValue(e.target.value)} placeholder={kind === 'ip' ? '203.0.113.0/24' : 'monitor@company.com'}
               aria-label={kind === 'ip' ? 'IP address or CIDR range' : 'Email address'}
-              className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Why (e.g. office VPN)" aria-label="Why this is trusted"
-              className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              className="md:col-span-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500" />
             <select value={hours} onChange={e => setHours(Number(e.target.value))} aria-label="How long"
-              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-hidden focus:ring-2 focus:ring-purple-500">
               {DURATIONS.map(d => <option key={d.hours} value={d.hours}>{d.label}</option>)}
             </select>
           </div>

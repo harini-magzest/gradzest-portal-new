@@ -173,7 +173,7 @@ export default function NamasteIntro() {
       role="dialog"
       aria-label="Welcome to Gradzest"
       onClick={() => setShow(false)}
-      className={`gz-namaste ${fallback ? 'gz-namaste-bg' : ''} fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden cursor-pointer`}
+      className={`gz-namaste ${fallback ? 'gz-namaste-bg' : ''} fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden cursor-pointer`}
       style={{
         height: '100dvh',
         // Flat navy while the video loads or plays (it matches the footage); the drawn fallback keeps its gradient.

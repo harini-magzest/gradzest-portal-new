@@ -18,8 +18,8 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 function StatCard({ icon: Icon, label, value, sub, color, delta }: { icon: any; label: string; value: string | number; sub?: string; color: string; delta?: { text: string; up: boolean | null } }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 flex items-start gap-4">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
       <div>
@@ -157,7 +157,7 @@ export default function OverviewTab() {
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
           {PERIODS.map(p => (
             <button key={p.key} type="button" onClick={() => setPeriod(p.key)} aria-pressed={period === p.key}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${period === p.key ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${period === p.key ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}>
               {p.label}
             </button>
           ))}
@@ -181,10 +181,10 @@ export default function OverviewTab() {
         <>
           <Section title="Threat activity" hint={vsPrevious}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={KeyRound} label="Failed Logins" value={stats.failedLogins} sub={`in last ${period}`} delta={deltaLabel(stats.failedLogins, stats.previous?.failedLogins, period)} color="bg-gradient-to-br from-orange-500 to-amber-500" />
-              <StatCard icon={Lock} label="Active Lockouts" value={stats.activeLockouts} sub="locked right now" color="bg-gradient-to-br from-red-500 to-rose-600" />
-              <StatCard icon={ShieldAlert} label="Blocked / Unauthorized" value={stats.blockedRequests + stats.unauthorizedRequests} sub={`${stats.blockedRequests} rate-limited, ${stats.unauthorizedRequests} 401/403`} delta={deltaLabel(stats.blockedRequests + stats.unauthorizedRequests, stats.previous ? stats.previous.blockedRequests + stats.previous.unauthorizedRequests : undefined, period)} color="bg-gradient-to-br from-purple-600 to-indigo-600" />
-              <StatCard icon={Globe2} label="Unique IPs" value={stats.uniqueIps} sub={`in last ${period}`} color="bg-gradient-to-br from-blue-500 to-indigo-600" />
+              <StatCard icon={KeyRound} label="Failed Logins" value={stats.failedLogins} sub={`in last ${period}`} delta={deltaLabel(stats.failedLogins, stats.previous?.failedLogins, period)} color="bg-linear-to-br from-orange-500 to-amber-500" />
+              <StatCard icon={Lock} label="Active Lockouts" value={stats.activeLockouts} sub="locked right now" color="bg-linear-to-br from-red-500 to-rose-600" />
+              <StatCard icon={ShieldAlert} label="Blocked / Unauthorized" value={stats.blockedRequests + stats.unauthorizedRequests} sub={`${stats.blockedRequests} rate-limited, ${stats.unauthorizedRequests} 401/403`} delta={deltaLabel(stats.blockedRequests + stats.unauthorizedRequests, stats.previous ? stats.previous.blockedRequests + stats.previous.unauthorizedRequests : undefined, period)} color="bg-linear-to-br from-purple-600 to-indigo-600" />
+              <StatCard icon={Globe2} label="Unique IPs" value={stats.uniqueIps} sub={`in last ${period}`} color="bg-linear-to-br from-blue-500 to-indigo-600" />
             </div>
           </Section>
 

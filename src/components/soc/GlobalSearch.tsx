@@ -16,8 +16,8 @@ interface Props {
 // spinner toggling), and a row that has keyboard focus loses it.
 function Row({ icon: Icon, onPick, children }: { icon: typeof User; onPick: () => void; children: ReactNode }) {
   return (
-    <button type="button" onClick={onPick} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-purple-50 focus:bg-purple-50 focus:outline-none">
-      <Icon className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" aria-hidden="true" />{children}
+    <button type="button" onClick={onPick} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-purple-50 focus:bg-purple-50 focus:outline-hidden">
+      <Icon className="w-3.5 h-3.5 text-gray-500 shrink-0" aria-hidden="true" />{children}
     </button>
   );
 }
@@ -65,7 +65,7 @@ export default function GlobalSearch({ onOpenUser, onOpenIp, onOpenIncident, onO
         <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
           onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
           placeholder="Search people, IPs, incidents, files…" aria-label="Search the SOC"
-          className="bg-transparent outline-none text-sm w-full text-white placeholder-white/60 group-focus-within:text-gray-900 group-focus-within:placeholder-gray-400" />
+          className="bg-transparent outline-hidden text-sm w-full text-white placeholder-white/60 group-focus-within:text-gray-900 group-focus-within:placeholder-gray-400" />
       </div>
 
       {/* Results appear without anything moving focus, so a screen reader is told how many there are. */}

@@ -90,7 +90,7 @@ export default function BoardDocuments() {
     <div className="flex h-[calc(100vh-5rem)] -m-6">
       {/* Left: student list */}
       <div className={`flex flex-col border-r border-gray-200 bg-white ${selected ? 'hidden lg:flex w-72' : 'flex-1'}`}>
-        <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-base font-bold text-gray-900">Documents</h1>
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{totalDocs} total</span>
@@ -100,7 +100,7 @@ export default function BoardDocuments() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={searchStudent} onChange={e => setSearchStudent(e.target.value)}
               placeholder="Search student..."
-              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
             />
             {searchStudent && <button type="button" aria-label="Clear search" onClick={() => setSearchStudent('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
           </div>
@@ -114,14 +114,14 @@ export default function BoardDocuments() {
             return (
               <button key={s._id} onClick={() => loadDocs(s)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${selected?._id === s._id ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''}`}>
-                <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {s.name?.[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
                   <p className="text-xs text-gray-400 truncate">{s.email}</p>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-xs font-semibold text-gray-600">{docCount}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-gray-300 ml-1" />
@@ -136,30 +136,30 @@ export default function BoardDocuments() {
       {selected ? (
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Header */}
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 shrink-0">
             <button type="button" aria-label="Back to list" onClick={() => setSelected(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
               <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
               {selected.name?.[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-bold text-gray-900 truncate">{selected.name}</h2>
               <p className="text-xs text-gray-500">{selected.email}</p>
             </div>
-            <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full flex-shrink-0">
+            <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full shrink-0">
               {selectedDetail?.documents?.length || 0} docs
             </span>
           </div>
 
           {/* Filters */}
           {!loadingDocs && selectedDetail?.documents?.length > 0 && (
-            <div className="flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+            <div className="flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 bg-gray-50 shrink-0">
               <div className="relative flex-1 max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                 <input value={searchDoc} onChange={e => setSearchDoc(e.target.value)}
                   placeholder="Search documents..."
-                  className="w-full pl-8 pr-7 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full pl-8 pr-7 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
                 />
                 {searchDoc && <button type="button" aria-label="Clear search" onClick={() => setSearchDoc('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-gray-400" /></button>}
               </div>
@@ -167,7 +167,7 @@ export default function BoardDocuments() {
                 <div className="flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5 text-gray-400" />
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-                    className="border border-gray-200 rounded-lg text-xs px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    className="border border-gray-200 rounded-lg text-xs px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-indigo-400">
                     <option value="all">All Types</option>
                     {allDocTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -194,9 +194,9 @@ export default function BoardDocuments() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredDocs.map((doc: any) => (
                   <div key={doc._id}
-                    className="flex flex-col justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-200 hover:shadow-sm transition-all">
+                    className="flex flex-col justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-200 hover:shadow-xs transition-all">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-indigo-600" />
                       </div>
                       <div className="flex-1 min-w-0">

@@ -61,14 +61,14 @@ function Kpi({ icon: Icon, label, value, tone, active, hint, onClick }: {
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={active} title={hint}
-      className={`text-left bg-white rounded-2xl border shadow-sm px-4 py-3 flex items-center gap-3 transition-all hover:shadow-md hover:border-orange-200 ${
+      className={`text-left bg-white rounded-2xl border shadow-xs px-4 py-3 flex items-center gap-3 transition-all hover:shadow-md hover:border-orange-200 ${
         active ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-100'}`}>
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tone}`}><Icon className="w-4 h-4" /></div>
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-4 h-4" /></div>
       <div className="min-w-0 flex-1">
         <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
         <p className="text-xs text-gray-500 truncate">{label}</p>
       </div>
-      <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${active ? 'rotate-90 text-orange-500' : 'text-gray-300'}`} />
+      <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${active ? 'rotate-90 text-orange-500' : 'text-gray-300'}`} />
     </button>
   );
 }
@@ -83,7 +83,7 @@ function Select({ label, value, onChange, children }: { label: string; value: st
     <label className="relative inline-flex items-center">
       <span className="sr-only">{label}</span>
       <select value={value} onChange={e => onChange(e.target.value)} aria-label={label}
-        className="appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+        className="appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-hidden focus:ring-2 focus:ring-orange-400">
         {children}
       </select>
       <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 pointer-events-none" />
@@ -212,10 +212,10 @@ export default function AppTeamCounselors() {
   return (
     <div className="space-y-5">
       {/* Header — same orange banner as the other Application Team pages */}
-      <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-orange-500 via-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs shrink-0">
               <UserCog className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
@@ -240,7 +240,7 @@ export default function AppTeamCounselors() {
 
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+          <AlertCircle className="w-4 h-4 shrink-0" />{error}
         </div>
       )}
 
@@ -268,11 +268,11 @@ export default function AppTeamCounselors() {
       )}
 
       {/* Filter bar */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[14rem]">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-56">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, email, phone, specialization…"
-            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-orange-400" />
           {search && (
             <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2">
               <X className="w-3.5 h-3.5 text-gray-400" />
@@ -282,7 +282,7 @@ export default function AppTeamCounselors() {
         <div className="flex gap-0.5 bg-gray-100 rounded-xl p-0.5" role="tablist" aria-label="Availability">
           {(['all', 'online', 'offline'] as Presence[]).map(p => (
             <button key={p} type="button" role="tab" aria-selected={presence === p} onClick={() => setPresence(p)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize inline-flex items-center gap-1.5 ${presence === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize inline-flex items-center gap-1.5 ${presence === p ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}>
               {p !== 'all' && <span className={`w-2 h-2 rounded-full ${p === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />}
               {p}{p === 'online' ? ` (${onlineCount})` : ''}
             </button>
@@ -319,7 +319,7 @@ export default function AppTeamCounselors() {
           {filtersOn && <button type="button" onClick={clearFilters} className="mt-2 text-sm text-orange-600 font-medium">Clear filters</button>}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           {/* Column headings (wide screens) */}
           <div className="hidden lg:grid grid-cols-[minmax(0,2.2fr)_repeat(3,5.5rem)_minmax(0,1.3fr)_auto] items-center gap-4 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
             <span>Counselor</span>
@@ -327,7 +327,7 @@ export default function AppTeamCounselors() {
             <span className="text-center">Applications</span>
             <span className="text-center">Offers</span>
             <span>Application pipeline</span>
-            <span className="w-[13.5rem]" aria-hidden="true" />
+            <span className="w-54" aria-hidden="true" />
           </div>
           <ul className="divide-y divide-gray-100">
             {filtered.map(c => {
@@ -342,7 +342,7 @@ export default function AppTeamCounselors() {
                   className="grid grid-cols-1 lg:grid-cols-[minmax(0,2.2fr)_repeat(3,5.5rem)_minmax(0,1.3fr)_auto] items-center gap-x-4 gap-y-3 px-5 py-4 hover:bg-orange-50/40 transition-colors">
                   {/* Who */}
                   <button type="button" onClick={() => setSelectedId(idOf(c))} className="flex items-center gap-3 min-w-0 text-left group">
-                    <div className="relative w-11 h-11 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <div className="relative w-11 h-11 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold shrink-0">
                       {c.name?.[0]?.toUpperCase()}
                       <PresenceDot userId={idOf(c)} size="md" />
                     </div>
@@ -383,7 +383,7 @@ export default function AppTeamCounselors() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 lg:w-[13.5rem] lg:justify-end">
+                  <div className="flex gap-2 lg:w-54 lg:justify-end">
                     <Link to={`/appteam/chat?counselorId=${idOf(c)}`}
                       className="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50">
                       <MessageSquare className="w-4 h-4" />Message
@@ -445,14 +445,14 @@ function RecordsPanel({ panel, students, applications, counselors, appsByStudent
   ) : <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Unassigned</span>);
 
   return (
-    <div className="bg-white rounded-2xl border border-orange-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-orange-200 shadow-xs overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-orange-50/50">
         <h2 className="font-semibold text-gray-900 flex-1">{PANEL_TITLE[panel]} <span className="text-gray-400 font-normal">({count})</span></h2>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input value={q} onChange={e => setQ(e.target.value)} aria-label="Search this list"
             placeholder={isStudentPanel ? 'Search students' : 'Search student, university, course'}
-            className="pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm w-56 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm w-56 bg-white focus:outline-hidden focus:ring-2 focus:ring-orange-400" />
         </div>
         {!isStudentPanel && (
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status"
@@ -466,7 +466,7 @@ function RecordsPanel({ panel, students, applications, counselors, appsByStudent
         </button>
       </div>
 
-      <div className="max-h-[28rem] overflow-y-auto">
+      <div className="max-h-112 overflow-y-auto">
         {count === 0 ? (
           <p className="text-sm text-gray-400 text-center py-10">
             {q || status ? 'Nothing matches.' : panel === 'unassigned' ? 'Every student has a counselor.' : 'Nothing here yet.'}
@@ -566,7 +566,7 @@ function CounselorDrawer({ counselor: c, stats: st, students, appsByStudent, onC
       <div className="relative w-full max-w-2xl h-full bg-gray-50 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-          <div className="relative w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+          <div className="relative w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
             {c.name?.[0]?.toUpperCase()}
             <PresenceDot userId={idOf(c)} size="md" />
           </div>
@@ -613,7 +613,7 @@ function CounselorDrawer({ counselor: c, stats: st, students, appsByStudent, onC
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {details.filter(([, , v]) => v).map(([Icon, label, value]) => (
                 <div key={label} className="flex items-start gap-3 min-w-0">
-                  <Icon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <Icon className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{label}</p>
                     {label === 'Email' ? <a href={`mailto:${value}`} className="text-sm font-medium text-gray-800 hover:text-orange-600 break-all">{value}</a>
@@ -640,7 +640,7 @@ function CounselorDrawer({ counselor: c, stats: st, students, appsByStudent, onC
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search students" aria-label="Search students"
-                      className="pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs w-40 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                      className="pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs w-40 focus:outline-hidden focus:ring-2 focus:ring-orange-400" />
                   </div>
                   <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by application status"
                     className="py-1.5 pl-2 pr-6 border border-gray-200 rounded-lg text-xs text-gray-700 bg-white">
@@ -662,7 +662,7 @@ function CounselorDrawer({ counselor: c, stats: st, students, appsByStudent, onC
                   return (
                     <div key={idOf(s)} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                           {s.name?.[0]?.toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">

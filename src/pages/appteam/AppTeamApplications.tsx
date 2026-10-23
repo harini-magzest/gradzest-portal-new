@@ -38,7 +38,7 @@ function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status] || { label: status, color: 'text-gray-600', bg: 'bg-gray-100', dot: 'bg-gray-400' };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
       {s.label}
     </span>
   );
@@ -47,7 +47,7 @@ function StatusBadge({ status }: { status: string }) {
 function Avi({ name, bg = 'bg-orange-500', size = 'md' }: { name?: string; bg?: string; size?: 'sm' | 'md' | 'lg' }) {
   const sz = size === 'lg' ? 'w-12 h-12 text-lg' : size === 'sm' ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm';
   return (
-    <div className={`${sz} ${bg} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
+    <div className={`${sz} ${bg} rounded-full flex items-center justify-center text-white font-bold shrink-0`}>
       {name?.[0]?.toUpperCase() || '?'}
     </div>
   );
@@ -57,7 +57,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
   if (!value && value !== 0) return null;
   return (
     <div className="flex items-start gap-2.5">
-      <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+      <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
       <div className="min-w-0">
         <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{label}</p>
         <p className="text-sm text-gray-800 font-medium">{value}</p>
@@ -208,14 +208,14 @@ function ChatPanel({ counselor, currentUser }: { counselor: any; currentUser: an
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
           placeholder={`Message ${counselor.name}...`}
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-orange-400"
           disabled={sending}
         />
         <button
           type="button"
           onClick={handleSend}
           disabled={!input.trim() || sending}
-          className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+          className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
           title="Send message"
         >
           <Send className="w-3.5 h-3.5" />
@@ -353,11 +353,11 @@ export default function AppTeamApplications() {
       <div className={`flex flex-col flex-1 min-w-0 overflow-hidden ${selected ? 'hidden lg:flex' : 'flex'}`}>
 
         {/* Top: stat tabs */}
-        <div className="px-5 pt-4 pb-0 bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="px-5 pt-4 pb-0 bg-white border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-1 overflow-x-auto pb-0">
             <button type="button"
               onClick={() => setStatusFilter('all')}
-              className={`flex-shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
                 statusFilter === 'all'
                   ? 'border-orange-500 text-orange-600'
                   : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -368,13 +368,13 @@ export default function AppTeamApplications() {
             {STATUSES.map(s => (
               <button key={s.key} type="button"
                 onClick={() => setStatusFilter(statusFilter === s.key ? 'all' : s.key)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
                   statusFilter === s.key
                     ? `border-orange-500 ${s.color}`
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
                 {s.label}
                 <span className="text-xs font-bold ml-0.5">{stats[s.key] || 0}</span>
               </button>
@@ -383,12 +383,12 @@ export default function AppTeamApplications() {
         </div>
 
         {/* Filter bar */}
-        <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-3 flex-wrap flex-shrink-0">
+        <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-3 flex-wrap shrink-0">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search student, university, course..."
-              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-orange-400"
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} title="Clear search"
@@ -398,12 +398,12 @@ export default function AppTeamApplications() {
             )}
           </div>
           <select value={counselorFilter} onChange={e => setCounselorFilter(e.target.value)}
-            className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+            className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-orange-400 bg-white">
             <option value="all">All Counselors</option>
             {counselors.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
           <Link to="/appteam/learning"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-lg text-xs font-semibold transition-colors flex-shrink-0">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-lg text-xs font-semibold transition-colors shrink-0">
             <GraduationCap className="w-3.5 h-3.5" /> Learning Hub
           </Link>
           <span className="text-xs text-gray-400 ml-auto">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
@@ -480,9 +480,9 @@ export default function AppTeamApplications() {
 
       {/* Right: detail drawer */}
       {selected && (
-        <div className="flex flex-col w-full lg:w-[440px] flex-shrink-0 border-l border-gray-200 bg-white overflow-hidden">
+        <div className="flex flex-col w-full lg:w-[440px] shrink-0 border-l border-gray-200 bg-white overflow-hidden">
           {/* Drawer header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200 bg-white shrink-0">
             <button type="button" onClick={() => setSelected(null)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Back to list">
               <X className="w-4 h-4 text-gray-500" />
             </button>
@@ -495,7 +495,7 @@ export default function AppTeamApplications() {
               type="button"
               onClick={downloadPDF}
               title="Download full profile as PDF"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors shrink-0"
             >
               <Download className="w-3.5 h-3.5" />
               PDF
@@ -602,14 +602,14 @@ export default function AppTeamApplications() {
                           ? `${s.bg} ${s.color} ${s.border} ring-2 ${s.ring}`
                           : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       }`}>
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
                       {s.label}
                     </button>
                   ))}
                 </div>
                 <textarea value={draftNotes} onChange={e => setDraftNotes(e.target.value)} rows={3}
                   placeholder="Add processing notes..."
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-orange-400 resize-none" />
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={handleSave} disabled={saving}
                     className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-60">
@@ -638,7 +638,7 @@ export default function AppTeamApplications() {
                     const ds = DOC_STATUS[doc.status] || { label: doc.status, color: 'text-gray-600', bg: 'bg-gray-100' };
                     return (
                       <div key={doc._id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                           <FileText className="w-4 h-4 text-orange-500" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -651,11 +651,11 @@ export default function AppTeamApplications() {
                         {doc.url ? (
                           <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-xs font-semibold flex-shrink-0">
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-xs font-semibold shrink-0">
                             <Download className="w-3 h-3" /> Download
                           </SignedFileLink>
                         ) : (
-                          <span className="text-xs text-gray-300 italic flex-shrink-0">No file</span>
+                          <span className="text-xs text-gray-300 italic shrink-0">No file</span>
                         )}
                       </div>
                     );

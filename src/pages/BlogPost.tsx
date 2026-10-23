@@ -65,11 +65,11 @@ export default function BlogPostPage() {
             </span>
           </div>
 
-          <div className="text-7xl mb-5 text-center select-none bg-gradient-to-br from-blue-50 to-indigo-100 py-8 rounded-2xl">
+          <div className="text-7xl mb-5 text-center select-none bg-linear-to-br from-blue-50 to-indigo-100 py-8 rounded-2xl">
             {post.coverEmoji}
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-4">
+          <h1 className="text-2xl md:text-3xl md:leading-(--text-3xl--line-height) font-extrabold text-gray-900 leading-tight mb-4">
             {post.title}
           </h1>
 
@@ -155,7 +155,7 @@ export default function BlogPostPage() {
       )}
 
       {/* CTA */}
-      <section className="bg-gradient-to-r from-blue-600 to-indigo-700 py-12 px-4">
+      <section className="bg-linear-to-r from-blue-600 to-indigo-700 py-12 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Have questions about your study abroad journey?</h2>
           <p className="text-blue-100 mb-6">Our expert counselors are ready to guide you — for free.</p>

@@ -3,7 +3,7 @@ import { Plus, X, Lock, Pencil, Trash2, Copy, Star } from 'lucide-react';
 import { api } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500';
+const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
 interface PermItem { key: string; label: string }
 interface PermModule { module: string; items: PermItem[] }
@@ -177,8 +177,8 @@ export default function AdminProfiles() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-gray-900">{p.name}</p>
-                    {p.isSystem && <span className="text-[11px] bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 flex items-center gap-1"><Lock className="w-3 h-3" /> System</span>}
-                    {p.isDefault && <span className="text-[11px] bg-purple-50 text-purple-700 rounded px-1.5 py-0.5">Default</span>}
+                    {p.isSystem && <span className="text-[11px] bg-gray-100 text-gray-500 rounded-sm px-1.5 py-0.5 flex items-center gap-1"><Lock className="w-3 h-3" /> System</span>}
+                    {p.isDefault && <span className="text-[11px] bg-purple-50 text-purple-700 rounded-sm px-1.5 py-0.5">Default</span>}
                   </div>
                   {p.description && <p className="text-xs text-gray-500">{p.description}</p>}
                 </td>

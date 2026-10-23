@@ -12,7 +12,7 @@ const EMPTY: Required<LeadFormInput> = {
   thankYouMessage: 'Thank you! A Gradzest counselor will contact you shortly.', campaign: '',
 };
 
-const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400';
+const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400';
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -84,7 +84,7 @@ function FormEditor({ initial, onCancel, onSave }: {
       <div className="flex justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel} className="px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gray-100">Cancel</button>
         <button type="button" onClick={save} disabled={saving}
-          className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-semibold disabled:opacity-60 shadow-md">
+          className="px-5 py-2.5 bg-linear-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-semibold disabled:opacity-60 shadow-md">
           {saving ? 'Saving…' : initial ? 'Save changes' : 'Create form'}
         </button>
       </div>
@@ -118,7 +118,7 @@ function ShareForm({ form }: { form: LeadForm }) {
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
-          To see which ad or post a lead came from, add tags to the link, e.g. <code className="bg-gray-100 px-1 rounded">?utm_source=instagram</code>
+          To see which ad or post a lead came from, add tags to the link, e.g. <code className="bg-gray-100 px-1 rounded-sm">?utm_source=instagram</code>
         </p>
       </div>
       <div className="flex flex-col items-center gap-3">
@@ -171,7 +171,7 @@ export default function AdminForms() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-gray-900">Forms</h2>
@@ -218,7 +218,7 @@ export default function AdminForms() {
                   <td className="px-3 py-3">
                     <button type="button" role="switch" aria-checked={f.active} aria-label={`${f.title}: accepting responses`} onClick={() => toggle(f)}
                       className={`relative w-11 h-6 rounded-full transition-colors ${f.active ? 'bg-green-500' : 'bg-gray-200'}`}>
-                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${f.active ? 'translate-x-6' : 'translate-x-1'}`} />
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-xs transition-transform ${f.active ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums text-gray-700">{f.submissions}</td>

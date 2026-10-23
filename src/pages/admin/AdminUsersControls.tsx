@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import AdminRoles from './AdminRoles';
 import AdminProfiles from './AdminProfiles';
 
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500';
+const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
 interface StaffUser {
   _id: string; name: string; email: string; role: 'admin' | 'counselor'; isAppTeam?: boolean;
@@ -276,7 +276,7 @@ function UsersTab() {
             <button key={t.key} type="button" role="tab" aria-selected={status === t.key} onClick={() => changeStatus(t.key)}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm transition-colors ${status === t.key ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
               {t.label}
-              <span className={`min-w-[1.5rem] px-1.5 py-0.5 rounded-full text-xs tabular-nums ${status === t.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`min-w-6 px-1.5 py-0.5 rounded-full text-xs tabular-nums ${status === t.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
                 {loading ? '–' : t.count}
               </span>
             </button>
@@ -346,7 +346,7 @@ function UsersTab() {
                       aria-label={u.active !== false ? `Deactivate ${u.name}` : `Activate ${u.name}`}
                       onClick={() => toggleActive(u)}
                       className={`relative w-10 h-5 rounded-full transition-colors ${u.active !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${u.active !== false ? 'left-5' : 'left-0.5'}`} />
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${u.active !== false ? 'left-5' : 'left-0.5'}`} />
                     </button>
                   </td>
                   <td className="px-4 py-3">

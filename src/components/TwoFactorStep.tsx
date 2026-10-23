@@ -45,7 +45,7 @@ export default function TwoFactorStep({ onSubmit, onBack, submitting, error }: P
 
       {error && (
         <div role="alert" className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
           <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
@@ -59,7 +59,7 @@ export default function TwoFactorStep({ onSubmit, onBack, submitting, error }: P
           inputMode={useRecovery ? 'text' : 'numeric'} autoComplete="one-time-code" spellCheck={false}
           maxLength={useRecovery ? 20 : 7}
           placeholder={useRecovery ? 'xxxx-xxxx-xxxx' : '123 456'}
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg tracking-widest font-mono"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-center text-lg tracking-widest font-mono"
         />
       </div>
 

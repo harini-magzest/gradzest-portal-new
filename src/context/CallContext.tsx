@@ -482,7 +482,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       {/* ── Toast notification ── */}
       {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900/95 backdrop-blur text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-2">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-200 bg-gray-900/95 backdrop-blur-sm text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-2">
           <span className="w-2 h-2 bg-green-400 rounded-full" />
           {toast}
         </div>
@@ -490,7 +490,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       {/* ── INCOMING CALL — Instagram / WhatsApp style full-screen ── */}
       {callState === 'incoming' && (
-        <div className="call-overlay-bg fixed inset-0 z-[150] flex flex-col items-center justify-between select-none">
+        <div className="call-overlay-bg fixed inset-0 z-150 flex flex-col items-center justify-between select-none">
           {/* Top: call type label */}
           <div className="mt-16 flex flex-col items-center gap-1 text-center">
             <span className={`inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full ${
@@ -507,15 +507,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
           {/* Middle: pulsing avatar */}
           <div className="relative flex items-center justify-center">
             {/* Concentric pulsing rings */}
-            <span className="call-ring-1 absolute w-64 h-64 rounded-full bg-white/[0.04]" />
-            <span className="call-ring-2 absolute w-52 h-52 rounded-full bg-white/[0.06]" />
-            <span className="call-ring-3 absolute w-40 h-40 rounded-full bg-white/[0.09]" />
+            <span className="call-ring-1 absolute w-64 h-64 rounded-full bg-white/4" />
+            <span className="call-ring-2 absolute w-52 h-52 rounded-full bg-white/6" />
+            <span className="call-ring-3 absolute w-40 h-40 rounded-full bg-white/9" />
 
             {/* Avatar */}
             <div className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-2xl ring-4 ring-white/10 ${
               isVideo
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-700'
-                : 'bg-gradient-to-br from-green-500 to-emerald-700'
+                ? 'bg-linear-to-br from-blue-500 to-indigo-700'
+                : 'bg-linear-to-br from-green-500 to-emerald-700'
             }`}>
               {avatarInitial}
             </div>
@@ -564,7 +564,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       {/* ── CALLING (outgoing) — full-screen overlay ── */}
       {callState === 'calling' && (
-        <div className="call-overlay-bg fixed inset-0 z-[150] flex flex-col items-center justify-between select-none">
+        <div className="call-overlay-bg fixed inset-0 z-150 flex flex-col items-center justify-between select-none">
           {/* Top */}
           <div className="mt-16 flex flex-col items-center gap-1 text-center">
             <span className={`text-xs font-semibold uppercase tracking-widest ${
@@ -581,8 +581,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
               <span className="call-ring-5 absolute w-40 h-40 rounded-full border border-white/15" />
               <div className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-2xl ring-4 ring-white/10 ${
                 isVideo
-                  ? 'bg-gradient-to-br from-blue-500 to-indigo-700'
-                  : 'bg-gradient-to-br from-green-500 to-emerald-700'
+                  ? 'bg-linear-to-br from-blue-500 to-indigo-700'
+                  : 'bg-linear-to-br from-green-500 to-emerald-700'
               }`}>
                 {avatarInitial}
               </div>
@@ -617,15 +617,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       {/* ── ACTIVE AUDIO CALL — compact floating bar ── */}
       {callState === 'active' && callType === 'audio' && (
-        <div className="call-audio-bar-bg fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-4 px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 min-w-[320px] max-w-[420px]">
+        <div className="call-audio-bar-bg fixed bottom-6 left-1/2 -translate-x-1/2 z-150 flex items-center gap-4 px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 min-w-[320px] max-w-[420px]">
 
           {/* Pulsing green dot */}
-          <span className="relative flex-shrink-0">
+          <span className="relative shrink-0">
             <span className="w-2.5 h-2.5 bg-green-400 rounded-full block animate-pulse" />
           </span>
 
           {/* Avatar */}
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-green-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
             {avatarInitial}
           </div>
 
@@ -655,7 +655,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
             type="button"
             onClick={endCall}
             aria-label="End call"
-            className="w-9 h-9 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 active:scale-90 transition-all flex-shrink-0"
+            className="w-9 h-9 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 active:scale-90 transition-all shrink-0"
           >
             <PhoneOff className="w-4 h-4" />
           </button>
@@ -664,7 +664,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       {/* ── ACTIVE VIDEO CALL — full-screen meeting room ── */}
       {callState === 'active' && callType === 'video' && (
-        <div className="fixed inset-0 z-[150] flex flex-col bg-gray-950">
+        <div className="fixed inset-0 z-150 flex flex-col bg-gray-950">
 
           {/* Remote video area */}
           <div className="relative flex-1 bg-gray-900 overflow-hidden">
@@ -678,7 +678,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
             </div>
 
             {/* Name + timer badge — top center */}
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 backdrop-blur-sm px-5 py-2.5 rounded-full">
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 backdrop-blur-xs px-5 py-2.5 rounded-full">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
               <span className="text-white font-semibold text-sm">{remoteName}</span>
               {callerRoleLabel && (

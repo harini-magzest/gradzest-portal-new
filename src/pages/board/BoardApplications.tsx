@@ -24,7 +24,7 @@ const STATUSES = [
 function Avi({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
   const sz = size === 'md' ? 'w-10 h-10 text-base' : 'w-7 h-7 text-xs';
   return (
-    <div className={`${sz} rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0`}>
+    <div className={`${sz} rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0`}>
       {name?.[0]?.toUpperCase() || '?'}
     </div>
   );
@@ -132,19 +132,19 @@ export default function BoardApplications() {
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] -m-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-white border-b border-gray-200 shrink-0">
         <h1 className="text-lg font-bold text-gray-900 mr-2">Applications Board</h1>
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search student, university..."
-            className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-400"
           />
           {search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-gray-400" /></button>}
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-indigo-400">
           <option value="all">All Statuses</option>
           {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
@@ -173,7 +173,7 @@ export default function BoardApplications() {
                   const Icon = s.icon;
                   const cards = filtered.filter(a => a.status === s.value);
                   return (
-                    <div key={s.value} className={`flex flex-col w-60 rounded-xl border ${s.border} ${s.col} flex-shrink-0`}>
+                    <div key={s.value} className={`flex flex-col w-60 rounded-xl border ${s.border} ${s.col} shrink-0`}>
                       <div className={`flex items-center gap-2 px-3 py-2.5 border-b ${s.border}`}>
                         <Icon className={`w-3.5 h-3.5 ${s.color}`} />
                         <span className={`text-xs font-bold uppercase tracking-wide ${s.color}`}>{s.label}</span>
@@ -184,7 +184,7 @@ export default function BoardApplications() {
                           <p className="text-xs text-gray-400 text-center py-6">No applications</p>
                         ) : cards.map(app => (
                           <button key={app._id} onClick={() => selectApp(app)}
-                            className={`w-full text-left p-3 rounded-lg bg-white border shadow-xs hover:shadow-sm transition-all ${selectedApp?._id === app._id ? 'ring-2 ring-indigo-500' : 'border-gray-200'}`}>
+                            className={`w-full text-left p-3 rounded-lg bg-white border shadow-2xs hover:shadow-xs transition-all ${selectedApp?._id === app._id ? 'ring-2 ring-indigo-500' : 'border-gray-200'}`}>
                             <div className="flex items-center gap-2 mb-2">
                               <Avi name={app.studentName} />
                               <div className="min-w-0">
@@ -231,7 +231,7 @@ export default function BoardApplications() {
                         <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${s.bg} ${s.color}`}>
                           <Icon className="w-3 h-3" />{s.label}
                         </span>
-                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
                       </button>
                     );
                   })}
@@ -257,8 +257,8 @@ function DetailPanel({
   const docs = studentDetail?.documents || [];
 
   return (
-    <div className="w-full lg:w-[22rem] flex-shrink-0 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
+    <div className="w-full lg:w-88 shrink-0 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
         <span className="text-sm font-semibold text-gray-900">Application Detail</span>
         <div className="flex items-center gap-1">
           <button onClick={() => downloadApplicationReportPdf(selectedApp, { student: studentDetail, counselor: assignedCounselor })}
@@ -306,7 +306,7 @@ function DetailPanel({
         <Section title="Assigned Counselor" icon={UserCog}>
           {assignedCounselor ? (
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                 {assignedCounselor.name?.[0]?.toUpperCase()}
               </div>
               <div>
@@ -331,7 +331,7 @@ function DetailPanel({
               [Clock, 'Last Updated', selectedApp.updatedDate ? new Date(selectedApp.updatedDate).toLocaleDateString() : 'N/A'],
             ].map(([Icon, label, value]: any) => value ? (
               <div key={label} className="flex items-start gap-2">
-                <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <span className="text-gray-400">{label}: </span>
                   <span className="font-medium text-gray-800">{value}</span>
@@ -366,7 +366,7 @@ function DetailPanel({
             value={notesUpdate} onChange={e => setNotesUpdate(e.target.value)}
             placeholder="Add processing notes..."
             rows={3}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-indigo-400 resize-none"
           />
           <div className="flex items-center justify-between mt-2">
             {saveMsg && <span className={`text-xs ${saveMsg.includes('Failed') ? 'text-red-500' : 'text-green-600'}`}>{saveMsg}</span>}
@@ -385,14 +385,14 @@ function DetailPanel({
             <div className="space-y-2">
               {docs.map((doc: any) => (
                 <div key={doc._id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                  <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-800 truncate">{doc.name}</p>
                     <p className="text-[10px] text-gray-400">{doc.type} · {doc.status}</p>
                   </div>
                   {doc.url && (
                     <SignedFileLink href={doc.url} download target="_blank" rel="noopener noreferrer"
-                      className="p-1 rounded hover:bg-indigo-100 text-indigo-600 transition-colors flex-shrink-0">
+                      className="p-1 rounded-sm hover:bg-indigo-100 text-indigo-600 transition-colors shrink-0">
                       <Download className="w-3.5 h-3.5" />
                     </SignedFileLink>
                   )}

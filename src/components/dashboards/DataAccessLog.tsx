@@ -24,7 +24,7 @@ export default function DataAccessLog() {
   const shown = open ? rows : rows.slice(0, 5);
 
   return (
-    <section aria-labelledby="data-access-title" className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section aria-labelledby="data-access-title" className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="w-5 h-5 text-emerald-600" aria-hidden="true" />
         <h2 id="data-access-title" className="font-semibold text-gray-900">{t('dataAccess.title')}</h2>
@@ -44,7 +44,7 @@ export default function DataAccessLog() {
                   {a.name || ROLE_LABEL[a.role] || 'Staff member'}
                   <span className="ml-2 text-xs text-gray-500">{ROLE_LABEL[a.role] || a.role}</span>
                 </span>
-                <time dateTime={a.at} className="text-xs text-gray-500 flex-shrink-0">{new Date(a.at).toLocaleString()}</time>
+                <time dateTime={a.at} className="text-xs text-gray-500 shrink-0">{new Date(a.at).toLocaleString()}</time>
               </li>
             ))}
           </ul>

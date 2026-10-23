@@ -74,7 +74,7 @@ function Avi({ name, size = 'md', teal = false }: { name: string; size?: 'sm' | 
   const sz = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-lg' };
   const grad = teal ? 'from-teal-500 to-emerald-600' : 'from-violet-500 to-indigo-600';
   return (
-    <div className={`${sz[size]} bg-gradient-to-br ${grad} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm`}>
+    <div className={`${sz[size]} bg-linear-to-br ${grad} rounded-full flex items-center justify-center text-white font-bold shrink-0 shadow-xs`}>
       {name?.charAt(0)?.toUpperCase() || '?'}
     </div>
   );
@@ -90,7 +90,7 @@ function BoardCard({ app, selected, onClick }: { app: any; selected: boolean; on
       className={`w-full text-left p-3 rounded-xl border transition-all duration-150
         ${selected
           ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-200 shadow-md'
-          : `${CARD_BG[app.status] || 'border-gray-200 bg-white'} hover:shadow-sm`}`}
+          : `${CARD_BG[app.status] || 'border-gray-200 bg-white'} hover:shadow-xs`}`}
     >
       <div className="flex items-center gap-2 mb-2">
         <Avi name={app.studentName} size="sm" />
@@ -158,7 +158,7 @@ function DetailPanel({
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200 bg-gray-50/80 flex-shrink-0">
+      <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200 bg-gray-50/80 shrink-0">
         <div className="min-w-0 pr-3">
           <h2 className="text-sm font-bold text-gray-900 truncate">{app.studentName}</h2>
           <p className="text-xs text-gray-500 truncate">{app.universityName} · {app.courseName}</p>
@@ -166,7 +166,7 @@ function DetailPanel({
         <button aria-label="Close"
           type="button"
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-all flex-shrink-0"
+          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-all shrink-0"
         >
           <X className="w-4 h-4" />
         </button>
@@ -197,34 +197,34 @@ function DetailPanel({
                 <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 rounded-xl p-3">
                   {studentDetail.phone && (
                     <span className="flex items-center gap-1.5 text-gray-600">
-                      <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />{studentDetail.phone}
+                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />{studentDetail.phone}
                     </span>
                   )}
                   {studentDetail.educationLevel && (
                     <span className="flex items-center gap-1.5 text-gray-600">
-                      <BookOpen className="w-3 h-3 text-gray-400 flex-shrink-0" />{studentDetail.educationLevel}
+                      <BookOpen className="w-3 h-3 text-gray-400 shrink-0" />{studentDetail.educationLevel}
                     </span>
                   )}
                   {studentDetail.gpa != null && (
                     <span className="flex items-center gap-1.5 text-gray-600">
-                      <Award className="w-3 h-3 text-gray-400 flex-shrink-0" />GPA {studentDetail.gpa}
+                      <Award className="w-3 h-3 text-gray-400 shrink-0" />GPA {studentDetail.gpa}
                     </span>
                   )}
                   {studentDetail.englishScore?.type && (
                     <span className="flex items-center gap-1.5 text-gray-600">
-                      <CheckCircle className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                      <CheckCircle className="w-3 h-3 text-gray-400 shrink-0" />
                       {studentDetail.englishScore.type} {studentDetail.englishScore.score}
                     </span>
                   )}
                   {studentDetail.budget && (
                     <span className="flex items-center gap-1.5 text-gray-600">
-                      <DollarSign className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                      <DollarSign className="w-3 h-3 text-gray-400 shrink-0" />
                       Budget ${Number(studentDetail.budget).toLocaleString()}
                     </span>
                   )}
                   {studentDetail.preferredCountries?.length > 0 && (
                     <span className="flex items-center gap-1.5 text-gray-600 col-span-2">
-                      <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                       {studentDetail.preferredCountries.join(' · ')}
                     </span>
                   )}
@@ -266,7 +266,7 @@ function DetailPanel({
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Application Details</p>
           <div className="space-y-2.5">
             <div className="flex items-start gap-2.5">
-              <GraduationCap className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <GraduationCap className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">{app.universityName}</p>
                 <p className="text-xs text-gray-500 truncate">{app.courseName}</p>
@@ -274,24 +274,24 @@ function DetailPanel({
             </div>
             {app.intake && (
               <div className="flex items-center gap-2.5">
-                <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <Clock className="w-4 h-4 text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-700">Intake: <span className="font-semibold">{app.intake}</span></span>
               </div>
             )}
             {app.submittedDate && (
               <div className="flex items-center gap-2.5">
-                <Send className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <Send className="w-4 h-4 text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-700">Submitted: <span className="font-semibold">{app.submittedDate}</span></span>
               </div>
             )}
             {app.updatedDate && (
               <div className="flex items-center gap-2.5">
-                <RefreshCw className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <RefreshCw className="w-4 h-4 text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-700">Updated: <span className="font-semibold">{app.updatedDate}</span></span>
               </div>
             )}
             <div className="flex items-center gap-2.5">
-              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
               <span className="text-sm text-gray-700">Status:</span>
               <StatusBadge status={app.status} size="md" />
             </div>
@@ -315,7 +315,7 @@ function DetailPanel({
                 onClick={() => onStatusChange(s.value)}
                 className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-all
                   ${statusUpdate === s.value
-                    ? `${STATUS_BTN[s.value]} border-current shadow-sm ring-1 ring-offset-1 ring-current/30`
+                    ? `${STATUS_BTN[s.value]} border-current shadow-xs ring-1 ring-offset-1 ring-current/30`
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
               >
                 {s.icon}{s.label}
@@ -327,7 +327,7 @@ function DetailPanel({
             onChange={e => onNotesChange(e.target.value)}
             rows={2}
             placeholder="Add processing notes…"
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none placeholder:text-gray-400 mb-2"
+            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-violet-500 resize-none placeholder:text-gray-400 mb-2"
           />
           {saveError && (
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200 mb-2">{saveError}</p>
@@ -336,7 +336,7 @@ function DetailPanel({
             type="button"
             onClick={onSave}
             disabled={saving}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-60 shadow-sm"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-60 shadow-xs"
           >
             {saving ? <><Spinner size={3} white />Saving…</> : 'Save Stage Update'}
           </button>
@@ -359,7 +359,7 @@ function DetailPanel({
                   key={doc._id || doc.id}
                   className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"
                 >
-                  <div className="w-8 h-8 bg-white rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-white rounded-lg border border-gray-200 flex items-center justify-center shrink-0">
                     <FileText className="w-4 h-4 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -382,14 +382,14 @@ function DetailPanel({
                       download
                       target="_blank"
                       rel="noreferrer"
-                      className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-[10px] font-semibold transition-colors"
+                      className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-[10px] font-semibold transition-colors"
                       title={`Download ${doc.name}`}
                     >
                       <Download className="w-3 h-3" />
                       Download
                     </SignedFileLink>
                   ) : (
-                    <span className="flex-shrink-0 text-[10px] text-gray-400 italic px-1">No file</span>
+                    <span className="shrink-0 text-[10px] text-gray-400 italic px-1">No file</span>
                   )}
                 </div>
               ))}
@@ -534,10 +534,10 @@ export default function AdminApplicationBoard() {
     <div className="flex flex-col h-[calc(100vh-5rem)] -m-6">
 
       {/* ── Header / stats ── */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-[#3b0764] to-[#4c1d95] px-6 py-5 text-white">
+      <div className="shrink-0 bg-linear-to-r from-[#3b0764] to-[#4c1d95] px-6 py-5 text-white">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -599,14 +599,14 @@ export default function AdminApplicationBoard() {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-6 py-3 bg-white border-b border-gray-200 flex-wrap">
+      <div className="shrink-0 flex items-center gap-3 px-6 py-3 bg-white border-b border-gray-200 flex-wrap">
         <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search student, university, course…"
-            className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"
           />
         </div>
 
@@ -614,7 +614,7 @@ export default function AdminApplicationBoard() {
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
           title="Filter by status"
-          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-700"
+          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 text-gray-700"
         >
           <option value="all">All Statuses ({applications.length})</option>
           {APP_STATUSES.map(s => (
@@ -639,7 +639,7 @@ export default function AdminApplicationBoard() {
             type="button"
             onClick={() => setViewMode('board')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
-              ${viewMode === 'board' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              ${viewMode === 'board' ? 'bg-white text-violet-700 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Layers className="w-3.5 h-3.5" />Board
           </button>
@@ -647,7 +647,7 @@ export default function AdminApplicationBoard() {
             type="button"
             onClick={() => setViewMode('list')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
-              ${viewMode === 'list' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              ${viewMode === 'list' ? 'bg-white text-violet-700 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <LayoutList className="w-3.5 h-3.5" />List
           </button>
@@ -655,7 +655,7 @@ export default function AdminApplicationBoard() {
             type="button"
             onClick={() => setViewMode('free-register')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
-              ${viewMode === 'free-register' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              ${viewMode === 'free-register' ? 'bg-white text-violet-700 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Users className="w-3.5 h-3.5" />Free Register
           </button>
@@ -670,9 +670,9 @@ export default function AdminApplicationBoard() {
 
       {/* ── Error banner ── */}
       {loadError && (
-        <div className="flex-shrink-0 m-4">
+        <div className="shrink-0 m-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-800">Failed to load</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
@@ -706,7 +706,7 @@ export default function AdminApplicationBoard() {
                 return (
                   <div
                     key={statusDef.value}
-                    className="flex flex-col w-60 bg-gray-50/80 rounded-2xl border border-gray-200 overflow-hidden flex-shrink-0"
+                    className="flex flex-col w-60 bg-gray-50/80 rounded-2xl border border-gray-200 overflow-hidden shrink-0"
                   >
                     {/* Column header */}
                     <div className={`flex items-center justify-between px-3 py-2.5 border-b ${COL_HEADER[statusDef.value]}`}>
@@ -714,7 +714,7 @@ export default function AdminApplicationBoard() {
                         {statusDef.icon}
                         <span className="text-xs font-bold">{statusDef.label}</span>
                       </div>
-                      <span className="text-xs font-bold bg-white/60 px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
+                      <span className="text-xs font-bold bg-white/60 px-2 py-0.5 rounded-full min-w-6 text-center">
                         {col.length}
                       </span>
                     </div>
@@ -741,7 +741,7 @@ export default function AdminApplicationBoard() {
 
           {/* Detail panel */}
           {selectedApp && (
-            <div className="w-[22rem] flex-shrink-0 border-l border-gray-200 overflow-hidden">
+            <div className="w-88 shrink-0 border-l border-gray-200 overflow-hidden">
               <DetailPanel
                 app={selectedApp}
                 studentDetail={studentDetail}
@@ -772,7 +772,7 @@ export default function AdminApplicationBoard() {
                 value={subSearch}
                 onChange={e => setSubSearch(e.target.value)}
                 placeholder="Search by name, email or phone…"
-                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               />
             </div>
             {subSearch && (
@@ -814,10 +814,10 @@ export default function AdminApplicationBoard() {
                 .map((s, i) => (
                   <div
                     key={s._id || i}
-                    className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow"
+                    className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      <div className="w-10 h-10 bg-linear-to-br from-violet-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {s.name ? s.name.charAt(0).toUpperCase() : s.email.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -829,7 +829,7 @@ export default function AdminApplicationBoard() {
                     </div>
                     <div className="space-y-1.5 text-xs text-gray-600">
                       <div className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <a href={`mailto:${s.email}`}
                           className="truncate text-purple-600 hover:text-purple-800 hover:underline transition-colors">
                           {s.email}
@@ -837,12 +837,12 @@ export default function AdminApplicationBoard() {
                       </div>
                       {s.phone && (
                         <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span>{s.phone}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-2">
-                        <CalendarDays className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <CalendarDays className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>{new Date(s.subscribedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
@@ -858,7 +858,7 @@ export default function AdminApplicationBoard() {
         <div className="flex-1 flex overflow-hidden">
           {/* Left list */}
           <div
-            className={`${selectedApp ? 'w-80' : 'flex-1'} flex-shrink-0 border-r border-gray-200 bg-white overflow-y-auto`}
+            className={`${selectedApp ? 'w-80' : 'flex-1'} shrink-0 border-r border-gray-200 bg-white overflow-y-auto`}
           >
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">

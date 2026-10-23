@@ -137,11 +137,11 @@ function UpdateStatusModal({
 
   return (
     <div role="presentation"
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[92vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-base font-bold text-gray-900">Update Application Stage</h2>
             <p className="text-xs text-gray-500 mt-0.5">{app.studentName} · {app.universityName}</p>
@@ -166,7 +166,7 @@ function UpdateStatusModal({
                 <button key={s.value} type="button" onClick={() => setStatus(s.value)}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all
                     ${status === s.value
-                      ? `${STATUS_COLORS[s.value]} border-current shadow-sm ring-2 ring-offset-1 ring-current/30`
+                      ? `${STATUS_COLORS[s.value]} border-current shadow-xs ring-2 ring-offset-1 ring-current/30`
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
                   {STATUS_ICONS[s.value]}
                   {s.label}
@@ -182,7 +182,7 @@ function UpdateStatusModal({
                 value={offerType}
                 onChange={e => setOfferType(e.target.value)}
                 aria-label="Offer type"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-600 bg-white"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-600 bg-white"
               >
                 <option value="">Select offer type…</option>
                 <option value="Normal Offer">Normal Offer</option>
@@ -201,7 +201,7 @@ function UpdateStatusModal({
               onChange={e => setNotes(e.target.value)}
               rows={3}
               placeholder="Add a note about this status update…"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-none placeholder:text-gray-400"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-600 resize-none placeholder:text-gray-400"
             />
           </div>
 
@@ -258,7 +258,7 @@ function UpdateStatusModal({
                         value={entry.level}
                         onChange={e => updateEntry(entry.id, 'level', e.target.value)}
                         aria-label="Education level"
-                        className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                        className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-green-500 bg-white"
                       >
                         {ACADEMIC_LEVELS.map(l => <option key={l}>{l}</option>)}
                       </select>
@@ -270,7 +270,7 @@ function UpdateStatusModal({
                           value={entry.institution}
                           onChange={e => updateEntry(entry.id, 'institution', e.target.value)}
                           placeholder="e.g. St. Joseph's School"
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -279,7 +279,7 @@ function UpdateStatusModal({
                           value={entry.board}
                           onChange={e => updateEntry(entry.id, 'board', e.target.value)}
                           placeholder="e.g. CBSE, Pune Univ."
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -289,7 +289,7 @@ function UpdateStatusModal({
                           onChange={e => updateEntry(entry.id, 'year', e.target.value)}
                           placeholder="e.g. 2022"
                           maxLength={4}
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                       <div>
@@ -298,7 +298,7 @@ function UpdateStatusModal({
                           value={entry.score}
                           onChange={e => updateEntry(entry.id, 'score', e.target.value)}
                           placeholder="e.g. 88% or 7.8 GPA"
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-green-500"
                         />
                       </div>
                     </div>
@@ -323,7 +323,7 @@ function UpdateStatusModal({
                     <div className={`max-w-[80%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
                       c.authorRole === 'counselor'
                         ? 'bg-green-600 text-white rounded-br-none'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
+                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-xs'
                     }`}>
                       <p className={`font-semibold mb-0.5 ${c.authorRole === 'counselor' ? 'text-blue-200' : 'text-blue-600'}`}>
                         {c.authorRole === 'student' ? `${c.author} · Student` : 'You'}
@@ -348,7 +348,7 @@ function UpdateStatusModal({
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(); } }}
                 placeholder="Reply to student…"
                 disabled={replying}
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-600 placeholder:text-gray-400"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-600 placeholder:text-gray-400"
               />
               <button type="button" onClick={submitReply} disabled={replying || !replyText.trim()}
                 aria-label="Send reply"
@@ -363,13 +363,13 @@ function UpdateStatusModal({
           )}
         </div>
 
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button type="button" onClick={onClose}
             className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
             Cancel
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-sm">
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 shadow-xs">
             {saving ? <><Spinner size={4} white />Saving…</> : 'Save Changes'}
           </button>
         </div>
@@ -456,7 +456,7 @@ export default function CounselorApplications() {
         <div className="bg-green-600 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -495,7 +495,7 @@ export default function CounselorApplications() {
 
         {loadError && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-800">Failed to load</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
@@ -508,7 +508,7 @@ export default function CounselorApplications() {
         )}
 
         {!loadError && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
             {/* Toolbar */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60 flex-wrap">
               <div className="relative flex-1 min-w-0 max-w-sm">
@@ -517,7 +517,7 @@ export default function CounselorApplications() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by student, university or course…"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-green-600"
                 />
               </div>
               <div className="relative">
@@ -525,7 +525,7 @@ export default function CounselorApplications() {
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
                   aria-label="Filter by status"
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600 text-gray-700"
+                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-green-600 text-gray-700"
                 >
                   <option value="all">All Statuses ({applications.length})</option>
                   {ALL_STATUSES.map(s => (
@@ -566,11 +566,11 @@ export default function CounselorApplications() {
                   return (
                     <div key={`${app.studentId}-${appId}`}
                       className="flex items-center gap-4 px-5 py-4 hover:bg-green-50/40 transition-colors">
-                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {app.studentName?.charAt(0)}
                       </div>
 
-                      <div className="w-36 flex-shrink-0 min-w-0">
+                      <div className="w-36 shrink-0 min-w-0">
                         <Link to={`/counselor/students/${app.studentId}?tab=applications`} state={studentNav} title="Open student profile"
                           className="text-sm font-semibold text-gray-900 hover:text-green-700 hover:underline truncate block">{app.studentName}</Link>
                       </div>
@@ -581,7 +581,7 @@ export default function CounselorApplications() {
                         {app.intake && <p className="text-xs text-gray-400">{app.intake}</p>}
                       </div>
 
-                      <div className="hidden lg:block text-right flex-shrink-0 w-24">
+                      <div className="hidden lg:block text-right shrink-0 w-24">
                         {app.submittedDate && (
                           <>
                             <p className="text-xs text-gray-400">Submitted</p>
@@ -597,12 +597,12 @@ export default function CounselorApplications() {
                       </div>
 
                       {app.notes && (
-                        <div className="hidden xl:block w-32 flex-shrink-0">
+                        <div className="hidden xl:block w-32 shrink-0">
                           <p className="text-xs text-gray-400 truncate italic">{app.notes}</p>
                         </div>
                       )}
 
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <StatusBadge status={app.status} />
                       </div>
 
@@ -610,14 +610,14 @@ export default function CounselorApplications() {
                         type="button"
                         onClick={() => downloadApplicationReportPdf(app)}
                         title="Download application report PDF"
-                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-green-700 active:scale-95 transition-all">
+                        className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 hover:text-green-700 active:scale-95 transition-all">
                         <Download className="w-3.5 h-3.5" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setEditingApp(app)}
-                        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                           text-green-800 bg-green-50 border border-green-200 hover:bg-green-100 hover:border-green-300
                           active:scale-95 transition-all">
                         <Edit2 className="w-3.5 h-3.5" />

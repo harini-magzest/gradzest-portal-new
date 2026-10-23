@@ -38,10 +38,10 @@ export default function ReferralCard() {
   };
 
   if (error && !data) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading…</div>;
+  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading…</div>;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1"><Gift className="w-4 h-4" /> Refer a friend</h2>
       <p className="text-sm text-gray-500 mb-4">
         Share your link. When a friend signs up with it and enrolls, you earn a reward{data.rewardText ? `: ${data.rewardText}` : ''}.

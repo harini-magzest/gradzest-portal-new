@@ -49,10 +49,10 @@ export default function ConversionReport() {
     finally { setDownloading(false); }
   };
 
-  const dateCls = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent';
+  const dateCls = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-violet-500 focus:border-transparent';
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
       <div className="flex flex-col gap-4 px-6 pt-6 pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Conversion report</h2>
@@ -62,7 +62,7 @@ export default function ConversionReport() {
           <div className="flex p-0.5 bg-gray-100 rounded-lg" role="group" aria-label="Group by">
             {GROUPS.map(g => (
               <button key={g.key} type="button" onClick={() => setGroupBy(g.key)} aria-pressed={groupBy === g.key}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${groupBy === g.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${groupBy === g.key ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}>
                 {g.label}
               </button>
             ))}

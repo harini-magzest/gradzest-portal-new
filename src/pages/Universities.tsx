@@ -9,7 +9,7 @@ import { api } from '../api';
 // ── Skeleton card shown while data loads ────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
+    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden animate-pulse">
       <div className="h-48 bg-gray-200" />
       <div className="p-5">
         <div className="h-5 bg-gray-200 rounded-lg w-3/4 mb-2" />
@@ -47,10 +47,10 @@ function UniCard({ uni }: { uni: any }) {
     : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group flex flex-col">
+    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group flex flex-col">
       <Link to={`/university/${uni.id || uni._id}`} className="block">
         {/* Cover image */}
-        <div className="relative h-48 overflow-hidden bg-gradient-to-br from-[#0d1b4b] via-blue-800 to-indigo-700">
+        <div className="relative h-48 overflow-hidden bg-linear-to-br from-[#0d1b4b] via-blue-800 to-indigo-700">
           {uni.coverImage && !coverErr && (
             <img loading="lazy" decoding="async"
               src={uni.coverImage}
@@ -59,12 +59,12 @@ function UniCard({ uni }: { uni: any }) {
               onError={() => setCoverErr(true)}
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
 
           {/* Ranking + type badges */}
           <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
             {uni.ranking && (
-              <span className="bg-white/95 text-xs font-bold text-[#0d1b4b] px-2.5 py-1 rounded-full shadow-sm">
+              <span className="bg-white/95 text-xs font-bold text-[#0d1b4b] px-2.5 py-1 rounded-full shadow-xs">
                 #{uni.ranking} World
               </span>
             )}
@@ -89,7 +89,7 @@ function UniCard({ uni }: { uni: any }) {
 
           {/* Location */}
           <div className="absolute bottom-3 left-3 text-white text-sm flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate max-w-[180px]">
               {[uni.city, uni.country].filter(Boolean).join(', ')}
             </span>
@@ -97,7 +97,7 @@ function UniCard({ uni }: { uni: any }) {
 
           {/* Rating */}
           {uni.rating > 0 && (
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded-full shadow-sm">
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded-full shadow-xs">
               <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
               <span className="text-xs font-bold text-gray-800">{uni.rating}</span>
             </div>
@@ -243,7 +243,7 @@ export default function Universities() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Hero + search ── */}
-      <div className="bg-gradient-to-br from-[#0d1b4b] via-blue-800 to-indigo-700 text-white py-16 pb-12">
+      <div className="bg-linear-to-br from-[#0d1b4b] via-blue-800 to-indigo-700 text-white py-16 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 tracking-tight">
             Partner Universities
@@ -257,7 +257,7 @@ export default function Universities() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, city, country or field…"
-              className="w-full pl-12 pr-10 py-3.5 rounded-2xl text-gray-900 bg-white shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm"
+              className="w-full pl-12 pr-10 py-3.5 rounded-2xl text-gray-900 bg-white shadow-xl focus:outline-hidden focus:ring-2 focus:ring-blue-300 text-sm"
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} aria-label="Clear search"
@@ -270,16 +270,16 @@ export default function Universities() {
       </div>
 
       {/* ── Sticky filter bar ── */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Globe className="w-4 h-4 text-gray-400 shrink-0" />
               <select
                 value={selectedCountry}
                 onChange={e => setSelectedCountry(e.target.value)}
                 title="Filter by country"
-                className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer"
+                className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer"
               >
                 <option value="">All Countries</option>
                 {countries.map(c => <option key={c} value={c}>{c}</option>)}
@@ -287,12 +287,12 @@ export default function Universities() {
             </div>
 
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <SlidersHorizontal className="w-4 h-4 text-gray-400 shrink-0" />
               <select
                 value={selectedType}
                 onChange={e => setSelectedType(e.target.value)}
                 title="Filter by university type"
-                className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer"
+                className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer"
               >
                 <option value="">All Types</option>
                 {types.map(t => <option key={t} value={t}>{t}</option>)}
@@ -303,7 +303,7 @@ export default function Universities() {
               value={sortBy}
               onChange={e => setSortBy(e.target.value as typeof sortBy)}
               title="Sort universities"
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer ml-auto"
+              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer ml-auto"
             >
               <option value="ranking">Sort: World Ranking</option>
               <option value="name">Sort: Name A–Z</option>
@@ -381,7 +381,7 @@ export default function Universities() {
                       onClick={() => { setPage(p as number); scrollTop(); }}
                       className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
                         p === page
-                          ? 'bg-[#0d1b4b] text-white shadow-sm'
+                          ? 'bg-[#0d1b4b] text-white shadow-xs'
                           : 'border border-gray-200 hover:bg-gray-50 text-gray-700'
                       }`}
                     >

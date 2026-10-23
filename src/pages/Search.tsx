@@ -50,7 +50,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white py-12">
+      <div className="bg-linear-to-r from-blue-700 to-indigo-700 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold mb-2">University Search Engine</h1>
           <p className="text-blue-200 mb-6">Find your perfect university from our global database</p>
@@ -58,7 +58,7 @@ export default function SearchPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by university name, course, country, city..."
-                className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-lg" />
+                className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-300 shadow-lg" />
               {query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>}
             </div>
             <button type="button" onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-5 py-4 rounded-xl font-medium transition-colors ${showFilters ? 'bg-white text-blue-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>
@@ -70,26 +70,26 @@ export default function SearchPage() {
       </div>
 
       {showFilters && (
-        <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="bg-white border-b border-gray-200 shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
-                <select aria-label="Filter by country" value={country} onChange={e => setCountry(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                <select aria-label="Filter by country" value={country} onChange={e => setCountry(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white text-sm">
                   <option value="">All Countries</option>
                   {countries.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Course Level</label>
-                <select aria-label="Filter by course level" value={level} onChange={e => setLevel(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                <select aria-label="Filter by course level" value={level} onChange={e => setLevel(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white text-sm">
                   <option value="">All Levels</option>
                   {levels.map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Field of Study</label>
-                <select aria-label="Filter by field of study" value={field} onChange={e => setField(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                <select aria-label="Filter by field of study" value={field} onChange={e => setField(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white text-sm">
                   <option value="">All Fields</option>
                   {fields.map(f => <option key={f}>{f}</option>)}
                 </select>
@@ -114,7 +114,7 @@ export default function SearchPage() {
             <span className="font-bold text-gray-900">{filtered.length}</span> universities found
             {query && <span className="text-gray-500"> for "<span className="text-blue-600">{query}</span>"</span>}
           </p>
-          <select aria-label="Sort results" value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <select aria-label="Sort results" value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="ranking">Sort: World Ranking</option>
             <option value="fee">Sort: Lowest Fee</option>
             <option value="rating">Sort: Highest Rating</option>
@@ -131,10 +131,10 @@ export default function SearchPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map(uni => (
-              <Link key={uni.id} to={`/university/${uni.id}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1 overflow-hidden group flex flex-col">
-                <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
+              <Link key={uni.id} to={`/university/${uni.id}`} className="bg-white rounded-2xl shadow-xs border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1 overflow-hidden group flex flex-col">
+                <div className="relative h-44 overflow-hidden bg-linear-to-br from-blue-500 to-indigo-600">
                   <img loading="lazy" decoding="async" src={uni.coverImage} alt={uni.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-75" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent"></div>
                   <div className="absolute top-3 left-3 flex gap-2">
                     <span className="bg-white/90 text-xs font-bold text-blue-800 px-2.5 py-1 rounded-full">#{uni.ranking} World</span>
                     <span className="bg-white/90 text-xs font-medium text-gray-700 px-2.5 py-1 rounded-full">{uni.type}</span>

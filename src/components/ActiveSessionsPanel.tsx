@@ -72,7 +72,7 @@ export default function ActiveSessionsPanel() {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
         <Monitor className="w-5 h-5 text-purple-600" /> Active Sessions
       </h3>
@@ -105,15 +105,15 @@ export default function ActiveSessionsPanel() {
             <div key={s.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3 min-w-0">
                 {/mobile|android|iphone/i.test(s.userAgent) ? (
-                  <Smartphone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <Smartphone className="w-4 h-4 text-gray-400 shrink-0" />
                 ) : (
-                  <Monitor className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <Monitor className="w-4 h-4 text-gray-400 shrink-0" />
                 )}
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-gray-800 truncate">{deviceLabel(s.userAgent)}</p>
                     {s.isCurrent && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 shrink-0">
                         This device
                       </span>
                     )}
@@ -128,7 +128,7 @@ export default function ActiveSessionsPanel() {
                 onClick={() => revoke(s.id)}
                 disabled={revokingId === s.id}
                 title="Log out this device"
-                className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 shrink-0"
               >
                 {revokingId === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
               </button>

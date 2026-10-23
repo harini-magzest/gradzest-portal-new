@@ -8,11 +8,11 @@ import { usePortalName } from '../../hooks/usePortalName';
 function UniMiniCard({ uni }: { uni: any }) {
   return (
     <Link to={`/university/${uni.id || uni._id}`}
-      className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm min-w-0 hover:border-green-300 hover:shadow-md transition-all cursor-pointer">
+      className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-xs min-w-0 hover:border-green-300 hover:shadow-md transition-all cursor-pointer">
       <img loading="lazy" decoding="async"
         src={`/api/unilogo/${uni.id || uni._id}`}
         alt=""
-        className="w-8 h-8 rounded-lg object-contain bg-gray-50 border border-gray-100 flex-shrink-0"
+        className="w-8 h-8 rounded-lg object-contain bg-gray-50 border border-gray-100 shrink-0"
         onError={(e) => {
           const el = e.currentTarget;
           const domain = uni.website?.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0];
@@ -25,7 +25,7 @@ function UniMiniCard({ uni }: { uni: any }) {
           }
         }}
       />
-      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-100 to-teal-100 items-center justify-center flex-shrink-0 hidden">
+      <div className="w-8 h-8 rounded-lg bg-linear-to-br from-green-100 to-teal-100 items-center justify-center shrink-0 hidden">
         <span className="text-xs font-bold text-green-600">{uni.name?.charAt(0) || '?'}</span>
       </div>
       <div className="min-w-0 flex-1">
@@ -33,7 +33,7 @@ function UniMiniCard({ uni }: { uni: any }) {
         {uni.city && <p className="text-xs text-gray-400 truncate">{uni.city}</p>}
       </div>
       {uni.courses?.length > 0 && (
-        <span className="text-xs bg-sky-50 text-sky-700 font-medium px-2 py-0.5 rounded-full border border-sky-100 flex-shrink-0">
+        <span className="text-xs bg-sky-50 text-sky-700 font-medium px-2 py-0.5 rounded-full border border-sky-100 shrink-0">
           {uni.courses.length}
         </span>
       )}
@@ -45,7 +45,7 @@ function CountryCard({ country, unis }: { country: any; unis: any[] }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden hover:shadow-md transition-shadow">
       <div className="flex items-center gap-4 px-5 py-4">
         <CountryFlag name={country.name} code={country.code} flag={country.flag} sizeCls="w-20 h-14" rounded="rounded-xl" quality="w160" />
         <div className="flex-1 min-w-0">
@@ -80,7 +80,7 @@ function CountryCard({ country, unis }: { country: any; unis: any[] }) {
           </div>
         </div>
         <button type="button" onClick={() => setExpanded(v => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all flex-shrink-0">
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all shrink-0">
           {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           {expanded ? 'Hide' : 'Details'}
         </button>
@@ -105,7 +105,7 @@ function CountryCard({ country, unis }: { country: any; unis: any[] }) {
                     <ul className="space-y-1">
                       {country.visa.documents.map((d: string, i: number) => (
                         <li key={i} className="flex items-start gap-1.5">
-                          <Check className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                          <Check className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
                           <span className="text-gray-700">{d}</span>
                         </li>
                       ))}
@@ -227,9 +227,9 @@ export default function CounselorCountries() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-green-600 via-green-700 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -244,10 +244,10 @@ export default function CounselorCountries() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search countries, capitals or regions…"
-            className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" />
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 shadow-xs" />
         </div>
         <select aria-label="Filter by region" value={regionFilter} onChange={e => setRegionFilter(e.target.value)}
-          className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm text-gray-700">
+          className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-green-500 shadow-xs text-gray-700">
           <option value="">All Regions</option>
           {regions.map(r => <option key={r}>{r}</option>)}
         </select>
@@ -259,8 +259,8 @@ export default function CounselorCountries() {
         </div>
       ) : loadError ? (
         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 flex-shrink-0" />{loadError}</div>
-          <button type="button" onClick={loadCountries} className="text-xs font-semibold text-red-700 hover:text-red-800 flex-shrink-0">Retry</button>
+          <div className="flex items-center gap-2 text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{loadError}</div>
+          <button type="button" onClick={loadCountries} className="text-xs font-semibold text-red-700 hover:text-red-800 shrink-0">Retry</button>
         </div>
       ) : (
         <>

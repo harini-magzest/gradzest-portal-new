@@ -13,8 +13,8 @@ type Period = '7d' | '30d' | '90d' | '1yr';
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string | number; sub?: string; color: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 flex items-start gap-4">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
       <div>
@@ -74,10 +74,10 @@ export default function AdminAnalytics() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-700 to-purple-800 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-linear-to-r from-indigo-600 via-purple-700 to-purple-800 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xs">
               <BarChart2 className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -106,7 +106,7 @@ export default function AdminAnalytics() {
 
       {error && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
           <p className="text-sm text-red-700 flex-1">{error}</p>
           <button type="button" onClick={() => load(period)}
             className="text-xs text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg font-semibold">Retry</button>
@@ -121,8 +121,8 @@ export default function AdminAnalytics() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="bg-white rounded-xl border border-gray-100 p-5">
-                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-4" />
-                <div className="h-48 bg-gray-100 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-gray-200 rounded-sm animate-pulse mb-4" />
+                <div className="h-48 bg-gray-100 rounded-sm animate-pulse" />
               </div>
             ))}
           </div>
@@ -134,19 +134,19 @@ export default function AdminAnalytics() {
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={Users} label="New Students" value={data.newStudents}
-              sub={`in last ${period}`} color="bg-gradient-to-br from-blue-500 to-indigo-600" />
+              sub={`in last ${period}`} color="bg-linear-to-br from-blue-500 to-indigo-600" />
             <StatCard icon={Award} label="Visa Approval %" value={`${data.visaApprovalRate}%`}
-              sub="of all applications" color="bg-gradient-to-br from-green-500 to-emerald-600" />
+              sub="of all applications" color="bg-linear-to-br from-green-500 to-emerald-600" />
             <StatCard icon={TrendingUp} label="Conversion Rate" value={`${data.conversionRate}%`}
-              sub="registered → applied" color="bg-gradient-to-br from-orange-500 to-amber-500" />
+              sub="registered → applied" color="bg-linear-to-br from-orange-500 to-amber-500" />
             <StatCard icon={DollarSign} label="Est. Revenue" value={`$${(data.revenue / 1000).toFixed(0)}K`}
-              sub="projected" color="bg-gradient-to-br from-purple-600 to-indigo-600" />
+              sub="projected" color="bg-linear-to-br from-purple-600 to-indigo-600" />
           </div>
 
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly registrations bar chart */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Monthly Registrations</h2>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data.monthlyRegistrations} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -160,7 +160,7 @@ export default function AdminAnalytics() {
             </div>
 
             {/* Applications by country horizontal bar */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Applications by Country</h2>
               {data.applicationsByCountry.length === 0 ? (
                 <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
@@ -182,7 +182,7 @@ export default function AdminAnalytics() {
           {/* Top universities + application status */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top universities */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Top Universities Applied To</h2>
               {!data.topUniversities?.length ? (
                 <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No applications yet</div>
@@ -200,7 +200,7 @@ export default function AdminAnalytics() {
             </div>
 
             {/* Application status breakdown */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Applications by Status</h2>
               {!data.applicationsByStatus?.length ? (
                 <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No applications yet</div>
@@ -229,7 +229,7 @@ export default function AdminAnalytics() {
           {/* Conversion funnel + counselor performance */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Conversion funnel */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Conversion Funnel</h2>
               <div className="space-y-3">
                 {data.conversionFunnel.map((stage: any, i: number) => {
@@ -256,7 +256,7 @@ export default function AdminAnalytics() {
             </div>
 
             {/* Counselor performance */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Counselor Performance</h2>
               {data.counselorPerformance.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No counselors found</div>
@@ -264,7 +264,7 @@ export default function AdminAnalytics() {
                 <div className="space-y-3">
                   {data.counselorPerformance.map((c: any) => (
                     <div key={c.name} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                      <div className="w-8 h-8 bg-linear-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
                         {c.name?.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -278,7 +278,7 @@ export default function AdminAnalytics() {
                           <span>{c.offers} offers</span>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right shrink-0">
                         <div className={`text-lg font-bold ${c.score >= 70 ? 'text-green-600' : c.score >= 40 ? 'text-yellow-600' : 'text-gray-400'}`}>
                           {c.score}%
                         </div>

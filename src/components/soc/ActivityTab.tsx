@@ -134,7 +134,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
       .catch(e => setActionError({ message: errorText(e), retry: exportCsv }));
   };
 
-  const input = 'px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500';
+  const input = 'px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500';
 
   return (
     <div className="space-y-4">
@@ -165,7 +165,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
       <SavedFilters onDark storageKey="soc.activityFilters" current={filters} onApply={f => setFilters({ ...DEFAULT_FILTERS, ...f })} />
       {actionError && <ErrorBanner compact message={actionError.message} onRetry={actionError.retry} />}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
         {error ? (
           <div className="p-4"><ErrorBanner message={error} onRetry={load} /></div>
         ) : loading ? (
@@ -181,12 +181,12 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
           const Icon = meta.icon;
           return (
             <div key={r._id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0" style={{ backgroundColor: meta.color }}><Icon className="w-3.5 h-3.5" /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-900">
                   <button type="button" onClick={() => onInvestigateUser(r.userId)} className="font-semibold text-gray-900 hover:text-purple-700 hover:underline" title="Open this person's details and response actions">{r.name || r.email || 'Signed-out visitor'}</button>
                   {r.name && r.email && <span className="text-xs text-gray-500 ml-1.5">{r.email}</span>}
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 capitalize ml-1.5">{r.role}</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-600 capitalize ml-1.5">{r.role}</span>
                   <span className="text-gray-500"> {meta.label.toLowerCase()} </span>
                   <span className="font-medium">{describe(r)}</span>
                 </p>
@@ -203,7 +203,7 @@ function TrailView({ onInvestigateUser }: { onInvestigateUser: (id: string) => v
                   </p>
                 )}
               </div>
-              <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap tabular-nums">{new Date(r.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
+              <span className="text-[11px] text-gray-500 shrink-0 whitespace-nowrap tabular-nums">{new Date(r.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
             </div>
           );
         })}
@@ -229,7 +229,7 @@ export default function ActivityTab({ onInvestigateUser }: { onInvestigateUser: 
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
         {([['usage', 'Feature usage'], ['trail', 'Activity trail']] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setView(k)} aria-pressed={view === k}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${view === k ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>{label}</button>
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${view === k ? 'bg-white text-purple-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}>{label}</button>
         ))}
       </div>
       {view === 'usage' ? <FeatureUsage onInvestigateUser={onInvestigateUser} /> : <TrailView onInvestigateUser={onInvestigateUser} />}

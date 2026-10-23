@@ -51,7 +51,7 @@ function initialForm(s: any) {
 }
 type Form = ReturnType<typeof initialForm>;
 
-const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500';
+const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500';
 
 function Field({ label, required, children, htmlFor, stacked }: { label: string; required?: boolean; children: React.ReactNode; htmlFor: string; stacked?: boolean }) {
   return (
@@ -174,7 +174,7 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
   const formEl = (
       <form onSubmit={submit} aria-labelledby="sef-title" {...(inline ? {} : { role: 'dialog', 'aria-modal': true })}
         className={inline ? 'bg-white flex flex-col' : 'bg-white w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[92vh] sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden'}>
-        <div className={`flex items-center justify-between ${pad} py-4 border-b border-gray-100 flex-shrink-0`}>
+        <div className={`flex items-center justify-between ${pad} py-4 border-b border-gray-100 shrink-0`}>
           <h2 id="sef-title" className={inline ? 'text-base font-bold text-gray-900' : 'text-xl font-bold text-gray-900'}>{isEdit ? 'Edit Student' : 'New Lead'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
             <X className="w-5 h-5" />
@@ -190,7 +190,7 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
                 <span className="text-sm text-gray-600">Owner</span>
                 {canPickOwner ? (
                   <select aria-label="Owner" value={ownerId} onChange={e => setOwnerId(e.target.value)}
-                    className="px-3 py-1.5 border border-gray-300 rounded-full text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    className="px-3 py-1.5 border border-gray-300 rounded-full text-sm bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500">
                     <option value="">{isEdit ? 'Unassigned' : 'Auto-assign'}</option>
                     {counselors.map(c => <option key={sid(c)} value={sid(c)}>{c.name}</option>)}
                   </select>
@@ -268,7 +268,7 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
         </div>
 
         {(error || duplicate) && (
-          <div className={`${pad} py-3 border-t border-red-100 bg-red-50 text-sm text-red-700 flex-shrink-0`} role="alert">
+          <div className={`${pad} py-3 border-t border-red-100 bg-red-50 text-sm text-red-700 shrink-0`} role="alert">
             {duplicate ? (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span>{duplicate.message}.</span>
@@ -280,7 +280,7 @@ export default function StudentEditForm({ student, basePath, onClose, onSaved, i
         )}
 
         {/* Inline: stick to the bottom of the scrolling sidebar so Save is always reachable */}
-        <div className={`flex items-center justify-end gap-3 ${pad} py-4 border-t border-gray-100 flex-shrink-0 ${inline ? 'sticky bottom-0 bg-white' : ''}`}>
+        <div className={`flex items-center justify-end gap-3 ${pad} py-4 border-t border-gray-100 shrink-0 ${inline ? 'sticky bottom-0 bg-white' : ''}`}>
           <button type="button" onClick={onClose} className="px-5 py-2 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={saving} className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-60">
             {saving ? 'Saving…' : 'Save'}
@@ -303,7 +303,7 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[8.5rem_1fr] gap-2 py-1 text-sm">
       <span className="text-gray-500">{label}</span>
-      <span className="text-gray-900 break-words min-w-0">{value || <span className="text-gray-300">—</span>}</span>
+      <span className="text-gray-900 wrap-break-word min-w-0">{value || <span className="text-gray-300">—</span>}</span>
     </div>
   );
 }
@@ -349,7 +349,7 @@ export function StudentProfileFields({ student }: { student: any }) {
         <Row label="Education Loan" value={YES_NO_LABEL[student.needsLoan]} />
         <Row label="Accommodation" value={YES_NO_LABEL[student.needsAccommodation]} />
         {student.preferenceNote && (
-          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap break-words bg-rose-50/60 border border-rose-100 rounded-lg p-2.5">
+          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap wrap-break-word bg-rose-50/60 border border-rose-100 rounded-lg p-2.5">
             {student.preferenceNote}
           </p>
         )}

@@ -53,7 +53,7 @@ export default function WeeklyTrends() {
   const weekLabel = (w: string) => `W${w.split('-W')[1] ?? w}`;
 
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col">
+    <section className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs flex flex-col">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Weekly activity</h2>
@@ -61,7 +61,7 @@ export default function WeeklyTrends() {
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-600">
           {SERIES.map(s => (
-            <span key={s.key} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-sm ${s.bar}`} />{s.label}</span>
+            <span key={s.key} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-xs ${s.bar}`} />{s.label}</span>
           ))}
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function WeeklyTrends() {
                         <p className="font-semibold mb-1">Week {w.week.split('-W')[1]}{i === weeks.length - 1 ? ' (this week)' : ''}</p>
                         {SERIES.map(s => (
                           <p key={s.key} className="flex items-center justify-between gap-2">
-                            <span className="inline-flex items-center gap-1.5 text-gray-300"><span className={`w-2 h-2 rounded-sm ${s.bar}`} />{s.label}</span>
+                            <span className="inline-flex items-center gap-1.5 text-gray-300"><span className={`w-2 h-2 rounded-xs ${s.bar}`} />{s.label}</span>
                             <span className="font-semibold tabular-nums">{w[s.key]}</span>
                           </p>
                         ))}

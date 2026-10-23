@@ -19,8 +19,8 @@ export function deltaLabel(current: number, previous: number | undefined, period
 
 function MiniStat({ icon: Icon, label, value, sub, alert }: { icon: any; label: string; value: string; sub?: string; alert?: boolean }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${alert ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600'}`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-4 flex items-start gap-3">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${alert ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600'}`}>
         <Icon className="w-4 h-4" />
       </div>
       <div className="min-w-0">
@@ -39,7 +39,7 @@ function Bar({ label, value, max, right }: { label: React.ReactNode; value: numb
     <div>
       <div className="flex items-center justify-between text-xs mb-1 gap-2">
         <span className="text-gray-700 truncate">{label}</span>
-        <span className="text-gray-500 font-semibold flex-shrink-0">{right ?? value}</span>
+        <span className="text-gray-500 font-semibold shrink-0">{right ?? value}</span>
       </div>
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
         <div className="h-full bg-purple-500 rounded-full" style={{ width: `${max ? Math.max(4, (value / max) * 100) : 0}%` }} />

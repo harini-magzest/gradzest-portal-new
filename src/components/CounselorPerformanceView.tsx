@@ -52,7 +52,7 @@ export function Spinner() {
 
 function StatTile({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string | number; sub?: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-4">
       <div className="flex items-center gap-2 text-gray-500 text-xs font-medium">
         <Icon className="w-4 h-4" />{label}
       </div>
@@ -68,7 +68,7 @@ function ChartTooltip({ active, payload }: any) {
     <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-lg text-xs">
       {payload.map((p: any) => (
         <div key={p.name} className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.payload.color || p.color || p.fill }} />
+          <span className="w-2.5 h-2.5 rounded-xs" style={{ background: p.payload.color || p.color || p.fill }} />
           <span className="text-gray-600">{p.name}</span>
           <span className="font-semibold text-gray-900 ml-auto pl-3">{p.value}</span>
         </div>
@@ -81,10 +81,10 @@ function ChartTooltip({ active, payload }: any) {
 function Donut({ title, total, slices }: { title: string; total: number; slices: { name: string; value: number; color: string }[] }) {
   const data = total ? slices.filter(s => s.value > 0) : [{ name: 'No calls', value: 1, color: EMPTY_RING }];
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
       <h3 className="font-semibold text-gray-900 mb-3">{title}</h3>
       <div className="flex items-center gap-5">
-        <div className="relative w-36 h-36 flex-shrink-0">
+        <div className="relative w-36 h-36 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={data} dataKey="value" nameKey="name" innerRadius="72%" outerRadius="100%"
@@ -102,7 +102,7 @@ function Donut({ title, total, slices }: { title: string; total: number; slices:
         <ul className="space-y-2 flex-1 min-w-0">
           {slices.map(s => (
             <li key={s.name} className="flex items-center gap-2 text-sm">
-              <span className="w-1 h-4 rounded-full flex-shrink-0" style={{ background: s.color }} />
+              <span className="w-1 h-4 rounded-full shrink-0" style={{ background: s.color }} />
               <span className="text-gray-600 truncate">{s.name}</span>
               <span className="ml-auto font-semibold text-gray-900">{s.value}</span>
             </li>
@@ -163,7 +163,7 @@ export function CounselorPerformanceView({ data, me = '', role, onCallSaved }: {
             <Donut title="Call Channels" total={calls.total}
               slices={CHANNELS.map(c => ({ name: c.label, value: calls.byChannel[c.key].total, color: c.color }))} />
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
               <h3 className="font-semibold text-gray-900 mb-3">Call Status</h3>
               <div className="grid grid-cols-3 text-center mb-3">
                 <div>
@@ -201,36 +201,36 @@ export function CounselorPerformanceView({ data, me = '', role, onCallSaved }: {
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5">
             <h3 className="font-semibold text-gray-900 mb-4">History</h3>
             {groups.length === 0 ? (
               <p className="text-sm text-gray-400 py-6 text-center">No activity in this period.</p>
             ) : groups.map(g => (
               <div key={g.label} className="mb-6 last:mb-0">
-                <div className="flex items-center gap-3 mb-3 ml-[4.5rem]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 -ml-[5px]" />
+                <div className="flex items-center gap-3 mb-3 ml-18">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ml-[-5px]" />
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{g.label}</span>
                 </div>
-                <ol className="border-l border-gray-200 ml-[4.5rem] space-y-4">
+                <ol className="border-l border-gray-200 ml-18 space-y-4">
                   {g.items.map(t => {
                     const Icon = t.kind === 'call'
                       ? (t.status === 'missed' ? PhoneMissed : t.title.startsWith('Outbound') ? PhoneOutgoing : PhoneIncoming)
                       : KIND_ICON[t.kind] || FileText;
                     return (
                       <li key={t.id} className="relative pl-6">
-                        <span className="absolute -left-[4.5rem] top-0.5 w-14 text-right text-xs text-gray-400">
+                        <span className="absolute -left-18 top-0.5 w-14 text-right text-xs text-gray-400">
                           {new Date(t.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-white border border-gray-300" />
+                        <span className="absolute left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full bg-white border border-gray-300" />
                         <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
                             <Icon className={`w-4 h-4 ${t.kind === 'call' && t.status === 'missed' ? 'text-red-600' : 'text-gray-500'}`} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm text-gray-900">
                               {t.title}{t.studentName && <> · <span className="font-semibold">{t.studentName}</span></>}
                             </p>
-                            {t.detail && <p className="text-xs text-gray-500 mt-0.5 break-words">{t.detail}</p>}
+                            {t.detail && <p className="text-xs text-gray-500 mt-0.5 wrap-break-word">{t.detail}</p>}
                             {t.call && <CallSummaryBox call={t.call} me={me} role={role} onSaved={c => onCallSaved?.(t.id, c)} />}
                           </div>
                         </div>

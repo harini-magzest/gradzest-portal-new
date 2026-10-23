@@ -203,7 +203,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
     setSubmitting(false);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  const inputCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500';
   const labelCls = 'block text-sm font-medium text-gray-700 mb-1';
 
   return (
@@ -211,7 +211,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">University Application</h2>
             <p className="text-sm text-gray-500 mt-0.5">{course.name} · {uni.name}</p>
@@ -222,11 +222,11 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
         </div>
 
         {/* Progress stepper */}
-        <div className="px-6 pt-4 pb-3 flex-shrink-0">
+        <div className="px-6 pt-4 pb-3 shrink-0">
           <div className="flex items-center">
             {STEPS.map((s, i) => (
               <div key={i} className="flex items-center flex-1 min-w-0">
-                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold flex-shrink-0 transition-colors ${i < step ? 'bg-green-500 text-white' : i === step ? 'bg-[#0d1b4b] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 transition-colors ${i < step ? 'bg-green-500 text-white' : i === step ? 'bg-[#0d1b4b] text-white' : 'bg-gray-100 text-gray-400'}`}>
                   {i < step ? <CheckCircle className="w-4 h-4" /> : i + 1}
                 </div>
                 <span className={`ml-1.5 text-xs font-medium hidden sm:block truncate ${i === step ? 'text-blue-700' : i < step ? 'text-green-600' : 'text-gray-400'}`}>{s.title}</span>
@@ -245,7 +245,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
               <h3 className="font-semibold text-gray-800">Personal Information</h3>
               {(student?.dateOfBirth || student?.gender || student?.passport?.number || student?.phone || student?.address?.city) && (
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
-                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                  <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                   <span>Fields pre-filled from your profile — review and update if needed.</span>
                 </div>
               )}
@@ -312,7 +312,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
               <h3 className="font-semibold text-gray-800">Academic Background</h3>
               {(highestQual || student?.educationLevel || student?.gpa) && (
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
-                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                  <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                   <span>
                     {highestQual
                       ? `Highest qualification (${highestQual.level}) auto-filled from your academic details — review and update if needed.`
@@ -376,7 +376,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
             <div className="space-y-5">
               {(student?.englishScore?.type || student?.moi?.institution || student?.englishProficiencyTest?.name) && (
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
-                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                  <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                   <span>English proficiency pre-filled from your profile — review and update if needed.</span>
                 </div>
               )}
@@ -494,7 +494,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                     </div>
                   )}
                   <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100">
-                    <input type="checkbox" checked={finance.scholarshipInterest} onChange={e => setFinance(f => ({ ...f, scholarshipInterest: e.target.checked }))} className="w-4 h-4 accent-blue-600 flex-shrink-0" />
+                    <input type="checkbox" checked={finance.scholarshipInterest} onChange={e => setFinance(f => ({ ...f, scholarshipInterest: e.target.checked }))} className="w-4 h-4 accent-blue-600 shrink-0" />
                     <span className="text-sm text-gray-700">I am interested in scholarships and financial aid opportunities</span>
                   </label>
                 </div>
@@ -542,7 +542,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
                     { key: 'referenceLetters', label: 'Reference / Recommendation Letters (at least 3)' },
                   ] as { key: keyof typeof docs; label: string }[]).map(doc => (
                     <label key={doc.key} className="flex items-start gap-3 cursor-pointer p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                      <input type="checkbox" checked={docs[doc.key]} onChange={e => setDocs(d => ({ ...d, [doc.key]: e.target.checked }))} className="w-4 h-4 mt-0.5 accent-blue-600 flex-shrink-0" />
+                      <input type="checkbox" checked={docs[doc.key]} onChange={e => setDocs(d => ({ ...d, [doc.key]: e.target.checked }))} className="w-4 h-4 mt-0.5 accent-blue-600 shrink-0" />
                       <span className="text-sm text-gray-700">{doc.label}</span>
                     </label>
                   ))}
@@ -569,7 +569,7 @@ export default function ApplicationModal({ course, uni, onClose, onSuccess }: Pr
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           {step > 0 && (
             <button type="button" onClick={back} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               <ChevronLeft className="w-4 h-4" /> Back

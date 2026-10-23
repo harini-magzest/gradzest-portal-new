@@ -24,21 +24,21 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
 
   return (
     <div role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col"
            style={{ height: '90vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <FileText className="w-5 h-5 text-blue-600 shrink-0" />
             <span className="text-sm font-semibold text-gray-900 truncate">
               {fileName || 'Document Preview'}
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <a
               href={src || undefined}
               download
@@ -81,7 +81,7 @@ export default function DocPreviewModal({ url, fileName, onClose }: DocPreviewMo
               <img
                 src={src || undefined}
                 alt={fileName || 'Preview'}
-                className="max-w-full max-h-full object-contain rounded-lg shadow"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
               />
             </div>
           )}

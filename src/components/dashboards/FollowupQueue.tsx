@@ -20,11 +20,11 @@ export default function FollowupQueue() {
   }, []);
 
   if (error) return <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>;
-  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-sm text-gray-400">Loading follow-ups…</div>;
+  if (!data) return <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs text-sm text-gray-400">Loading follow-ups…</div>;
 
   const total = data.stale.length + data.stuck.length + data.overdueTasks.length;
   return (
-    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+    <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><ListChecks className="w-4 h-4" /> Follow-up queue</h2>
         <span className="text-xs text-gray-500">{total} item{total === 1 ? '' : 's'}</span>

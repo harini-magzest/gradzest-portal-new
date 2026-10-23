@@ -1,4 +1,4 @@
-/* Styles for the welcome intro (NamasteIntro.tsx). A real stylesheet instead of a <style> element rendered by the component,
+/* Styles for the welcome intro (NamasteIntro.tsx). A real stylesheet instead of a \3c style> element rendered by the component,
    so the Content-Security-Policy can say style-src 'self' with no 'unsafe-inline'. */
 /*
    Drawn fallback timeline (3.5s): hands slide together and trace in 0–1.6s, the glow blooms 1.2–2.4s, 'Namaste' reveals letter by letter from

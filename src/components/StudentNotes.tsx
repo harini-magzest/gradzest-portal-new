@@ -97,7 +97,7 @@ export default function StudentNotes({ studentId, canAdd = true, onChange }: {
         <div className="space-y-2">
           <textarea value={text} onChange={e => setText(e.target.value)} rows={3} maxLength={5000} aria-label="New note"
             placeholder={visibility === 'public' ? 'Add a note for the team…' : 'Add a private note — only you will see it…'}
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y" />
+            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400 resize-y" />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <VisibilityToggle value={visibility} onChange={setVisibility} disabled={saving} />
@@ -141,7 +141,7 @@ export default function StudentNotes({ studentId, canAdd = true, onChange }: {
             return (
               <li key={n.id} className={`rounded-xl border p-4 ${n.visibility === 'public' ? 'bg-amber-50/60 border-amber-100' : 'bg-gray-50 border-gray-200'}`}>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700 flex-shrink-0">
+                  <span className="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700 shrink-0">
                     {(n.authorName || '?').charAt(0).toUpperCase()}
                   </span>
                   <span className="text-sm font-semibold text-gray-900">{n.authorName}{n.mine && <span className="font-normal text-gray-500"> (you)</span>}</span>
@@ -163,7 +163,7 @@ export default function StudentNotes({ studentId, canAdd = true, onChange }: {
                 {isEditing ? (
                   <div className="space-y-2">
                     <textarea value={editing!.text} onChange={e => setEditing({ ...editing!, text: e.target.value })} rows={3} maxLength={5000} aria-label="Edit note"
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y" />
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-400 resize-y" />
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <VisibilityToggle value={editing!.visibility} onChange={v => setEditing({ ...editing!, visibility: v })} disabled={saving} />
                       <div className="flex gap-2">
@@ -174,7 +174,7 @@ export default function StudentNotes({ studentId, canAdd = true, onChange }: {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{n.text}</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">{n.text}</p>
                 )}
               </li>
             );
