@@ -11,5 +11,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // The default 5s fails tests that pass alone whenever the machine is busy (the whole suite in parallel, CI runners,
+    // other work alongside): the first test in a file pays for its imports. This tells a hung test from a slow machine.
+    testTimeout: 20000,
+    hookTimeout: 30000,
   },
 });

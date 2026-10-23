@@ -5,7 +5,7 @@
   "scripts": {
     "start": "cross-env NODE_ENV=production node index.js",
     "predev": "kill-port 5000 || exit 0",
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "dev": "cross-env NODE_ENV=development node --watch index.js",
     "seed": "node seed.js",
     "check:integrations": "node scripts/checkIntegrations.js"
   },
@@ -41,8 +41,7 @@
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
-    "kill-port": "^2.0.1",
-    "nodemon": "^3.0.2"
+    "kill-port": "^2.0.1"
   },
   "overrides": {
     "uuid": "^11.1.1"
