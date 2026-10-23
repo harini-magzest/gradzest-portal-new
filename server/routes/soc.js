@@ -120,6 +120,23 @@ function logExport(req, what, rows) {
 const PERIOD_MS = { '24h': 24 * 60 * 60 * 1000, '7d': 7 * 24 * 60 * 60 * 1000, '30d': 30 * 24 * 60 * 60 * 1000 };
 
 // ── GET /api/soc/stats ───────────────────────────────────────────────────────
+// Every hour (24h) or day (7d/30d) from `since` to now, zero where nothing happened. The aggregation only returns
+// buckets that had events, so a quiet day drew a lone dot and a gap read as a straight line between busy hours.
+// Keys match the $dateToString formats in /stats, which are UTC.
+function fillSeries(rows, since, hourly) {
+  const counts = new Map(rows.map(({ _id, count }) => [_id, count]));
+  const key = (d) => (hourly ? `${d.toISOString().slice(0, 13)}:00:00` : d.toISOString().slice(0, 10));
+  const step = hourly ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  const start = new Date(since);
+  if (hourly) start.setUTCMinutes(0, 0, 0); else start.setUTCHours(0, 0, 0, 0);
+  const out = [];
+  for (let t = start.getTime(); t <= Date.now(); t += step) {
+    const bucket = key(new Date(t));
+    out.push({ bucket, count: counts.get(bucket) || 0 });
+  }
+  return out;
+}
+
 router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     const period = PERIOD_MS[req.query.period] ? req.query.period : '24h';
@@ -228,7 +245,7 @@ router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
       severityBreakdown: toMap(severityBreakdown),
       typeBreakdown: toMap(typeBreakdown),
       topIps: topIps.map(({ _id, count }) => ({ ip: _id, count })),
-      series: series.map(({ _id, count }) => ({ bucket: _id, count })),
+      series: fillSeries(series, since, period === '24h'),
       incidentsByStatus: toMap(incidentsByStatus),
       openIncidentsBySeverity: toMap(incidentsBySeverity),
     });

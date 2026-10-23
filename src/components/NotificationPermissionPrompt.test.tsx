@@ -57,6 +57,11 @@ describe('asking for device notifications', () => {
     expect(prompt()).not.toBeInTheDocument();
   });
 
+  it('does not cover the SOC, which has its own live alerts', () => {
+    renderAt('/soc');
+    expect(prompt()).not.toBeInTheDocument();
+  });
+
   it('does not ask again once the device has already decided', () => {
     FakeNotification.permission = 'granted';
     renderAt('/counselor');

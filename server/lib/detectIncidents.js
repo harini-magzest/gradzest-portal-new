@@ -83,19 +83,34 @@ async function raiseIncident(io, query, doc, eventIds = []) {
   return existing;
 }
 
+// Capped so a long-running attack can't grow one incident document without limit.
+const MAX_EVIDENCE_EVENTS = 100;
+
+// The events a threshold rule counted, newest first, always including the one that triggered it. Attaching only the
+// triggering event left an incident titled "6 failed logins" showing two as evidence: the attempts that built up
+// to the threshold were never linked to it.
+async function windowEventIds(filter, event) {
+  const rows = await SecurityEvent.find(filter).sort({ createdAt: -1 }).limit(MAX_EVIDENCE_EVENTS).select('_id').lean();
+  const ids = rows.map((r) => r._id);
+  if (!ids.some((id) => String(id) === String(event._id))) ids.unshift(event._id);
+  return ids;
+}
+
 // Called after every `login_failure` SecurityEvent is persisted.
 async function checkLoginFailureRules(event, io) {
   if (!event.ip) return;
   const since = new Date(Date.now() - BRUTE_FORCE_WINDOW_MS);
-  const count = await SecurityEvent.countDocuments({ type: 'login_failure', ip: event.ip, createdAt: { $gte: since } });
+  const filter = { type: 'login_failure', ip: event.ip, createdAt: { $gte: since } };
+  const count = await SecurityEvent.countDocuments(filter);
   if (count < BRUTE_FORCE_THRESHOLD) return;
 
   const title = `${count} failed logins from ${event.ip}`;
+  const eventIds = await windowEventIds(filter, event);
   await raiseIncident(
     io,
     { type: 'brute_force', relatedIp: event.ip },
-    { type: 'brute_force', severity: 'high', title, relatedIp: event.ip, relatedEmail: event.email, sourceEventIds: [event._id] },
-    [event._id],
+    { type: 'brute_force', severity: 'high', title, relatedIp: event.ip, relatedEmail: event.email, sourceEventIds: eventIds },
+    eventIds,
   );
 }
 
@@ -104,17 +119,17 @@ async function checkLoginFailureRules(event, io) {
 async function checkCredentialStuffingRule(event, io) {
   if (!event.ip) return;
   const since = new Date(Date.now() - CREDENTIAL_STUFFING_WINDOW_MS);
-  const emails = await SecurityEvent.distinct('email', {
-    type: 'login_failure', ip: event.ip, email: { $ne: '' }, createdAt: { $gte: since },
-  });
+  const filter = { type: 'login_failure', ip: event.ip, email: { $ne: '' }, createdAt: { $gte: since } };
+  const emails = await SecurityEvent.distinct('email', filter);
   if (emails.length < CREDENTIAL_STUFFING_DISTINCT_EMAILS) return;
 
   const title = `Credential stuffing: ${emails.length} different accounts targeted from ${event.ip}`;
+  const eventIds = await windowEventIds(filter, event);
   await raiseIncident(
     io,
     { type: 'credential_stuffing', relatedIp: event.ip },
-    { type: 'credential_stuffing', severity: 'high', title, relatedIp: event.ip, sourceEventIds: [event._id] },
-    [event._id],
+    { type: 'credential_stuffing', severity: 'high', title, relatedIp: event.ip, sourceEventIds: eventIds },
+    eventIds,
   );
 }
 
@@ -223,15 +238,17 @@ async function checkBulkPiiAccessRule(entry, io) {
 async function checkSkyloadBotRule(event, io) {
   if (!event.ip) return;
   const since = new Date(Date.now() - SKYLOAD_BOT_WINDOW_MS);
-  const count = await SecurityEvent.countDocuments({ type: 'skyload_bot_flag', ip: event.ip, createdAt: { $gte: since } });
+  const filter = { type: 'skyload_bot_flag', ip: event.ip, createdAt: { $gte: since } };
+  const count = await SecurityEvent.countDocuments(filter);
   if (count < SKYLOAD_BOT_THRESHOLD) return;
 
   const title = `Skyload flagged ${count} bot-like requests from ${event.ip}`;
+  const eventIds = await windowEventIds(filter, event);
   await raiseIncident(
     io,
     { type: 'skyload_bot_activity', relatedIp: event.ip },
-    { type: 'skyload_bot_activity', severity: 'medium', title, relatedIp: event.ip, sourceEventIds: [event._id] },
-    [event._id],
+    { type: 'skyload_bot_activity', severity: 'medium', title, relatedIp: event.ip, sourceEventIds: eventIds },
+    eventIds,
   );
 }
 

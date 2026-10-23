@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api';
-import { ErrorBanner, errorText } from './ui';
+import { ErrorBanner, errorText, plural } from './ui';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -79,7 +79,7 @@ export default function FeatureUsage({ onInvestigateUser, userId }: { onInvestig
               <div className="space-y-3">
                 {data.pages.map(p => (
                   <div key={p.file}>
-                    <div className="flex justify-between gap-2 text-xs"><span className="font-medium text-gray-800 truncate min-w-0" title={p.file}>{featureName(p.file)}</span><span className="text-gray-500 flex-shrink-0">{p.views} views · {p.users} {p.users === 1 ? 'person' : 'people'}</span></div>
+                    <div className="flex justify-between gap-2 text-xs"><span className="font-medium text-gray-800 truncate min-w-0" title={p.file}>{featureName(p.file)}</span><span className="text-gray-500 flex-shrink-0">{plural(p.views, 'view')} · {plural(p.users, 'person', 'people')}</span></div>
                     <Bar value={p.views} max={pageMax} />
                   </div>
                 ))}

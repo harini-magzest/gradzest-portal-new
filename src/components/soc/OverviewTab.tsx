@@ -227,7 +227,8 @@ export default function OverviewTab() {
   const clearFeed = () => { setEvents([]); pendingRef.current = []; setPendingCount(0); };
 
   const PERIODS: { key: Period; label: string }[] = [{ key: '24h', label: '24 Hours' }, { key: '7d', label: '7 Days' }, { key: '30d', label: '30 Days' }];
-  const severityData = stats ? Object.entries(stats.severityBreakdown || {}).map(([severity, count]) => ({ severity, count })) : [];
+  const severityData = stats ? Object.entries(stats.severityBreakdown || {}).map(([severity, count]) => ({ severity, count: Number(count) || 0 })) : [];
+  const severityTotal = Math.max(1, severityData.reduce((sum, d) => sum + d.count, 0));
   const seriesTotal: number = (stats?.series || []).reduce((a: number, s: any) => a + s.count, 0);
   const seriesPeak: { bucket: string; count: number } | null = (stats?.series || []).reduce((m: any, s: any) => (!m || s.count > m.count ? s : m), null);
 
@@ -267,7 +268,7 @@ export default function OverviewTab() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Security Events Over Time</h2>
-              {!stats.series?.length ? (
+              {!seriesTotal ? (
                 <div className="flex items-center justify-center h-40 text-gray-500 text-sm">No events yet</div>
               ) : (
                 <>
@@ -295,18 +296,29 @@ export default function OverviewTab() {
                 <div className="flex items-center justify-center h-40 text-gray-500 text-sm">No events yet</div>
               ) : (
                 <>
-                  <p className="sr-only">Events by severity: {severityData.map((d: any) => `${d.severity} ${d.count}`).join(', ')}.</p>
                   <div aria-hidden="true">
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <PieChart>
+                        {/* A lone slice is a full circle: its white edge stroke drew a stray radius line across it. Labels are in
+                            the list below, not around the pie, where narrow screens cut them off. */}
                         <Pie data={severityData} dataKey="count" nameKey="severity" cx="50%" cy="50%" outerRadius={80} rootTabIndex={-1}
-                          label={({ severity, percent }: any) => `${severity} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                          stroke={severityData.length > 1 ? '#fff' : 'none'}>
                           {severityData.map((d: any, i: number) => <Cell key={i} fill={SEVERITY_COLORS[d.severity] || '#6b7280'} />)}
                         </Pie>
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
+                  <ul aria-label="Events by severity" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {severityData.map((d: any) => (
+                      <li key={d.severity} className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: SEVERITY_COLORS[d.severity] || '#6b7280' }} aria-hidden="true" />
+                        <span className="capitalize">{d.severity}</span>
+                        <span className="font-semibold text-gray-800">{d.count}</span>
+                        <span className="text-gray-500">({Math.round((d.count / severityTotal) * 100)}%)</span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
             </div>

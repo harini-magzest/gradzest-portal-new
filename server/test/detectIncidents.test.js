@@ -23,6 +23,22 @@ describe('detectIncidents — idempotent incident creation', () => {
     expect(incidents[0].sourceEventIds.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('brute force: attaches every failed login it counted, not only the one that crossed the threshold', async () => {
+    const ip = `10.0.4.${Math.floor(Math.random() * 250)}`;
+    const events = [];
+    for (let i = 0; i < 6; i++) {
+      events.push(await SecurityEvent.create({ type: 'login_failure', severity: 'low', ip, email: 'evidence@x.com' }));
+      await checkLoginFailureRules(events[i], null);
+    }
+
+    const incidents = await SecurityIncident.find({ type: 'brute_force', relatedIp: ip });
+    expect(incidents).toHaveLength(1);
+    expect(incidents[0].title).toMatch(/^6 failed logins/);
+    const attached = incidents[0].sourceEventIds.map(String);
+    for (const e of events) expect(attached).toContain(String(e._id));
+    expect(new Set(attached).size).toBe(attached.length);
+  });
+
   it('brute force: does not create an incident below the threshold', async () => {
     const ip = `10.0.1.${Math.floor(Math.random() * 250)}`;
     const event = await SecurityEvent.create({ type: 'login_failure', severity: 'low', ip, email: 'x@x.com' });

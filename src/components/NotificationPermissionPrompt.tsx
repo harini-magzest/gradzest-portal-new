@@ -7,7 +7,8 @@ import {
 } from '../lib/deviceNotifications';
 import { openExternal } from '../lib/safeUrl';
 
-const DASHBOARDS = ['/student', '/counselor', '/admin', '/appteam', '/board', '/soc'];
+// Not the SOC: like the toasts (see ToastLayer in App.tsx), this is about business notices, and it covered the SOC's own cards.
+const DASHBOARDS = ['/student', '/counselor', '/admin', '/appteam', '/board'];
 const SNOOZE_KEY = 'notif_prompt_snoozed_until';
 const SNOOZE_DAYS = 3;
 

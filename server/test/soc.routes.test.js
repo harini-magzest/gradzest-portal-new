@@ -47,6 +47,31 @@ describe('SOC routes — auth gating', () => {
   });
 });
 
+describe('SOC stats — events-over-time series', () => {
+  it('has a bucket for every hour of the last 24h, zero where nothing happened, so the chart draws a line', async () => {
+    const { token } = await makeAdmin('soc-series');
+    await SecurityEvent.create({ type: 'login_failure', severity: 'low', ip: '10.20.30.40', email: 'series@example.com' });
+    const res = await request(app).get('/api/soc/stats?period=24h').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const { series } = res.body;
+    expect(series.length).toBeGreaterThanOrEqual(24);
+    expect(series.length).toBeLessThanOrEqual(25);
+    const hours = series.map((s) => Date.parse(`${s.bucket}Z`));
+    for (let i = 1; i < hours.length; i++) expect(hours[i] - hours[i - 1]).toBe(60 * 60 * 1000);
+    expect(series.at(-1).count).toBeGreaterThanOrEqual(1);
+    expect(series.some((s) => s.count === 0)).toBe(true);
+  });
+
+  it('has one bucket per day for 7 days', async () => {
+    const { token } = await makeAdmin('soc-series-7d');
+    const res = await request(app).get('/api/soc/stats?period=7d').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.series.length).toBeGreaterThanOrEqual(7);
+    expect(res.body.series.length).toBeLessThanOrEqual(8);
+    expect(res.body.series.every((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.bucket))).toBe(true);
+  });
+});
+
 describe('SOC routes — blocked IPs actually block requests and are audited', () => {
   it('blocking an IP via the API rejects subsequent requests from it, and logs a real AnalystAction', async () => {
     const { token } = await makeAdmin('soc-blocker');
