@@ -5,7 +5,7 @@ const User = require('../models/User');
 const AnalystAction = require('../models/AnalystAction');
 const SecurityEvent = require('../models/SecurityEvent');
 const SecurityIncident = require('../models/SecurityIncident');
-const socExtras = require('../routes/socExtras');
+const socExtras = require('../routes/soc/extras');
 
 let counter = 0;
 const uniq = (p) => `${p}-${Date.now()}-${counter++}`;

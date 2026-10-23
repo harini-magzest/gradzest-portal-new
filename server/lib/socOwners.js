@@ -1,4 +1,4 @@
-// Who owns the SOC. One definition, used by the REST gate (routes/soc.js) and the live-event socket room (app.js),
+// Who owns the SOC. One definition, used by the REST gate (routes/soc/shared.js) and the live-event socket room (app.js),
 // so the two can never disagree about who is allowed to see security data.
 //
 // SOC_OWNER_EMAILS is a comma-separated list (default: hameed@magzest.in). An entry starting with "@" allows a

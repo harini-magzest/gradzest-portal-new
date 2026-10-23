@@ -23,7 +23,7 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE = 50;
 
 function fmtSize(b: number) { return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`; }
-// Mirrors server/routes/soc.js's vtLink() — the live 'upload_recorded' payload is the raw
+// Mirrors server/routes/soc/shared.js's vtLink() — the live 'upload_recorded' payload is the raw
 // record and doesn't carry it (only the REST list/detail responses compute it server-side).
 const vtLink = (sha256: string) => `https://www.virustotal.com/gui/file/${sha256}`;
 

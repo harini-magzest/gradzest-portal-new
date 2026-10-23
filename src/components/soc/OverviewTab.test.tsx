@@ -12,7 +12,13 @@ vi.mock('recharts', () => {
     CartesianGrid: Nothing, Tooltip: Nothing, ResponsiveContainer: Nothing,
   };
 });
-vi.mock('./OverviewInsights', () => ({ default: () => null, deltaLabel: () => ({ text: '', up: null }) }));
+vi.mock('./OverviewInsights', () => {
+  const Nothing = () => null;
+  return {
+    deltaLabel: () => ({ text: '', up: null }),
+    ResponseMetrics: Nothing, BacklogCard: Nothing, RuleEffectivenessCard: Nothing, TopIpsCard: Nothing, TargetedAccountsCard: Nothing, GeoCard: Nothing,
+  };
+});
 vi.mock('./DeviceDetails', () => ({ default: () => null }));
 vi.mock('../../api', () => {
   class ApiError extends Error {

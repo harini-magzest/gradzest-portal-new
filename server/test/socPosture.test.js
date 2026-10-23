@@ -1,6 +1,20 @@
 // The Posture tab reads "no vulnerability counts" as "no vulnerabilities" and draws a green all-clear. So when npm audit
 // cannot run, what reaches the dashboard must be an explicit error, never an empty object.
+const fs = require('fs');
+const path = require('path');
 const { summariseAudit } = require('../routes/soc');
+const { AUDIT_DIRS } = require('../routes/soc/posture');
+
+describe('dependency audit folders', () => {
+  // They are relative to the route file, so moving it would quietly audit the wrong folder (or none).
+  it('audits the frontend at the repo root and the backend in server/', () => {
+    const name = (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).name;
+    expect(path.resolve(AUDIT_DIRS.backend)).toBe(path.resolve(__dirname, '..'));
+    expect(name(AUDIT_DIRS.backend)).toBe('eduabroad-server');
+    expect(path.resolve(AUDIT_DIRS.frontend)).toBe(path.resolve(__dirname, '..', '..'));
+    expect(name(AUDIT_DIRS.frontend)).toBe('abroad-consultancy-platform');
+  });
+});
 
 describe('summariseAudit', () => {
   it('passes the vulnerability counts through', () => {

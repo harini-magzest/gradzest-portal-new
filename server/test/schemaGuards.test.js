@@ -40,7 +40,7 @@ describe('every logged type is allowed by its schema', () => {
   it('incident types used by the detection rules exist on SecurityIncident', () => {
     const allowed = SecurityIncident.schema.path('type').enumValues;
     const used = uniq([
-      ...literals(/\btype:\s*'([a-z_]+)'/g).filter((x) => /detectIncidents|scanUpload|routes\/soc/.test(x.file)),
+      ...literals(/\btype:\s*'([a-z_]+)'/g).filter((x) => /detectIncidents|scanUpload|routes[\\/]soc/.test(x.file)),
     ]).filter((u) => allowed.includes(u.value) || /^[a-z]+(_[a-z]+)+$/.test(u.value));
     // Only judge values that look like incident types (they appear in a `type:` next to a `severity:`)
     const incidentTypes = sources
@@ -55,7 +55,8 @@ describe('every logged type is allowed by its schema', () => {
   it('analyst actions logged by the SOC routes exist on AnalystAction', () => {
     const allowed = AnalystAction.schema.path('action').enumValues;
     const used = uniq(literals(/logAnalystAction\(\{[^}]*?action:\s*'([a-z_]+)'/g));
-    const templated = sources.filter((s) => s.p.endsWith('routes/soc.js')).flatMap((s) => [...s.text.matchAll(/action:\s*`\$\{action\}_upload`/g)]);
+    const templated = sources.filter((s) => /routes[\\/]soc[\\/]/.test(s.p)).flatMap((s) => [...s.text.matchAll(/action:\s*`\$\{action\}_upload`/g)]);
+    expect(templated.length).toBeGreaterThan(0); // (the SOC upload routes still log `${action}_upload`; fails if the scan misses them)
     expect(used.length).toBeGreaterThan(8);
     const missing = used.filter((u) => !allowed.includes(u.value)).map((u) => `${u.value} (${u.file})`);
     expect(missing).toEqual([]);

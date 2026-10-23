@@ -1,22 +1,21 @@
 const express = require('express');
-const { sendServerError } = require('../lib/httpError');
+const { sendServerError } = require('../../lib/httpError');
 const router = express.Router();
 
-const authMiddleware = require('../middleware/auth');
-const { adminOnly } = require('./soc'); // the one owner gate every SOC route uses
-const SecurityEvent = require('../models/SecurityEvent');
-const SecurityIncident = require('../models/SecurityIncident');
-const RequestLog = require('../models/RequestLog');
-const AnalystAction = require('../models/AnalystAction');
-const UploadRecord = require('../models/UploadRecord');
-const BlockedIp = require('../models/BlockedIp');
-const User = require('../models/User');
-const { computeSla, SLA_POLICY } = require('../lib/sla');
-const { buildIpMatcher, parseIpEntry } = require('../lib/ipMatch');
+const authMiddleware = require('../../middleware/auth');
+const { adminOnly, isObjectId } = require('./shared'); // the one owner gate every SOC route uses
+const SecurityEvent = require('../../models/SecurityEvent');
+const SecurityIncident = require('../../models/SecurityIncident');
+const RequestLog = require('../../models/RequestLog');
+const AnalystAction = require('../../models/AnalystAction');
+const UploadRecord = require('../../models/UploadRecord');
+const BlockedIp = require('../../models/BlockedIp');
+const User = require('../../models/User');
+const { computeSla, SLA_POLICY } = require('../../lib/sla');
+const { buildIpMatcher, parseIpEntry } = require('../../lib/ipMatch');
 
 const DAY = 24 * 60 * 60 * 1000;
 const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
-const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ''));
 const ADMIN_LOCK_FROM_YEAR = 2090;
 // How many open incidents the attention card reads. Beyond this the oldest are still all included (see the query's sort).
 const OPEN_SCAN = 5000;

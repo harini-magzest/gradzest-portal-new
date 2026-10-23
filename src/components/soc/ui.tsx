@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
 import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { ApiError } from '../../api';
 
@@ -44,6 +44,42 @@ export function EmptyState({ icon: Icon, title, hint, children }: { icon: any; t
       <Icon className="w-10 h-10 text-gray-200 mb-3" />
       <p className="text-sm font-semibold text-gray-500">{title}</p>
       {hint && <p className="text-xs text-gray-500 mt-1 max-w-sm">{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
+// A titled group of cards on the dark page. The tab's cards are h3s under it, so the page reads as an outline
+// (h1 SOC → h2 section → h3 card) instead of a flat run of same-level headings.
+export function Section({ title, hint, actions, children }: { title: string; hint?: string; actions?: ReactNode; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id={id} className="text-sm font-semibold text-gray-100">{title}</h2>
+          {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// A white card with an h3 title, for use inside a Section.
+export function Card({ title, icon: Icon, hint, actions, children, className = '' }: {
+  title: string; icon?: any; hint?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string;
+}) {
+  return (
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 ${className}`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">{Icon && <Icon className="w-4 h-4 text-purple-600" aria-hidden="true" />}{title}</h3>
+          {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
+        </div>
+        {actions}
+      </div>
       {children}
     </div>
   );

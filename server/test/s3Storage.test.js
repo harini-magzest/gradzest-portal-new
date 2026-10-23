@@ -128,10 +128,11 @@ describe('nothing stores a bucket URL', () => {
   it('no route or library builds an amazonaws.com address', () => {
     const offenders = [];
     for (const dir of ['routes', 'lib', 'middleware']) {
-      for (const f of fs.readdirSync(path.join(__dirname, '..', dir)).filter((x) => x.endsWith('.js'))) {
+      // recursive: the SOC routes live in routes/soc/
+      for (const f of fs.readdirSync(path.join(__dirname, '..', dir), { recursive: true }).filter((x) => x.endsWith('.js'))) {
         const src = fs.readFileSync(path.join(__dirname, '..', dir, f), 'utf8');
         // storedFile.js recognises old stored URLs in order to delete their objects; it never builds one
-        if (/amazonaws\.com/.test(src) && f !== 'storedFile.js') offenders.push(`${dir}/${f}`);
+        if (/amazonaws\.com/.test(src) && path.basename(f) !== 'storedFile.js') offenders.push(`${dir}/${f}`);
       }
     }
     expect(offenders).toEqual([]);

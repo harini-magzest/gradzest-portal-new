@@ -15,6 +15,7 @@ const ON_DARK = [
   '<p className="text-sm text-gray-400">',      // PostureTab: "Showing cached results"
   'text-[11px] text-gray-400 self-center',      // OverviewTab: "Updated 11:26 am"
   "onDark ? 'text-gray-400'",                   // SavedFilters, on the dark page
+  'text-xs text-gray-400 mt-0.5">{hint}',       // ui.tsx Section: the hint under a section heading
 ];
 
 const GRAY_400 = /(?<![\w:-])text-gray-400\b/;

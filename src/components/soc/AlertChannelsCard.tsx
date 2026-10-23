@@ -40,7 +40,7 @@ export default function AlertChannelsCard() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><BellRing className="w-4 h-4 text-purple-600" /> Alert channels</h2>
+        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><BellRing className="w-4 h-4 text-purple-600" /> Alert channels</h3>
         <button type="button" onClick={sendTest} disabled={busy || !status}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Send test alert

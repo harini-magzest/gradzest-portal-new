@@ -25,9 +25,11 @@ describe('only the SOC owner can use the SOC', () => {
     const appTeam = await mk('admin', { isAppTeam: true });
     process.env.SOC_OWNER_EMAILS = owner.email;
 
-    // Read the real route table so a route added later without the gate fails this test.
-    const routes = socRouter.stack.filter((l) => l.route).flatMap((l) => Object.keys(l.route.methods).map((m) => ({ method: m, path: l.route.path })));
-    expect(routes.length).toBeGreaterThan(30); // (guards against an empty enumeration silently passing)
+    // Read the real route table so a route added later without the gate fails this test. The SOC router is made of one
+    // sub-router per area (routes/soc/*.js), so their routes are collected too.
+    const routeLayers = (stack) => stack.flatMap((l) => (l.route ? [l] : l.handle?.stack ? routeLayers(l.handle.stack) : []));
+    const routes = routeLayers(socRouter.stack).flatMap((l) => Object.keys(l.route.methods).map((m) => ({ method: m, path: l.route.path })));
+    expect(routes.length).toBeGreaterThan(40); // (guards against an empty enumeration silently passing; 40+ since extras.js joined)
 
     const failures = [];
     for (const { method, path } of routes) {

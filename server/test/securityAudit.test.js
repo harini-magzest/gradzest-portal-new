@@ -165,7 +165,8 @@ describe('default demo accounts', () => {
 describe('error messages', () => {
   it('no route sends an internal error message to the client on a 500', () => {
     const dir = path.join(__dirname, '..', 'routes');
-    const offenders = fs.readdirSync(dir).filter((f) => f.endsWith('.js'))
+    // recursive: the SOC routes live in routes/soc/
+    const offenders = fs.readdirSync(dir, { recursive: true }).filter((f) => f.endsWith('.js'))
       .filter((f) => /status\(5\d\d\)\.json\(\{\s*(message|error):\s*err\??\.message/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
     expect(offenders).toEqual([]);
   });

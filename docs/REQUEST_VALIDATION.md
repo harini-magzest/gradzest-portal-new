@@ -149,7 +149,7 @@ id is already refused (with a 404) by the route itself; only the body or query s
 - `GET /audit-trail` — query
 - `GET /posture` — query
 
-### socExtras (/api/soc) (2)
+### soc/extras (/api/soc) (2)
 - `GET /incidents/:id/detail` — id: id
 - `GET /search` — query
 

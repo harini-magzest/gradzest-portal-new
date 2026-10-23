@@ -422,7 +422,6 @@ app.use('/api/unilogo', require('./routes/unilogo'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/ui-trail', require('./routes/uiTrail'));
 app.use('/api/soc', require('./routes/soc'));
-app.use('/api/soc', require('./routes/socExtras'));
 app.use('/api/tasks',         require('./routes/tasks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/onboarding',    require('./routes/onboarding'));

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ClipboardCheck, Eye, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import { api } from '../../api';
 import { useSocSocket, useOnResync } from './SocketContext';
-import { ErrorBanner, Spinner, errorText } from './ui';
+import { ErrorBanner, Section, Spinner, errorText } from './ui';
 
 interface TopAccessor { _id: string; accessorEmail: string; accessorRole: string; totalAccesses: number; uniqueApplicants: number }
 interface PiiAccess { _id: string; accessorEmail: string; accessorRole: string; applicantEmail: string; fieldsAccessed: string[]; accessType: string; createdAt: string }
@@ -74,110 +74,116 @@ export default function AuditTab() {
   if (error) return <ErrorBanner message={error} onRetry={() => { void load(); }} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {exportError && <ErrorBanner compact message={exportError} onRetry={exportCsv} />}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Eye className="w-4 h-4 text-purple-600" />
-          <h2 className="text-sm font-bold text-gray-900">Top PII Accessors — last 24h</h2>
-        </div>
-        {topAccessors.length === 0 ? (
-          <p className="text-sm text-gray-500 italic">No student profile views recorded yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
-                  <th className="pb-2 pr-4">Accessor</th>
-                  <th className="pb-2 pr-4">Role</th>
-                  <th className="pb-2 pr-4">Distinct students</th>
-                  <th className="pb-2">Total accesses</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topAccessors.map(a => (
-                  <tr key={a._id} className="border-b border-gray-50 last:border-0">
-                    <td className="py-2 pr-4 font-medium text-gray-800">{a.accessorEmail}</td>
-                    <td className="py-2 pr-4 text-gray-500 capitalize">{a.accessorRole}</td>
-                    <td className="py-2 pr-4">
-                      <span className={a.uniqueApplicants >= 30 ? 'text-red-600 font-semibold' : 'text-gray-700'}>{a.uniqueApplicants}</span>
-                    </td>
-                    <td className="py-2 text-gray-500">{a.totalAccesses}</td>
-                  </tr>
+      <Section title="Student data access" hint="Who opened students' personal details">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 min-w-0">
+            <div className="flex items-center gap-2 mb-4">
+              <Eye className="w-4 h-4 text-purple-600" />
+              <h3 className="text-sm font-bold text-gray-900">Top PII Accessors — last 24h</h3>
+            </div>
+            {topAccessors.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No student profile views recorded yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
+                      <th className="pb-2 pr-4">Accessor</th>
+                      <th className="pb-2 pr-4">Role</th>
+                      <th className="pb-2 pr-4">Distinct students</th>
+                      <th className="pb-2">Total accesses</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topAccessors.map(a => (
+                      <tr key={a._id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2 pr-4 font-medium text-gray-800">{a.accessorEmail}</td>
+                        <td className="py-2 pr-4 text-gray-500 capitalize">{a.accessorRole}</td>
+                        <td className="py-2 pr-4">
+                          <span className={a.uniqueApplicants >= 30 ? 'text-red-600 font-semibold' : 'text-gray-700'}>{a.uniqueApplicants}</span>
+                        </td>
+                        <td className="py-2 text-gray-500">{a.totalAccesses}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 min-w-0">
+            <div className="flex items-center gap-2 mb-4">
+              <ClipboardCheck className="w-4 h-4 text-purple-600" />
+              <h3 className="text-sm font-bold text-gray-900">Recent PII Access</h3>
+            </div>
+            {recentAccesses.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No student profile views recorded yet.</p>
+            ) : (
+              <div className="space-y-1 max-h-72 overflow-y-auto">
+                {recentAccesses.map(a => (
+                  <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
+                    <div className="min-w-0">
+                      <span className="font-medium text-gray-800">{a.accessorEmail}</span>
+                      <span className="text-gray-500"> viewed </span>
+                      <span className="font-medium text-gray-800">{a.applicantEmail}</span>
+                      <span className="text-xs text-gray-500 ml-2">{a.fieldsAccessed.join(', ')}</span>
+                    </div>
+                    <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <ClipboardCheck className="w-4 h-4 text-purple-600" />
-          <h2 className="text-sm font-bold text-gray-900">Recent PII Access</h2>
-        </div>
-        {recentAccesses.length === 0 ? (
-          <p className="text-sm text-gray-500 italic">No student profile views recorded yet.</p>
-        ) : (
-          <div className="space-y-1 max-h-72 overflow-y-auto">
-            {recentAccesses.map(a => (
-              <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
-                <div className="min-w-0">
-                  <span className="font-medium text-gray-800">{a.accessorEmail}</span>
-                  <span className="text-gray-500"> viewed </span>
-                  <span className="font-medium text-gray-800">{a.applicantEmail}</span>
-                  <span className="text-xs text-gray-500 ml-2">{a.fieldsAccessed.join(', ')}</span>
-                </div>
-                <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      </Section>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <ShieldCheck className="w-4 h-4 text-purple-600" />
-          <h2 className="text-sm font-bold text-gray-900">Analyst Action Trail</h2>
-          {chain && (chain.ok ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700"
-              title="Each entry's hash covers the one before it; any edit or deletion breaks the chain.">
-              <ShieldCheck className="w-3 h-3" /> Tamper check passed · {chain.checked} entries verified{chain.unchained ? ` (${chain.unchained} older unchained)` : ''}
-            </span>
+      <Section title="Analyst actions" hint="Everything done from the SOC, in a tamper-checked log">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <ShieldCheck className="w-4 h-4 text-purple-600" />
+            <h3 className="text-sm font-bold text-gray-900">Analyst Action Trail</h3>
+            {chain && (chain.ok ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700"
+                title="Each entry's hash covers the one before it; any edit or deletion breaks the chain.">
+                <ShieldCheck className="w-3 h-3" /> Tamper check passed · {chain.checked} entries verified{chain.unchained ? ` (${chain.unchained} older unchained)` : ''}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
+                <ShieldAlert className="w-3 h-3" /> Chain broken at {chain.brokenAt ? `${actionLabel(chain.brokenAt.action)}, ${formatTime(chain.brokenAt.createdAt)}` : 'an unknown entry'} — the log was modified
+              </span>
+            ))}
+            {chainUnavailable && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700"
+                title="The check that confirms the log has not been edited could not be run just now. The entries below are still shown.">
+                <ShieldAlert className="w-3 h-3" /> Tamper check unavailable
+              </span>
+            )}
+            <button type="button" onClick={exportCsv}
+              className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          </div>
+          {actions.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No triage actions taken yet.</p>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700">
-              <ShieldAlert className="w-3 h-3" /> Chain broken at {chain.brokenAt ? `${actionLabel(chain.brokenAt.action)}, ${formatTime(chain.brokenAt.createdAt)}` : 'an unknown entry'} — the log was modified
-            </span>
-          ))}
-          {chainUnavailable && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700"
-              title="The check that confirms the log has not been edited could not be run just now. The entries below are still shown.">
-              <ShieldAlert className="w-3 h-3" /> Tamper check unavailable
-            </span>
-          )}
-          <button type="button" onClick={exportCsv}
-            className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2.5 py-1.5">
-            <Download className="w-3.5 h-3.5" /> CSV
-          </button>
-        </div>
-        {actions.length === 0 ? (
-          <p className="text-sm text-gray-500 italic">No triage actions taken yet.</p>
-        ) : (
-          <div className="space-y-1 max-h-96 overflow-y-auto">
-            {actions.map(a => (
-              <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
-                <div className="min-w-0">
-                  <span className="font-medium text-gray-800" title={a.analystEmail}>{a.analystName || a.analystEmail}</span>
-                  <span className="text-gray-500"> · {actionLabel(a.action)} · </span>
-                  <span className="text-xs text-gray-700" title={a.targetId}>{a.targetLabel || a.targetId}</span>
-                  {a.reason && <span className="text-xs text-gray-500 ml-2">({a.reason})</span>}
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {actions.map(a => (
+                <div key={a._id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 last:border-0 text-sm">
+                  <div className="min-w-0">
+                    <span className="font-medium text-gray-800" title={a.analystEmail}>{a.analystName || a.analystEmail}</span>
+                    <span className="text-gray-500"> · {actionLabel(a.action)} · </span>
+                    <span className="text-xs text-gray-700" title={a.targetId}>{a.targetLabel || a.targetId}</span>
+                    {a.reason && <span className="text-xs text-gray-500 ml-2">({a.reason})</span>}
+                  </div>
+                  <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
                 </div>
-                <span className="text-[11px] text-gray-500 flex-shrink-0 whitespace-nowrap">{formatTime(a.createdAt)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Section>
     </div>
   );
 }
