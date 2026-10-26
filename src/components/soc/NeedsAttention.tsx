@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Flame, Lock, FileWarning, ShieldBan, UserX, Globe, CheckCircle2 } from 'lucide-react';
+import { Flame, Lock, FileWarning, ShieldBan, UserX, Globe, CheckCircle2, ServerCrash } from 'lucide-react';
 import { api } from '../../api';
 import { ErrorBanner, Spinner, errorText, plural } from './ui';
 
@@ -37,7 +37,15 @@ export default function NeedsAttention({ onOpenIncidents, onOpenUploads, onOpenU
   if (!data) return <div className="bg-white rounded-2xl border border-gray-100 shadow-xs"><Spinner /></div>;
 
   const c = data.counts;
-  const nothing = !data.unacknowledged.length && !data.accounts.length && !data.ips.length && !data.locked.length && !c.flaggedUploads && !c.uploadsNeedReview;
+  // Services checked live on the server. "unchecked" (tests) and "off" (email deliberately not set up) aren't alarms.
+  const scannerDown = data.services?.scanner?.status === 'down';
+  const emailFailing = data.services?.email?.status === 'failing';
+  const nothing = !data.unacknowledged.length && !data.accounts.length && !data.ips.length && !data.locked.length && !c.flaggedUploads && !c.uploadsNeedReview && !scannerDown && !emailFailing;
+
+  const serviceProblems = [
+    { show: scannerDown, title: 'Upload scanning is OFF', detail: data.services?.scanner?.detail },
+    { show: emailFailing, title: 'Email is not working', detail: data.services?.email?.detail },
+  ].filter(x => x.show);
 
   const chips = [
     { show: c.slaBreached > 0, icon: Flame, tone: 'bg-red-50 text-red-700', text: `${plural(c.slaBreached, 'incident')} past SLA`, onClick: onOpenIncidents },
@@ -60,6 +68,13 @@ export default function NeedsAttention({ onOpenIncidents, onOpenUploads, onOpenU
         <p className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-3 py-3"><CheckCircle2 className="w-4 h-4" /> Nothing needs a response right now.</p>
       ) : (
         <div className="space-y-4">
+          {serviceProblems.map(p => (
+            <div key={p.title} role="alert" className="flex items-start gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+              <ServerCrash className="w-4 h-4 mt-0.5 shrink-0" />
+              <span><b>{p.title}.</b> {p.detail}</span>
+            </div>
+          ))}
+
           {chips.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {chips.map((x, i) => {

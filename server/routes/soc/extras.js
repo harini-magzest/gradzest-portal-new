@@ -13,6 +13,7 @@ const BlockedIp = require('../../models/BlockedIp');
 const User = require('../../models/User');
 const { computeSla, SLA_POLICY } = require('../../lib/sla');
 const { buildIpMatcher, parseIpEntry } = require('../../lib/ipMatch');
+const { getServiceHealth } = require('../../lib/serviceHealth');
 
 const DAY = 24 * 60 * 60 * 1000;
 const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
@@ -40,7 +41,7 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
     const since = new Date(now - DAY);
     const noisyTypes = ['login_failure', 'login_lockout', 'waf_block', 'skyload_bot_flag', 'token_invalid', 'privilege_change', 'data_export', 'malware_upload'];
 
-    const [openIncidents, userEvents, ipEvents, ipRequests, locked, lockedTotal, openTotal, flaggedUploads, needReview, unreviewed, blocklist] = await Promise.all([
+    const [openIncidents, userEvents, ipEvents, ipRequests, locked, lockedTotal, openTotal, flaggedUploads, needReview, unreviewed, blocklist, services] = await Promise.all([
       // Oldest first: the longest-waiting incidents are the ones that most need a human, so a backlog bigger than the cap
       // must drop the newest, not the oldest. (It used to take the newest 500 and the overdue ones fell off the end.)
       SecurityIncident.find({ status: { $in: ['open', 'investigating'] } }).sort({ createdAt: 1 }).limit(OPEN_SCAN)
@@ -66,6 +67,8 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
       UploadRecord.countDocuments({ $or: [{ 'inspection.risk': { $in: ['medium', 'high'] } }, { quarantined: true }] }),
       UploadRecord.countDocuments({ 'review.status': { $in: [null, 'unreviewed'] } }),
       activeBlocklistMatcher(),
+      // A scanner that is down or email that can't sign in needs a human as much as an incident does.
+      getServiceHealth(req.app),
     ]);
 
     // incidents
@@ -118,6 +121,7 @@ router.get('/attention', authMiddleware, adminOnly, async (req, res) => {
       })),
       accounts, ips,
       locked: locked.map((u) => ({ userId: String(u._id), name: u.name, email: u.email, role: u.role, lockedUntil: u.lockedUntil, byAdmin: new Date(u.lockedUntil).getFullYear() >= ADMIN_LOCK_FROM_YEAR })),
+      services,
     });
   } catch (err) {
     sendServerError(res, err);

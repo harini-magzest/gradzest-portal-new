@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, RefreshCw, Package, Construction, Activity, Bug, ChevronDown } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Package, Construction, Activity, Bug, ChevronDown, Server } from 'lucide-react';
 import { api } from '../../api';
 import AlertChannelsCard from './AlertChannelsCard';
 import { Card, ErrorBanner, Section, errorText } from './ui';
@@ -32,6 +32,27 @@ function AuditCard({ title, audit }: { title: string; audit: any }) {
           </div>
         )}
     </Card>
+  );
+}
+
+const SERVICE_STATE: Record<string, { dot: string; text: string; label: string }> = {
+  ok: { dot: 'bg-green-500', text: 'text-gray-700', label: 'Working' },
+  down: { dot: 'bg-red-600', text: 'text-red-800', label: 'OFF' },
+  failing: { dot: 'bg-red-600', text: 'text-red-800', label: 'Failing' },
+  off: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Not set up' },
+  unchecked: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Not checked' },
+};
+
+function ServiceRow({ label, s }: { label: string; s: { status: string; detail: string } }) {
+  const st = SERVICE_STATE[s.status] || SERVICE_STATE.unchecked;
+  return (
+    <div className="flex items-start gap-2.5 py-1.5">
+      <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${st.dot}`} />
+      <div className="min-w-0">
+        <p className={`text-sm ${st.text}`}><b>{label}</b>: {st.label}</p>
+        <p className="text-xs text-gray-500">{s.detail}</p>
+      </div>
+    </div>
   );
 }
 
@@ -102,6 +123,14 @@ export default function PostureTab() {
           </Section>
 
           <Section title="Protection in place" hint="Marked active where each one mounted during this server's start, not a hand-typed list">
+            {data.services && (
+              <Card title="Services, checked live" icon={Server} hint="Asked directly when this page loads (cached for a minute), not read from configuration">
+                <div className="space-y-1">
+                  <ServiceRow label="Upload virus scanning (ClamAV)" s={data.services.scanner} />
+                  <ServiceRow label="Outgoing email (SMTP)" s={data.services.email} />
+                </div>
+              </Card>
+            )}
             <Card title="Active protections" icon={Activity}>
               <div className="space-y-2">
                 {(data.activeFeatures || []).map((f: any) => (

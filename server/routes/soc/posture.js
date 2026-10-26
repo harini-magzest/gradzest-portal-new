@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const path = require('path');
 const { getCodeAnalysis } = require('../../lib/codeScan');
 const { getActiveFeatures } = require('../../lib/activeFeatures');
+const { getServiceHealth } = require('../../lib/serviceHealth');
 const authMiddleware = require('../../middleware/auth');
 const { adminOnly } = require('./shared');
 
@@ -38,13 +39,14 @@ function runNpmAudit(cwd) {
 // chat history. Update/remove an item here the moment it's actually closed
 // out — a stale "known gap" that's secretly fixed is misleading.
 const KNOWN_GAPS = [
+  // Whether the scanner is running right now is not a known gap: it is checked live (services.scanner, below).
   {
     label: 'Malware scanning: live-fire detection unverified',
-    detail: 'ClamAV engine + clamd daemon are real and verified fast (~60ms/scan), and the block/log/quarantine response path is proven against a simulated detection. Actually catching a real malicious file on this dev machine is still unconfirmed — Windows Defender intercepts the EICAR test file before ClamAV can read it, and a Defender exclusion to work around that hasn’t taken effect yet.',
+    detail: 'The block/log/quarantine response path is proven against a simulated detection, but catching a real malicious file end to end has not been confirmed: on Windows, Defender intercepts the EICAR test file before ClamAV can read it.',
   },
   {
-    label: 'clamd persistence on this dev machine is a workaround, not a real service',
-    detail: 'The app auto-spawns clamd on boot if it isn’t already running, since installing it as a real Windows service needs admin rights this environment doesn’t have. Fine for local dev; a real deployment (e.g. Linux/EC2 with root) should run it as a proper supervised systemd service instead.',
+    label: 'clamd on Windows is auto-started by the app, not a real service',
+    detail: 'On Windows the app spawns clamd on boot if it isn’t running (installing it as a Windows service needs admin rights), so nothing restarts it if it crashes. A real deployment (e.g. Linux/EC2) should run it as a supervised systemd service (clamav-daemon).',
   },
   {
     label: 'No edge WAF / DDoS protection (still impossible without real network-edge infra)',
@@ -95,11 +97,13 @@ async function buildPosture(forceRefresh) {
 router.get('/posture', authMiddleware, adminOnly, async (req, res) => {
   try {
     const forceRefresh = req.query.refresh === '1';
+    // Live service checks have their own one-minute cache, so they stay current while the slow npm audit is cached for an hour.
+    const services = getServiceHealth(req.app, { refresh: forceRefresh });
     if (!forceRefresh && postureCache && Date.now() - postureCacheAt < POSTURE_CACHE_MS) {
-      return res.json({ ...postureCache, cached: true });
+      return res.json({ ...postureCache, services: await services, cached: true });
     }
     if (!postureInflight) postureInflight = buildPosture(forceRefresh).finally(() => { postureInflight = null; });
-    res.json({ ...(await postureInflight), cached: false });
+    res.json({ ...(await postureInflight), services: await services, cached: false });
   } catch (err) {
     sendServerError(res, err, 'Server error');
   }

@@ -47,9 +47,12 @@ router.get('/pii-audit', authMiddleware, adminOnly, async (req, res) => {
 // ── Alert channels ───────────────────────────────────────────────────────────
 
 // Which out-of-band channels are configured (never the URLs or tokens) so the owner can see what will actually fire.
+// Email is checked live (SMTP sign-in), not inferred from SMTP_PASS being set: a set but wrong password used to read "on".
 router.get('/alerts/status', authMiddleware, adminOnly, async (req, res) => {
   const { channelStatus } = require('../../lib/alertChannels');
-  res.json({ ...channelStatus(), email: !!req.app.get('mailer') && !!(process.env.SMTP_PASS), recipients: ownerEmails().length });
+  const { getServiceHealth } = require('../../lib/serviceHealth');
+  const { email: emailHealth } = await getServiceHealth(req.app);
+  res.json({ ...channelStatus(), email: emailHealth.status === 'ok' || emailHealth.status === 'unchecked', emailHealth, recipients: ownerEmails().length });
 });
 
 // Sends a harmless test message to every configured channel and reports each result, so setup mistakes show up now

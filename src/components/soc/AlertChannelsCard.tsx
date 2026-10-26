@@ -5,18 +5,29 @@ import { api } from '../../api';
 interface ChannelStatus {
   webhook: { configured: boolean; format: string }; telegram: { configured: boolean };
   detail: 'minimal' | 'full'; minSeverity: string; email: boolean; recipients: number;
+  emailHealth?: { status: 'ok' | 'failing' | 'off' | 'unchecked'; detail: string; lastAt: string | null; lastStatus: 'sent' | 'failed' | null; lastError: string };
 }
 type Result = Record<string, { configured: boolean; ok?: boolean; error?: string }>;
 
-function Row({ label, on, hint }: { label: string; on: boolean; hint?: string }) {
+function Row({ label, on, hint, failing }: { label: string; on: boolean; hint?: string; failing?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm py-1.5">
       <span className="text-gray-800 flex items-center gap-2">
-        {on ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <MinusCircle className="w-4 h-4 text-gray-300" />}{label}
+        {failing ? <XCircle className="w-4 h-4 text-red-600" /> : on ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <MinusCircle className="w-4 h-4 text-gray-300" />}{label}
       </span>
-      <span className="text-xs text-gray-500">{on ? (hint || 'on') : 'not set up'}</span>
+      <span className={`text-xs text-right ${failing ? 'text-red-700' : 'text-gray-500'}`}>{failing || (on ? (hint || 'on') : 'not set up')}</span>
     </div>
   );
+}
+
+const shortDate = (iso: string) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+// What the server last did with an email — the sign-in check can't show whether mail is actually being accepted.
+function lastSendText(h: NonNullable<ChannelStatus['emailHealth']>) {
+  if (!h.lastAt) return '';
+  return h.lastStatus === 'failed'
+    ? `Last email failed (${shortDate(h.lastAt)}): ${h.lastError || 'no reason recorded'}`
+    : `Last email accepted by the mail server ${shortDate(h.lastAt)}. Whether it reached the inbox (not spam) can't be checked from here.`;
 }
 
 // Shows which out-of-band alert channels will actually fire when a serious incident opens (or sits unacknowledged), and
@@ -49,7 +60,11 @@ export default function AlertChannelsCard() {
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
       {!status ? <p className="text-sm text-gray-500">Loading…</p> : (
         <>
-          <Row label="Email to the SOC owner" on={status.email} hint={`${status.recipients} recipient${status.recipients === 1 ? '' : 's'} · critical incidents`} />
+          <Row label="Email to the SOC owner" on={status.email} hint={`${status.recipients} recipient${status.recipients === 1 ? '' : 's'} · critical incidents`}
+            failing={status.emailHealth?.status === 'failing' ? status.emailHealth.detail : undefined} />
+          {status.emailHealth && lastSendText(status.emailHealth) && (
+            <p className={`text-[11px] pl-6 -mt-1 mb-1 ${status.emailHealth.lastStatus === 'failed' ? 'text-red-700' : 'text-gray-500'}`}>{lastSendText(status.emailHealth)}</p>
+          )}
           <Row label={`Chat webhook (${status.webhook.format})`} on={status.webhook.configured} hint={`${status.minSeverity}+ incidents`} />
           <Row label="Telegram" on={status.telegram.configured} hint={`${status.minSeverity}+ incidents`} />
           <p className="text-[11px] text-gray-500 mt-2">
