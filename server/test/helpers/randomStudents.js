@@ -103,10 +103,14 @@ function randomStudents({ count, seed, tag }) {
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-// A default of "now" (leadStageChangedAt, statusChangedAt, ...) is read at two slightly different moments.
+// A default of "now" (leadStageChangedAt, statusChangedAt, ...) is filled in separately by each side, so the two values
+// are moments apart; how far apart depends on how busy the machine is (a fixed 10s window failed at 10.8s during a full
+// parallel run). Every date this file generates is in 2024, so a timestamp from after this module loaded can only be such
+// a default: two of those count as the same moment, and any stored date is still compared exactly.
+const LOADED_AT = Date.now();
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-const sameMoment = (a, b) => typeof a === 'string' && typeof b === 'string' && ISO.test(a) && ISO.test(b)
-  && Math.abs(Date.parse(a) - Date.parse(b)) < 10_000;
+const isNowDefault = (v) => typeof v === 'string' && ISO.test(v) && Date.parse(v) >= LOADED_AT;
+const sameMoment = (a, b) => isNowDefault(a) && isNowDefault(b);
 
 /** The first LEAF that differs between two JSON values (key order ignored, "now" defaults tolerated), or null. */
 function firstDifference(a, b, path = '') {
